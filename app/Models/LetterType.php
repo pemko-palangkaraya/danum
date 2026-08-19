@@ -24,6 +24,7 @@ class LetterType extends Model
         'code',
         'name',
         'description',
+        'body_template',
         'status',
     ];
 

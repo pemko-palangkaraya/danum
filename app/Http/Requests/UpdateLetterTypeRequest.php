@@ -30,6 +30,7 @@ class UpdateLetterTypeRequest extends FormRequest
             ],
             'name' => ['sometimes', 'required', 'string', 'max:150'],
             'description' => ['sometimes', 'nullable', 'string'],
+            'body_template' => ['sometimes', 'nullable', 'string'],
             'status' => ['sometimes', 'required', Rule::enum(LetterTypeStatus::class)],
         ];
     }

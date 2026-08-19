@@ -40,7 +40,7 @@ class StoreOutgoingLetterRequest extends FormRequest
             'recipient_name' => ['required', 'string', 'max:150'],
             'recipient_address' => ['nullable', 'string'],
             'subject' => ['required', 'string', 'max:255'],
-            'content' => ['required', 'string'],
+            'content' => ['nullable', 'string'],
             'issued_at' => ['prohibited'],
             'status' => ['sometimes', Rule::in([OutgoingLetterStatus::DRAFT->value])],
         ];

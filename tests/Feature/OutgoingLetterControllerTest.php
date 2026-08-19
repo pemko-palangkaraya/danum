@@ -42,6 +42,31 @@ class OutgoingLetterControllerTest extends TestCase
             ->assertJsonCount(1, 'data');
     }
 
+    public function test_letter_content_is_generated_from_the_letter_type_template(): void
+    {
+        $tenant = Tenant::factory()->create(['name' => 'Kelurahan Danum']);
+        $letterType = LetterType::factory()->create([
+            'tenant_id' => $tenant->id,
+            'status' => LetterTypeStatus::ACTIVE,
+            'body_template' => 'Nomor {{number}} untuk {{recipient_name}} dari {{tenant_name}}.',
+        ]);
+        $user = User::factory()->tenantUser($tenant)->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->postJson('/api/outgoing-letters', [
+                ...$this->payload($letterType),
+                'content' => null,
+            ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath(
+                'data.content',
+                'Nomor 001/SK/2026 untuk Budi Santoso dari Kelurahan Danum.',
+            );
+    }
+
     public function test_tenant_user_cannot_list_or_view_another_tenants_letters(): void
     {
         $ownTenant = Tenant::factory()->create();

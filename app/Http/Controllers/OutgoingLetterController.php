@@ -8,7 +8,9 @@ use App\Http\Requests\StoreOutgoingLetterRequest;
 use App\Http\Requests\UpdateOutgoingLetterRequest;
 use App\Enums\OutgoingLetterStatus;
 use App\Models\OutgoingLetter;
+use App\Services\LetterTypeService;
 use App\Services\OutgoingLetterService;
+use App\Services\OutgoingLetterTemplateService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -18,6 +20,8 @@ class OutgoingLetterController extends Controller
 {
     public function __construct(
         private readonly OutgoingLetterService $outgoingLetterService,
+        private readonly LetterTypeService $letterTypeService,
+        private readonly OutgoingLetterTemplateService $outgoingLetterTemplateService,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -33,8 +37,33 @@ class OutgoingLetterController extends Controller
     {
         $this->authorize('create', OutgoingLetter::class);
 
+        $data = $request->validated();
+        $tenant = $request->user()->tenant;
+        $letterType = $this->letterTypeService->find($data['letter_type_id'], $tenant->id);
+
+        if ($letterType === null) {
+            return response()->json([
+                'message' => 'Letter type not found.',
+            ], 404);
+        }
+
+        if (! isset($data['content']) && $letterType->body_template !== null) {
+            $data['content'] = $this->outgoingLetterTemplateService->render(
+                $letterType,
+                $tenant,
+                $data,
+            );
+        }
+
+        if (! isset($data['content']) || trim($data['content']) === '') {
+            return response()->json([
+                'message' => 'The content field is required when the letter type has no template.',
+                'errors' => ['content' => ['The content field is required.']],
+            ], 422);
+        }
+
         $outgoingLetter = $this->outgoingLetterService->create([
-            ...$request->validated(),
+            ...$data,
             'tenant_id' => $request->user()->tenant_id,
             'status' => OutgoingLetterStatus::DRAFT,
         ]);

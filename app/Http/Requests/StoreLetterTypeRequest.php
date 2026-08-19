@@ -28,6 +28,7 @@ class StoreLetterTypeRequest extends FormRequest
             ],
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string'],
+            'body_template' => ['nullable', 'string'],
             'status' => ['required', Rule::enum(LetterTypeStatus::class)],
         ];
     }
