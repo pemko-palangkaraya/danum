@@ -1,9 +1,3 @@
-Ah, paham 😄 Maksudmu **README.md untuk repository GitHub**, bukan dokumentasi checkpoint terpisah.
-
-Untuk DANUM, saya sarankan README dibuat sebagai **landing page project**: menjelaskan apa itu DANUM, tujuan, stack, arsitektur, progress Core Foundation, testing, dan cara menjalankan project.
-
-Berikut versi yang siap menggantikan `README.md`:
-
 ````markdown id="4s9c2k"
 # DANUM
 
