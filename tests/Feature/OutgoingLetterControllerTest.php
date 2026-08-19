@@ -8,6 +8,7 @@ use App\Enums\LetterTypeStatus;
 use App\Enums\OutgoingLetterStatus;
 use App\Models\LetterType;
 use App\Models\OutgoingLetter;
+use App\Models\OutgoingLetterStatusHistory;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -190,16 +191,26 @@ class OutgoingLetterControllerTest extends TestCase
     public function test_outgoing_letter_follows_validation_and_issuance_workflow(): void
     {
         $tenant = Tenant::factory()->create();
+
         $letterType = LetterType::factory()->create([
             'tenant_id' => $tenant->id,
             'status' => LetterTypeStatus::ACTIVE,
         ]);
+
+        $user = User::factory()->tenantUser($tenant)->create();
+
         $letter = OutgoingLetter::factory()->create([
             'tenant_id' => $tenant->id,
             'letter_type_id' => $letterType->id,
             'status' => OutgoingLetterStatus::DRAFT,
         ]);
-        $user = User::factory()->tenantUser($tenant)->create();
+
+        OutgoingLetterStatusHistory::factory()->create([
+            'outgoing_letter_id' => $letter->id,
+            'changed_by' => $user->id,
+            'status' => OutgoingLetterStatus::DRAFT,
+            'action' => 'created',
+        ]);
 
         $this
             ->actingAs($user)
@@ -210,13 +221,19 @@ class OutgoingLetterControllerTest extends TestCase
             ->actingAs($user)
             ->postJson("/api/outgoing-letters/{$letter->id}/validate")
             ->assertOk()
-            ->assertJsonPath('data.status', OutgoingLetterStatus::VALIDATED->value);
+            ->assertJsonPath(
+                'data.status',
+                OutgoingLetterStatus::VALIDATED->value,
+            );
 
         $this
             ->actingAs($user)
             ->postJson("/api/outgoing-letters/{$letter->id}/issue")
             ->assertOk()
-            ->assertJsonPath('data.status', OutgoingLetterStatus::ISSUED->value);
+            ->assertJsonPath(
+                'data.status',
+                OutgoingLetterStatus::ISSUED->value,
+            );
 
         $this->assertDatabaseHas('outgoing_letters', [
             'id' => $letter->id,
@@ -227,6 +244,25 @@ class OutgoingLetterControllerTest extends TestCase
             now()->toDateString(),
             $letter->fresh()->issued_at->toDateString(),
         );
+
+        $this->assertDatabaseCount(
+            'outgoing_letter_status_histories',
+            3,
+        );
+
+        $this->assertDatabaseHas('outgoing_letter_status_histories', [
+            'outgoing_letter_id' => $letter->id,
+            'changed_by' => $user->id,
+            'status' => OutgoingLetterStatus::ISSUED->value,
+            'action' => 'issued',
+        ]);
+
+        $this
+            ->actingAs($user)
+            ->getJson("/api/outgoing-letters/{$letter->id}/history")
+            ->assertOk()
+            ->assertJsonCount(3, 'data')
+            ->assertJsonPath('data.2.action', 'issued');
     }
 
     public function test_outgoing_letter_status_cannot_be_updated_directly(): void

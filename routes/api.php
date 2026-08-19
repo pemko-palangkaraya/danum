@@ -55,6 +55,11 @@ Route::middleware('auth')->group(function () {
         [OutgoingLetterController::class, 'downloadPdf'],
     );
 
+    Route::get(
+        'outgoing-letters/{id}/history',
+        [OutgoingLetterController::class, 'history'],
+    );
+
     Route::get('tenant/profile', [TenantProfileController::class, 'show'])
         ->name('tenant.profile.show');
 

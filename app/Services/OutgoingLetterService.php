@@ -7,12 +7,14 @@ namespace App\Services;
 use App\Enums\OutgoingLetterStatus;
 use App\Models\OutgoingLetter;
 use App\Repositories\Contracts\OutgoingLetterRepositoryInterface;
+use App\Repositories\Contracts\OutgoingLetterStatusHistoryRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 
 class OutgoingLetterService
 {
     public function __construct(
         private readonly OutgoingLetterRepositoryInterface $repository,
+        private readonly OutgoingLetterStatusHistoryRepositoryInterface $historyRepository,
     ) {}
 
     public function getAll(string $tenantId): Collection
@@ -30,9 +32,13 @@ class OutgoingLetterService
         return $this->repository->findWithTrashed($id, $tenantId);
     }
 
-    public function create(array $data): OutgoingLetter
+    public function create(array $data, int $changedBy): OutgoingLetter
     {
-        return $this->repository->create($data);
+        $outgoingLetter = $this->repository->create($data);
+
+        $this->recordHistory($outgoingLetter, 'created', $changedBy);
+
+        return $outgoingLetter;
     }
 
     public function update(OutgoingLetter $outgoingLetter, array $data): OutgoingLetter
@@ -50,26 +56,28 @@ class OutgoingLetterService
         return $this->repository->restore($outgoingLetter);
     }
 
-    public function validate(OutgoingLetter $outgoingLetter): OutgoingLetter
+    public function validate(OutgoingLetter $outgoingLetter, int $changedBy): OutgoingLetter
     {
         return $this->transition(
             $outgoingLetter,
             OutgoingLetterStatus::DRAFT,
             OutgoingLetterStatus::VALIDATED,
+            $changedBy,
         );
     }
 
-    public function issue(OutgoingLetter $outgoingLetter): OutgoingLetter
+    public function issue(OutgoingLetter $outgoingLetter, int $changedBy): OutgoingLetter
     {
         return $this->transition(
             $outgoingLetter,
             OutgoingLetterStatus::VALIDATED,
             OutgoingLetterStatus::ISSUED,
+            $changedBy,
             ['issued_at' => now()->toDateString()],
         );
     }
 
-    public function cancel(OutgoingLetter $outgoingLetter): OutgoingLetter
+    public function cancel(OutgoingLetter $outgoingLetter, int $changedBy): OutgoingLetter
     {
         if (! in_array(
             $outgoingLetter->status,
@@ -79,15 +87,20 @@ class OutgoingLetterService
             throw new \DomainException('Only draft or validated letters can be cancelled.');
         }
 
-        return $this->repository->update($outgoingLetter, [
+        $outgoingLetter = $this->repository->update($outgoingLetter, [
             'status' => OutgoingLetterStatus::CANCELLED,
         ]);
+
+        $this->recordHistory($outgoingLetter, 'cancelled', $changedBy);
+
+        return $outgoingLetter;
     }
 
     private function transition(
         OutgoingLetter $outgoingLetter,
         OutgoingLetterStatus $from,
         OutgoingLetterStatus $to,
+        int $changedBy,
         array $attributes = [],
     ): OutgoingLetter {
         if ($outgoingLetter->status !== $from) {
@@ -97,9 +110,26 @@ class OutgoingLetterService
             ));
         }
 
-        return $this->repository->update($outgoingLetter, [
+        $outgoingLetter = $this->repository->update($outgoingLetter, [
             ...$attributes,
             'status' => $to,
+        ]);
+
+        $this->recordHistory($outgoingLetter, $to->value, $changedBy);
+
+        return $outgoingLetter;
+    }
+
+    private function recordHistory(
+        OutgoingLetter $outgoingLetter,
+        string $action,
+        int $changedBy,
+    ): void {
+        $this->historyRepository->create([
+            'outgoing_letter_id' => $outgoingLetter->id,
+            'changed_by' => $changedBy,
+            'status' => $outgoingLetter->status,
+            'action' => $action,
         ]);
     }
 }

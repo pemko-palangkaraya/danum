@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class OutgoingLetter extends Model
@@ -49,5 +50,11 @@ class OutgoingLetter extends Model
     public function letterType(): BelongsTo
     {
         return $this->belongsTo(LetterType::class);
+    }
+
+    public function statusHistories(): HasMany
+    {
+        return $this->hasMany(OutgoingLetterStatusHistory::class)
+            ->orderBy('created_at');
     }
 }

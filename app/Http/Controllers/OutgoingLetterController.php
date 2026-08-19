@@ -66,7 +66,7 @@ class OutgoingLetterController extends Controller
             ...$data,
             'tenant_id' => $request->user()->tenant_id,
             'status' => OutgoingLetterStatus::DRAFT,
-        ]);
+        ], $request->user()->id);
 
         return response()->json(['data' => $outgoingLetter], 201);
     }
@@ -82,6 +82,21 @@ class OutgoingLetterController extends Controller
         $this->authorize('view', $outgoingLetter);
 
         return response()->json(['data' => $outgoingLetter]);
+    }
+
+    public function history(Request $request, string $id): JsonResponse
+    {
+        $outgoingLetter = $this->findForTenant($id, $request);
+
+        if ($outgoingLetter === null) {
+            return $this->notFoundResponse();
+        }
+
+        $this->authorize('view', $outgoingLetter);
+
+        return response()->json([
+            'data' => $outgoingLetter->statusHistories()->with('changedBy:id,name')->get(),
+        ]);
     }
 
     public function update(UpdateOutgoingLetterRequest $request, string $id): JsonResponse
@@ -141,7 +156,10 @@ class OutgoingLetterController extends Controller
             $request,
             $id,
             'validate',
-            fn (OutgoingLetter $outgoingLetter) => $this->outgoingLetterService->validate($outgoingLetter),
+            fn (OutgoingLetter $outgoingLetter) => $this->outgoingLetterService->validate(
+                $outgoingLetter,
+                $request->user()->id,
+            ),
         );
     }
 
@@ -151,7 +169,10 @@ class OutgoingLetterController extends Controller
             $request,
             $id,
             'issue',
-            fn (OutgoingLetter $outgoingLetter) => $this->outgoingLetterService->issue($outgoingLetter),
+            fn (OutgoingLetter $outgoingLetter) => $this->outgoingLetterService->issue(
+                $outgoingLetter,
+                $request->user()->id,
+            ),
         );
     }
 
@@ -161,7 +182,10 @@ class OutgoingLetterController extends Controller
             $request,
             $id,
             'cancel',
-            fn (OutgoingLetter $outgoingLetter) => $this->outgoingLetterService->cancel($outgoingLetter),
+            fn (OutgoingLetter $outgoingLetter) => $this->outgoingLetterService->cancel(
+                $outgoingLetter,
+                $request->user()->id,
+            ),
         );
     }
 
