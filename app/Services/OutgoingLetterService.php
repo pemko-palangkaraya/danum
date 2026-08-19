@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\OutgoingLetterStatus;
 use App\Models\OutgoingLetter;
 use App\Repositories\Contracts\OutgoingLetterRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
@@ -47,5 +48,58 @@ class OutgoingLetterService
     public function restore(OutgoingLetter $outgoingLetter): bool
     {
         return $this->repository->restore($outgoingLetter);
+    }
+
+    public function validate(OutgoingLetter $outgoingLetter): OutgoingLetter
+    {
+        return $this->transition(
+            $outgoingLetter,
+            OutgoingLetterStatus::DRAFT,
+            OutgoingLetterStatus::VALIDATED,
+        );
+    }
+
+    public function issue(OutgoingLetter $outgoingLetter): OutgoingLetter
+    {
+        return $this->transition(
+            $outgoingLetter,
+            OutgoingLetterStatus::VALIDATED,
+            OutgoingLetterStatus::ISSUED,
+            ['issued_at' => now()->toDateString()],
+        );
+    }
+
+    public function cancel(OutgoingLetter $outgoingLetter): OutgoingLetter
+    {
+        if (! in_array(
+            $outgoingLetter->status,
+            [OutgoingLetterStatus::DRAFT, OutgoingLetterStatus::VALIDATED],
+            true,
+        )) {
+            throw new \DomainException('Only draft or validated letters can be cancelled.');
+        }
+
+        return $this->repository->update($outgoingLetter, [
+            'status' => OutgoingLetterStatus::CANCELLED,
+        ]);
+    }
+
+    private function transition(
+        OutgoingLetter $outgoingLetter,
+        OutgoingLetterStatus $from,
+        OutgoingLetterStatus $to,
+        array $attributes = [],
+    ): OutgoingLetter {
+        if ($outgoingLetter->status !== $from) {
+            throw new \DomainException(sprintf(
+                'Letter must have %s status.',
+                $from->value,
+            ));
+        }
+
+        return $this->repository->update($outgoingLetter, [
+            ...$attributes,
+            'status' => $to,
+        ]);
     }
 }

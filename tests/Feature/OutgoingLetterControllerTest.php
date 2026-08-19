@@ -162,6 +162,70 @@ class OutgoingLetterControllerTest extends TestCase
             ->assertJsonPath('data.id', $letter->id);
     }
 
+    public function test_outgoing_letter_follows_validation_and_issuance_workflow(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $letterType = LetterType::factory()->create([
+            'tenant_id' => $tenant->id,
+            'status' => LetterTypeStatus::ACTIVE,
+        ]);
+        $letter = OutgoingLetter::factory()->create([
+            'tenant_id' => $tenant->id,
+            'letter_type_id' => $letterType->id,
+            'status' => OutgoingLetterStatus::DRAFT,
+        ]);
+        $user = User::factory()->tenantUser($tenant)->create();
+
+        $this
+            ->actingAs($user)
+            ->postJson("/api/outgoing-letters/{$letter->id}/issue")
+            ->assertUnprocessable();
+
+        $this
+            ->actingAs($user)
+            ->postJson("/api/outgoing-letters/{$letter->id}/validate")
+            ->assertOk()
+            ->assertJsonPath('data.status', OutgoingLetterStatus::VALIDATED->value);
+
+        $this
+            ->actingAs($user)
+            ->postJson("/api/outgoing-letters/{$letter->id}/issue")
+            ->assertOk()
+            ->assertJsonPath('data.status', OutgoingLetterStatus::ISSUED->value);
+
+        $this->assertDatabaseHas('outgoing_letters', [
+            'id' => $letter->id,
+            'status' => OutgoingLetterStatus::ISSUED->value,
+        ]);
+
+        $this->assertSame(
+            now()->toDateString(),
+            $letter->fresh()->issued_at->toDateString(),
+        );
+    }
+
+    public function test_outgoing_letter_status_cannot_be_updated_directly(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $letterType = LetterType::factory()->create([
+            'tenant_id' => $tenant->id,
+            'status' => LetterTypeStatus::ACTIVE,
+        ]);
+        $letter = OutgoingLetter::factory()->create([
+            'tenant_id' => $tenant->id,
+            'letter_type_id' => $letterType->id,
+        ]);
+        $user = User::factory()->tenantUser($tenant)->create();
+
+        $this
+            ->actingAs($user)
+            ->putJson("/api/outgoing-letters/{$letter->id}", [
+                'status' => OutgoingLetterStatus::ISSUED->value,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['status']);
+    }
+
     private function payload(LetterType $letterType): array
     {
         return [
@@ -171,7 +235,6 @@ class OutgoingLetterControllerTest extends TestCase
             'recipient_address' => 'Palangka Raya',
             'subject' => 'Surat Keterangan',
             'content' => 'Isi surat keterangan.',
-            'issued_at' => '2026-08-19',
             'status' => OutgoingLetterStatus::DRAFT->value,
         ];
     }

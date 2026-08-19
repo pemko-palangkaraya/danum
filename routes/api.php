@@ -35,6 +35,21 @@ Route::middleware('auth')->group(function () {
         [OutgoingLetterController::class, 'restore'],
     );
 
+    Route::post(
+        'outgoing-letters/{id}/validate',
+        [OutgoingLetterController::class, 'validateLetter'],
+    );
+
+    Route::post(
+        'outgoing-letters/{id}/issue',
+        [OutgoingLetterController::class, 'issue'],
+    );
+
+    Route::post(
+        'outgoing-letters/{id}/cancel',
+        [OutgoingLetterController::class, 'cancel'],
+    );
+
     Route::get('tenant/profile', [TenantProfileController::class, 'show'])
         ->name('tenant.profile.show');
 

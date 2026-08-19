@@ -40,6 +40,21 @@ class OutgoingLetterPolicy
         return $this->belongsToTenant($user, $outgoingLetter);
     }
 
+    public function validate(User $user, OutgoingLetter $outgoingLetter): bool
+    {
+        return $this->belongsToTenant($user, $outgoingLetter);
+    }
+
+    public function issue(User $user, OutgoingLetter $outgoingLetter): bool
+    {
+        return $this->belongsToTenant($user, $outgoingLetter);
+    }
+
+    public function cancel(User $user, OutgoingLetter $outgoingLetter): bool
+    {
+        return $this->belongsToTenant($user, $outgoingLetter);
+    }
+
     private function belongsToTenant(User $user, OutgoingLetter $outgoingLetter): bool
     {
         return $user->role === UserRole::TENANT_USER

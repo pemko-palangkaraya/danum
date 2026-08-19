@@ -41,8 +41,8 @@ class StoreOutgoingLetterRequest extends FormRequest
             'recipient_address' => ['nullable', 'string'],
             'subject' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string'],
-            'issued_at' => ['nullable', 'date', 'required_if:status,issued'],
-            'status' => ['required', Rule::enum(OutgoingLetterStatus::class)],
+            'issued_at' => ['prohibited'],
+            'status' => ['sometimes', Rule::in([OutgoingLetterStatus::DRAFT->value])],
         ];
     }
 }

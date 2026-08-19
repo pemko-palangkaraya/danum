@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreOutgoingLetterRequest;
 use App\Http\Requests\UpdateOutgoingLetterRequest;
+use App\Enums\OutgoingLetterStatus;
 use App\Models\OutgoingLetter;
 use App\Services\OutgoingLetterService;
 use Illuminate\Http\JsonResponse;
@@ -33,6 +34,7 @@ class OutgoingLetterController extends Controller
         $outgoingLetter = $this->outgoingLetterService->create([
             ...$request->validated(),
             'tenant_id' => $request->user()->tenant_id,
+            'status' => OutgoingLetterStatus::DRAFT,
         ]);
 
         return response()->json(['data' => $outgoingLetter], 201);
@@ -102,6 +104,36 @@ class OutgoingLetterController extends Controller
         return response()->json(['data' => $outgoingLetter->refresh()]);
     }
 
+    public function validateLetter(Request $request, string $id): JsonResponse
+    {
+        return $this->transition(
+            $request,
+            $id,
+            'validate',
+            fn (OutgoingLetter $outgoingLetter) => $this->outgoingLetterService->validate($outgoingLetter),
+        );
+    }
+
+    public function issue(Request $request, string $id): JsonResponse
+    {
+        return $this->transition(
+            $request,
+            $id,
+            'issue',
+            fn (OutgoingLetter $outgoingLetter) => $this->outgoingLetterService->issue($outgoingLetter),
+        );
+    }
+
+    public function cancel(Request $request, string $id): JsonResponse
+    {
+        return $this->transition(
+            $request,
+            $id,
+            'cancel',
+            fn (OutgoingLetter $outgoingLetter) => $this->outgoingLetterService->cancel($outgoingLetter),
+        );
+    }
+
     private function findForTenant(string $id, Request $request): ?OutgoingLetter
     {
         return $this->outgoingLetterService->find($id, $request->user()->tenant_id);
@@ -112,5 +144,30 @@ class OutgoingLetterController extends Controller
         return response()->json([
             'message' => 'Outgoing letter not found.',
         ], 404);
+    }
+
+    private function transition(
+        Request $request,
+        string $id,
+        string $ability,
+        callable $transition,
+    ): JsonResponse {
+        $outgoingLetter = $this->findForTenant($id, $request);
+
+        if ($outgoingLetter === null) {
+            return $this->notFoundResponse();
+        }
+
+        $this->authorize($ability, $outgoingLetter);
+
+        try {
+            $outgoingLetter = $transition($outgoingLetter);
+        } catch (\DomainException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return response()->json(['data' => $outgoingLetter]);
     }
 }

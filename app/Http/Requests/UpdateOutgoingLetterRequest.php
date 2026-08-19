@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Enums\LetterTypeStatus;
-use App\Enums\OutgoingLetterStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -44,8 +43,8 @@ class UpdateOutgoingLetterRequest extends FormRequest
             'recipient_address' => ['sometimes', 'nullable', 'string'],
             'subject' => ['sometimes', 'required', 'string', 'max:255'],
             'content' => ['sometimes', 'required', 'string'],
-            'issued_at' => ['sometimes', 'nullable', 'date'],
-            'status' => ['sometimes', 'required', Rule::enum(OutgoingLetterStatus::class)],
+            'issued_at' => ['prohibited'],
+            'status' => ['prohibited'],
         ];
     }
 }
