@@ -17,8 +17,7 @@ class TenantAuthorizationTest extends TestCase
     {
         $response = $this->getJson('/api/tenants');
 
-        // $response->assertUnauthorized();
-        $response->assertForbidden();
+        $response->assertUnauthorized();
     }
 
     public function test_tenant_user_cannot_access_tenant_index(): void

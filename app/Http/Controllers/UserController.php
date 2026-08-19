@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreUserRequest;
+use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
 use App\Services\UserService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
@@ -31,12 +32,12 @@ class UserController extends Controller
     /**
      * Store a newly created user.
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreUserRequest $request): JsonResponse
     {
         $this->authorize('create', User::class);
 
         $user = $this->userService->create(
-            $request->all(),
+            $request->validated(),
         );
 
         return response()->json([
@@ -68,7 +69,7 @@ class UserController extends Controller
      * Update the specified user.
      */
     public function update(
-        Request $request,
+        UpdateUserRequest $request,
         int $id,
     ): JsonResponse {
         $user = $this->userService->find($id);
@@ -83,7 +84,7 @@ class UserController extends Controller
 
         $user = $this->userService->update(
             $user,
-            $request->all(),
+            $request->validated(),
         );
 
         return response()->json([

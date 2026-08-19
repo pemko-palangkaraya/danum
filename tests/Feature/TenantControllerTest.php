@@ -91,11 +91,12 @@ class TenantControllerTest extends TestCase
 
     public function test_show_returns_not_found_for_unknown_tenant(): void
     {
+        $user = User::factory()->superAdmin()->create();
         $id = (string) Str::uuid();
 
-        $response = $this->getJson(
-            "/api/tenants/{$id}",
-        );
+        $response = $this
+            ->actingAs($user)
+            ->getJson("/api/tenants/{$id}");
 
         $response->assertNotFound()
             ->assertJson([
@@ -134,14 +135,14 @@ class TenantControllerTest extends TestCase
 
     public function test_update_returns_not_found_for_unknown_tenant(): void
     {
+        $user = User::factory()->superAdmin()->create();
         $id = (string) Str::uuid();
 
-        $response = $this->putJson(
-            "/api/tenants/{$id}",
-            [
+        $response = $this
+            ->actingAs($user)
+            ->putJson("/api/tenants/{$id}", [
                 'name' => 'Updated Tenant',
-            ],
-        );
+            ]);
 
         $response->assertNotFound()
             ->assertJson([
@@ -175,11 +176,12 @@ class TenantControllerTest extends TestCase
 
     public function test_delete_returns_not_found_for_unknown_tenant(): void
     {
+        $user = User::factory()->superAdmin()->create();
         $id = (string) Str::uuid();
 
-        $response = $this->deleteJson(
-            "/api/tenants/{$id}",
-        );
+        $response = $this
+            ->actingAs($user)
+            ->deleteJson("/api/tenants/{$id}");
 
         $response->assertNotFound()
             ->assertJson([
@@ -214,11 +216,12 @@ class TenantControllerTest extends TestCase
 
     public function test_restore_returns_not_found_for_unknown_tenant(): void
     {
+        $user = User::factory()->superAdmin()->create();
         $id = (string) Str::uuid();
 
-        $response = $this->postJson(
-            "/api/tenants/{$id}/restore",
-        );
+        $response = $this
+            ->actingAs($user)
+            ->postJson("/api/tenants/{$id}/restore");
 
         $response->assertNotFound()
             ->assertJson([

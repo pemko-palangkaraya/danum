@@ -1,0 +1,43 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Requests;
+
+use App\Enums\TenantStatus;
+use App\Enums\UserRole;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class UpdateTenantRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()?->role === UserRole::SUPER_ADMIN;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'code' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('tenants', 'code')->ignore($this->route('tenant')),
+            ],
+            'name' => ['sometimes', 'required', 'string', 'max:150'],
+            'province' => ['sometimes', 'required', 'string', 'max:100'],
+            'city' => ['sometimes', 'required', 'string', 'max:100'],
+            'district' => ['sometimes', 'required', 'string', 'max:100'],
+            'village' => ['sometimes', 'required', 'string', 'max:100'],
+            'address' => ['sometimes', 'nullable', 'string'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'email' => ['sometimes', 'nullable', 'email', 'max:150'],
+            'logo' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'head_name' => ['sometimes', 'nullable', 'string', 'max:150'],
+            'head_title' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'status' => ['sometimes', 'required', Rule::enum(TenantStatus::class)],
+        ];
+    }
+}

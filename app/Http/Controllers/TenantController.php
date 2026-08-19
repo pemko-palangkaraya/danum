@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreTenantRequest;
+use App\Http\Requests\UpdateTenantRequest;
 use App\Models\Tenant;
 use App\Services\TenantService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class TenantController extends Controller
 {
@@ -31,12 +32,12 @@ class TenantController extends Controller
     /**
      * Store a newly created tenant.
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreTenantRequest $request): JsonResponse
     {
         $this->authorize('create', Tenant::class);
 
         $tenant = $this->tenantService->create(
-            $request->all(),
+            $request->validated(),
         );
 
         return response()->json([
@@ -68,7 +69,7 @@ class TenantController extends Controller
      * Update the specified tenant.
      */
     public function update(
-        Request $request,
+        UpdateTenantRequest $request,
         string $id,
     ): JsonResponse {
         $tenant = $this->tenantService->find($id);
@@ -83,7 +84,7 @@ class TenantController extends Controller
 
         $tenant = $this->tenantService->update(
             $tenant,
-            $request->all(),
+            $request->validated(),
         );
 
         return response()->json([
