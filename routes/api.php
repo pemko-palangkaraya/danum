@@ -5,6 +5,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\TenantProfileController;
 use App\Http\Controllers\LetterTypeController;
+use App\Http\Controllers\OutgoingLetterController;
 
 Route::middleware('auth')->group(function () {
     Route::apiResource('tenants', TenantController::class)
@@ -24,6 +25,14 @@ Route::middleware('auth')->group(function () {
     Route::post(
         'letter-types/{id}/restore',
         [LetterTypeController::class, 'restore'],
+    );
+
+    Route::apiResource('outgoing-letters', OutgoingLetterController::class)
+        ->except(['create', 'edit']);
+
+    Route::post(
+        'outgoing-letters/{id}/restore',
+        [OutgoingLetterController::class, 'restore'],
     );
 
     Route::get('tenant/profile', [TenantProfileController::class, 'show'])
