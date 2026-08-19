@@ -10,14 +10,17 @@ use Illuminate\Database\Eloquent\Collection;
 
 class LetterTypeRepository implements LetterTypeRepositoryInterface
 {
-    public function find(string $id): ?LetterType
-    {
-        return LetterType::query()->find($id);
-    }
-
-    public function getAll(): Collection
+    public function find(string $id, string $tenantId): ?LetterType
     {
         return LetterType::query()
+            ->where('tenant_id', $tenantId)
+            ->find($id);
+    }
+
+    public function getAll(string $tenantId): Collection
+    {
+        return LetterType::query()
+            ->where('tenant_id', $tenantId)
             ->get();
     }
 
@@ -43,8 +46,10 @@ class LetterTypeRepository implements LetterTypeRepositoryInterface
         return $letterType->restore();
     }
 
-    public function findWithTrashed(string $id): ?LetterType
+    public function findWithTrashed(string $id, string $tenantId): ?LetterType
     {
-        return LetterType::withTrashed()->find($id);
+        return LetterType::withTrashed()
+            ->where('tenant_id', $tenantId)
+            ->find($id);
     }
 }

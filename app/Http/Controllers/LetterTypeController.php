@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreLetterTypeRequest;
+use App\Http\Requests\UpdateLetterTypeRequest;
 use App\Models\LetterType;
 use App\Services\LetterTypeService;
 use Illuminate\Http\JsonResponse;
@@ -18,24 +20,27 @@ class LetterTypeController extends Controller
     /**
      * Display a listing of letter types.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', LetterType::class);
 
         return response()->json([
-            'data' => $this->letterTypeService->getAll(),
+            'data' => $this->letterTypeService->getAll($request->user()->tenant_id),
         ]);
     }
 
     /**
      * Store a newly created letter type.
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreLetterTypeRequest $request): JsonResponse
     {
         $this->authorize('create', LetterType::class);
 
         $letterType = $this->letterTypeService->create(
-            $request->all(),
+            [
+                ...$request->validated(),
+                'tenant_id' => $request->user()->tenant_id,
+            ],
         );
 
         return response()->json([
@@ -46,9 +51,9 @@ class LetterTypeController extends Controller
     /**
      * Display the specified letter type.
      */
-    public function show(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
-        $letterType = $this->letterTypeService->find($id);
+        $letterType = $this->letterTypeService->find($id, $request->user()->tenant_id);
 
         if ($letterType === null) {
             return response()->json([
@@ -67,10 +72,10 @@ class LetterTypeController extends Controller
      * Update the specified letter type.
      */
     public function update(
-        Request $request,
+        UpdateLetterTypeRequest $request,
         string $id,
     ): JsonResponse {
-        $letterType = $this->letterTypeService->find($id);
+        $letterType = $this->letterTypeService->find($id, $request->user()->tenant_id);
 
         if ($letterType === null) {
             return response()->json([
@@ -82,7 +87,7 @@ class LetterTypeController extends Controller
 
         $letterType = $this->letterTypeService->update(
             $letterType,
-            $request->all(),
+            $request->validated(),
         );
 
         return response()->json([
@@ -93,9 +98,9 @@ class LetterTypeController extends Controller
     /**
      * Remove the specified letter type.
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
-        $letterType = $this->letterTypeService->find($id);
+        $letterType = $this->letterTypeService->find($id, $request->user()->tenant_id);
 
         if ($letterType === null) {
             return response()->json([
@@ -115,9 +120,9 @@ class LetterTypeController extends Controller
     /**
      * Restore the specified letter type.
      */
-    public function restore(string $id): JsonResponse
+    public function restore(Request $request, string $id): JsonResponse
     {
-        $letterType = $this->letterTypeService->findWithTrashed($id);
+        $letterType = $this->letterTypeService->findWithTrashed($id, $request->user()->tenant_id);
 
         if ($letterType === null) {
             return response()->json([

@@ -26,7 +26,7 @@ class LetterTypeServiceTest extends TestCase
     {
         $letterType = LetterType::factory()->create();
 
-        $result = $this->service->find($letterType->id);
+        $result = $this->service->find($letterType->id, $letterType->tenant_id);
 
         $this->assertInstanceOf(LetterType::class, $result);
         $this->assertSame($letterType->id, $result->id);
@@ -34,9 +34,12 @@ class LetterTypeServiceTest extends TestCase
 
     public function test_can_get_all_letter_types(): void
     {
-        LetterType::factory()->count(3)->create();
+        $tenant = \App\Models\Tenant::factory()->create();
 
-        $result = $this->service->getAll();
+        LetterType::factory()->count(3)->create(['tenant_id' => $tenant->id]);
+        LetterType::factory()->create();
+
+        $result = $this->service->getAll($tenant->id);
 
         $this->assertCount(3, $result);
     }

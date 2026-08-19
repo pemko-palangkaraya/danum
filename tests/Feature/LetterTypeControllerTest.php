@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Enums\LetterTypeStatus;
 use App\Models\LetterType;
+use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -17,13 +18,15 @@ class LetterTypeControllerTest extends TestCase
 
     public function test_can_list_letter_types(): void
     {
-        $tenant = \App\Models\Tenant::factory()->create();
+        $tenant = Tenant::factory()->create();
 
         LetterType::factory()
             ->count(3)
             ->create([
                 'tenant_id' => $tenant->id,
             ]);
+
+        LetterType::factory()->create();
 
         $user = User::factory()
             ->tenantUser($tenant)
@@ -34,19 +37,24 @@ class LetterTypeControllerTest extends TestCase
             ->getJson('/api/letter-types');
 
         $response->assertOk()
-            ->assertJsonCount(3, 'data');
+            ->assertJsonCount(3, 'data')
+            ->assertJsonMissing([
+                'tenant_id' => LetterType::query()
+                    ->where('tenant_id', '!=', $tenant->id)
+                    ->firstOrFail()
+                    ->tenant_id,
+            ]);
     }
 
     public function test_can_create_letter_type(): void
     {
-        $tenant = \App\Models\Tenant::factory()->create();
+        $tenant = Tenant::factory()->create();
 
         $user = User::factory()
             ->tenantUser($tenant)
             ->create();
 
         $data = [
-            'tenant_id' => $tenant->id,
             'code' => 'SK001',
             'name' => 'Surat Keterangan',
             'description' => 'Surat keterangan test',
@@ -70,7 +78,7 @@ class LetterTypeControllerTest extends TestCase
 
     public function test_can_show_letter_type(): void
     {
-        $tenant = \App\Models\Tenant::factory()->create();
+        $tenant = Tenant::factory()->create();
 
         $letterType = LetterType::factory()->create([
             'tenant_id' => $tenant->id,
@@ -90,11 +98,13 @@ class LetterTypeControllerTest extends TestCase
 
     public function test_show_returns_not_found_for_unknown_letter_type(): void
     {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->tenantUser($tenant)->create();
         $id = (string) Str::uuid();
 
-        $response = $this->getJson(
-            "/api/letter-types/{$id}",
-        );
+        $response = $this
+            ->actingAs($user)
+            ->getJson("/api/letter-types/{$id}");
 
         $response->assertNotFound()
             ->assertJson([
@@ -104,7 +114,7 @@ class LetterTypeControllerTest extends TestCase
 
     public function test_can_update_letter_type(): void
     {
-        $tenant = \App\Models\Tenant::factory()->create();
+        $tenant = Tenant::factory()->create();
 
         $letterType = LetterType::factory()->create([
             'tenant_id' => $tenant->id,
@@ -137,14 +147,15 @@ class LetterTypeControllerTest extends TestCase
 
     public function test_update_returns_not_found_for_unknown_letter_type(): void
     {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->tenantUser($tenant)->create();
         $id = (string) Str::uuid();
 
-        $response = $this->putJson(
-            "/api/letter-types/{$id}",
-            [
+        $response = $this
+            ->actingAs($user)
+            ->putJson("/api/letter-types/{$id}", [
                 'name' => 'Updated Letter Type',
-            ],
-        );
+            ]);
 
         $response->assertNotFound()
             ->assertJson([
@@ -154,7 +165,7 @@ class LetterTypeControllerTest extends TestCase
 
     public function test_can_delete_letter_type(): void
     {
-        $tenant = \App\Models\Tenant::factory()->create();
+        $tenant = Tenant::factory()->create();
 
         $letterType = LetterType::factory()->create([
             'tenant_id' => $tenant->id,
@@ -182,11 +193,13 @@ class LetterTypeControllerTest extends TestCase
 
     public function test_delete_returns_not_found_for_unknown_letter_type(): void
     {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->tenantUser($tenant)->create();
         $id = (string) Str::uuid();
 
-        $response = $this->deleteJson(
-            "/api/letter-types/{$id}",
-        );
+        $response = $this
+            ->actingAs($user)
+            ->deleteJson("/api/letter-types/{$id}");
 
         $response->assertNotFound()
             ->assertJson([
@@ -196,7 +209,7 @@ class LetterTypeControllerTest extends TestCase
 
     public function test_can_restore_letter_type(): void
     {
-        $tenant = \App\Models\Tenant::factory()->create();
+        $tenant = Tenant::factory()->create();
 
         $letterType = LetterType::factory()->create([
             'tenant_id' => $tenant->id,
@@ -225,15 +238,96 @@ class LetterTypeControllerTest extends TestCase
 
     public function test_restore_returns_not_found_for_unknown_letter_type(): void
     {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->tenantUser($tenant)->create();
         $id = (string) Str::uuid();
 
-        $response = $this->postJson(
-            "/api/letter-types/{$id}/restore",
-        );
+        $response = $this
+            ->actingAs($user)
+            ->postJson("/api/letter-types/{$id}/restore");
 
         $response->assertNotFound()
             ->assertJson([
                 'message' => 'Letter type not found.',
             ]);
+    }
+
+    public function test_tenant_user_cannot_access_another_tenants_letter_type(): void
+    {
+        $ownTenant = Tenant::factory()->create();
+        $otherTenant = Tenant::factory()->create();
+        $letterType = LetterType::factory()->create([
+            'tenant_id' => $otherTenant->id,
+        ]);
+        $user = User::factory()->tenantUser($ownTenant)->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->getJson("/api/letter-types/{$letterType->id}");
+
+        $response->assertNotFound();
+    }
+
+    public function test_tenant_id_cannot_be_supplied_when_creating_letter_type(): void
+    {
+        $ownTenant = Tenant::factory()->create();
+        $otherTenant = Tenant::factory()->create();
+        $user = User::factory()->tenantUser($ownTenant)->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->postJson('/api/letter-types', [
+                'tenant_id' => $otherTenant->id,
+                'code' => 'SK001',
+                'name' => 'Surat Keterangan',
+                'status' => LetterTypeStatus::DRAFT->value,
+            ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['tenant_id']);
+    }
+
+    public function test_tenant_id_cannot_be_changed_when_updating_letter_type(): void
+    {
+        $ownTenant = Tenant::factory()->create();
+        $otherTenant = Tenant::factory()->create();
+        $letterType = LetterType::factory()->create([
+            'tenant_id' => $ownTenant->id,
+        ]);
+        $user = User::factory()->tenantUser($ownTenant)->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->putJson("/api/letter-types/{$letterType->id}", [
+                'tenant_id' => $otherTenant->id,
+            ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['tenant_id']);
+
+        $this->assertDatabaseHas('letter_types', [
+            'id' => $letterType->id,
+            'tenant_id' => $ownTenant->id,
+        ]);
+    }
+
+    public function test_invalid_letter_type_payload_returns_validation_errors(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->tenantUser($tenant)->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->postJson('/api/letter-types', [
+                'code' => '',
+                'name' => '',
+                'status' => 'invalid',
+            ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['code', 'name', 'status']);
     }
 }

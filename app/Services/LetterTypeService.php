@@ -14,19 +14,19 @@ class LetterTypeService
         private readonly LetterTypeRepositoryInterface $repository,
     ) {}
 
-    public function find(string $id): ?LetterType
+    public function find(string $id, string $tenantId): ?LetterType
     {
-        return $this->repository->find($id);
+        return $this->repository->find($id, $tenantId);
     }
 
-    public function findWithTrashed(string $id): ?LetterType
+    public function findWithTrashed(string $id, string $tenantId): ?LetterType
     {
-        return $this->repository->findWithTrashed($id);
+        return $this->repository->findWithTrashed($id, $tenantId);
     }
 
-    public function getAll(): Collection
+    public function getAll(string $tenantId): Collection
     {
-        return $this->repository->getAll();
+        return $this->repository->getAll($tenantId);
     }
 
     public function create(array $data): LetterType
