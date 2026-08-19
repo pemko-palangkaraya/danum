@@ -50,6 +50,11 @@ Route::middleware('auth')->group(function () {
         [OutgoingLetterController::class, 'cancel'],
     );
 
+    Route::get(
+        'outgoing-letters/{id}/pdf',
+        [OutgoingLetterController::class, 'downloadPdf'],
+    );
+
     Route::get('tenant/profile', [TenantProfileController::class, 'show'])
         ->name('tenant.profile.show');
 

@@ -226,6 +226,28 @@ class OutgoingLetterControllerTest extends TestCase
             ->assertJsonValidationErrors(['status']);
     }
 
+    public function test_tenant_user_can_download_own_outgoing_letter_as_pdf(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $letterType = LetterType::factory()->create([
+            'tenant_id' => $tenant->id,
+            'status' => LetterTypeStatus::ACTIVE,
+        ]);
+        $letter = OutgoingLetter::factory()->create([
+            'tenant_id' => $tenant->id,
+            'letter_type_id' => $letterType->id,
+        ]);
+        $user = User::factory()->tenantUser($tenant)->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->get("/api/outgoing-letters/{$letter->id}/pdf");
+
+        $response
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
     private function payload(LetterType $letterType): array
     {
         return [

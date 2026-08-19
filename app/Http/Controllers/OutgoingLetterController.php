@@ -11,6 +11,8 @@ use App\Models\OutgoingLetter;
 use App\Services\OutgoingLetterService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Symfony\Component\HttpFoundation\Response;
 
 class OutgoingLetterController extends Controller
 {
@@ -132,6 +134,26 @@ class OutgoingLetterController extends Controller
             'cancel',
             fn (OutgoingLetter $outgoingLetter) => $this->outgoingLetterService->cancel($outgoingLetter),
         );
+    }
+
+    public function downloadPdf(Request $request, string $id): Response
+    {
+        $outgoingLetter = $this->findForTenant($id, $request);
+
+        if ($outgoingLetter === null) {
+            abort(404, 'Outgoing letter not found.');
+        }
+
+        $this->authorize('view', $outgoingLetter);
+
+        $outgoingLetter->loadMissing(['tenant', 'letterType']);
+
+        return Pdf::loadView('pdf.outgoing-letter', [
+            'letter' => $outgoingLetter,
+        ])->setPaper('a4')->download(sprintf(
+            'surat-%s.pdf',
+            str($outgoingLetter->number)->slug(),
+        ));
     }
 
     private function findForTenant(string $id, Request $request): ?OutgoingLetter
