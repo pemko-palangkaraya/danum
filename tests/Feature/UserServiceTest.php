@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\UserRole;
+use App\Enums\UserStatus;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
@@ -105,6 +106,22 @@ class UserServiceTest extends TestCase
         $this->assertInstanceOf(
             UserRepositoryInterface::class,
             $repository,
+        );
+    }
+
+    public function test_updating_user_from_active_to_inactive_changes_status(): void
+    {
+        $user = User::factory()->create([
+            'status' => UserStatus::ACTIVE,
+        ]);
+
+        $result = app(UserService::class)->update($user, [
+            'status' => UserStatus::INACTIVE,
+        ]);
+
+        $this->assertSame(
+            UserStatus::INACTIVE,
+            $result->status
         );
     }
 }
