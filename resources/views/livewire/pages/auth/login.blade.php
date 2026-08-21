@@ -2,7 +2,9 @@
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
-use function Livewire\Volt\{state};
+use function Livewire\Volt\{layout, state};
+
+layout('layouts.guest');
 
 state([
     'email' => '',
@@ -33,52 +35,143 @@ $login = function (): void {
 ?>
 
 <div>
-    <form wire:submit="login">
-        <div>
-            <label for="email">Email</label>
 
-            <input
-                id="email"
-                type="email"
-                wire:model="email"
-                autocomplete="email"
-                required
-            >
+    {{-- Logo --}}
+    <div class="mb-7 flex justify-center sm:mb-8">
+        <a
+            href="{{ route('login') }}"
+            class="inline-flex items-center justify-center transition-transform duration-200 hover:scale-[1.02]">
+            <svg
+                class="h-12 w-auto text-yellow-400"
+                viewBox="0 0 664 150"
+                fill="currentColor"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-label="DANUM"
+                role="img">
+                <path fill-rule="evenodd" d="M 419.0 85.0 L 418.0 86.0 L 418.0 102.0 L 419.0 103.0 L 419.0 106.0 L 420.0 108.0 L 423.0 111.0 L 423.0 112.0 L 424.0 112.0 L 426.0 114.0 L 430.0 116.0 L 432.0 116.0 L 433.0 117.0 L 436.0 117.0 L 437.0 118.0 L 438.0 117.0 L 438.0 86.0 L 437.0 85.0 Z M 466.0 60.0 L 446.0 60.0 L 445.0 61.0 L 445.0 105.0 L 446.0 106.0 L 446.0 118.0 L 452.0 117.0 L 453.0 116.0 L 457.0 115.0 L 464.0 109.0 L 466.0 105.0 L 466.0 103.0 L 467.0 102.0 L 467.0 61.0 Z M 251.0 4.0 L 251.0 146.0 L 278.0 146.0 L 279.0 145.0 L 279.0 58.0 L 280.0 57.0 L 283.0 60.0 L 286.0 67.0 L 291.0 74.0 L 300.0 92.0 L 302.0 94.0 L 302.0 96.0 L 304.0 98.0 L 307.0 105.0 L 309.0 107.0 L 313.0 116.0 L 315.0 118.0 L 319.0 127.0 L 321.0 129.0 L 328.0 143.0 L 331.0 146.0 L 359.0 146.0 L 360.0 145.0 L 360.0 5.0 L 359.0 4.0 L 332.0 4.0 L 332.0 93.0 L 330.0 94.0 L 328.0 92.0 L 328.0 90.0 L 326.0 88.0 L 325.0 85.0 L 320.0 78.0 L 319.0 74.0 L 317.0 72.0 L 314.0 65.0 L 312.0 63.0 L 306.0 50.0 L 304.0 48.0 L 298.0 35.0 L 296.0 33.0 L 292.0 24.0 L 290.0 22.0 L 282.0 6.0 L 280.0 4.0 Z M 158.0 4.0 L 157.0 8.0 L 156.0 9.0 L 156.0 12.0 L 154.0 15.0 L 154.0 18.0 L 153.0 19.0 L 153.0 22.0 L 151.0 26.0 L 151.0 29.0 L 150.0 30.0 L 150.0 32.0 L 148.0 36.0 L 148.0 39.0 L 146.0 43.0 L 145.0 50.0 L 143.0 53.0 L 142.0 60.0 L 140.0 63.0 L 140.0 67.0 L 137.0 73.0 L 137.0 77.0 L 136.0 78.0 L 135.0 83.0 L 133.0 86.0 L 132.0 93.0 L 131.0 94.0 L 131.0 96.0 L 129.0 100.0 L 129.0 103.0 L 127.0 106.0 L 126.0 113.0 L 124.0 117.0 L 124.0 120.0 L 123.0 121.0 L 123.0 123.0 L 121.0 127.0 L 121.0 130.0 L 119.0 133.0 L 119.0 136.0 L 118.0 137.0 L 116.0 145.0 L 117.0 146.0 L 146.0 146.0 L 147.0 145.0 L 147.0 143.0 L 148.0 142.0 L 148.0 138.0 L 150.0 135.0 L 150.0 132.0 L 151.0 131.0 L 151.0 129.0 L 153.0 125.0 L 153.0 122.0 L 156.0 117.0 L 199.0 117.0 L 202.0 121.0 L 202.0 124.0 L 204.0 128.0 L 205.0 135.0 L 207.0 138.0 L 208.0 144.0 L 210.0 146.0 L 238.0 146.0 L 238.0 142.0 L 237.0 141.0 L 237.0 139.0 L 236.0 138.0 L 236.0 136.0 L 234.0 132.0 L 233.0 126.0 L 231.0 123.0 L 231.0 120.0 L 229.0 116.0 L 228.0 109.0 L 226.0 106.0 L 226.0 103.0 L 225.0 102.0 L 225.0 100.0 L 223.0 96.0 L 223.0 93.0 L 222.0 92.0 L 222.0 90.0 L 220.0 86.0 L 220.0 83.0 L 218.0 80.0 L 217.0 73.0 L 215.0 70.0 L 215.0 66.0 L 214.0 65.0 L 214.0 63.0 L 213.0 62.0 L 213.0 60.0 L 211.0 56.0 L 211.0 53.0 L 210.0 52.0 L 209.0 46.0 L 207.0 42.0 L 207.0 39.0 L 206.0 38.0 L 206.0 36.0 L 204.0 32.0 L 204.0 29.0 L 202.0 25.0 L 201.0 18.0 L 199.0 15.0 L 199.0 11.0 L 198.0 10.0 L 197.0 5.0 L 196.0 4.0 Z M 177.0 39.0 L 178.0 39.0 L 180.0 41.0 L 180.0 45.0 L 181.0 46.0 L 181.0 48.0 L 183.0 52.0 L 184.0 59.0 L 186.0 62.0 L 186.0 65.0 L 188.0 68.0 L 188.0 71.0 L 189.0 72.0 L 189.0 75.0 L 191.0 79.0 L 191.0 82.0 L 192.0 83.0 L 192.0 85.0 L 194.0 89.0 L 194.0 91.0 L 193.0 92.0 L 162.0 92.0 L 161.0 91.0 L 161.0 89.0 L 163.0 86.0 L 164.0 78.0 L 166.0 75.0 L 167.0 68.0 L 169.0 65.0 L 169.0 62.0 L 170.0 61.0 L 170.0 59.0 L 172.0 55.0 L 172.0 51.0 L 174.0 48.0 L 174.0 45.0 Z M 522.0 4.0 L 522.0 145.0 L 523.0 146.0 L 549.0 146.0 L 550.0 145.0 L 550.0 58.0 L 551.0 57.0 L 553.0 59.0 L 560.0 74.0 L 562.0 76.0 L 563.0 80.0 L 565.0 82.0 L 585.0 123.0 L 587.0 125.0 L 598.0 125.0 L 602.0 120.0 L 608.0 107.0 L 610.0 105.0 L 610.0 103.0 L 619.0 85.0 L 621.0 83.0 L 621.0 81.0 L 623.0 79.0 L 624.0 75.0 L 626.0 73.0 L 626.0 71.0 L 628.0 69.0 L 629.0 65.0 L 632.0 61.0 L 632.0 59.0 L 635.0 56.0 L 636.0 57.0 L 636.0 146.0 L 660.0 146.0 L 661.0 145.0 L 661.0 4.0 L 632.0 4.0 L 630.0 6.0 L 627.0 12.0 L 627.0 14.0 L 608.0 52.0 L 608.0 54.0 L 606.0 56.0 L 605.0 60.0 L 595.0 79.0 L 595.0 81.0 L 593.0 83.0 L 591.0 82.0 L 589.0 78.0 L 589.0 76.0 L 583.0 65.0 L 583.0 63.0 L 577.0 52.0 L 577.0 50.0 L 575.0 48.0 L 575.0 46.0 L 573.0 44.0 L 573.0 42.0 L 567.0 31.0 L 567.0 29.0 L 565.0 27.0 L 564.0 23.0 L 562.0 21.0 L 561.0 16.0 L 559.0 14.0 L 559.0 12.0 L 556.0 8.0 L 556.0 6.0 L 552.0 3.0 L 529.0 3.0 L 528.0 4.0 L 524.0 3.0 Z M 500.0 3.0 L 474.0 3.0 L 474.0 105.0 L 469.0 115.0 L 463.0 121.0 L 460.0 122.0 L 458.0 124.0 L 456.0 124.0 L 455.0 125.0 L 451.0 125.0 L 450.0 126.0 L 446.0 126.0 L 445.0 127.0 L 439.0 127.0 L 438.0 126.0 L 433.0 126.0 L 432.0 125.0 L 426.0 124.0 L 424.0 122.0 L 420.0 120.0 L 416.0 116.0 L 411.0 106.0 L 411.0 4.0 L 382.0 4.0 L 382.0 100.0 L 383.0 101.0 L 383.0 108.0 L 385.0 112.0 L 385.0 115.0 L 390.0 125.0 L 393.0 128.0 L 393.0 129.0 L 402.0 138.0 L 403.0 138.0 L 408.0 142.0 L 414.0 145.0 L 416.0 145.0 L 417.0 146.0 L 419.0 146.0 L 423.0 148.0 L 428.0 148.0 L 429.0 149.0 L 455.0 149.0 L 456.0 148.0 L 464.0 147.0 L 467.0 145.0 L 469.0 145.0 L 470.0 144.0 L 472.0 144.0 L 476.0 142.0 L 478.0 140.0 L 482.0 138.0 L 491.0 129.0 L 491.0 128.0 L 494.0 125.0 L 497.0 119.0 L 497.0 117.0 L 499.0 114.0 L 499.0 111.0 L 500.0 110.0 L 500.0 101.0 L 501.0 100.0 L 501.0 4.0 Z M 1.0 3.0 L 0.0 4.0 L 0.0 145.0 L 1.0 146.0 L 56.0 146.0 L 57.0 145.0 L 63.0 145.0 L 64.0 144.0 L 67.0 144.0 L 68.0 143.0 L 73.0 142.0 L 83.0 137.0 L 89.0 132.0 L 90.0 132.0 L 96.0 126.0 L 96.0 125.0 L 102.0 118.0 L 102.0 116.0 L 104.0 114.0 L 105.0 110.0 L 107.0 107.0 L 107.0 105.0 L 109.0 101.0 L 109.0 98.0 L 110.0 97.0 L 110.0 92.0 L 112.0 88.0 L 112.0 61.0 L 111.0 60.0 L 111.0 57.0 L 110.0 56.0 L 110.0 51.0 L 109.0 50.0 L 109.0 47.0 L 108.0 46.0 L 107.0 41.0 L 105.0 38.0 L 105.0 36.0 L 102.0 32.0 L 102.0 30.0 L 97.0 24.0 L 97.0 23.0 L 87.0 14.0 L 76.0 8.0 L 74.0 8.0 L 73.0 7.0 L 71.0 7.0 L 70.0 6.0 L 68.0 6.0 L 64.0 4.0 L 57.0 4.0 L 56.0 3.0 L 21.0 3.0 L 20.0 4.0 L 2.0 4.0 Z M 30.0 31.0 L 57.0 31.0 L 58.0 32.0 L 61.0 32.0 L 67.0 35.0 L 70.0 38.0 L 71.0 38.0 L 76.0 44.0 L 76.0 45.0 L 79.0 49.0 L 79.0 51.0 L 81.0 54.0 L 81.0 57.0 L 82.0 58.0 L 82.0 62.0 L 83.0 63.0 L 83.0 86.0 L 82.0 87.0 L 82.0 91.0 L 81.0 92.0 L 80.0 98.0 L 76.0 106.0 L 68.0 114.0 L 67.0 114.0 L 65.0 116.0 L 63.0 116.0 L 59.0 118.0 L 56.0 118.0 L 55.0 119.0 L 30.0 119.0 L 29.0 118.0 L 29.0 32.0 Z" />
+            </svg>
+        </a>
+    </div>
 
-            @error('email')
-                <span>{{ $message }}</span>
-            @enderror
+    {{-- Login Card --}}
+    <div
+        class="rounded-2xl border border-slate-200/80 bg-white/95 p-6 shadow-xl shadow-slate-900/5 backdrop-blur sm:p-8">
+
+        {{-- Heading --}}
+        <div class="mb-7 text-center sm:mb-8">
+
+            <h1 class="text-2xl font-semibold tracking-tight text-slate-900 sm:text-[26px]">
+                Selamat Datang
+            </h1>
+
+            <p class="mt-2 text-sm leading-6 text-slate-500">
+                Masuk ke akun DANUM Anda
+            </p>
+
         </div>
 
-        <div>
-            <label for="password">Password</label>
+        {{-- Form --}}
+        <form
+            wire:submit="login"
+            class="space-y-5">
 
-            <input
-                id="password"
-                type="password"
-                wire:model="password"
-                autocomplete="current-password"
-                required
-            >
+            {{-- Email --}}
+            <div>
 
-            @error('password')
-                <span>{{ $message }}</span>
-            @enderror
-        </div>
+                <label
+                    for="email"
+                    class="mb-2 block text-sm font-medium text-slate-700">
+                    Email
+                </label>
 
-        <div>
-            <label>
                 <input
-                    type="checkbox"
-                    wire:model="remember"
-                >
+                    id="email"
+                    type="email"
+                    wire:model="email"
+                    autocomplete="email"
+                    required
+                    autofocus
+                    placeholder="admin@danum.local"
+                    class="block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition duration-200 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-500 focus:ring-4 focus:ring-slate-100">
 
-                Remember me
-            </label>
-        </div>
+                @error('email')
+                <p class="mt-2 text-sm text-red-600">
+                    {{ $message }}
+                </p>
+                @enderror
 
-        <button type="submit">
-            Login
-        </button>
-    </form>
+            </div>
+
+            {{-- Password --}}
+            <div>
+
+                <label
+                    for="password"
+                    class="mb-2 block text-sm font-medium text-slate-700">
+                    Password
+                </label>
+
+                <input
+                    id="password"
+                    type="password"
+                    wire:model="password"
+                    autocomplete="current-password"
+                    required
+                    placeholder="Masukkan password"
+                    class="block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition duration-200 placeholder:text-slate-400 hover:border-slate-400 focus:border-slate-500 focus:ring-4 focus:ring-slate-100">
+
+                @error('password')
+                <p class="mt-2 text-sm text-red-600">
+                    {{ $message }}
+                </p>
+                @enderror
+
+            </div>
+
+            {{-- Remember --}}
+            <div class="flex items-center justify-between pt-1">
+
+                <label class="flex cursor-pointer items-center gap-2">
+
+                    <input
+                        id="remember"
+                        type="checkbox"
+                        wire:model="remember"
+                        class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400">
+
+                    <span class="text-sm text-slate-600">
+                        Ingat saya
+                    </span>
+
+                </label>
+
+            </div>
+
+            {{-- Login Button --}}
+            <button
+                type="submit"
+                wire:loading.attr="disabled"
+                class="group flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-slate-200 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60">
+
+                <span wire:loading.remove wire:target="login">
+                    Login
+                </span>
+
+                <span wire:loading wire:target="login">
+                    Memproses...
+                </span>
+
+            </button>
+
+        </form>
+
+    </div>
+
+    {{-- Footer --}}
+    <p class="mt-6 px-4 text-center text-xs leading-5 text-slate-400 sm:mt-7">
+        DANUM <br>
+        Data Administrasi dan Urusan Masyarakat <br>
+        &copy; 2025. All rights reserved.
+    </p>
+
 </div>

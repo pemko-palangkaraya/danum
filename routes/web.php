@@ -21,7 +21,10 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
-    Route::view('/dashboard', 'dashboard')
+    // Route::view('/dashboard', 'dashboard')
+    //     ->name('dashboard');
+
+    Route::livewire('/dashboard', 'pages.dashboard')
         ->name('dashboard');
 
     Route::post('/logout', function (Request $request) {
