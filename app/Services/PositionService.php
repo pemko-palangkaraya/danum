@@ -207,4 +207,9 @@ class PositionService
             $position->id
         );
     }
+
+    public function findWithTrashed(string $id): ?Position
+    {
+        return $this->positionRepository->findWithTrashed($id);
+    }
 }

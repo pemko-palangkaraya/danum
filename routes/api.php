@@ -6,6 +6,7 @@ use App\Http\Controllers\TenantController;
 use App\Http\Controllers\TenantProfileController;
 use App\Http\Controllers\LetterTypeController;
 use App\Http\Controllers\OutgoingLetterController;
+use App\Http\Controllers\PositionController;
 
 Route::middleware('auth')->group(function () {
     Route::apiResource('tenants', TenantController::class)
@@ -65,4 +66,33 @@ Route::middleware('auth')->group(function () {
 
     Route::match(['put', 'patch'], 'tenant/profile', [TenantProfileController::class, 'update'])
         ->name('tenant.profile.update');
+
+    // Position routes
+    Route::apiResource('positions', PositionController::class)
+        ->except(['create', 'edit']);
+
+    Route::post(
+        'positions/{id}/restore',
+        [PositionController::class, 'restore']
+    );
+
+    Route::post(
+        'positions/{position}/holder',
+        [PositionController::class, 'assignHolder']
+    );
+
+    Route::post(
+        'positions/{position}/holder/end',
+        [PositionController::class, 'endHolder']
+    );
+
+    Route::get(
+        'positions/{position}/holder',
+        [PositionController::class, 'activeHolder']
+    );
+
+    Route::get(
+        'positions/{position}/holders',
+        [PositionController::class, 'holderHistory']
+    );
 });
