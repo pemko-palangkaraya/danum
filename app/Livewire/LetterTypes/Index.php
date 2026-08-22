@@ -102,6 +102,7 @@ class Index extends Component
             $query->where(fn ($q) => $q->where('code', 'like', "%{$this->search}%")
                 ->orWhere('name', 'like', "%{$this->search}%"));
         }
+
         if ($this->filter === 'deleted') {
             $query->onlyTrashed();
         } else {
