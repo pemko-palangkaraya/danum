@@ -21,6 +21,7 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Volt::route('/dashboard', 'pages.dashboard')->name('dashboard');
+    Volt::route('/users', 'pages.users.index')->name('users.index');
     Route::get('/tenants', TenantIndex::class)->name('tenants.index');
     Volt::route('/tenants/create', 'pages.tenants.create')->name('tenants.create');
     Volt::route('/tenants/{tenant}/edit', 'pages.tenants.edit')->name('tenants.edit');
