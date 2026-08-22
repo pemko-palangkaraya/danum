@@ -83,9 +83,11 @@ class TenantService
                     'password' => $administratorData['password'] ?? null,
                     'status' => $administratorData['status'] ?? null,
                 ], static fn (mixed $value): bool => $value !== null && $value !== ''));
+
+                return $updatedTenant->fresh(['administrator']);
             }
 
-            return $updatedTenant->fresh(['administrator']);
+            return $updatedTenant;
         });
     }
 
