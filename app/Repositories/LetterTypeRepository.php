@@ -13,14 +13,14 @@ class LetterTypeRepository implements LetterTypeRepositoryInterface
     public function find(string $id, string $tenantId): ?LetterType
     {
         return LetterType::query()
-            ->whereNull('tenant_id')
+            ->where('tenant_id', $tenantId)
             ->find($id);
     }
 
     public function getAll(string $tenantId): Collection
     {
         return LetterType::query()
-            ->whereNull('tenant_id')
+            ->where('tenant_id', $tenantId)
             ->get();
     }
 
@@ -49,7 +49,7 @@ class LetterTypeRepository implements LetterTypeRepositoryInterface
     public function findWithTrashed(string $id, string $tenantId): ?LetterType
     {
         return LetterType::withTrashed()
-            ->whereNull('tenant_id')
+            ->where('tenant_id', $tenantId)
             ->find($id);
     }
 }
