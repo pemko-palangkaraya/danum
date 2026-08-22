@@ -17,44 +17,22 @@ class LetterType extends Model
     use SoftDeletes;
 
     protected $keyType = 'string';
-
     public $incrementing = false;
 
     protected $fillable = [
-        'tenant_id',
-        'code',
-        'name',
-        'description',
-        'body_template',
-        'status',
+        'tenant_id', 'code', 'name', 'description', 'body_template', 'template_path', 'variables', 'status',
     ];
-
-    protected $hidden = [];
 
     protected function casts(): array
     {
         return [
             'status' => LetterTypeStatus::class,
+            'variables' => 'array',
         ];
     }
 
-    public function tenant(): BelongsTo
-    {
-        return $this->belongsTo(Tenant::class);
-    }
-
-    public function versions(): HasMany
-    {
-        return $this->hasMany(LetterTypeVersion::class)->orderByDesc('version');
-    }
-
-    public function currentVersion(): ?LetterTypeVersion
-    {
-        return $this->versions()->first();
-    }
-
-    public function isGlobal(): bool
-    {
-        return $this->tenant_id === null;
-    }
+    public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
+    public function versions(): HasMany { return $this->hasMany(LetterTypeVersion::class)->orderByDesc('version'); }
+    public function currentVersion(): ?LetterTypeVersion { return $this->versions()->first(); }
+    public function isGlobal(): bool { return $this->tenant_id === null; }
 }
