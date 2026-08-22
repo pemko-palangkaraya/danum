@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use DOMDocument;
+use DOMElement;
+use DOMXPath;
 use RuntimeException;
 use ZipArchive;
-use DOMDocument;
-use DOMXPath;
 
 class DocxTteService
 {
@@ -17,14 +18,10 @@ class DocxTteService
 
     public function embed(string $docxPath, string $verificationUrl): void
     {
-        if (! is_file($docxPath)) {
-            throw new RuntimeException('DOCX hasil surat tidak ditemukan.');
-        }
+        if (! is_file($docxPath)) throw new RuntimeException('DOCX hasil surat tidak ditemukan.');
 
         $zip = new ZipArchive();
-        if ($zip->open($docxPath) !== true) {
-            throw new RuntimeException('DOCX hasil surat tidak dapat dibuka.');
-        }
+        if ($zip->open($docxPath) !== true) throw new RuntimeException('DOCX hasil surat tidak dapat dibuka.');
 
         $xml = $zip->getFromName('word/document.xml');
         $rels = $zip->getFromName('word/_rels/document.xml.rels');
@@ -43,11 +40,8 @@ class DocxTteService
 
         $xpath = new DOMXPath($dom);
         $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
-        $nodes = $xpath->query('//w:t[contains(., "{{tte}}")]');
-        if (! $nodes || $nodes->length === 0) {
-            $zip->close();
-            return;
-        }
+        $node = $xpath->query('//w:t[contains(., "{{tte}}")]')?->item(0);
+        if (! $node) { $zip->close(); return; }
 
         $svg = $this->qrCode->render($verificationUrl);
         $prefix = 'data:image/svg+xml;base64,';
@@ -66,24 +60,28 @@ class DocxTteService
         $cx = 1050000;
         $cy = 1050000;
 
-        $drawing = '<w:r xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-            . '<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' . $cx . '" cy="' . $cy . '"/><wp:docPr id="9002" name="DANUM TTE QR"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="' . $mediaName . '"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="' . $rid . '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' . $cx . '" cy="' . $cy . '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>';
+        // Replace only the marker text. Do NOT replace its whole run: the run
+        // may contain a tab/spacing used by the template to position TTE on
+        // the right side, and the paragraph may have right alignment.
+        $drawingXml = '<w:drawing xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            . '<wp:inline distT="0" distB="0" distL="0" distR="0">'
+            . '<wp:extent cx="'.$cx.'" cy="'.$cy.'"/><wp:docPr id="9002" name="DANUM TTE QR"/>'
+            . '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            . '<pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="'.$mediaName.'"/><pic:cNvPicPr/></pic:nvPicPr>'
+            . '<pic:blipFill><a:blip r:embed="'.$rid.'"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>'
+            . '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'.$cx.'" cy="'.$cy.'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'
+            . '</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>';
 
         $fragment = $dom->createDocumentFragment();
-        $fragment->appendXML($drawing);
-        $run = $nodes->item(0)?->parentNode;
-        if (! $run || ! $run->parentNode) {
-            $zip->close();
-            return;
-        }
-        $run->parentNode->replaceChild($fragment, $run);
+        $fragment->appendXML($drawingXml);
+        $node->parentNode?->replaceChild($fragment, $node);
 
         $relsDom = new DOMDocument();
         $relsDom->preserveWhiteSpace = true;
         $relsDom->loadXML($rels, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING);
         $root = $relsDom->documentElement;
         foreach ($root?->childNodes ?? [] as $child) {
-            if ($child instanceof \DOMElement && $child->getAttribute('Id') === $rid) {
+            if ($child instanceof DOMElement && $child->getAttribute('Id') === $rid) {
                 $root->removeChild($child);
                 break;
             }
@@ -91,7 +89,7 @@ class DocxTteService
         $rel = $relsDom->createElementNS('http://schemas.openxmlformats.org/package/2006/relationships', 'Relationship');
         $rel->setAttribute('Id', $rid);
         $rel->setAttribute('Type', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image');
-        $rel->setAttribute('Target', 'media/' . $mediaName);
+        $rel->setAttribute('Target', 'media/'.$mediaName);
         $root?->appendChild($rel);
 
         $ctDom = new DOMDocument();
@@ -100,10 +98,7 @@ class DocxTteService
         $ctRoot = $ctDom->documentElement;
         $hasSvg = false;
         foreach ($ctDom->getElementsByTagName('Default') as $item) {
-            if (strcasecmp($item->getAttribute('Extension'), 'svg') === 0) {
-                $hasSvg = true;
-                break;
-            }
+            if (strcasecmp($item->getAttribute('Extension'), 'svg') === 0) { $hasSvg = true; break; }
         }
         if (! $hasSvg) {
             $default = $ctDom->createElementNS('http://schemas.openxmlformats.org/package/2006/content-types', 'Default');
@@ -115,7 +110,7 @@ class DocxTteService
         $zip->addFromString('word/document.xml', $dom->saveXML() ?: $xml);
         $zip->addFromString('word/_rels/document.xml.rels', $relsDom->saveXML() ?: $rels);
         $zip->addFromString('[Content_Types].xml', $ctDom->saveXML() ?: $contentTypes);
-        $zip->addFromString('word/media/' . $mediaName, $svgBytes);
+        $zip->addFromString('word/media/'.$mediaName, $svgBytes);
         $zip->close();
     }
 }
