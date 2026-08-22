@@ -34,11 +34,6 @@
         <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900"><strong>Cancelled.</strong> Surat ini sudah dibatalkan dan tidak dapat diterbitkan kembali.</div>
     @endif
 
-    @php
-        $contentParts = preg_split('/(\{\{\s*tte\s*\}\})/i', (string) $letter->content, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [(string) $letter->content];
-        $history = $letter->statusHistories()->with('changedBy')->latest('created_at')->get();
-    @endphp
-
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
             <div class="mx-auto min-h-[297mm] max-w-[210mm] bg-white px-4 py-8 text-[14px] leading-7 text-slate-900">
