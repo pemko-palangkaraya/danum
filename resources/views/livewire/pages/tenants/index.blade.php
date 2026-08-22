@@ -27,5 +27,3 @@
     @include('livewire.pages.tenants.partials.restore-modal')
 
 </div>
-
-@include('livewire.pages.tenants.partials.scripts')
