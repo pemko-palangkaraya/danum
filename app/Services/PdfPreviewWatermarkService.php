@@ -73,10 +73,14 @@ class PdfPreviewWatermarkService
         $pageCount = $pdf->setSourceFile($pdfPath);
         $fontSize = 13;
 
+        // Watermark must never trigger FPDF's automatic page-break mechanism.
+        $pdf->SetAutoPageBreak(false);
+
         for ($page = 1; $page <= $pageCount; $page++) {
             $template = $pdf->importPage($page);
             $size = $pdf->getTemplateSize($template);
             $orientation = $size['width'] > $size['height'] ? 'L' : 'P';
+
             $pdf->AddPage($orientation, [$size['width'], $size['height']]);
             $pdf->useTemplate($template);
 
@@ -84,15 +88,17 @@ class PdfPreviewWatermarkService
             $pdf->SetTextColor(175, 175, 175);
             $pdf->SetLineWidth(0.1);
 
-            $stepX = max(55.0, $size['width'] / 3.1);
-            $stepY = max(38.0, $size['height'] / 5.0);
-            $offset = -$size['height'];
+            // Keep every watermark anchor inside the actual page bounds.
+            // A small negative margin is avoided because FPDF may interpret it
+            // as a page-break trigger when drawing a Cell.
+            $stepX = max(58.0, $size['width'] / 3.0);
+            $stepY = max(42.0, $size['height'] / 5.0);
 
-            for ($y = $offset; $y < $size['height'] * 1.5; $y += $stepY) {
-                for ($x = -$size['width']; $x < $size['width'] * 1.5; $x += $stepX) {
+            for ($y = 12.0; $y <= $size['height'] - 12.0; $y += $stepY) {
+                for ($x = 8.0; $x <= $size['width'] - 45.0; $x += $stepX) {
                     $pdf->rotate(-32, $x, $y);
                     $pdf->SetXY($x, $y);
-                    $pdf->Cell(0, 6, $label, 0, 0, 'L');
+                    $pdf->Cell(45, 6, $label, 0, 0, 'L');
                     $pdf->rotate(0);
                 }
             }
