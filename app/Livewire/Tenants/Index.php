@@ -12,6 +12,8 @@ class Index extends Component
 {
     use WithPagination;
 
+    // --------- state/properties ---------
+
     public string $search = '';
 
     public string $filter = 'active';
@@ -20,14 +22,11 @@ class Index extends Component
 
     public ?string $selectedTenantId = null;
 
-    public bool $showDeleteConfirmation = false;
-
-    public bool $showRestoreConfirmation = false;
+    // --------- methods ---------
 
     public function confirmDelete(string $tenantId): void
     {
         $this->selectedTenantId = $tenantId;
-        $this->showDeleteConfirmation = true;
 
         $this->dispatch(
             'open-confirmation-modal',
@@ -38,7 +37,6 @@ class Index extends Component
     public function confirmRestore(string $tenantId): void
     {
         $this->selectedTenantId = $tenantId;
-        $this->showRestoreConfirmation = true;
 
         $this->dispatch(
             'open-confirmation-modal',
@@ -49,13 +47,11 @@ class Index extends Component
     public function cancelDelete(): void
     {
         $this->selectedTenantId = null;
-        $this->showDeleteConfirmation = false;
     }
 
     public function cancelRestore(): void
     {
         $this->selectedTenantId = null;
-        $this->showRestoreConfirmation = false;
     }
 
     public function updatedSearch(): void
@@ -88,7 +84,6 @@ class Index extends Component
         $tenantService->delete($tenant);
 
         $this->selectedTenantId = null;
-        $this->showDeleteConfirmation = false;
 
         $this->dispatch(
             'toast',
@@ -125,7 +120,6 @@ class Index extends Component
         $tenantService->restore($tenant);
 
         $this->selectedTenantId = null;
-        $this->showRestoreConfirmation = false;
 
         $this->dispatch(
             'toast',

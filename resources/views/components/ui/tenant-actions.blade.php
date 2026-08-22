@@ -57,8 +57,7 @@
             label="Delete"
             variant="danger"
             @click="close()"
-            wire:click="confirmDelete('{{ $tenant->id }}')"
-            x-on:click="$dispatch('open-confirmation-modal', { id: 'tenant-delete' })" />
+            wire:click="confirmDelete('{{ $tenant->id }}')" />
 
         @endif
 
