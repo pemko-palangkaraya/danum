@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Livewire\LetterTypes;
 
 use App\Enums\LetterTypeStatus;
+use App\Enums\UserRole;
 use App\Models\LetterType;
+use App\Models\Tenant;
 use App\Services\LetterTypeService;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -21,11 +24,17 @@ class Index extends Component
     public int $perPage = 5;
     public bool $showForm = false;
     public ?string $editingId = null;
+    public string $tenant_id = '';
     public string $code = '';
     public string $name = '';
     public string $description = '';
     public string $body_template = '';
     public string $status = 'draft';
+
+    public function mount(): void
+    {
+        $this->authorize('viewAny', LetterType::class);
+    }
 
     public function updatedSearch(): void { $this->resetPage(); }
     public function updatedFilter(): void { $this->resetPage(); }
@@ -39,9 +48,10 @@ class Index extends Component
 
     public function edit(string $id): void
     {
-        $letterType = $this->tenantQuery()->findOrFail($id);
+        $letterType = $this->findLetterType($id);
         $this->authorize('update', $letterType);
         $this->editingId = $letterType->id;
+        $this->tenant_id = $letterType->tenant_id;
         $this->code = $letterType->code;
         $this->name = $letterType->name;
         $this->description = (string) $letterType->description;
@@ -53,6 +63,7 @@ class Index extends Component
     public function save(LetterTypeService $service): void
     {
         $data = $this->validate([
+            'tenant_id' => ['required', 'uuid', Rule::exists('tenants', 'id')->whereNull('deleted_at')],
             'code' => ['required', 'string', 'max:50'],
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string'],
@@ -61,13 +72,13 @@ class Index extends Component
         ]);
 
         if ($this->editingId) {
-            $letterType = $this->tenantQuery()->findOrFail($this->editingId);
+            $letterType = $this->findLetterType($this->editingId);
             $this->authorize('update', $letterType);
             $service->update($letterType, $data);
             $message = 'Jenis surat berhasil diperbarui.';
         } else {
             $this->authorize('create', LetterType::class);
-            $service->create([...$data, 'tenant_id' => auth()->user()->tenant_id]);
+            $service->create($data);
             $message = 'Jenis surat berhasil dibuat.';
         }
 
@@ -78,26 +89,26 @@ class Index extends Component
 
     public function delete(string $id, LetterTypeService $service): void
     {
-        $letterType = $this->tenantQuery()->findOrFail($id);
+        $letterType = $this->findLetterType($id);
         $this->authorize('delete', $letterType);
         $service->delete($letterType);
         $this->dispatch('toast', type: 'success', message: 'Jenis surat dihapus.');
     }
 
-    private function tenantQuery()
+    private function findLetterType(string $id): LetterType
     {
-        return LetterType::query()->where('tenant_id', auth()->user()->tenant_id);
+        return LetterType::query()->findOrFail($id);
     }
 
     private function resetForm(): void
     {
-        $this->reset(['editingId', 'code', 'name', 'description', 'body_template']);
+        $this->reset(['editingId', 'tenant_id', 'code', 'name', 'description', 'body_template']);
         $this->status = LetterTypeStatus::DRAFT->value;
     }
 
     public function render()
     {
-        $query = $this->tenantQuery()->latest();
+        $query = LetterType::query()->with('tenant')->latest();
         if ($this->search !== '') {
             $query->where(fn ($q) => $q->where('code', 'like', "%{$this->search}%")
                 ->orWhere('name', 'like', "%{$this->search}%"));
@@ -111,6 +122,7 @@ class Index extends Component
 
         return view('livewire.pages.letter-types.index', [
             'letterTypes' => $query->paginate($this->perPage),
+            'tenants' => Tenant::query()->orderBy('name')->get(),
         ]);
     }
 }
