@@ -7,6 +7,9 @@
         </div>
         <div class="flex flex-wrap gap-2">
             <button type="button" onclick="window.print()" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Print / Save PDF</button>
+            @if ($letter->status->value === 'issued')
+                <a href="{{ route('outgoing-letters.pdf', $letter->id) }}" class="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800">Download Issued PDF</a>
+            @endif
             <a href="{{ route('outgoing-letters.index') }}" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Back</a>
         </div>
     </div>
