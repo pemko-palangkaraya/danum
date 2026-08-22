@@ -25,6 +25,7 @@ class OutgoingLetter extends Model
     protected $fillable = [
         'tenant_id',
         'letter_type_id',
+        'letter_type_version_id',
         'number',
         'recipient_name',
         'recipient_address',
@@ -50,6 +51,11 @@ class OutgoingLetter extends Model
     public function letterType(): BelongsTo
     {
         return $this->belongsTo(LetterType::class);
+    }
+
+    public function letterTypeVersion(): BelongsTo
+    {
+        return $this->belongsTo(LetterTypeVersion::class);
     }
 
     public function statusHistories(): HasMany
