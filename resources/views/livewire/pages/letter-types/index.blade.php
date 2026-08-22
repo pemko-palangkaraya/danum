@@ -2,7 +2,7 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Letter Type Management</h1>
-            <p class="mt-1 text-sm text-slate-500">Kelola jenis surat dan template dokumen per tenant.</p>
+            <p class="mt-1 text-sm text-slate-500">Kelola master jenis surat dan template yang berlaku untuk seluruh tenant.</p>
         </div>
         <button wire:click="create" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">+ Add Letter Type</button>
     </div>
@@ -28,7 +28,6 @@
                             <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{{ $letterType->status->value }}</span>
                         </div>
                         <h2 class="mt-1 font-semibold text-slate-900">{{ $letterType->name }}</h2>
-                        <p class="mt-1 text-xs text-slate-400">Tenant: {{ $letterType->tenant?->name ?? '—' }}</p>
                         <p class="mt-1 line-clamp-1 text-sm text-slate-500">{{ $letterType->description ?: 'Tidak ada deskripsi.' }}</p>
                         <p class="mt-2 text-xs text-slate-400">Template version: {{ $letterType->versions()->first()?->version ?? 0 }}</p>
                     </div>
@@ -49,19 +48,9 @@
             <div class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl">
                 <div class="border-b border-slate-100 px-6 py-5">
                     <h2 class="text-lg font-semibold">{{ $editingId ? 'Edit Letter Type' : 'Add Letter Type' }}</h2>
-                    <p class="mt-1 text-sm text-slate-500">Perubahan template akan membuat version baru secara otomatis.</p>
+                    <p class="mt-1 text-sm text-slate-500">Master template ini digunakan oleh seluruh tenant. Perubahan template akan membuat version baru secara otomatis.</p>
                 </div>
                 <form wire:submit="save" class="space-y-5 p-6">
-                    <div>
-                        <label class="text-sm font-medium">Tenant</label>
-                        <select wire:model="tenant_id" class="mt-1 w-full rounded-xl border-slate-200">
-                            <option value="">Pilih tenant</option>
-                            @foreach ($tenants as $tenant)
-                                <option value="{{ $tenant->id }}">{{ $tenant->name }} ({{ $tenant->code }})</option>
-                            @endforeach
-                        </select>
-                        <x-input-error :messages="$errors->get('tenant_id')" class="mt-1" />
-                    </div>
                     <div class="grid gap-5 sm:grid-cols-2">
                         <div>
                             <label class="text-sm font-medium">Code</label>
