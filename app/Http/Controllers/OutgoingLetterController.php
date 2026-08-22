@@ -12,6 +12,7 @@ use App\Models\OutgoingLetter;
 use App\Services\LetterTypeService;
 use App\Services\OutgoingLetterService;
 use App\Services\OutgoingLetterTemplateService;
+use App\Services\VerificationQrCodeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -23,6 +24,7 @@ class OutgoingLetterController extends Controller
         private readonly OutgoingLetterService $outgoingLetterService,
         private readonly LetterTypeService $letterTypeService,
         private readonly OutgoingLetterTemplateService $outgoingLetterTemplateService,
+        private readonly VerificationQrCodeService $verificationQrCodeService,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -235,8 +237,19 @@ class OutgoingLetterController extends Controller
 
         $outgoingLetter->loadMissing(['tenant', 'letterType', 'letterTypeVersion']);
 
+        $verificationQrCode = null;
+
+        if ($outgoingLetter->status === OutgoingLetterStatus::ISSUED && $outgoingLetter->verification_token) {
+            $verificationUrl = route('verification.show', [
+                'token' => $outgoingLetter->verification_token,
+            ]);
+
+            $verificationQrCode = $this->verificationQrCodeService->render($verificationUrl);
+        }
+
         return Pdf::loadView('pdf.outgoing-letter', [
             'letter' => $outgoingLetter,
+            'verificationQrCode' => $verificationQrCode,
         ])->setPaper('a4')->download(sprintf(
             'surat-%s.pdf',
             str($outgoingLetter->number)->slug(),
