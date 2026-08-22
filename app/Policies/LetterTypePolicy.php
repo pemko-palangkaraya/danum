@@ -17,7 +17,8 @@ class LetterTypePolicy
 
     public function view(User $user, LetterType $letterType): bool
     {
-        return $user->role === UserRole::SUPER_ADMIN;
+        return $user->role === UserRole::SUPER_ADMIN
+            || ($user->role === UserRole::TENANT_USER && $user->tenant_id !== null && $letterType->tenant_id === null);
     }
 
     public function create(User $user): bool
