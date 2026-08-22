@@ -20,7 +20,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class OutgoingLetterController extends Controller
 {
@@ -86,7 +85,12 @@ class OutgoingLetterController extends Controller
         $outgoingLetter = $this->findForTenant($id, $request);
         if ($outgoingLetter === null) return $this->notFoundResponse();
         $this->authorize('update', $outgoingLetter);
-        return response()->json(['data' => $this->outgoingLetterService->update($outgoingLetter, $request->validated())]);
+        try {
+            $outgoingLetter = $this->outgoingLetterService->update($outgoingLetter, $request->validated());
+        } catch (\DomainException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+        return response()->json(['data' => $outgoingLetter]);
     }
 
     public function destroy(Request $request, string $id): JsonResponse
@@ -94,7 +98,11 @@ class OutgoingLetterController extends Controller
         $outgoingLetter = $this->findForTenant($id, $request);
         if ($outgoingLetter === null) return $this->notFoundResponse();
         $this->authorize('delete', $outgoingLetter);
-        $this->outgoingLetterService->delete($outgoingLetter);
+        try {
+            $this->outgoingLetterService->delete($outgoingLetter);
+        } catch (\DomainException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
         return response()->json(['message' => 'Outgoing letter deleted successfully.']);
     }
 
@@ -103,7 +111,11 @@ class OutgoingLetterController extends Controller
         $outgoingLetter = $this->outgoingLetterService->findWithTrashed($id, $request->user()->tenant_id);
         if ($outgoingLetter === null) return $this->notFoundResponse();
         $this->authorize('restore', $outgoingLetter);
-        $this->outgoingLetterService->restore($outgoingLetter);
+        try {
+            $this->outgoingLetterService->restore($outgoingLetter);
+        } catch (\DomainException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
         return response()->json(['data' => $outgoingLetter->refresh()]);
     }
 
@@ -137,9 +149,11 @@ class OutgoingLetterController extends Controller
 
         try {
             if ($isIssued) {
+                // The model creates the verification token when the letter enters
+                // ISSUED. PDF generation must therefore be read-only and must not
+                // mutate an official document merely because it is being viewed.
                 if (blank($outgoingLetter->verification_token)) {
-                    $outgoingLetter->verification_token = Str::random(64);
-                    $outgoingLetter->save();
+                    abort(422, 'Surat terbit belum memiliki token verifikasi. Terbitkan ulang surat tersebut.');
                 }
 
                 $verificationUrl = url('/verify/' . $outgoingLetter->verification_token);
