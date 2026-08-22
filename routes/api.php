@@ -37,6 +37,11 @@ Route::middleware('auth')->group(function () {
     Route::apiResource('letter-types', LetterTypeController::class)
         ->except(['create', 'edit']);
 
+    Route::get(
+        'letter-types/{id}/versions',
+        [LetterTypeController::class, 'versions'],
+    );
+
     Route::post(
         'letter-types/{id}/restore',
         [LetterTypeController::class, 'restore'],
