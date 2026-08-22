@@ -12,43 +12,36 @@ class LetterTypePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->role === UserRole::TENANT_USER && $user->tenant_id !== null;
+        return $user->role === UserRole::SUPER_ADMIN;
     }
 
     public function view(User $user, LetterType $letterType): bool
     {
-        return $this->belongsToTenant($user, $letterType);
+        return $user->role === UserRole::SUPER_ADMIN && $letterType->isGlobal();
     }
 
     public function create(User $user): bool
     {
-        return $this->viewAny($user);
+        return $user->role === UserRole::SUPER_ADMIN;
     }
 
     public function update(User $user, LetterType $letterType): bool
     {
-        return $this->belongsToTenant($user, $letterType);
+        return $user->role === UserRole::SUPER_ADMIN && $letterType->isGlobal();
     }
 
     public function delete(User $user, LetterType $letterType): bool
     {
-        return $this->belongsToTenant($user, $letterType);
+        return $user->role === UserRole::SUPER_ADMIN && $letterType->isGlobal();
     }
 
     public function restore(User $user, LetterType $letterType): bool
     {
-        return $this->belongsToTenant($user, $letterType);
+        return $user->role === UserRole::SUPER_ADMIN && $letterType->isGlobal();
     }
 
     public function forceDelete(User $user, LetterType $letterType): bool
     {
         return false;
-    }
-
-    private function belongsToTenant(User $user, LetterType $letterType): bool
-    {
-        return $user->role === UserRole::TENANT_USER
-            && $user->tenant_id !== null
-            && $user->tenant_id === $letterType->tenant_id;
     }
 }
