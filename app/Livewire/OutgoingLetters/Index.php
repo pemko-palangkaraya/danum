@@ -56,11 +56,23 @@ class Index extends Component
             if (blank($this->variableValues[$variable] ?? null)) $this->addError('variableValues.'.$variable, 'Field ini wajib diisi.');
         }
 
-        $date = $this->variableValues['date'] ?? null;
-        if (in_array('date', $this->variables, true)) {
-            if (blank($date)) $this->addError('variableValues.date', 'Tanggal surat wajib diisi.');
-            elseif ($date === now()->toDateString()) $this->addError('variableValues.date', 'Tanggal surat tidak boleh tanggal hari ini.');
-            elseif (! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $date)) $this->addError('variableValues.date', 'Format tanggal surat tidak valid.');
+        foreach ($this->variables as $variable) {
+            if (! $this->isDateVariable($variable)) continue;
+            $value = $this->variableValues[$variable] ?? null;
+            if (blank($value)) {
+                $this->addError('variableValues.'.$variable, 'Tanggal wajib diisi.');
+                continue;
+            }
+            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $value)) {
+                $this->addError('variableValues.'.$variable, 'Format tanggal tidak valid.');
+                continue;
+            }
+            if ($value === now()->toDateString()) {
+                $this->addError('variableValues.'.$variable, 'Tanggal tidak boleh tanggal hari ini.');
+            }
+            if ($this->isBirthDateVariable($variable) && $value > now()->toDateString()) {
+                $this->addError('variableValues.'.$variable, 'Tanggal lahir tidak boleh tanggal di masa depan.');
+            }
         }
         if ($this->getErrorBag()->isNotEmpty()) return;
 
@@ -85,7 +97,7 @@ class Index extends Component
             'recipient_name' => $data['recipient_name'],
             'recipient_address' => $data['recipient_address'],
             'subject' => $data['subject'],
-            'letter_date' => $date ?: null,
+            'letter_date' => $data['date'] ?? null,
             'generated_docx_path' => $generatedPath,
             'content' => $content,
             'status' => OutgoingLetterStatus::DRAFT,
@@ -106,6 +118,8 @@ class Index extends Component
         foreach ($this->variables as $variable) if ($this->isSystemVariable($variable)) $this->variableValues[$variable] = (string) ($values[$variable] ?? '');
     }
     private function isSystemVariable(string $variable): bool { return in_array($variable, self::SYSTEM_VARIABLES, true); }
+    private function isDateVariable(string $variable): bool { return (bool) preg_match('/(^|_)date$/i', $variable); }
+    private function isBirthDateVariable(string $variable): bool { return (bool) preg_match('/(^|_)birth_date$/i', $variable); }
     private function tenantQuery() { return OutgoingLetter::query()->where('tenant_id', auth()->user()->tenant_id); }
     private function resetForm(): void { $this->reset(['letter_type_id','variables','variableValues']); }
 
