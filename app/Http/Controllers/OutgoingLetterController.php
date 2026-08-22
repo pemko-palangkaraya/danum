@@ -15,6 +15,7 @@ use App\Services\OutgoingLetterService;
 use App\Services\OutgoingLetterTemplateService;
 use App\Services\VerificationQrCodeService;
 use App\Services\DocxPdfService;
+use App\Services\PdfPreviewWatermarkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -30,6 +31,7 @@ class OutgoingLetterController extends Controller
         private readonly VerificationQrCodeService $verificationQrCodeService,
         private readonly DocxPdfService $docxPdfService,
         private readonly DocxTteService $docxTteService,
+        private readonly PdfPreviewWatermarkService $pdfPreviewWatermarkService,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -130,21 +132,37 @@ class OutgoingLetterController extends Controller
         $docxPath = $outgoingLetter->generated_docx_path;
         if (! $docxPath || ! Storage::disk('local')->exists($docxPath)) abort(422, 'DOCX hasil surat belum tersedia. Buat ulang draft surat terlebih dahulu.');
 
-        // Backfill the TTE for drafts created before the QR integration.
-        if (blank($outgoingLetter->verification_token)) {
-            $outgoingLetter->verification_token = Str::random(64);
-            $outgoingLetter->save();
-        }
+        $isIssued = $outgoingLetter->status === OutgoingLetterStatus::ISSUED;
 
         try {
-            $verificationUrl = url('/verify/' . $outgoingLetter->verification_token);
-            $this->docxTteService->embed(Storage::disk('local')->path($docxPath), $verificationUrl);
+            // A QR/TTE belongs only to the official issued document.
+            // Draft/validated previews deliberately do not create verification tokens.
+            if ($isIssued) {
+                if (blank($outgoingLetter->verification_token)) {
+                    $outgoingLetter->verification_token = Str::random(64);
+                    $outgoingLetter->save();
+                }
+
+                $verificationUrl = url('/verify/' . $outgoingLetter->verification_token);
+                $this->docxTteService->embed(Storage::disk('local')->path($docxPath), $verificationUrl);
+            }
+
             $pdfPath = $this->docxPdfService->convert($docxPath);
+            $absolutePath = Storage::disk('local')->path($pdfPath);
+
+            if (! $isIssued) {
+                $label = sprintf('%s | %s | PREVIEW', $request->user()->name, now()->format('d-m-Y'));
+                $watermarked = $this->pdfPreviewWatermarkService->apply($absolutePath, $label);
+                $filename = sprintf('preview-surat-%s.pdf', str($outgoingLetter->number)->slug());
+                return response()->file($watermarked, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                ])->deleteFileAfterSend(true);
+            }
         } catch (\RuntimeException $exception) {
             abort(422, $exception->getMessage());
         }
 
-        $absolutePath = Storage::disk('local')->path($pdfPath);
         $filename = sprintf('surat-%s.pdf', str($outgoingLetter->number)->slug());
         $headers = ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="' . $filename . '"'];
         if ($request->boolean('download')) $headers['Content-Disposition'] = 'attachment; filename="' . $filename . '"';
