@@ -12,7 +12,8 @@ class DocxPdfService
     public function convert(string $docxPath): string
     {
         $disk = Storage::disk('local');
-        if (! $disk->exists($docxPath)) {
+        $isAbsolute = is_file($docxPath);
+        if (! $isAbsolute && ! $disk->exists($docxPath)) {
             throw new RuntimeException('DOCX hasil surat tidak ditemukan.');
         }
 
@@ -24,7 +25,12 @@ class DocxPdfService
 
         $source = $workDir . DIRECTORY_SEPARATOR . 'letter.docx';
         $pdf = $workDir . DIRECTORY_SEPARATOR . 'letter.pdf';
-        file_put_contents($source, $disk->get($docxPath));
+        $contents = $isAbsolute ? file_get_contents($docxPath) : $disk->get($docxPath);
+        if ($contents === false) {
+            $this->cleanup($workDir);
+            throw new RuntimeException('DOCX hasil surat tidak dapat dibaca.');
+        }
+        file_put_contents($source, $contents);
 
         $command = escapeshellarg($binary)
             . ' --headless --convert-to pdf --outdir ' . escapeshellarg($workDir)
@@ -54,45 +60,27 @@ class DocxPdfService
     private function resolveBinary(): string
     {
         $configured = (string) config('services.libreoffice.binary', '');
-        if ($configured !== '' && $this->isExecutablePath($configured)) {
-            return $configured;
-        }
+        if ($configured !== '' && $this->isExecutablePath($configured)) return $configured;
 
-        $candidates = [];
-        if (PHP_OS_FAMILY === 'Windows') {
-            $candidates = [
+        $candidates = PHP_OS_FAMILY === 'Windows'
+            ? [
                 'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
                 'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
                 getenv('PROGRAMFILES') . '\\LibreOffice\\program\\soffice.exe',
                 getenv('PROGRAMFILES(X86)') . '\\LibreOffice\\program\\soffice.exe',
-            ];
-        } else {
-            $candidates = [
-                '/usr/bin/soffice',
-                '/usr/local/bin/soffice',
-                '/snap/bin/libreoffice',
-            ];
-        }
+            ]
+            : ['/usr/bin/soffice', '/usr/local/bin/soffice', '/snap/bin/libreoffice'];
 
-        foreach (array_unique(array_filter($candidates)) as $candidate) {
-            if ($this->isExecutablePath($candidate)) {
-                return $candidate;
-            }
-        }
+        foreach (array_unique(array_filter($candidates)) as $candidate) if ($this->isExecutablePath($candidate)) return $candidate;
 
-        // Finally allow soffice to be resolved from PATH.
         $command = PHP_OS_FAMILY === 'Windows' ? 'where soffice 2>NUL' : 'command -v soffice 2>/dev/null';
         $resolved = trim((string) shell_exec($command));
         if ($resolved !== '') {
             $resolved = preg_split('/\r?\n/', $resolved)[0] ?? $resolved;
-            if ($this->isExecutablePath($resolved) || PHP_OS_FAMILY !== 'Windows') {
-                return $resolved;
-            }
+            if ($this->isExecutablePath($resolved) || PHP_OS_FAMILY !== 'Windows') return $resolved;
         }
 
-        throw new RuntimeException(
-            'LibreOffice belum ditemukan. Install LibreOffice terlebih dahulu, atau isi DANUM_LIBREOFFICE_BINARY di file .env dengan path ke soffice.exe. Contoh: C:\\Program Files\\LibreOffice\\program\\soffice.exe'
-        );
+        throw new RuntimeException('LibreOffice belum ditemukan. Install LibreOffice terlebih dahulu, atau isi DANUM_LIBREOFFICE_BINARY di file .env dengan path ke soffice.exe. Contoh: C:\\Program Files\\LibreOffice\\program\\soffice.exe');
     }
 
     private function isExecutablePath(string $path): bool
@@ -103,9 +91,7 @@ class DocxPdfService
     private function cleanup(string $directory): void
     {
         if (! is_dir($directory)) return;
-        foreach (glob($directory . DIRECTORY_SEPARATOR . '*') ?: [] as $file) {
-            @unlink($file);
-        }
+        foreach (glob($directory . DIRECTORY_SEPARATOR . '*') ?: [] as $file) @unlink($file);
         @rmdir($directory);
     }
 }
