@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\LetterType;
+use App\Models\LetterTypeVersion;
 use App\Models\Tenant;
 use InvalidArgumentException;
 
@@ -23,18 +24,12 @@ class OutgoingLetterTemplateService
 
     public function render(LetterType $letterType, Tenant $tenant, array $data): string
     {
-        $template = (string) $letterType->body_template;
-        $this->validate($template);
+        return $this->renderTemplate((string) $letterType->body_template, $tenant, $data);
+    }
 
-        return strtr($template, [
-            '{{number}}' => (string) ($data['number'] ?? ''),
-            '{{recipient_name}}' => (string) ($data['recipient_name'] ?? ''),
-            '{{recipient_address}}' => (string) ($data['recipient_address'] ?? ''),
-            '{{subject}}' => (string) ($data['subject'] ?? ''),
-            '{{tenant_name}}' => $tenant->name,
-            '{{tenant_city}}' => $tenant->city,
-            '{{tenant_head_name}}' => (string) ($tenant->head_name ?? ''),
-        ]);
+    public function renderVersion(LetterTypeVersion $version, Tenant $tenant, array $data): string
+    {
+        return $this->renderTemplate($version->body_template, $tenant, $data);
     }
 
     /** @return array<string, string> */
@@ -55,5 +50,20 @@ class OutgoingLetterTemplateService
                 ));
             }
         }
+    }
+
+    private function renderTemplate(string $template, Tenant $tenant, array $data): string
+    {
+        $this->validate($template);
+
+        return strtr($template, [
+            '{{number}}' => (string) ($data['number'] ?? ''),
+            '{{recipient_name}}' => (string) ($data['recipient_name'] ?? ''),
+            '{{recipient_address}}' => (string) ($data['recipient_address'] ?? ''),
+            '{{subject}}' => (string) ($data['subject'] ?? ''),
+            '{{tenant_name}}' => $tenant->name,
+            '{{tenant_city}}' => $tenant->city,
+            '{{tenant_head_name}}' => (string) ($tenant->head_name ?? ''),
+        ]);
     }
 }
