@@ -43,16 +43,30 @@ class OutgoingLetterService
 
     public function update(OutgoingLetter $outgoingLetter, array $data): OutgoingLetter
     {
+        $this->ensureMutable($outgoingLetter);
+
+        // A validated letter may be edited, but any edit returns it to draft so
+        // the validation gate must be passed again before official issuance.
+        if ($outgoingLetter->status === OutgoingLetterStatus::VALIDATED) {
+            $data['status'] = OutgoingLetterStatus::DRAFT;
+        }
+
         return $this->repository->update($outgoingLetter, $data);
     }
 
     public function delete(OutgoingLetter $outgoingLetter): bool
     {
+        $this->ensureMutable($outgoingLetter);
+
         return $this->repository->delete($outgoingLetter);
     }
 
     public function restore(OutgoingLetter $outgoingLetter): bool
     {
+        if ($outgoingLetter->status === OutgoingLetterStatus::ISSUED) {
+            throw new \DomainException('Issued letters cannot be restored or modified.');
+        }
+
         return $this->repository->restore($outgoingLetter);
     }
 
@@ -118,6 +132,17 @@ class OutgoingLetterService
         $this->recordHistory($outgoingLetter, $to->value, $changedBy);
 
         return $outgoingLetter;
+    }
+
+    private function ensureMutable(OutgoingLetter $outgoingLetter): void
+    {
+        if (! in_array(
+            $outgoingLetter->status,
+            [OutgoingLetterStatus::DRAFT, OutgoingLetterStatus::VALIDATED],
+            true,
+        )) {
+            throw new \DomainException('Issued or cancelled letters cannot be modified.');
+        }
     }
 
     private function recordHistory(
