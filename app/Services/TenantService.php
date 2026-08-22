@@ -34,16 +34,9 @@ class TenantService
         return $this->tenantRepository->getAll();
     }
 
-    public function search(
-        ?string $search = null,
-        bool $onlyDeleted = false,
-        int $perPage = 5,
-    ): LengthAwarePaginator {
-        return $this->tenantRepository->search(
-            $search,
-            $onlyDeleted,
-            $perPage
-        );
+    public function search(?string $search = null, bool $onlyDeleted = false, int $perPage = 5): LengthAwarePaginator
+    {
+        return $this->tenantRepository->search($search, $onlyDeleted, $perPage);
     }
 
     public function create(array $data): Tenant
@@ -56,7 +49,7 @@ class TenantService
         return DB::transaction(function () use ($tenantData, $userData): Tenant {
             $tenant = $this->tenantRepository->create($tenantData);
 
-            User::query()->create([
+            $administrator = User::query()->create([
                 'name' => $userData['name'],
                 'email' => $userData['email'],
                 'password' => $userData['password'],
@@ -65,16 +58,35 @@ class TenantService
                 'tenant_id' => $tenant->id,
             ]);
 
-            return $tenant;
+            $tenant->forceFill([
+                'administrator_user_id' => $administrator->id,
+            ])->save();
+
+            return $tenant->fresh(['administrator']);
         });
     }
 
     public function update(Tenant $tenant, array $data): Tenant
     {
-        return $this->tenantRepository->update(
-            $tenant,
-            $data,
-        );
+        $administrator = $tenant->administrator;
+
+        return DB::transaction(function () use ($tenant, $data, $administrator): Tenant {
+            $administratorData = $data['_administrator'] ?? null;
+            unset($data['_administrator']);
+
+            $updatedTenant = $this->tenantRepository->update($tenant, $data);
+
+            if (is_array($administratorData) && $administrator !== null) {
+                $administrator->update(array_filter([
+                    'name' => $administratorData['name'] ?? null,
+                    'email' => $administratorData['email'] ?? null,
+                    'password' => $administratorData['password'] ?? null,
+                    'status' => $administratorData['status'] ?? null,
+                ], static fn (mixed $value): bool => $value !== null && $value !== ''));
+            }
+
+            return $updatedTenant->fresh(['administrator']);
+        });
     }
 
     public function delete(Tenant $tenant): bool
