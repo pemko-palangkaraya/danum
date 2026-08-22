@@ -9,6 +9,20 @@ use ZipArchive;
 
 class DocxTemplateService
 {
+    /** @return array<string,string> */
+    public function allowedVariables(): array
+    {
+        return [
+            'number' => 'Nomor surat',
+            'recipient_name' => 'Nama penerima',
+            'recipient_address' => 'Alamat penerima',
+            'subject' => 'Perihal / keperluan',
+            'tenant_name' => 'Nama instansi / tenant',
+            'tenant_city' => 'Kota / wilayah tenant',
+            'tenant_head_name' => 'Nama pejabat penandatangan',
+        ];
+    }
+
     /** @return list<string> */
     public function extractVariables(string $path): array
     {
@@ -16,17 +30,14 @@ class DocxTemplateService
         if ($zip->open($path) !== true) {
             throw new RuntimeException('File DOCX tidak dapat dibuka.');
         }
-
         $xml = $zip->getFromName('word/document.xml') ?: '';
         $zip->close();
-
         $text = html_entity_decode(strip_tags($xml), ENT_QUOTES | ENT_XML1, 'UTF-8');
         preg_match_all('/\{\{\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\}\}/', $text, $matches);
-
         return array_values(array_unique($matches[1] ?? []));
     }
 
-    /** @param list<string> $allowed */
+    /** @param list<string> $found @param list<string> $allowed */
     public function validateVariables(array $found, array $allowed): array
     {
         return [
