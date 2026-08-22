@@ -19,12 +19,18 @@
                         <div class="rounded-xl border border-slate-200 bg-white p-4"><div><h3 class="text-sm font-semibold text-slate-900">Data Surat</h3><p class="mt-1 text-xs text-slate-500">Hanya placeholder yang benar-benar dipakai template yang ditampilkan.</p></div>
                             <div class="mt-4 grid gap-4 sm:grid-cols-2">
                                 @foreach($variables as $variable)
-                                    @php $label = $variableLabels[$variable] ?? ucwords(str_replace('_',' ',$variable)); $systemVariable = in_array($variable, ['tenant_name','tenant_city','tenant_district','tenant_village','tenant_province','tenant_address','tenant_phone','tenant_email','tenant_head_name','tenant_head_title'], true); $wide = in_array($variable, ['recipient_address','subject','tenant_address'], true); @endphp
+                                    @php
+                                        $label = $variableLabels[$variable] ?? ucwords(str_replace('_',' ',$variable));
+                                        $systemVariable = in_array($variable, ['tenant_name','tenant_city','tenant_district','tenant_village','tenant_province','tenant_address','tenant_phone','tenant_email','tenant_head_name','tenant_head_title'], true);
+                                        $wide = in_array($variable, ['recipient_address','subject','tenant_address'], true);
+                                        $dateVariable = (bool) preg_match('/(^|_)date$/i', $variable);
+                                        $birthDateVariable = (bool) preg_match('/(^|_)birth_date$/i', $variable);
+                                    @endphp
                                     <div class="{{ $wide ? 'sm:col-span-2' : '' }}">
                                         <div class="flex items-center justify-between gap-3"><label class="text-sm font-medium text-slate-700">{{ $label }}</label>@if($systemVariable)<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">Otomatis</span>@endif</div>
-                                        @if($variable === 'date')
-                                            <input type="date" wire:model="variableValues.{{ $variable }}" class="form-control mt-1" />
-                                            <p class="mt-1 text-xs text-slate-400">Boleh backdate atau tanggal future, tetapi tidak boleh tanggal hari ini.</p>
+                                        @if($dateVariable)
+                                            <input type="date" wire:model="variableValues.{{ $variable }}" class="form-control mt-1 {{ $systemVariable ? 'bg-slate-50' : '' }}" @if($systemVariable) readonly @endif @if($birthDateVariable) max="{{ now()->subDay()->toDateString() }}" @endif />
+                                            <p class="mt-1 text-xs text-slate-400">@if($birthDateVariable)Tanggal lahir harus berupa tanggal dan tidak boleh hari ini atau masa depan.@elseTanggal tidak boleh tanggal hari ini.@endif</p>
                                         @elseif($variable === 'recipient_address' || $variable === 'tenant_address')
                                             <textarea wire:model="variableValues.{{ $variable }}" rows="2" class="form-textarea mt-1 {{ $systemVariable ? 'bg-slate-50' : '' }}" @if($systemVariable) readonly @endif></textarea>
                                         @else
