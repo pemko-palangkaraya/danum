@@ -71,6 +71,8 @@ class Index extends Component
         $letterType = $this->editingId ? LetterType::query()->findOrFail($this->editingId) : null;
         if ($letterType) $this->authorize('update', $letterType); else $this->authorize('create', LetterType::class);
 
+        // The variable list entered by Super Admin is the source of truth for this Letter Type.
+        // It is compared with the placeholders extracted from the DOCX before anything is saved.
         $declared = $docx->normalizeVariables($this->variables_input);
         if (!$declared) {
             $this->addError('variables_input', 'Isi minimal satu variabel, misalnya recipient_name.');
@@ -89,12 +91,18 @@ class Index extends Component
             $diff = $docx->compareVariables($declared, $found);
 
             if ($diff['unknown']) {
-                $this->addError('template_file', 'Variabel ada di DOCX tetapi belum didaftarkan: {{'.implode('}}, {{', $diff['unknown']).'}}.');
+                $this->addError(
+                    'template_file',
+                    'Cross-check gagal. DOCX memiliki variabel yang belum kamu daftarkan pada field "Variabel Template": {{'.implode('}}, {{', $diff['unknown']).'}}. Tambahkan variabel tersebut ke daftar input lalu simpan kembali.'
+                );
                 return;
             }
 
             if ($diff['missing']) {
-                $this->addError('template_file', 'Variabel sudah didaftarkan tetapi tidak ditemukan di DOCX: {{'.implode('}}, {{', $diff['missing']).'}}.');
+                $this->addError(
+                    'template_file',
+                    'Cross-check gagal. Kamu mendaftarkan variabel yang tidak ditemukan di DOCX: {{'.implode('}}, {{', $diff['missing']).'}}. Hapus dari daftar input atau tambahkan ke DOCX.'
+                );
                 return;
             }
         }
