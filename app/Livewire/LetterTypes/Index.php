@@ -29,6 +29,7 @@ class Index extends Component
     public string $name = '';
     public string $description = '';
     public string $status = 'draft';
+    public string $variables_input = '';
     public $template_file = null;
 
     public function mount(): void { $this->authorize('viewAny', LetterType::class); }
@@ -51,6 +52,7 @@ class Index extends Component
         $this->name = $letterType->name;
         $this->description = (string) $letterType->description;
         $this->status = $letterType->status->value;
+        $this->variables_input = implode("\n", $letterType->variables ?? []);
         $this->template_file = null;
         $this->showForm = true;
     }
@@ -62,32 +64,43 @@ class Index extends Component
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string'],
             'status' => ['required', 'in:draft,validated,active,retired'],
+            'variables_input' => ['required', 'string'],
             'template_file' => [$this->editingId ? 'nullable' : 'required', 'file', 'mimes:docx', 'max:10240'],
         ]);
 
         $letterType = $this->editingId ? LetterType::query()->findOrFail($this->editingId) : null;
         if ($letterType) $this->authorize('update', $letterType); else $this->authorize('create', LetterType::class);
 
+        $declared = $docx->normalizeVariables($this->variables_input);
+        if (!$declared) {
+            $this->addError('variables_input', 'Isi minimal satu variabel, misalnya recipient_name.');
+            return;
+        }
+
         if ($this->template_file) {
             $tmp = $this->template_file->getRealPath();
             $found = $docx->extractVariables($tmp);
-            $allowed = array_keys($docx->allowedVariables());
-            $diff = $docx->validateVariables($found, $allowed);
+            $diff = $docx->compareVariables($declared, $found);
+
             if ($diff['unknown']) {
-                $this->addError('template_file', 'Variabel tidak dikenal: {{'.implode('}}, {{', $diff['unknown']).'}}.');
+                $this->addError('template_file', 'Variabel ada di DOCX tetapi belum didaftarkan: {{'.implode('}}, {{', $diff['unknown']).'}}.');
                 return;
             }
-            if (!$found) {
-                $this->addError('template_file', 'DOCX belum memiliki variabel {{...}}.');
+
+            if ($diff['missing']) {
+                $this->addError('template_file', 'Variabel sudah didaftarkan tetapi tidak ditemukan di DOCX: {{'.implode('}}, {{', $diff['missing']).'}}.');
                 return;
             }
-            $data['template_path'] = $this->template_file->store('letter-templates', 'local');
-            $data['variables'] = $found;
         }
 
-        unset($data['template_file']);
+        $data['variables'] = $declared;
+        unset($data['variables_input'], $data['template_file']);
         $data['tenant_id'] = null;
         $data['body_template'] = null;
+
+        if ($this->template_file) {
+            $data['template_path'] = $this->template_file->store('letter-templates', 'local');
+        }
 
         if ($letterType) {
             $oldPath = $letterType->template_path;
@@ -114,18 +127,17 @@ class Index extends Component
 
     private function resetForm(): void
     {
-        $this->reset(['editingId', 'code', 'name', 'description', 'template_file']);
+        $this->reset(['editingId', 'code', 'name', 'description', 'variables_input', 'template_file']);
         $this->status = LetterTypeStatus::DRAFT->value;
     }
 
-    public function render(DocxTemplateService $docx)
+    public function render()
     {
         $query = LetterType::query()->latest();
         if ($this->search !== '') $query->where(fn ($q) => $q->where('code', 'like', "%{$this->search}%")->orWhere('name', 'like', "%{$this->search}%"));
         if ($this->filter === 'deleted') $query->onlyTrashed(); else $query->where('status', LetterTypeStatus::from($this->filter));
         return view('livewire.pages.letter-types.index', [
             'letterTypes' => $query->paginate($this->perPage),
-            'availableVariables' => $docx->allowedVariables(),
         ]);
     }
 }
