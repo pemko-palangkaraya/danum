@@ -24,6 +24,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/tenants', TenantIndex::class)->name('tenants.index');
     Volt::route('/tenants/create', 'pages.tenants.create')->name('tenants.create');
     Volt::route('/tenants/{tenant}/edit', 'pages.tenants.edit')->name('tenants.edit');
+    Volt::route('/tenants/{tenant}/users', 'pages.tenants.users')->name('tenants.users');
     Volt::route('/tenants/{tenant}', 'pages.tenants.show')->name('tenants.show');
     Route::get('/letter-types', LetterTypeIndex::class)->name('letter-types.index');
     Route::get('/outgoing-letters', OutgoingLetterIndex::class)->name('outgoing-letters.index');
