@@ -77,9 +77,15 @@ class Index extends Component
             return;
         }
 
+        $templatePath = null;
         if ($this->template_file) {
-            $tmp = $this->template_file->getRealPath();
-            $found = $docx->extractVariables($tmp);
+            $templatePath = $this->template_file->getRealPath();
+        } elseif ($letterType?->template_path) {
+            $templatePath = Storage::disk('local')->path($letterType->template_path);
+        }
+
+        if ($templatePath) {
+            $found = $docx->extractVariables($templatePath);
             $diff = $docx->compareVariables($declared, $found);
 
             if ($diff['unknown']) {
