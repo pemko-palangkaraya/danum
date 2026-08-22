@@ -10,15 +10,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('tenants', function (Blueprint $table): void {
-            $table->string('letterhead_path')->nullable()->after('logo');
-        });
+        if (! Schema::hasColumn('tenants', 'letterhead_path')) {
+            Schema::table('tenants', function (Blueprint $table): void {
+                $table->string('letterhead_path')->nullable()->after('logo');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('tenants', function (Blueprint $table): void {
-            $table->dropColumn('letterhead_path');
-        });
+        if (Schema::hasColumn('tenants', 'letterhead_path')) {
+            Schema::table('tenants', function (Blueprint $table): void {
+                $table->dropColumn('letterhead_path');
+            });
+        }
     }
 };
