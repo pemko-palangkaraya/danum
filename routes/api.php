@@ -10,15 +10,29 @@ use App\Http\Controllers\PositionController;
 
 Route::middleware('auth')->group(function () {
     Route::apiResource('tenants', TenantController::class)
-        ->except(['create', 'edit']);
+        ->except(['create', 'edit'])
+        ->names([
+            'index' => 'api.tenants.index',
+            'store' => 'api.tenants.store',
+            'show' => 'api.tenants.show',
+            'update' => 'api.tenants.update',
+            'destroy' => 'api.tenants.destroy',
+        ]);
 
     Route::post(
         'tenants/{id}/restore',
-        [TenantController::class, 'restore'],
-    );
+        [TenantController::class, 'restore']
+    )->name('api.tenants.restore');
 
     Route::apiResource('users', UserController::class)
-        ->except(['create', 'edit']);
+        ->except(['create', 'edit'])
+        ->names([
+            'index' => 'api.users.index',
+            'store' => 'api.users.store',
+            'show' => 'api.users.show',
+            'update' => 'api.users.update',
+            'destroy' => 'api.users.destroy',
+        ]);
 
     Route::apiResource('letter-types', LetterTypeController::class)
         ->except(['create', 'edit']);

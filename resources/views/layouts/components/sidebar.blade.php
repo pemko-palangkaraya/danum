@@ -34,8 +34,28 @@
                     stroke-linejoin="round"
                     d="M9 21v-6h6v6" />
             </svg>
-
             Dashboard
+        </a>
+
+        <a
+            href="{{ route('tenants.index') }}"
+            @class([ 'flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition' , 'bg-slate-900 text-white shadow-sm'=> request()->routeIs('tenants.*'),
+            'text-slate-600 hover:bg-slate-100 hover:text-slate-900' => !request()->routeIs('tenants.*'),
+            ])
+            >
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                class="mr-3 h-5 w-5 shrink-0">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 21V7l7-4 7 4v14" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 21v-4h6v4" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 10h.01M15 10h.01M9 13h.01M15 13h.01" />
+            </svg>
+            Tenants
         </a>
 
     </nav>

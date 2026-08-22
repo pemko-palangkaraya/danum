@@ -6,14 +6,14 @@ namespace App\Services;
 
 use App\Models\Tenant;
 use App\Repositories\Contracts\TenantRepositoryInterface;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
 class TenantService
 {
     public function __construct(
         private readonly TenantRepositoryInterface $tenantRepository,
-    ) {
-    }
+    ) {}
 
     public function find(string $id): ?Tenant
     {
@@ -30,6 +30,19 @@ class TenantService
         return $this->tenantRepository->getAll();
     }
 
+    public function search(
+        ?string $search = null,
+        bool $onlyDeleted = false,
+        int $perPage = 5,
+        // ): Collection {
+    ): LengthAwarePaginator {
+        return $this->tenantRepository->search(
+            $search,
+            $onlyDeleted,
+            $perPage
+        );
+    }
+
     public function create(array $data): Tenant
     {
         return $this->tenantRepository->create($data);
@@ -37,7 +50,10 @@ class TenantService
 
     public function update(Tenant $tenant, array $data): Tenant
     {
-        return $this->tenantRepository->update($tenant, $data);
+        return $this->tenantRepository->update(
+            $tenant,
+            $data,
+        );
     }
 
     public function delete(Tenant $tenant): bool
@@ -53,5 +69,10 @@ class TenantService
     public function findWithTrashed(string $id): ?Tenant
     {
         return $this->tenantRepository->findWithTrashed($id);
+    }
+
+    public function getAllWithTrashed(): Collection
+    {
+        return $this->tenantRepository->getAllWithTrashed();
     }
 }

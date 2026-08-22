@@ -35,7 +35,7 @@
 
         </summary>
 
-        <div class="absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10">
+        <div class="absolute right-0 mt-2 w-48 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10">
 
             <div class="border-b border-slate-100 px-3 pb-3 pt-2">
 

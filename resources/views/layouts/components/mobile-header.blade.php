@@ -51,7 +51,6 @@
                             stroke-linecap="round"
                             stroke-linejoin="round"
                             d="M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5v-9Z" />
-
                         <path
                             stroke-linecap="round"
                             stroke-linejoin="round"
@@ -59,6 +58,40 @@
                     </svg>
 
                     Dashboard
+                </a>
+
+                {{-- Tenants --}}
+                <a
+                    href="{{ route('tenants.index') }}"
+                    @class([ 'flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition' , 'bg-slate-900 text-white'=> request()->routeIs('tenants.*'),
+                    'text-slate-600 hover:bg-slate-100 hover:text-slate-900' => !request()->routeIs('tenants.*'),
+                    ])
+                    >
+                    <svg
+                        class="mr-3 h-5 w-5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8">
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M3 21h18" />
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M5 21V7l7-4 7 4v14" />
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M9 21v-4h6v4" />
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M9 10h.01M15 10h.01M9 13h.01M15 13h.01" />
+                    </svg>
+
+                    Tenants
                 </a>
 
                 <div class="my-2 border-t border-slate-100"></div>
@@ -80,7 +113,6 @@
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
                                 d="M15 3h4.5A1.5 1.5 0 0 1 21 4.5v15a1.5 1.5 0 0 1-1.5 1.5H15" />
-
                             <path
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
@@ -89,11 +121,9 @@
 
                         Logout
                     </button>
-
                 </form>
 
             </div>
-
         </details>
 
     </div>
