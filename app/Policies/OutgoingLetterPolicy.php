@@ -53,7 +53,7 @@ class OutgoingLetterPolicy
     public function issue(User $user, OutgoingLetter $outgoingLetter): bool
     {
         return $this->belongsToTenant($user, $outgoingLetter)
-            && $outgoingLetter->status === OutgoingLetterStatus::VALIDATED;
+            && $outgoingLetter->status !== OutgoingLetterStatus::ISSUED;
     }
 
     public function cancel(User $user, OutgoingLetter $outgoingLetter): bool
