@@ -6,12 +6,11 @@ use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 use App\Livewire\Tenants\Index as TenantIndex;
 use App\Livewire\LetterTypes\Index as LetterTypeIndex;
+use App\Livewire\OutgoingLetters\Index as OutgoingLetterIndex;
 use App\Http\Controllers\VerificationController;
 
 Route::view('/', 'welcome')->name('home');
-
-Route::get('/verify/{token}', [VerificationController::class, 'page'])
-    ->name('verification.show');
+Route::get('/verify/{token}', [VerificationController::class, 'page'])->name('verification.show');
 
 Route::middleware('guest')->group(function () {
     Volt::route('/login', 'pages.auth.login')->name('login');
@@ -22,14 +21,12 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Volt::route('/dashboard', 'pages.dashboard')->name('dashboard');
-
     Route::get('/tenants', TenantIndex::class)->name('tenants.index');
     Volt::route('/tenants/create', 'pages.tenants.create')->name('tenants.create');
     Volt::route('/tenants/{tenant}/edit', 'pages.tenants.edit')->name('tenants.edit');
     Volt::route('/tenants/{tenant}', 'pages.tenants.show')->name('tenants.show');
-
     Route::get('/letter-types', LetterTypeIndex::class)->name('letter-types.index');
-
+    Route::get('/outgoing-letters', OutgoingLetterIndex::class)->name('outgoing-letters.index');
     Route::post('/logout', function (Request $request) {
         Auth::logout();
         $request->session()->invalidate();
