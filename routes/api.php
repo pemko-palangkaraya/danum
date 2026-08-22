@@ -46,6 +46,11 @@ Route::middleware('auth')->group(function () {
         ->except(['create', 'edit']);
 
     Route::post(
+        'outgoing-letters/preview',
+        [OutgoingLetterController::class, 'preview'],
+    );
+
+    Route::post(
         'outgoing-letters/{id}/restore',
         [OutgoingLetterController::class, 'restore'],
     );
@@ -81,7 +86,6 @@ Route::middleware('auth')->group(function () {
     Route::match(['put', 'patch'], 'tenant/profile', [TenantProfileController::class, 'update'])
         ->name('tenant.profile.update');
 
-    // Position routes
     Route::apiResource('positions', PositionController::class)
         ->except(['create', 'edit']);
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\PreviewOutgoingLetterRequest;
 use App\Http\Requests\StoreOutgoingLetterRequest;
 use App\Http\Requests\UpdateOutgoingLetterRequest;
 use App\Enums\OutgoingLetterStatus;
@@ -30,6 +31,36 @@ class OutgoingLetterController extends Controller
 
         return response()->json([
             'data' => $this->outgoingLetterService->getAll($request->user()->tenant_id),
+        ]);
+    }
+
+    public function preview(PreviewOutgoingLetterRequest $request): JsonResponse
+    {
+        $this->authorize('create', OutgoingLetter::class);
+
+        $data = $request->validated();
+        $tenant = $request->user()->tenant;
+        $letterType = $this->letterTypeService->find($data['letter_type_id'], $tenant->id);
+
+        if ($letterType === null) {
+            return response()->json(['message' => 'Letter type not found.'], 404);
+        }
+
+        if ($letterType->body_template === null) {
+            return response()->json([
+                'message' => 'The selected letter type has no template.',
+            ], 422);
+        }
+
+        return response()->json([
+            'data' => [
+                'letter_type_id' => $letterType->id,
+                'content' => $this->outgoingLetterTemplateService->render(
+                    $letterType,
+                    $tenant,
+                    $data,
+                ),
+            ],
         ]);
     }
 
