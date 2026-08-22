@@ -78,9 +78,11 @@ class OutgoingLetterController extends Controller
             ], 404);
         }
 
-        if (! isset($data['content']) && $letterType->body_template !== null) {
-            $data['content'] = $this->outgoingLetterTemplateService->render(
-                $letterType,
+        $templateVersion = $this->letterTypeService->ensureCurrentVersion($letterType);
+
+        if (! isset($data['content']) && $templateVersion !== null) {
+            $data['content'] = $this->outgoingLetterTemplateService->renderVersion(
+                $templateVersion,
                 $tenant,
                 $data,
             );
@@ -96,6 +98,7 @@ class OutgoingLetterController extends Controller
         $outgoingLetter = $this->outgoingLetterService->create([
             ...$data,
             'tenant_id' => $request->user()->tenant_id,
+            'letter_type_version_id' => $templateVersion?->id,
             'status' => OutgoingLetterStatus::DRAFT,
         ], $request->user()->id);
 
@@ -230,7 +233,7 @@ class OutgoingLetterController extends Controller
 
         $this->authorize('view', $outgoingLetter);
 
-        $outgoingLetter->loadMissing(['tenant', 'letterType']);
+        $outgoingLetter->loadMissing(['tenant', 'letterType', 'letterTypeVersion']);
 
         return Pdf::loadView('pdf.outgoing-letter', [
             'letter' => $outgoingLetter,
