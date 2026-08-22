@@ -25,6 +25,7 @@ class UpdateTenantProfileRequest extends FormRequest
             'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
             'email' => ['sometimes', 'nullable', 'email', 'max:150'],
             'logo' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'letterhead_path' => ['sometimes', 'nullable', 'string', 'max:255'],
             'head_name' => ['sometimes', 'nullable', 'string', 'max:150'],
             'head_title' => ['sometimes', 'nullable', 'string', 'max:100'],
         ];
