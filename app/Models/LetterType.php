@@ -52,4 +52,9 @@ class LetterType extends Model
     {
         return $this->versions()->first();
     }
+
+    public function isGlobal(): bool
+    {
+        return $this->tenant_id === null;
+    }
 }
