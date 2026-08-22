@@ -4,12 +4,16 @@ use App\Enums\TenantStatus;
 use App\Enums\UserStatus;
 use App\Http\Requests\UpdateTenantRequest;
 use App\Services\TenantService;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithFileUploads;
 
 new #[Layout('layouts.app')] class extends Component {
+    use WithFileUploads;
+
     public string $code = '';
     public string $name = '';
     public string $province = '';
@@ -23,6 +27,8 @@ new #[Layout('layouts.app')] class extends Component {
     public string $head_name = '';
     public string $head_title = '';
     public string $status = '';
+    public $letterhead = null;
+    public ?string $currentLetterhead = null;
 
     public string $administratorName = '';
     public string $administratorEmail = '';
@@ -53,6 +59,7 @@ new #[Layout('layouts.app')] class extends Component {
         $this->head_name = $tenant->head_name ?? '';
         $this->head_title = $tenant->head_title ?? '';
         $this->status = (string) ($tenant->status?->value ?? $tenant->status ?? '');
+        $this->currentLetterhead = $tenant->letterheadUrl();
 
         $administrator = $tenant->administrator;
         if ($administrator) {
@@ -92,6 +99,20 @@ new #[Layout('layouts.app')] class extends Component {
         ];
 
         $validated = Validator::make($data, $rules)->validate();
+
+        if ($this->letterhead) {
+            $this->validate([
+                'letterhead' => ['file', 'image', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
+            ]);
+
+            $oldLetterhead = $tenant->letterhead_path;
+            $newLetterhead = $this->letterhead->store('tenant-letterheads', 'public');
+            $validated['letterhead_path'] = $newLetterhead;
+
+            if ($oldLetterhead && $oldLetterhead !== $newLetterhead) {
+                Storage::disk('public')->delete($oldLetterhead);
+            }
+        }
 
         if ($this->administratorId !== null) {
             $adminRules = [
@@ -164,6 +185,31 @@ new #[Layout('layouts.app')] class extends Component {
                 @foreach (['phone'=>['label'=>'Phone','type'=>'text','maxlength'=>30],'email'=>['label'=>'Email','type'=>'email','maxlength'=>150],'head_name'=>['label'=>'Head Name','type'=>'text','maxlength'=>150],'head_title'=>['label'=>'Head Title','type'=>'text','maxlength'=>100]] as $field => $config)
                     <div><label for="{{ $field }}" class="block text-sm font-medium text-slate-700">{{ $config['label'] }}</label><input id="{{ $field }}" type="{{ $config['type'] }}" wire:model="{{ $field }}" maxlength="{{ $config['maxlength'] }}" class="mt-2 block w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100">@error($field)<p class="mt-1.5 text-xs text-red-600">{{ $message }}</p>@enderror</div>
                 @endforeach
+            </div>
+        </div>
+
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-200 px-5 py-4 sm:px-6"><h2 class="text-sm font-semibold text-slate-900">Letterhead / Kop Surat</h2><p class="mt-1 text-xs text-slate-500">Kop ini akan digunakan oleh tenant pada surat yang diterbitkan.</p></div>
+            <div class="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
+                <div>
+                    <label for="letterhead" class="block text-sm font-medium text-slate-700">Upload Kop Surat</label>
+                    <input id="letterhead" type="file" wire:model="letterhead" accept="image/png,image/jpeg,image/webp" class="mt-2 block w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">
+                    <p class="mt-1.5 text-xs text-slate-500">PNG, JPG/JPEG, atau WEBP. Maksimal 4 MB.</p>
+                    @error('letterhead')<p class="mt-1.5 text-xs text-red-600">{{ $message }}</p>@enderror
+                    <div wire:loading wire:target="letterhead" class="mt-2 text-xs text-slate-500">Uploading...</div>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-slate-700">Preview Kop Aktif</p>
+                    <div class="mt-2 flex min-h-32 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4">
+                        @if ($letterhead)
+                            <img src="{{ $letterhead->temporaryUrl() }}" alt="Preview kop surat baru" class="max-h-40 max-w-full object-contain">
+                        @elseif ($currentLetterhead)
+                            <img src="{{ $currentLetterhead }}" alt="Kop surat tenant" class="max-h-40 max-w-full object-contain">
+                        @else
+                            <span class="text-xs text-slate-400">Belum ada kop surat.</span>
+                        @endif
+                    </div>
+                </div>
             </div>
         </div>
 
