@@ -4,88 +4,36 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
-use App\Livewire\Tenants\Index;
-
-/*
-|--------------------------------------------------------------------------
-| Public Routes
-|--------------------------------------------------------------------------
-*/
+use App\Livewire\Tenants\Index as TenantIndex;
+use App\Livewire\LetterTypes\Index as LetterTypeIndex;
+use App\Http\Controllers\VerificationController;
 
 Route::view('/', 'welcome')->name('home');
 
-
-/*
-|--------------------------------------------------------------------------
-| Guest Routes
-|--------------------------------------------------------------------------
-*/
+Route::get('/verify/{token}', [VerificationController::class, 'page'])
+    ->name('verification.show');
 
 Route::middleware('guest')->group(function () {
-
-    Volt::route('/login', 'pages.auth.login')
-        ->name('login');
-
-    Volt::route('/register', 'pages.auth.register')
-        ->name('register');
-
-    Route::view('/forgot-password', 'pages.auth.forgot-password')
-        ->name('password.request');
-
-    Route::view('/reset-password/{token}', 'pages.auth.reset-password')
-        ->name('password.reset');
+    Volt::route('/login', 'pages.auth.login')->name('login');
+    Volt::route('/register', 'pages.auth.register')->name('register');
+    Route::view('/forgot-password', 'pages.auth.forgot-password')->name('password.request');
+    Route::view('/reset-password/{token}', 'pages.auth.reset-password')->name('password.reset');
 });
 
-
-/*
-|--------------------------------------------------------------------------
-| Authenticated Routes
-|--------------------------------------------------------------------------
-*/
-
 Route::middleware('auth')->group(function () {
+    Volt::route('/dashboard', 'pages.dashboard')->name('dashboard');
 
-    /*
-    |--------------------------------------------------------------------------
-    | Dashboard
-    |--------------------------------------------------------------------------
-    */
+    Route::get('/tenants', TenantIndex::class)->name('tenants.index');
+    Volt::route('/tenants/create', 'pages.tenants.create')->name('tenants.create');
+    Volt::route('/tenants/{tenant}/edit', 'pages.tenants.edit')->name('tenants.edit');
+    Volt::route('/tenants/{tenant}', 'pages.tenants.show')->name('tenants.show');
 
-    Volt::route('/dashboard', 'pages.dashboard')
-        ->name('dashboard');
-
-
-    /*
-|--------------------------------------------------------------------------
-| Tenant Management
-|--------------------------------------------------------------------------
-*/
-
-    Route::get('/tenants', Index::class)
-        ->name('tenants.index');
-
-    Volt::route('/tenants/create', 'pages.tenants.create')
-        ->name('tenants.create');
-
-    Volt::route('/tenants/{tenant}/edit', 'pages.tenants.edit')
-        ->name('tenants.edit');
-
-    Volt::route('/tenants/{tenant}', 'pages.tenants.show')
-        ->name('tenants.show');
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Authentication
-    |--------------------------------------------------------------------------
-    */
+    Route::get('/letter-types', LetterTypeIndex::class)->name('letter-types.index');
 
     Route::post('/logout', function (Request $request) {
         Auth::logout();
-
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-
         return redirect()->route('login');
     })->name('logout');
 });
