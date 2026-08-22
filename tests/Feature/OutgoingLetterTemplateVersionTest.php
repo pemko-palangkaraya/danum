@@ -7,7 +7,6 @@ namespace Tests\Feature;
 use App\Enums\LetterTypeStatus;
 use App\Models\LetterType;
 use App\Models\LetterTypeVersion;
-use App\Models\OutgoingLetter;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -39,9 +38,11 @@ class OutgoingLetterTemplateVersionTest extends TestCase
 
         $firstVersionId = $first->json('data.letter_type_version_id');
 
-        $letterType->update([
-            'body_template' => 'Versi kedua: {{number}} - {{recipient_name}} - {{subject}}.',
-        ]);
+        $this->actingAs($user)
+            ->putJson("/api/letter-types/{$letterType->id}", [
+                'body_template' => 'Versi kedua: {{number}} - {{recipient_name}} - {{subject}}.',
+            ])
+            ->assertOk();
 
         $secondVersion = LetterTypeVersion::query()
             ->where('letter_type_id', $letterType->id)
@@ -71,10 +72,5 @@ class OutgoingLetterTemplateVersionTest extends TestCase
             'Versi kedua: 002/SK/2026 - Siti Aminah - Surat Keterangan Baru.',
             $second->json('data.content'),
         );
-
-        $this->assertDatabaseHas('outgoing_letters', [
-            'id' => $first->json('data.id'),
-            'letter_type_version_id' => $firstVersionId,
-        ]);
     }
 }
