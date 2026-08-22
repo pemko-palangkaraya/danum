@@ -129,14 +129,13 @@ class OutgoingLetterController extends Controller
         $this->authorize('view', $outgoingLetter);
         $outgoingLetter->loadMissing(['tenant', 'letterType', 'letterTypeVersion']);
 
-        $docxPath = $outgoingLetter->generated_docx_path;
-        if (! $docxPath || ! Storage::disk('local')->exists($docxPath)) abort(422, 'DOCX hasil surat belum tersedia. Buat ulang draft surat terlebih dahulu.');
+        $sourceDocxPath = $outgoingLetter->generated_docx_path;
+        if (! $sourceDocxPath || ! Storage::disk('local')->exists($sourceDocxPath)) abort(422, 'DOCX hasil surat belum tersedia. Buat ulang draft surat terlebih dahulu.');
 
         $isIssued = $outgoingLetter->status === OutgoingLetterStatus::ISSUED;
+        $temporaryDocx = null;
 
         try {
-            // A QR/TTE belongs only to the official issued document.
-            // Draft/validated previews deliberately do not create verification tokens.
             if ($isIssued) {
                 if (blank($outgoingLetter->verification_token)) {
                     $outgoingLetter->verification_token = Str::random(64);
@@ -144,10 +143,21 @@ class OutgoingLetterController extends Controller
                 }
 
                 $verificationUrl = url('/verify/' . $outgoingLetter->verification_token);
-                $this->docxTteService->embed(Storage::disk('local')->path($docxPath), $verificationUrl);
+                // Never mutate generated_docx_path. The official TTE lives only
+                // in this temporary issued copy; drafts therefore remain clean.
+                $temporaryDocx = $this->docxTteService->createIssuedCopy(
+                    Storage::disk('local')->path($sourceDocxPath),
+                    $verificationUrl,
+                );
+                $pdfPath = $this->docxPdfService->convert($temporaryDocx);
+            } else {
+                // Remove a stale QR produced by older builds before watermarking.
+                $temporaryDocx = $this->docxTteService->createPreviewCopy(
+                    Storage::disk('local')->path($sourceDocxPath),
+                );
+                $pdfPath = $this->docxPdfService->convert($temporaryDocx);
             }
 
-            $pdfPath = $this->docxPdfService->convert($docxPath);
             $absolutePath = Storage::disk('local')->path($pdfPath);
 
             if (! $isIssued) {
@@ -161,6 +171,8 @@ class OutgoingLetterController extends Controller
             }
         } catch (\RuntimeException $exception) {
             abort(422, $exception->getMessage());
+        } finally {
+            if ($temporaryDocx !== null) @unlink($temporaryDocx);
         }
 
         $filename = sprintf('surat-%s.pdf', str($outgoingLetter->number)->slug());
@@ -184,11 +196,8 @@ class OutgoingLetterController extends Controller
         $outgoingLetter = $this->findForTenant($id, $request);
         if ($outgoingLetter === null) return $this->notFoundResponse();
         $this->authorize($ability, $outgoingLetter);
-        try {
-            $outgoingLetter = $transition($outgoingLetter);
-        } catch (\DomainException $exception) {
-            return response()->json(['message' => $exception->getMessage()], 422);
-        }
+        try { $outgoingLetter = $transition($outgoingLetter); }
+        catch (\DomainException $exception) { return response()->json(['message' => $exception->getMessage()], 422); }
         return response()->json(['data' => $outgoingLetter]);
     }
 }
