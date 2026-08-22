@@ -6,6 +6,7 @@ namespace App\Livewire\OutgoingLetters;
 
 use App\Models\OutgoingLetter;
 use App\Services\VerificationQrCodeService;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -14,6 +15,8 @@ class Show extends Component
 {
     public OutgoingLetter $letter;
     public ?string $verificationQrCode = null;
+    public array $contentParts = [];
+    public Collection $history;
 
     public function mount(string $id, VerificationQrCodeService $qrCodeService): void
     {
@@ -23,6 +26,19 @@ class Show extends Component
             ->findOrFail($id);
 
         $this->authorize('view', $this->letter);
+
+        $this->contentParts = preg_split(
+            '/(\{\{\s*tte\s*\}\})/i',
+            (string) $this->letter->content,
+            -1,
+            PREG_SPLIT_DELIM_CAPTURE,
+        ) ?: [(string) $this->letter->content];
+
+        $this->history = $this->letter
+            ->statusHistories()
+            ->with('changedBy')
+            ->latest('created_at')
+            ->get();
 
         if ($this->letter->status->value === 'issued' && $this->letter->verification_token) {
             $this->verificationQrCode = $qrCodeService->render(
