@@ -28,7 +28,7 @@ class Index extends Component
     public array $variables = [];
     public array $variableValues = [];
 
-    private const SYSTEM_VARIABLES = ['tenant_name','tenant_city','tenant_district','tenant_village','tenant_province','tenant_address','tenant_phone','tenant_email','tenant_head_name','tenant_head_title','tte'];
+    private const SYSTEM_VARIABLES = ['letterhead','tenant_name','tenant_city','tenant_district','tenant_village','tenant_province','tenant_address','tenant_phone','tenant_email','tenant_head_name','tenant_head_title','tte'];
 
     public function create(): void { $this->authorize('create', OutgoingLetter::class); $this->resetForm(); $this->showForm = true; }
 
@@ -59,14 +59,8 @@ class Index extends Component
         foreach ($this->variables as $variable) {
             if (! $this->isDateVariable($variable)) continue;
             $value = $this->variableValues[$variable] ?? null;
-            if (blank($value)) {
-                $this->addError('variableValues.'.$variable, 'Tanggal wajib diisi.');
-                continue;
-            }
-            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $value)) {
-                $this->addError('variableValues.'.$variable, 'Format tanggal tidak valid.');
-                continue;
-            }
+            if (blank($value)) { $this->addError('variableValues.'.$variable, 'Tanggal wajib diisi.'); continue; }
+            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $value)) { $this->addError('variableValues.'.$variable, 'Format tanggal tidak valid.'); continue; }
             if ($value === now()->toDateString()) $this->addError('variableValues.'.$variable, 'Tanggal tidak boleh tanggal hari ini.');
             if ($this->isBirthDateVariable($variable) && $value > now()->toDateString()) $this->addError('variableValues.'.$variable, 'Tanggal lahir tidak boleh tanggal di masa depan.');
         }
