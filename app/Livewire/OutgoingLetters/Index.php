@@ -46,7 +46,7 @@ class Index extends Component
         $data = $this->validate([
             'letter_type_id' => [
                 'required',
-                Rule::exists('letter_types', 'id')->where('tenant_id', auth()->user()->tenant_id)->where('status', LetterTypeStatus::ACTIVE->value),
+                Rule::exists('letter_types', 'id')->whereNull('tenant_id')->where('status', LetterTypeStatus::ACTIVE->value),
             ],
             'number' => ['required', 'string', 'max:100'],
             'recipient_name' => ['required', 'string', 'max:150'],
@@ -55,7 +55,8 @@ class Index extends Component
         ]);
 
         $letterType = LetterType::query()
-            ->where('tenant_id', auth()->user()->tenant_id)
+            ->whereNull('tenant_id')
+            ->where('status', LetterTypeStatus::ACTIVE)
             ->findOrFail($this->letter_type_id);
         $this->authorize('view', $letterType);
 
@@ -122,7 +123,7 @@ class Index extends Component
 
         return view('livewire.pages.outgoing-letters.index', [
             'letters' => $letters->paginate($this->perPage),
-            'letterTypes' => LetterType::query()->where('tenant_id', auth()->user()->tenant_id)->where('status', LetterTypeStatus::ACTIVE)->orderBy('name')->get(),
+            'letterTypes' => LetterType::query()->whereNull('tenant_id')->where('status', LetterTypeStatus::ACTIVE)->orderBy('name')->get(),
         ]);
     }
 }
