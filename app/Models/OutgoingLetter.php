@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class OutgoingLetter extends Model
 {
@@ -33,7 +34,21 @@ class OutgoingLetter extends Model
         'content',
         'issued_at',
         'status',
+        'verification_token',
     ];
+
+    protected $hidden = [
+        'verification_token',
+    ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $letter): void {
+            if ($letter->status === OutgoingLetterStatus::ISSUED && blank($letter->verification_token)) {
+                $letter->verification_token = Str::random(64);
+            }
+        });
+    }
 
     protected function casts(): array
     {
