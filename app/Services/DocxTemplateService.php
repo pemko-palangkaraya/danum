@@ -23,6 +23,7 @@ class DocxTemplateService
             'tenant_city' => 'Kota / wilayah tenant',
             'tenant_head_name' => 'Nama pejabat penandatangan',
             'date' => 'Tanggal surat',
+            'birth_date' => 'Tanggal lahir',
         ];
     }
 
