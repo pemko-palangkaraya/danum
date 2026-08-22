@@ -75,20 +75,23 @@ default => 'bg-gray-900 hover:bg-gray-800 focus:ring-gray-500',
 
             {{-- Actions --}}
             <div class="flex justify-end gap-3 px-6 py-5">
+
+                {{-- Cancel --}}
                 <button
                     type="button"
+                    x-on:click="open = false"
                     @if ($cancelAction)
                     wire:click="{{ $cancelAction }}"
-                    @else
-                    x-on:click="open = false"
                     @endif
                     class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2">
                     {{ $cancelText }}
                 </button>
 
+                {{-- Confirm --}}
                 @if ($confirmAction)
                 <button
                     type="button"
+                    x-on:click="open = false"
                     wire:click="{{ $confirmAction }}"
                     wire:loading.attr="disabled"
                     wire:target="{{ $confirmAction }}"
@@ -102,6 +105,7 @@ default => 'bg-gray-900 hover:bg-gray-800 focus:ring-gray-500',
                     </span>
                 </button>
                 @endif
+
             </div>
         </div>
     </div>

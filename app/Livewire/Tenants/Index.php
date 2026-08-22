@@ -28,6 +28,11 @@ class Index extends Component
     {
         $this->selectedTenantId = $tenantId;
         $this->showDeleteConfirmation = true;
+
+        $this->dispatch(
+            'open-confirmation-modal',
+            id: 'tenant-delete',
+        );
     }
 
     public function confirmRestore(string $tenantId): void
@@ -125,7 +130,7 @@ class Index extends Component
         $this->dispatch(
             'toast',
             type: 'success',
-            message: 'Tenant restored successfully.',
+            message: 'Tenant berhasil dipulihkan.',
         );
     }
 
