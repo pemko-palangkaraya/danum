@@ -34,6 +34,11 @@ class Index extends Component
     {
         $this->selectedTenantId = $tenantId;
         $this->showRestoreConfirmation = true;
+
+        $this->dispatch(
+            'open-confirmation-modal',
+            id: 'tenant-restore',
+        );
     }
 
     public function cancelDelete(): void
@@ -79,6 +84,12 @@ class Index extends Component
 
         $this->selectedTenantId = null;
         $this->showDeleteConfirmation = false;
+
+        $this->dispatch(
+            'toast',
+            type: 'success',
+            message: __('Tenant deleted successfully.'),
+        );
     }
 
     public function with(TenantService $tenantService): array
@@ -110,6 +121,12 @@ class Index extends Component
 
         $this->selectedTenantId = null;
         $this->showRestoreConfirmation = false;
+
+        $this->dispatch(
+            'toast',
+            type: 'success',
+            message: 'Tenant restored successfully.',
+        );
     }
 
     public function render()

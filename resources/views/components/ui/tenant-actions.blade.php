@@ -31,7 +31,7 @@
         x-ref="menu"
         x-cloak
         x-show="open"
-        class="absolute right-0 z-[9999] mt-2 w-20 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-left shadow-lg md:fixed md:right-15 md:mt-0"
+        class="absolute right-0 z-[9999] mt-2 w-20 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-left shadow-lg md:fixed md:right-15 md:mt-0">
 
         @if ($tenant->trashed())
 
@@ -57,7 +57,8 @@
             label="Delete"
             variant="danger"
             @click="close()"
-            wire:click="confirmDelete('{{ $tenant->id }}')" />
+            wire:click="confirmDelete('{{ $tenant->id }}')"
+            x-on:click="$dispatch('open-confirmation-modal', { id: 'tenant-delete' })" />
 
         @endif
 

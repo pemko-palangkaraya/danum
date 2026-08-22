@@ -4,17 +4,37 @@
 'confirmText' => 'Konfirmasi',
 'cancelText' => 'Batal',
 'confirmAction' => null,
-'confirmButtonClass' => 'bg-red-600 hover:bg-red-700',
+'cancelAction' => null,
+'variant' => 'danger',
+'modalId' => null,
 ])
+
+@php
+$confirmButtonClasses = match ($variant) {
+'danger' => 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
+'warning' => 'bg-amber-600 hover:bg-amber-700 focus:ring-amber-500',
+'primary' => 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500',
+'success' => 'bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500',
+default => 'bg-gray-900 hover:bg-gray-800 focus:ring-gray-500',
+};
+@endphp
 
 <div
     x-data="{ open: false }"
-    @open-confirmation-modal.window="open = true"
-    @close-confirmation-modal.window="open = false"
     x-show="open"
     x-cloak
+    x-on:open-confirmation-modal.window="
+        if ($event.detail?.id === '{{ $modalId }}') {
+            open = true
+        }
+    "
+    x-on:close-confirmation-modal.window="
+        if ($event.detail?.id === '{{ $modalId }}') {
+            open = false
+        }
+    "
     class="relative z-50"
-    aria-labelledby="confirmation-modal-title"
+    aria-labelledby="{{ $modalId }}-title"
     aria-modal="true"
     role="dialog">
     {{-- Backdrop --}}
@@ -22,21 +42,28 @@
         x-show="open"
         x-transition.opacity
         class="fixed inset-0 bg-black/50"
-        @click="open = false"></div>
+        aria-hidden="true"></div>
 
     {{-- Modal --}}
     <div
+        x-show="open"
+        x-transition
         class="fixed inset-0 flex items-center justify-center p-4"
-        @keydown.escape.window="open = false">
+        x-on:keydown.escape.window="
+            open = false
+            @if ($cancelAction)
+                $wire.{{ $cancelAction }}()
+            @endif
+        ">
         <div
             x-show="open"
             x-transition
-            @click.stop
+            x-on:click.stop
             class="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl">
-            {{-- Header --}}
+            {{-- Content --}}
             <div class="px-6 pt-6">
                 <h2
-                    id="confirmation-modal-title"
+                    id="{{ $modalId }}-title"
                     class="text-lg font-semibold text-gray-900">
                     {{ $title }}
                 </h2>
@@ -50,8 +77,12 @@
             <div class="flex justify-end gap-3 px-6 py-5">
                 <button
                     type="button"
-                    @click="open = false"
-                    class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+                    @if ($cancelAction)
+                    wire:click="{{ $cancelAction }}"
+                    @else
+                    x-on:click="open = false"
+                    @endif
+                    class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2">
                     {{ $cancelText }}
                 </button>
 
@@ -61,8 +92,7 @@
                     wire:click="{{ $confirmAction }}"
                     wire:loading.attr="disabled"
                     wire:target="{{ $confirmAction }}"
-                    @click="open = false"
-                    class="{{ $confirmButtonClass }} rounded-lg px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50">
+                    class="{{ $confirmButtonClasses }} rounded-lg px-4 py-2 text-sm font-medium text-white transition focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
                     <span wire:loading.remove wire:target="{{ $confirmAction }}">
                         {{ $confirmText }}
                     </span>
