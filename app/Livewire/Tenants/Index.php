@@ -92,19 +92,6 @@ class Index extends Component
         ];
     }
 
-    // public function restoreTenant(
-    //     string $tenantId,
-    //     TenantService $tenantService
-    // ): void {
-    //     $tenant = $tenantService->findWithTrashed($tenantId);
-
-    //     abort_unless($tenant, 404);
-
-    //     $this->authorize('restore', $tenant);
-
-    //     $tenantService->restore($tenant);
-    // }
-
     public function restoreTenant(TenantService $tenantService): void
     {
         if (!$this->selectedTenantId) {
