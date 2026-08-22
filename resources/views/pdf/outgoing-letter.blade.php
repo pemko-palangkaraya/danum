@@ -17,13 +17,12 @@
         .letter-number h1 { font-size: 14pt; margin: 0 0 4px; text-decoration: underline; }
         .meta { margin: 0 0 18px 30px; }
         .meta td:first-child { width: 75px; vertical-align: top; }
-        .content { white-space: pre-line; text-align: justify; }
-        .signature { margin-left: 55%; margin-top: 36px; text-align: center; }
-        .signature-space { height: 60px; }
-        .verification { margin-top: 24px; border-top: 1px solid #d1d5db; padding-top: 8px; text-align: center; font-size: 7pt; color: #6b7280; }
-        .verification strong { color: #111827; }
-        .verification-qr { margin: 7px auto 4px; width: 27mm; height: 27mm; }
-        .verification-qr img { width: 27mm; height: 27mm; }
+        .content { white-space: pre-wrap; text-align: left; }
+        .content-part { white-space: pre-wrap; }
+        .tte-placeholder { margin: 10px 0; text-align: center; color: #6b7280; font-size: 9pt; }
+        .verification-qr { margin: 7px auto 4px; width: 30mm; height: 30mm; }
+        .verification-qr img { width: 30mm; height: 30mm; }
+        .verification-url { margin-top: 4px; font-size: 7pt; color: #6b7280; word-break: break-all; }
     </style>
 </head>
 <body>
@@ -42,6 +41,7 @@
         $logoData = $logoFile && is_file($logoFile)
             ? 'data:' . $logoMime . ';base64,' . base64_encode(file_get_contents($logoFile))
             : null;
+        $contentParts = preg_split('/(\{\{\s*tte\s*\}\})/i', (string) $letter->content, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [(string) $letter->content];
     @endphp
 
     @if ($letterheadData)
@@ -73,22 +73,25 @@
         @if ($letter->recipient_address)<tr><td>Alamat</td><td>: {{ $letter->recipient_address }}</td></tr>@endif
         <tr><td>Perihal</td><td>: {{ $letter->subject }}</td></tr>
     </table>
-    <main class="content">{{ $letter->content }}</main>
-    <section class="signature">
-        <div>{{ $letter->tenant->head_title ?? 'Pimpinan' }}</div>
-        <div class="signature-space"></div>
-        <strong>{{ $letter->tenant->head_name ?? '-' }}</strong>
-    </section>
-    @if ($letter->status->value === 'issued' && $letter->verification_token)
-        <div class="verification">
-            <strong>Verifikasi dokumen — scan QR</strong>
-            @if ($verificationQrCode)
-                <div class="verification-qr">
-                    <img src="{{ $verificationQrCode }}" alt="QR verifikasi surat">
-                </div>
+
+    <main class="content">
+        @foreach ($contentParts as $part)
+            @if (preg_match('/^\{\{\s*tte\s*\}\}$/i', trim($part)))
+                @if ($letter->status->value === 'issued' && $letter->verification_token && $verificationQrCode)
+                    <div class="tte-placeholder">
+                        <div class="verification-qr">
+                            <img src="{{ $verificationQrCode }}" alt="QR TTE / verifikasi surat">
+                        </div>
+                        <div>Dokumen diterbitkan dan dapat diverifikasi secara publik.</div>
+                        <div class="verification-url">{{ route('verification.show', ['token' => $letter->verification_token]) }}</div>
+                    </div>
+                @else
+                    <div class="tte-placeholder">TTE / QR verifikasi akan ditempatkan di sini saat surat diterbitkan.</div>
+                @endif
+            @else
+                <div class="content-part">{{ $part }}</div>
             @endif
-            <div>{{ route('verification.show', ['token' => $letter->verification_token]) }}</div>
-        </div>
-    @endif
+        @endforeach
+    </main>
 </body>
 </html>
