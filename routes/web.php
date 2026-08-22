@@ -22,15 +22,22 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Volt::route('/dashboard', 'pages.dashboard')->name('dashboard');
-    Volt::route('/users', 'pages.users.index')->name('users.index');
-    Route::get('/tenants', TenantIndex::class)->name('tenants.index');
-    Volt::route('/tenants/create', 'pages.tenants.create')->name('tenants.create');
-    Volt::route('/tenants/{tenant}/edit', 'pages.tenants.edit')->name('tenants.edit');
-    Volt::route('/tenants/{tenant}/users', 'pages.tenants.users')->name('tenants.users');
-    Volt::route('/tenants/{tenant}', 'pages.tenants.show')->name('tenants.show');
-    Route::get('/letter-types', LetterTypeIndex::class)->name('letter-types.index');
-    Route::get('/outgoing-letters', OutgoingLetterIndex::class)->name('outgoing-letters.index');
-    Route::get('/outgoing-letters/{id}', OutgoingLetterShow::class)->name('outgoing-letters.show');
+
+    Route::middleware('superadmin')->group(function () {
+        Volt::route('/users', 'pages.users.index')->name('users.index');
+        Route::get('/tenants', TenantIndex::class)->name('tenants.index');
+        Volt::route('/tenants/create', 'pages.tenants.create')->name('tenants.create');
+        Volt::route('/tenants/{tenant}/edit', 'pages.tenants.edit')->name('tenants.edit');
+        Volt::route('/tenants/{tenant}/users', 'pages.tenants.users')->name('tenants.users');
+        Volt::route('/tenants/{tenant}', 'pages.tenants.show')->name('tenants.show');
+        Route::get('/letter-types', LetterTypeIndex::class)->name('letter-types.index');
+    });
+
+    Route::middleware('tenant')->group(function () {
+        Route::get('/outgoing-letters', OutgoingLetterIndex::class)->name('outgoing-letters.index');
+        Route::get('/outgoing-letters/{id}', OutgoingLetterShow::class)->name('outgoing-letters.show');
+    });
+
     Route::post('/logout', function (Request $request) {
         Auth::logout();
         $request->session()->invalidate();
