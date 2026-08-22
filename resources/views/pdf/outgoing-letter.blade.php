@@ -15,8 +15,10 @@
         .content { white-space: pre-line; text-align: justify; }
         .signature { margin-left: 55%; margin-top: 40px; text-align: center; }
         .signature-space { height: 64px; }
-        .verification { margin-top: 28px; border-top: 1px solid #d1d5db; padding-top: 8px; text-align: center; font-size: 7pt; color: #6b7280; }
+        .verification { margin-top: 28px; border-top: 1px solid #d1d5db; padding-top: 10px; text-align: center; font-size: 7pt; color: #6b7280; }
         .verification strong { color: #111827; }
+        .verification-qr { margin: 8px auto 4px; width: 86px; height: 86px; }
+        .verification-qr img { width: 86px; height: 86px; }
     </style>
 </head>
 <body>
@@ -44,7 +46,15 @@
         <strong>{{ $letter->tenant->head_name ?? '-' }}</strong>
     </section>
     @if ($letter->status->value === 'issued' && $letter->verification_token)
-        <div class="verification"><strong>Verifikasi dokumen:</strong><br>{{ route('verification.show', ['token' => $letter->verification_token]) }}</div>
+        <div class="verification">
+            <strong>Verifikasi dokumen</strong>
+            @if ($verificationQrCode)
+                <div class="verification-qr">
+                    <img src="{{ $verificationQrCode }}" alt="QR verifikasi surat">
+                </div>
+            @endif
+            <div>{{ route('verification.show', ['token' => $letter->verification_token]) }}</div>
+        </div>
     @endif
 </body>
 </html>
