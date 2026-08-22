@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\OutgoingLetters;
 
 use App\Models\OutgoingLetter;
-use Illuminate\Auth\Access\AuthorizationException;
+use App\Services\VerificationQrCodeService;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -13,8 +13,9 @@ use Livewire\Component;
 class Show extends Component
 {
     public OutgoingLetter $letter;
+    public ?string $verificationQrCode = null;
 
-    public function mount(string $id): void
+    public function mount(string $id, VerificationQrCodeService $qrCodeService): void
     {
         $this->letter = OutgoingLetter::query()
             ->with(['tenant', 'letterType', 'letterTypeVersion'])
@@ -22,6 +23,12 @@ class Show extends Component
             ->findOrFail($id);
 
         $this->authorize('view', $this->letter);
+
+        if ($this->letter->status->value === 'issued' && $this->letter->verification_token) {
+            $this->verificationQrCode = $qrCodeService->render(
+                route('verification.show', ['token' => $this->letter->verification_token]),
+            );
+        }
     }
 
     public function render()
