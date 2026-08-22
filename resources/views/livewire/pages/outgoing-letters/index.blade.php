@@ -16,29 +16,30 @@
                 <form wire:submit="save" class="space-y-5 p-6">
                     <div><label class="text-sm font-medium text-slate-700">Letter Type</label><select wire:model.live="letter_type_id" class="form-select mt-1"><option value="">Pilih jenis surat</option>@foreach($letterTypes as $type)<option value="{{ $type->id }}">{{ $type->code }} — {{ $type->name }}</option>@endforeach</select>@error('letter_type_id')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</div>
                     @if($variables)
-                        <div class="rounded-xl border border-slate-200 bg-white p-4"><div><h3 class="text-sm font-semibold text-slate-900">Data Surat</h3><p class="mt-1 text-xs text-slate-500">Hanya placeholder yang benar-benar dipakai template yang ditampilkan.</p></div>
+                        <div class="rounded-xl border border-slate-200 bg-white p-4"><div><h3 class="text-sm font-semibold text-slate-900">Data Surat</h3><p class="mt-1 text-xs text-slate-500">Hanya field input yang benar-benar diperlukan template yang ditampilkan. Kop surat dan TTE dikelola sistem.</p></div>
                             <div class="mt-4 grid gap-4 sm:grid-cols-2">
                                 @foreach($variables as $variable)
                                     @php
                                         $label = $variableLabels[$variable] ?? ucwords(str_replace('_',' ',$variable));
-                                        $systemVariable = in_array($variable, ['tenant_name','tenant_city','tenant_district','tenant_village','tenant_province','tenant_address','tenant_phone','tenant_email','tenant_head_name','tenant_head_title'], true);
+                                        $systemVariable = in_array($variable, ['letterhead','tenant_name','tenant_city','tenant_district','tenant_village','tenant_province','tenant_address','tenant_phone','tenant_email','tenant_head_name','tenant_head_title','tte'], true);
                                         $wide = in_array($variable, ['recipient_address','subject','tenant_address'], true);
                                         $dateVariable = (bool) preg_match('/(^|_)date$/i', $variable);
                                         $birthDateVariable = (bool) preg_match('/(^|_)birth_date$/i', $variable);
                                     @endphp
-                                    <div class="{{ $wide ? 'sm:col-span-2' : '' }}">
-                                        <div class="flex items-center justify-between gap-3"><label class="text-sm font-medium text-slate-700">{{ $label }}</label>@if($systemVariable)<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">Otomatis</span>@endif</div>
-                                        @if($dateVariable)
-                                            <input type="date" wire:model="variableValues.{{ $variable }}" class="form-control mt-1 {{ $systemVariable ? 'bg-slate-50' : '' }}" @if($systemVariable) readonly @endif @if($birthDateVariable) max="{{ now()->subDay()->toDateString() }}" @endif />
-                                            <p class="mt-1 text-xs text-slate-400">@if($birthDateVariable)Tanggal lahir harus berupa tanggal dan tidak boleh hari ini atau masa depan.@elseTanggal tidak boleh tanggal hari ini.@endif</p>
-                                        @elseif($variable === 'recipient_address' || $variable === 'tenant_address')
-                                            <textarea wire:model="variableValues.{{ $variable }}" rows="2" class="form-textarea mt-1 {{ $systemVariable ? 'bg-slate-50' : '' }}" @if($systemVariable) readonly @endif></textarea>
-                                        @else
-                                            <input wire:model="variableValues.{{ $variable }}" class="form-control mt-1 {{ $systemVariable ? 'bg-slate-50' : '' }}" @if($systemVariable) readonly @endif>
-                                        @endif
-                                        @if($systemVariable)<p class="mt-1 text-xs text-slate-400">Diambil otomatis dari data organisasi / sistem.</p>@endif
-                                        <x-input-error :messages="$errors->get('variableValues.'.$variable)" class="mt-1" />
-                                    </div>
+                                    @if(! $systemVariable)
+                                        <div class="{{ $wide ? 'sm:col-span-2' : '' }}">
+                                            <label class="text-sm font-medium text-slate-700">{{ $label }}</label>
+                                            @if($dateVariable)
+                                                <input type="date" wire:model="variableValues.{{ $variable }}" class="form-control mt-1" />
+                                                <p class="mt-1 text-xs text-slate-400">@if($birthDateVariable)Tanggal lahir tidak boleh hari ini atau masa depan.@elseTanggal surat boleh backdate atau future, tetapi tidak boleh tanggal hari ini.@endif</p>
+                                            @elseif($variable === 'recipient_address')
+                                                <textarea wire:model="variableValues.{{ $variable }}" rows="2" class="form-textarea mt-1"></textarea>
+                                            @else
+                                                <input wire:model="variableValues.{{ $variable }}" class="form-control mt-1">
+                                            @endif
+                                            @error('variableValues.'.$variable)<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                                        </div>
+                                    @endif
                                 @endforeach
                             </div>
                         </div>
