@@ -35,7 +35,6 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('tenant')->group(function () {
-        Volt::route('/profile/organization', 'pages.tenant-profile')->name('tenant.profile');
         Route::get('/outgoing-letters', OutgoingLetterIndex::class)->name('outgoing-letters.index');
         Route::get('/outgoing-letters/{id}/pdf', [OutgoingLetterController::class, 'downloadPdf'])->name('outgoing-letters.pdf');
         Route::get('/outgoing-letters/{id}', OutgoingLetterShow::class)->name('outgoing-letters.show');
