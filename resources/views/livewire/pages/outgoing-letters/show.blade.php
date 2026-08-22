@@ -14,6 +14,10 @@
         </div>
     </div>
 
+    @php
+        $contentParts = preg_split('/(\{\{\s*tte\s*\}\})/i', (string) $letter->content, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [(string) $letter->content];
+    @endphp
+
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
         <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm print:border-0 print:p-0 print:shadow-none sm:p-8">
             <div class="mx-auto min-h-[297mm] max-w-[210mm] bg-white px-4 py-8 text-[14px] leading-7 text-slate-900 print:min-h-0 print:max-w-none print:px-0 print:py-0">
@@ -25,21 +29,23 @@
 
                 <section class="mb-7 text-center"><h2 class="text-base font-bold uppercase underline">{{ $letter->letterType?->name }}</h2><div class="text-sm">Nomor: {{ $letter->number }}</div></section>
                 <dl class="mb-7 ml-4 grid grid-cols-[75px_1fr] gap-y-1 text-sm"><dt>Tujuan</dt><dd>: {{ $letter->recipient_name }}</dd>@if ($letter->recipient_address)<dt>Alamat</dt><dd>: {{ $letter->recipient_address }}</dd>@endif<dt>Perihal</dt><dd>: {{ $letter->subject }}</dd></dl>
-                <div class="whitespace-pre-wrap font-serif">{{ $letter->content }}</div>
 
-                <div class="ml-auto mt-12 w-2/5 text-center text-sm">
-                    <div>{{ $letter->tenant?->head_title ?? 'Pimpinan' }}</div>
-                    <div class="h-20"></div>
-                    <strong>{{ $letter->tenant?->head_name ?? '-' }}</strong>
+                <div class="whitespace-pre-wrap font-serif">
+                    @foreach ($contentParts as $part)
+                        @if (preg_match('/^\{\{\s*tte\s*\}\}$/i', trim($part)))
+                            @if ($letter->status->value === 'issued' && $verificationQrCode)
+                                <div class="my-4 flex flex-col items-center text-center font-sans text-xs text-slate-500">
+                                    <img src="{{ $verificationQrCode }}" alt="QR TTE / verifikasi surat" class="h-28 w-28">
+                                    <span class="mt-1">TTE / verifikasi dokumen</span>
+                                </div>
+                            @else
+                                <div class="my-4 flex justify-center font-sans text-xs text-slate-400">[ TTE / QR verifikasi ]</div>
+                            @endif
+                        @else
+                            {!! nl2br(e($part)) !!}
+                        @endif
+                    @endforeach
                 </div>
-
-                @if ($letter->status->value === 'issued' && $letter->verification_token)
-                    <div class="mt-8 border-t border-slate-200 pt-3 text-center text-[10px] leading-4 text-slate-500">
-                        <div class="font-semibold text-slate-700">Dokumen diterbitkan · scan QR untuk verifikasi</div>
-                        @if ($verificationQrCode)<div class="mt-3 flex justify-center"><img src="{{ $verificationQrCode }}" alt="QR verifikasi surat" class="h-28 w-28"></div>@endif
-                        <div class="mt-2 break-all">{{ route('verification.show', ['token' => $letter->verification_token]) }}</div>
-                    </div>
-                @endif
             </div>
         </article>
 
