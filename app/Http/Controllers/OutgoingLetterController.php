@@ -13,10 +13,11 @@ use App\Services\LetterTypeService;
 use App\Services\OutgoingLetterService;
 use App\Services\OutgoingLetterTemplateService;
 use App\Services\VerificationQrCodeService;
+use App\Services\DocxPdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Storage;
 
 class OutgoingLetterController extends Controller
 {
@@ -25,6 +26,7 @@ class OutgoingLetterController extends Controller
         private readonly LetterTypeService $letterTypeService,
         private readonly OutgoingLetterTemplateService $outgoingLetterTemplateService,
         private readonly VerificationQrCodeService $verificationQrCodeService,
+        private readonly DocxPdfService $docxPdfService,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -44,24 +46,16 @@ class OutgoingLetterController extends Controller
         $tenant = $request->user()->tenant;
         $letterType = $this->letterTypeService->find($data['letter_type_id'], $tenant->id);
 
-        if ($letterType === null) {
-            return response()->json(['message' => 'Letter type not found.'], 404);
-        }
+        if ($letterType === null) return response()->json(['message' => 'Letter type not found.'], 404);
 
         if ($letterType->body_template === null) {
-            return response()->json([
-                'message' => 'The selected letter type has no template.',
-            ], 422);
+            return response()->json(['message' => 'The selected letter type has no template.'], 422);
         }
 
         return response()->json([
             'data' => [
                 'letter_type_id' => $letterType->id,
-                'content' => $this->outgoingLetterTemplateService->render(
-                    $letterType,
-                    $tenant,
-                    $data,
-                ),
+                'content' => $this->outgoingLetterTemplateService->render($letterType, $tenant, $data),
             ],
         ]);
     }
@@ -69,25 +63,15 @@ class OutgoingLetterController extends Controller
     public function store(StoreOutgoingLetterRequest $request): JsonResponse
     {
         $this->authorize('create', OutgoingLetter::class);
-
         $data = $request->validated();
         $tenant = $request->user()->tenant;
         $letterType = $this->letterTypeService->find($data['letter_type_id'], $tenant->id);
 
-        if ($letterType === null) {
-            return response()->json([
-                'message' => 'Letter type not found.',
-            ], 404);
-        }
+        if ($letterType === null) return response()->json(['message' => 'Letter type not found.'], 404);
 
         $templateVersion = $this->letterTypeService->ensureCurrentVersion($letterType);
-
         if (! isset($data['content']) && $templateVersion !== null) {
-            $data['content'] = $this->outgoingLetterTemplateService->renderVersion(
-                $templateVersion,
-                $tenant,
-                $data,
-            );
+            $data['content'] = $this->outgoingLetterTemplateService->renderVersion($templateVersion, $tenant, $data);
         }
 
         if (! isset($data['content']) || trim($data['content']) === '') {
@@ -110,150 +94,87 @@ class OutgoingLetterController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         $outgoingLetter = $this->findForTenant($id, $request);
-
-        if ($outgoingLetter === null) {
-            return $this->notFoundResponse();
-        }
-
+        if ($outgoingLetter === null) return $this->notFoundResponse();
         $this->authorize('view', $outgoingLetter);
-
         return response()->json(['data' => $outgoingLetter]);
     }
 
     public function history(Request $request, string $id): JsonResponse
     {
         $outgoingLetter = $this->findForTenant($id, $request);
-
-        if ($outgoingLetter === null) {
-            return $this->notFoundResponse();
-        }
-
+        if ($outgoingLetter === null) return $this->notFoundResponse();
         $this->authorize('view', $outgoingLetter);
-
-        return response()->json([
-            'data' => $outgoingLetter->statusHistories()->with('changedBy:id,name')->get(),
-        ]);
+        return response()->json(['data' => $outgoingLetter->statusHistories()->with('changedBy:id,name')->get()]);
     }
 
     public function update(UpdateOutgoingLetterRequest $request, string $id): JsonResponse
     {
         $outgoingLetter = $this->findForTenant($id, $request);
-
-        if ($outgoingLetter === null) {
-            return $this->notFoundResponse();
-        }
-
+        if ($outgoingLetter === null) return $this->notFoundResponse();
         $this->authorize('update', $outgoingLetter);
-
-        return response()->json([
-            'data' => $this->outgoingLetterService->update(
-                $outgoingLetter,
-                $request->validated(),
-            ),
-        ]);
+        return response()->json(['data' => $this->outgoingLetterService->update($outgoingLetter, $request->validated())]);
     }
 
     public function destroy(Request $request, string $id): JsonResponse
     {
         $outgoingLetter = $this->findForTenant($id, $request);
-
-        if ($outgoingLetter === null) {
-            return $this->notFoundResponse();
-        }
-
+        if ($outgoingLetter === null) return $this->notFoundResponse();
         $this->authorize('delete', $outgoingLetter);
         $this->outgoingLetterService->delete($outgoingLetter);
-
-        return response()->json([
-            'message' => 'Outgoing letter deleted successfully.',
-        ]);
+        return response()->json(['message' => 'Outgoing letter deleted successfully.']);
     }
 
     public function restore(Request $request, string $id): JsonResponse
     {
-        $outgoingLetter = $this->outgoingLetterService->findWithTrashed(
-            $id,
-            $request->user()->tenant_id,
-        );
-
-        if ($outgoingLetter === null) {
-            return $this->notFoundResponse();
-        }
-
+        $outgoingLetter = $this->outgoingLetterService->findWithTrashed($id, $request->user()->tenant_id);
+        if ($outgoingLetter === null) return $this->notFoundResponse();
         $this->authorize('restore', $outgoingLetter);
         $this->outgoingLetterService->restore($outgoingLetter);
-
         return response()->json(['data' => $outgoingLetter->refresh()]);
     }
 
     public function validateLetter(Request $request, string $id): JsonResponse
     {
-        return $this->transition(
-            $request,
-            $id,
-            'validate',
-            fn (OutgoingLetter $outgoingLetter) => $this->outgoingLetterService->validate(
-                $outgoingLetter,
-                $request->user()->id,
-            ),
-        );
+        return $this->transition($request, $id, 'validate', fn (OutgoingLetter $letter) => $this->outgoingLetterService->validate($letter, $request->user()->id));
     }
 
     public function issue(Request $request, string $id): JsonResponse
     {
-        return $this->transition(
-            $request,
-            $id,
-            'issue',
-            fn (OutgoingLetter $outgoingLetter) => $this->outgoingLetterService->issue(
-                $outgoingLetter,
-                $request->user()->id,
-            ),
-        );
+        return $this->transition($request, $id, 'issue', fn (OutgoingLetter $letter) => $this->outgoingLetterService->issue($letter, $request->user()->id));
     }
 
     public function cancel(Request $request, string $id): JsonResponse
     {
-        return $this->transition(
-            $request,
-            $id,
-            'cancel',
-            fn (OutgoingLetter $outgoingLetter) => $this->outgoingLetterService->cancel(
-                $outgoingLetter,
-                $request->user()->id,
-            ),
-        );
+        return $this->transition($request, $id, 'cancel', fn (OutgoingLetter $letter) => $this->outgoingLetterService->cancel($letter, $request->user()->id));
     }
 
     public function downloadPdf(Request $request, string $id): Response
     {
         $outgoingLetter = $this->findForTenant($id, $request);
-
-        if ($outgoingLetter === null) {
-            abort(404, 'Outgoing letter not found.');
-        }
-
+        if ($outgoingLetter === null) abort(404, 'Outgoing letter not found.');
         $this->authorize('view', $outgoingLetter);
-
         $outgoingLetter->loadMissing(['tenant', 'letterType', 'letterTypeVersion']);
 
-        $verificationQrCode = null;
-
-        if ($outgoingLetter->status === OutgoingLetterStatus::ISSUED && $outgoingLetter->verification_token) {
-            $verificationUrl = route('verification.show', [
-                'token' => $outgoingLetter->verification_token,
-            ]);
-
-            $verificationQrCode = $this->verificationQrCodeService->render($verificationUrl);
+        $docxPath = $outgoingLetter->generated_docx_path;
+        if (! $docxPath || ! Storage::disk('local')->exists($docxPath)) {
+            abort(422, 'DOCX hasil surat belum tersedia. Buat ulang draft surat terlebih dahulu.');
         }
 
-        return Pdf::loadView('pdf.outgoing-letter', [
-            'letter' => $outgoingLetter,
-            'verificationQrCode' => $verificationQrCode,
-        ])->setPaper('a4')->download(sprintf(
-            'surat-%s.pdf',
-            str($outgoingLetter->number)->slug(),
-        ));
+        try {
+            $pdfPath = $this->docxPdfService->convert($docxPath);
+        } catch (\RuntimeException $exception) {
+            abort(422, $exception->getMessage());
+        }
+
+        $absolutePath = Storage::disk('local')->path($pdfPath);
+        $filename = sprintf('surat-%s.pdf', str($outgoingLetter->number)->slug());
+        $headers = ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="' . $filename . '"'];
+
+        if ($request->boolean('download')) {
+            $headers['Content-Disposition'] = 'attachment; filename="' . $filename . '"';
+        }
+
+        return response()->file($absolutePath, $headers);
     }
 
     private function findForTenant(string $id, Request $request): ?OutgoingLetter
@@ -263,33 +184,19 @@ class OutgoingLetterController extends Controller
 
     private function notFoundResponse(): JsonResponse
     {
-        return response()->json([
-            'message' => 'Outgoing letter not found.',
-        ], 404);
+        return response()->json(['message' => 'Outgoing letter not found.'], 404);
     }
 
-    private function transition(
-        Request $request,
-        string $id,
-        string $ability,
-        callable $transition,
-    ): JsonResponse {
+    private function transition(Request $request, string $id, string $ability, callable $transition): JsonResponse
+    {
         $outgoingLetter = $this->findForTenant($id, $request);
-
-        if ($outgoingLetter === null) {
-            return $this->notFoundResponse();
-        }
-
+        if ($outgoingLetter === null) return $this->notFoundResponse();
         $this->authorize($ability, $outgoingLetter);
-
         try {
             $outgoingLetter = $transition($outgoingLetter);
         } catch (\DomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], 422);
+            return response()->json(['message' => $exception->getMessage()], 422);
         }
-
         return response()->json(['data' => $outgoingLetter]);
     }
 }
