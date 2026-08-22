@@ -9,12 +9,6 @@ use App\Repositories\Contracts\TenantRepositoryInterface;
 
 class TenantProfileService
 {
-    /**
-     * Fields that belong to the tenant profile.
-     *
-     * System-controlled fields such as id, code, and status
-     * are intentionally excluded.
-     */
     private const PROFILE_FIELDS = [
         'name',
         'province',
@@ -25,6 +19,7 @@ class TenantProfileService
         'phone',
         'email',
         'logo',
+        'letterhead_path',
         'head_name',
         'head_title',
     ];
