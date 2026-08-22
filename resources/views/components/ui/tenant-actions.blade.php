@@ -97,7 +97,7 @@
             x-show="open"
             x-cloak
             x-transition
-            class="fixed z-[9999] w-32 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-left shadow-lg"
+            class="fixed z-[9999] w-36 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-left shadow-lg"
             :style="{
                 top: `${menuTop}px`,
                 left: `${menuLeft}px`,
@@ -112,6 +112,11 @@
             <x-ui.action-menu-item
                 label="View"
                 href="{{ route('tenants.show', $tenant->id) }}"
+                @click="close()" />
+
+            <x-ui.action-menu-item
+                label="Manage Users"
+                href="{{ route('tenants.users', $tenant->id) }}"
                 @click="close()" />
 
             <x-ui.action-menu-item
