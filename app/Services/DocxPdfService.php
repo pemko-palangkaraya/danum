@@ -16,7 +16,7 @@ class DocxPdfService
             throw new RuntimeException('DOCX hasil surat tidak ditemukan.');
         }
 
-        $binary = (string) config('services.libreoffice.binary', env('DANUM_LIBREOFFICE_BINARY', 'soffice'));
+        $binary = $this->resolveBinary();
         $workDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'danum-pdf-' . bin2hex(random_bytes(8));
         if (! mkdir($workDir, 0777, true) && ! is_dir($workDir)) {
             throw new RuntimeException('Tidak dapat membuat direktori sementara PDF.');
@@ -49,6 +49,55 @@ class DocxPdfService
         $this->cleanup($workDir);
 
         return $target;
+    }
+
+    private function resolveBinary(): string
+    {
+        $configured = (string) config('services.libreoffice.binary', '');
+        if ($configured !== '' && $this->isExecutablePath($configured)) {
+            return $configured;
+        }
+
+        $candidates = [];
+        if (PHP_OS_FAMILY === 'Windows') {
+            $candidates = [
+                'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
+                'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
+                getenv('PROGRAMFILES') . '\\LibreOffice\\program\\soffice.exe',
+                getenv('PROGRAMFILES(X86)') . '\\LibreOffice\\program\\soffice.exe',
+            ];
+        } else {
+            $candidates = [
+                '/usr/bin/soffice',
+                '/usr/local/bin/soffice',
+                '/snap/bin/libreoffice',
+            ];
+        }
+
+        foreach (array_unique(array_filter($candidates)) as $candidate) {
+            if ($this->isExecutablePath($candidate)) {
+                return $candidate;
+            }
+        }
+
+        // Finally allow soffice to be resolved from PATH.
+        $command = PHP_OS_FAMILY === 'Windows' ? 'where soffice 2>NUL' : 'command -v soffice 2>/dev/null';
+        $resolved = trim((string) shell_exec($command));
+        if ($resolved !== '') {
+            $resolved = preg_split('/\r?\n/', $resolved)[0] ?? $resolved;
+            if ($this->isExecutablePath($resolved) || PHP_OS_FAMILY !== 'Windows') {
+                return $resolved;
+            }
+        }
+
+        throw new RuntimeException(
+            'LibreOffice belum ditemukan. Install LibreOffice terlebih dahulu, atau isi DANUM_LIBREOFFICE_BINARY di file .env dengan path ke soffice.exe. Contoh: C:\\Program Files\\LibreOffice\\program\\soffice.exe'
+        );
+    }
+
+    private function isExecutablePath(string $path): bool
+    {
+        return is_file($path) && is_readable($path);
     }
 
     private function cleanup(string $directory): void
