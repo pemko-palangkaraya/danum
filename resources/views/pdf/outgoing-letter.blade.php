@@ -75,14 +75,13 @@
     </table>
     <main class="content">{{ $letter->content }}</main>
     <section class="signature">
-        <div>{{ $letter->tenant->city }}, {{ optional($letter->issued_at)->translatedFormat('d F Y') ?? '-' }}</div>
         <div>{{ $letter->tenant->head_title ?? 'Pimpinan' }}</div>
         <div class="signature-space"></div>
         <strong>{{ $letter->tenant->head_name ?? '-' }}</strong>
     </section>
     @if ($letter->status->value === 'issued' && $letter->verification_token)
         <div class="verification">
-            <strong>Verifikasi dokumen</strong>
+            <strong>Verifikasi dokumen — scan QR</strong>
             @if ($verificationQrCode)
                 <div class="verification-qr">
                     <img src="{{ $verificationQrCode }}" alt="QR verifikasi surat">
