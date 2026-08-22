@@ -69,6 +69,26 @@ class LetterTypeController extends Controller
     }
 
     /**
+     * Display immutable template versions for a letter type.
+     */
+    public function versions(Request $request, string $id): JsonResponse
+    {
+        $letterType = $this->letterTypeService->find($id, $request->user()->tenant_id);
+
+        if ($letterType === null) {
+            return response()->json([
+                'message' => 'Letter type not found.',
+            ], 404);
+        }
+
+        $this->authorize('view', $letterType);
+
+        return response()->json([
+            'data' => $letterType->versions()->get(),
+        ]);
+    }
+
+    /**
      * Update the specified letter type.
      */
     public function update(
