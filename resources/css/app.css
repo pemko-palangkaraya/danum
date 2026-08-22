@@ -13,3 +13,86 @@
 [x-cloak] {
     display: none !important;
 }
+
+/* Keep native form controls readable and consistent across browsers. */
+select,
+input,
+textarea {
+    color: #0f172a;
+    background-color: #ffffff;
+}
+
+select {
+    color-scheme: light;
+}
+
+select option {
+    color: #0f172a;
+    background-color: #ffffff;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #94a3b8;
+}
+
+select:focus,
+input:focus,
+textarea:focus {
+    border-color: #6366f1;
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(99 102 241 / 0.12);
+}
+
+/* Shared controls used by the application forms. */
+.form-control,
+.form-select,
+.form-textarea {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.75rem;
+    background-color: #ffffff;
+    color: #0f172a;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.form-control,
+.form-select {
+    min-height: 2.75rem;
+    padding: 0.625rem 0.875rem;
+}
+
+.form-textarea {
+    padding: 0.625rem 0.875rem;
+}
+
+.form-select {
+    cursor: pointer;
+    color-scheme: light;
+}
+
+.form-control:focus,
+.form-select:focus,
+.form-textarea:focus {
+    border-color: #6366f1;
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(99 102 241 / 0.12);
+}
+
+.form-control:disabled,
+.form-select:disabled,
+.form-textarea:disabled,
+.form-control[readonly],
+.form-select[readonly],
+.form-textarea[readonly] {
+    cursor: not-allowed;
+    background-color: #f8fafc;
+    color: #64748b;
+}
+
+.form-select option {
+    color: #0f172a;
+    background: #ffffff;
+}
