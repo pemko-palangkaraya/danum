@@ -9,6 +9,7 @@ use App\Http\Requests\StoreOutgoingLetterRequest;
 use App\Http\Requests\UpdateOutgoingLetterRequest;
 use App\Enums\OutgoingLetterStatus;
 use App\Models\OutgoingLetter;
+use App\Services\DocxTteService;
 use App\Services\LetterTypeService;
 use App\Services\OutgoingLetterService;
 use App\Services\OutgoingLetterTemplateService;
@@ -18,6 +19,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class OutgoingLetterController extends Controller
 {
@@ -27,37 +29,24 @@ class OutgoingLetterController extends Controller
         private readonly OutgoingLetterTemplateService $outgoingLetterTemplateService,
         private readonly VerificationQrCodeService $verificationQrCodeService,
         private readonly DocxPdfService $docxPdfService,
+        private readonly DocxTteService $docxTteService,
     ) {}
 
     public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', OutgoingLetter::class);
-
-        return response()->json([
-            'data' => $this->outgoingLetterService->getAll($request->user()->tenant_id),
-        ]);
+        return response()->json(['data' => $this->outgoingLetterService->getAll($request->user()->tenant_id)]);
     }
 
     public function preview(PreviewOutgoingLetterRequest $request): JsonResponse
     {
         $this->authorize('create', OutgoingLetter::class);
-
         $data = $request->validated();
         $tenant = $request->user()->tenant;
         $letterType = $this->letterTypeService->find($data['letter_type_id'], $tenant->id);
-
         if ($letterType === null) return response()->json(['message' => 'Letter type not found.'], 404);
-
-        if ($letterType->body_template === null) {
-            return response()->json(['message' => 'The selected letter type has no template.'], 422);
-        }
-
-        return response()->json([
-            'data' => [
-                'letter_type_id' => $letterType->id,
-                'content' => $this->outgoingLetterTemplateService->render($letterType, $tenant, $data),
-            ],
-        ]);
+        if ($letterType->body_template === null) return response()->json(['message' => 'The selected letter type has no template.'], 422);
+        return response()->json(['data' => ['letter_type_id' => $letterType->id, 'content' => $this->outgoingLetterTemplateService->render($letterType, $tenant, $data)]]);
     }
 
     public function store(StoreOutgoingLetterRequest $request): JsonResponse
@@ -66,28 +55,11 @@ class OutgoingLetterController extends Controller
         $data = $request->validated();
         $tenant = $request->user()->tenant;
         $letterType = $this->letterTypeService->find($data['letter_type_id'], $tenant->id);
-
         if ($letterType === null) return response()->json(['message' => 'Letter type not found.'], 404);
-
         $templateVersion = $this->letterTypeService->ensureCurrentVersion($letterType);
-        if (! isset($data['content']) && $templateVersion !== null) {
-            $data['content'] = $this->outgoingLetterTemplateService->renderVersion($templateVersion, $tenant, $data);
-        }
-
-        if (! isset($data['content']) || trim($data['content']) === '') {
-            return response()->json([
-                'message' => 'The content field is required when the letter type has no template.',
-                'errors' => ['content' => ['The content field is required.']],
-            ], 422);
-        }
-
-        $outgoingLetter = $this->outgoingLetterService->create([
-            ...$data,
-            'tenant_id' => $request->user()->tenant_id,
-            'letter_type_version_id' => $templateVersion?->id,
-            'status' => OutgoingLetterStatus::DRAFT,
-        ], $request->user()->id);
-
+        if (! isset($data['content']) && $templateVersion !== null) $data['content'] = $this->outgoingLetterTemplateService->renderVersion($templateVersion, $tenant, $data);
+        if (! isset($data['content']) || trim($data['content']) === '') return response()->json(['message' => 'The content field is required when the letter type has no template.', 'errors' => ['content' => ['The content field is required.']]], 422);
+        $outgoingLetter = $this->outgoingLetterService->create([...$data, 'tenant_id' => $request->user()->tenant_id, 'letter_type_version_id' => $templateVersion?->id, 'status' => OutgoingLetterStatus::DRAFT], $request->user()->id);
         return response()->json(['data' => $outgoingLetter], 201);
     }
 
@@ -156,11 +128,17 @@ class OutgoingLetterController extends Controller
         $outgoingLetter->loadMissing(['tenant', 'letterType', 'letterTypeVersion']);
 
         $docxPath = $outgoingLetter->generated_docx_path;
-        if (! $docxPath || ! Storage::disk('local')->exists($docxPath)) {
-            abort(422, 'DOCX hasil surat belum tersedia. Buat ulang draft surat terlebih dahulu.');
+        if (! $docxPath || ! Storage::disk('local')->exists($docxPath)) abort(422, 'DOCX hasil surat belum tersedia. Buat ulang draft surat terlebih dahulu.');
+
+        // Backfill the TTE for drafts created before the QR integration.
+        if (blank($outgoingLetter->verification_token)) {
+            $outgoingLetter->verification_token = Str::random(64);
+            $outgoingLetter->save();
         }
 
         try {
+            $verificationUrl = url('/verify/' . $outgoingLetter->verification_token);
+            $this->docxTteService->embed(Storage::disk('local')->path($docxPath), $verificationUrl);
             $pdfPath = $this->docxPdfService->convert($docxPath);
         } catch (\RuntimeException $exception) {
             abort(422, $exception->getMessage());
@@ -169,11 +147,7 @@ class OutgoingLetterController extends Controller
         $absolutePath = Storage::disk('local')->path($pdfPath);
         $filename = sprintf('surat-%s.pdf', str($outgoingLetter->number)->slug());
         $headers = ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="' . $filename . '"'];
-
-        if ($request->boolean('download')) {
-            $headers['Content-Disposition'] = 'attachment; filename="' . $filename . '"';
-        }
-
+        if ($request->boolean('download')) $headers['Content-Disposition'] = 'attachment; filename="' . $filename . '"';
         return response()->file($absolutePath, $headers);
     }
 
