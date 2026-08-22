@@ -19,33 +19,19 @@ class Tenant extends Model
     use SoftDeletes;
 
     protected $keyType = 'string';
-
     public $incrementing = false;
 
     protected $fillable = [
-        'code',
-        'name',
-        'province',
-        'city',
-        'district',
-        'village',
-        'address',
-        'phone',
-        'email',
-        'logo',
-        'head_name',
-        'head_title',
-        'status',
-        'administrator_user_id',
+        'code', 'name', 'province', 'city', 'district', 'village', 'address',
+        'phone', 'email', 'logo', 'letterhead_path', 'head_name', 'head_title',
+        'status', 'administrator_user_id',
     ];
 
     protected $hidden = [];
 
     protected function casts(): array
     {
-        return [
-            'status' => TenantStatus::class,
-        ];
+        return ['status' => TenantStatus::class];
     }
 
     public function users(): HasMany
@@ -56,5 +42,12 @@ class Tenant extends Model
     public function administrator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'administrator_user_id');
+    }
+
+    public function letterheadUrl(): ?string
+    {
+        return $this->letterhead_path
+            ? asset('storage/' . $this->letterhead_path)
+            : null;
     }
 }
