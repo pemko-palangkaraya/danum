@@ -3,15 +3,78 @@
 ])
 
 <div
-    x-data="tenantActionMenu()"
-    x-init="init()"
+    x-data="{
+        open: false,
+        menuTop: 0,
+        menuLeft: 0,
+
+        toggle() {
+            this.open = !this.open;
+
+            if (this.open) {
+                this.position();
+            }
+        },
+
+        close() {
+            this.open = false;
+        },
+
+        position() {
+            this.$nextTick(() => {
+                const button = this.$refs.trigger;
+                const menu = this.$refs.menu;
+
+                if (!button || !menu) {
+                    return;
+                }
+
+                const buttonRect = button.getBoundingClientRect();
+                const menuWidth = menu.offsetWidth;
+                const menuHeight = menu.offsetHeight;
+                const gap = 8;
+                const padding = 8;
+
+                let left = buttonRect.right - menuWidth;
+                let top = buttonRect.bottom + gap;
+
+                if (top + menuHeight > window.innerHeight - padding) {
+                    top = buttonRect.top - menuHeight - gap;
+                }
+
+                left = Math.max(
+                    padding,
+                    Math.min(
+                        left,
+                        window.innerWidth - menuWidth - padding
+                    )
+                );
+
+                top = Math.max(
+                    padding,
+                    Math.min(
+                        top,
+                        window.innerHeight - menuHeight - padding
+                    )
+                );
+
+                this.menuTop = top;
+                this.menuLeft = left;
+            });
+        }
+    }"
     @click.outside="close()"
     @keydown.escape.window="close()"
+    @resize.window="open && position()"
+    @scroll.window="open && position()"
     class="relative inline-block text-left">
+    {{-- Trigger --}}
     <button
+        x-ref="trigger"
         type="button"
         @click="toggle()"
         :aria-expanded="open"
+        aria-haspopup="true"
         aria-label="Tenant actions"
         class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-200">
         <svg
@@ -20,46 +83,49 @@
             fill="none"
             stroke="currentColor"
             stroke-width="2"
-            class="h-5 w-5">
+            class="h-5 w-5"
+            aria-hidden="true">
             <circle cx="5" cy="12" r="1" />
             <circle cx="12" cy="12" r="1" />
             <circle cx="19" cy="12" r="1" />
         </svg>
     </button>
 
-    <div
-        x-ref="menu"
-        x-cloak
-        x-show="open"
-        class="absolute right-0 z-[9999] mt-2 w-20 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-left shadow-lg md:fixed md:right-15 md:mt-0">
+    {{-- Menu --}}
+    <template x-teleport="body">
+        <div
+            x-ref="menu"
+            x-show="open"
+            x-cloak
+            x-transition
+            class="fixed z-[9999] w-32 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-left shadow-lg"
+            :style="{
+                top: `${menuTop}px`,
+                left: `${menuLeft}px`,
+            }">
+            @if ($tenant->trashed())
+            <x-ui.action-menu-item
+                label="Restore"
+                variant="success"
+                @click="close()"
+                wire:click="confirmRestore('{{ $tenant->id }}')" />
+            @else
+            <x-ui.action-menu-item
+                label="View"
+                href="{{ route('tenants.show', $tenant->id) }}"
+                @click="close()" />
 
-        @if ($tenant->trashed())
+            <x-ui.action-menu-item
+                label="Edit"
+                href="{{ route('tenants.edit', $tenant->id) }}"
+                @click="close()" />
 
-        <x-ui.action-menu-item
-            label="Restore"
-            variant="success"
-            @click="close()"
-            wire:click="confirmRestore('{{ $tenant->id }}')" />
-
-        @else
-
-        <x-ui.action-menu-item
-            label="View"
-            href="{{ route('tenants.show', $tenant->id) }}"
-            @click="close()" />
-
-        <x-ui.action-menu-item
-            label="Edit"
-            href="{{ route('tenants.edit', $tenant->id) }}"
-            @click="close()" />
-
-        <x-ui.action-menu-item
-            label="Delete"
-            variant="danger"
-            @click="close()"
-            wire:click="confirmDelete('{{ $tenant->id }}')" />
-
-        @endif
-
-    </div>
+            <x-ui.action-menu-item
+                label="Delete"
+                variant="danger"
+                @click="close()"
+                wire:click="confirmDelete('{{ $tenant->id }}')" />
+            @endif
+        </div>
+    </template>
 </div>
