@@ -7,6 +7,7 @@ use Livewire\Volt\Volt;
 use App\Livewire\Tenants\Index as TenantIndex;
 use App\Livewire\LetterTypes\Index as LetterTypeIndex;
 use App\Livewire\OutgoingLetters\Index as OutgoingLetterIndex;
+use App\Livewire\OutgoingLetters\Show as OutgoingLetterShow;
 use App\Http\Controllers\VerificationController;
 
 Route::view('/', 'welcome')->name('home');
@@ -29,6 +30,7 @@ Route::middleware('auth')->group(function () {
     Volt::route('/tenants/{tenant}', 'pages.tenants.show')->name('tenants.show');
     Route::get('/letter-types', LetterTypeIndex::class)->name('letter-types.index');
     Route::get('/outgoing-letters', OutgoingLetterIndex::class)->name('outgoing-letters.index');
+    Route::get('/outgoing-letters/{id}', OutgoingLetterShow::class)->name('outgoing-letters.show');
     Route::post('/logout', function (Request $request) {
         Auth::logout();
         $request->session()->invalidate();
