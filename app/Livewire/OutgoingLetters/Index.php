@@ -9,7 +9,9 @@ use App\Enums\OutgoingLetterStatus;
 use App\Models\LetterType;
 use App\Models\OutgoingLetter;
 use App\Services\DocxTemplateService;
+use App\Services\DocxTteService;
 use App\Services\OutgoingLetterService;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
@@ -40,7 +42,7 @@ class Index extends Component
         $this->applySystemValues();
     }
 
-    public function save(OutgoingLetterService $service, DocxTemplateService $docx): void
+    public function save(OutgoingLetterService $service, DocxTemplateService $docx, DocxTteService $tte): void
     {
         $this->validate([
             'letter_type_id' => ['required', Rule::exists('letter_types', 'id')->whereNull('tenant_id')->where('status', LetterTypeStatus::ACTIVE->value)],
@@ -76,7 +78,13 @@ class Index extends Component
         $templatePath = Storage::disk('local')->path($letterType->template_path);
         if (! is_file($templatePath)) { $this->addError('letter_type_id', 'File template DOCX tidak ditemukan di storage.'); return; }
 
+        // Generate the verification identity before rendering the DOCX so the
+        // {{tte}} marker can be replaced by the real QR at the exact position
+        // selected by Super Admin in the DOCX template.
+        $verificationToken = Str::random(64);
+        $verificationUrl = url('/verify/' . $verificationToken);
         $generatedPath = $docx->renderToStorage($templatePath, auth()->user()->tenant, $data);
+        $tte->embed(Storage::disk('local')->path($generatedPath), $verificationUrl);
         $content = $docx->extractText(Storage::disk('local')->path($generatedPath));
 
         $service->create([
@@ -89,6 +97,7 @@ class Index extends Component
             'subject' => $data['subject'],
             'letter_date' => $data['date'] ?? null,
             'generated_docx_path' => $generatedPath,
+            'verification_token' => $verificationToken,
             'content' => $content,
             'status' => OutgoingLetterStatus::DRAFT,
         ], auth()->id());
