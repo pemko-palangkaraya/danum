@@ -18,12 +18,22 @@ class DocxTemplateService
             'number' => 'Nomor surat',
             'recipient_name' => 'Nama penerima',
             'recipient_address' => 'Alamat penerima',
+            'recipient_birth_place' => 'Tempat lahir',
+            'recipient_birth_date' => 'Tanggal lahir',
+            'recipient_nik' => 'NIK',
             'subject' => 'Perihal / keperluan',
             'tenant_name' => 'Nama instansi / tenant',
             'tenant_city' => 'Kota / wilayah tenant',
+            'tenant_district' => 'Kecamatan tenant',
+            'tenant_village' => 'Kelurahan / desa tenant',
+            'tenant_province' => 'Provinsi tenant',
+            'tenant_address' => 'Alamat tenant',
+            'tenant_phone' => 'Telepon tenant',
+            'tenant_email' => 'Email tenant',
             'tenant_head_name' => 'Nama pejabat penandatangan',
+            'tenant_head_title' => 'Jabatan pejabat penandatangan',
             'date' => 'Tanggal surat',
-            'birth_date' => 'Tanggal lahir',
+            'tte' => 'TTE / QR verifikasi',
         ];
     }
 
@@ -34,7 +44,9 @@ class DocxTemplateService
         $variables = [];
         foreach ($tokens as $token) {
             $variable = preg_replace('/^\{\{\s*|\s*\}\}$/', '', trim($token)) ?? trim($token);
-            if (preg_match('/^[A-Za-z_][A-Za-z0-9_.]*$/', $variable)) $variables[] = $variable;
+            if (preg_match('/^[A-Za-z_][A-Za-z0-9_.]*$/', $variable)) {
+                $variables[] = $variable;
+            }
         }
         return array_values(array_unique($variables));
     }
@@ -54,13 +66,19 @@ class DocxTemplateService
     /** @param list<string> $declared @param list<string> $found */
     public function compareVariables(array $declared, array $found): array
     {
-        return ['missing' => array_values(array_diff($declared, $found)), 'unknown' => array_values(array_diff($found, $declared))];
+        return [
+            'missing' => array_values(array_diff($declared, $found)),
+            'unknown' => array_values(array_diff($found, $declared)),
+        ];
     }
 
     /** @param list<string> $found @param list<string> $allowed */
     public function validateVariables(array $found, array $allowed): array
     {
-        return ['missing' => array_values(array_diff($allowed, $found)), 'unknown' => array_values(array_diff($found, $allowed))];
+        return [
+            'missing' => array_values(array_diff($allowed, $found)),
+            'unknown' => array_values(array_diff($found, $allowed)),
+        ];
     }
 
     public function renderToStorage(string $templatePath, Tenant $tenant, array $data): string
@@ -74,10 +92,27 @@ class DocxTemplateService
         $values = [
             'tenant_name' => $tenant->name,
             'tenant_city' => $tenant->city,
+            'tenant_district' => $tenant->district,
+            'tenant_village' => $tenant->village,
+            'tenant_province' => $tenant->province,
+            'tenant_address' => $tenant->address,
+            'tenant_phone' => $tenant->phone,
+            'tenant_email' => $tenant->email,
             'tenant_head_name' => (string) ($tenant->head_name ?? ''),
+            'tenant_head_title' => (string) ($tenant->head_title ?? ''),
             ...$data,
         ];
-        $xml = preg_replace_callback('/\{\{\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\}\}/', fn (array $m) => htmlspecialchars((string) ($values[$m[1]] ?? ''), ENT_XML1 | ENT_QUOTES, 'UTF-8'), $xml) ?? $xml;
+
+        $xml = preg_replace_callback(
+            '/\{\{\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\}\}/',
+            function (array $m) use ($values): string {
+                // TTE is resolved when the letter is issued and receives its verification token.
+                if ($m[1] === 'tte') return '{{tte}}';
+
+                return htmlspecialchars((string) ($values[$m[1]] ?? ''), ENT_XML1 | ENT_QUOTES, 'UTF-8');
+            },
+            $xml,
+        ) ?? $xml;
 
         $tmp = tempnam(sys_get_temp_dir(), 'danum-docx-');
         if ($tmp === false || !copy($templatePath, $tmp)) throw new RuntimeException('Tidak dapat membuat DOCX hasil.');
@@ -86,7 +121,7 @@ class DocxTemplateService
         $output->addFromString('word/document.xml', $xml);
         $output->close();
 
-        $path = 'outgoing-letters/'.date('Y/m').'/'.uniqid('letter-', true).'.docx';
+        $path = 'outgoing-letters/' . date('Y/m') . '/' . uniqid('letter-', true) . '.docx';
         Storage::disk('local')->put($path, file_get_contents($tmp));
         @unlink($tmp);
         return $path;
