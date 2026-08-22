@@ -52,13 +52,40 @@
                 </div>
                 <form wire:submit="save" class="space-y-5 p-6">
                     <div class="grid gap-5 sm:grid-cols-2">
-                        <div><label class="text-sm font-medium">Code</label><input wire:model="code" class="mt-1 w-full rounded-xl border-slate-200"><x-input-error :messages="$errors->get('code')" class="mt-1" /></div>
-                        <div><label class="text-sm font-medium">Name</label><input wire:model="name" class="mt-1 w-full rounded-xl border-slate-200"><x-input-error :messages="$errors->get('name')" class="mt-1" /></div>
+                        <div>
+                            <label class="text-sm font-medium">Code</label>
+                            <input wire:model="code" class="mt-1 w-full rounded-xl border-slate-200">
+                            <x-input-error :messages="$errors->get('code')" class="mt-1" />
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium">Name</label>
+                            <input wire:model="name" class="mt-1 w-full rounded-xl border-slate-200">
+                            <x-input-error :messages="$errors->get('name')" class="mt-1" />
+                        </div>
                     </div>
-                    <div><label class="text-sm font-medium">Description</label><textarea wire:model="description" rows="2" class="mt-1 w-full rounded-xl border-slate-200"></textarea></div>
-                    <div><label class="text-sm font-medium">Body Template</label><textarea wire:model="body_template" rows="10" placeholder="Yth. {{recipient_name}}..." class="mt-1 w-full rounded-xl border-slate-200 font-mono text-sm"></textarea><p class="mt-1 text-xs text-slate-400">Variable: {{ '{{number}}' }}, {{ '{{recipient_name}}' }}, {{ '{{recipient_address}}' }}, {{ '{{subject}}' }}, {{ '{{tenant_name}}' }}, {{ '{{tenant_city}}' }}, {{ '{{tenant_head_name}}' }}</p><x-input-error :messages="$errors->get('body_template')" class="mt-1" /></div>
-                    <div><label class="text-sm font-medium">Status</label><select wire:model="status" class="mt-1 w-full rounded-xl border-slate-200"><option value="draft">Draft</option><option value="validated">Validated</option><option value="active">Active</option><option value="retired">Retired</option></select></div>
-                    <div class="flex justify-end gap-2 border-t border-slate-100 pt-5"><button type="button" wire:click="$set('showForm', false)" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold">Cancel</button><button type="submit" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Save</button></div>
+                    <div>
+                        <label class="text-sm font-medium">Description</label>
+                        <textarea wire:model="description" rows="2" class="mt-1 w-full rounded-xl border-slate-200"></textarea>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium">Body Template</label>
+                        <textarea wire:model="body_template" rows="10" placeholder="Yth. @{{recipient_name}}..." class="mt-1 w-full rounded-xl border-slate-200 font-mono text-sm"></textarea>
+                        <p class="mt-1 text-xs text-slate-400">Variable: @{{number}}, @{{recipient_name}}, @{{recipient_address}}, @{{subject}}, @{{tenant_name}}, @{{tenant_city}}, @{{tenant_head_name}}</p>
+                        <x-input-error :messages="$errors->get('body_template')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium">Status</label>
+                        <select wire:model="status" class="mt-1 w-full rounded-xl border-slate-200">
+                            <option value="draft">Draft</option>
+                            <option value="validated">Validated</option>
+                            <option value="active">Active</option>
+                            <option value="retired">Retired</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-end gap-2 border-t border-slate-100 pt-5">
+                        <button type="button" wire:click="$set('showForm', false)" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold">Cancel</button>
+                        <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Save</button>
+                    </div>
                 </form>
             </div>
         </div>
