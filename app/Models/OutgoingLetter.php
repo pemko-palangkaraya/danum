@@ -18,64 +18,30 @@ class OutgoingLetter extends Model
     use HasFactory;
     use HasUuids;
     use SoftDeletes;
-
     protected $keyType = 'string';
-
     public $incrementing = false;
 
     protected $fillable = [
-        'tenant_id',
-        'letter_type_id',
-        'letter_type_version_id',
-        'number',
-        'recipient_name',
-        'recipient_address',
-        'subject',
-        'content',
-        'issued_at',
-        'status',
-        'verification_token',
+        'tenant_id','letter_type_id','letter_type_version_id','number','recipient_name','recipient_address','subject',
+        'content','issued_at','letter_date','generated_docx_path','status','verification_token',
     ];
 
-    protected $hidden = [
-        'verification_token',
-    ];
+    protected $hidden = ['verification_token'];
 
     protected static function booted(): void
     {
         static::saving(function (self $letter): void {
-            if ($letter->status === OutgoingLetterStatus::ISSUED && blank($letter->verification_token)) {
-                $letter->verification_token = Str::random(64);
-            }
+            if ($letter->status === OutgoingLetterStatus::ISSUED && blank($letter->verification_token)) $letter->verification_token = Str::random(64);
         });
     }
 
     protected function casts(): array
     {
-        return [
-            'issued_at' => 'date',
-            'status' => OutgoingLetterStatus::class,
-        ];
+        return ['issued_at' => 'date', 'letter_date' => 'date', 'status' => OutgoingLetterStatus::class];
     }
 
-    public function tenant(): BelongsTo
-    {
-        return $this->belongsTo(Tenant::class);
-    }
-
-    public function letterType(): BelongsTo
-    {
-        return $this->belongsTo(LetterType::class);
-    }
-
-    public function letterTypeVersion(): BelongsTo
-    {
-        return $this->belongsTo(LetterTypeVersion::class);
-    }
-
-    public function statusHistories(): HasMany
-    {
-        return $this->hasMany(OutgoingLetterStatusHistory::class)
-            ->orderBy('created_at');
-    }
+    public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
+    public function letterType(): BelongsTo { return $this->belongsTo(LetterType::class); }
+    public function letterTypeVersion(): BelongsTo { return $this->belongsTo(LetterTypeVersion::class); }
+    public function statusHistories(): HasMany { return $this->hasMany(OutgoingLetterStatusHistory::class)->orderBy('created_at'); }
 }
