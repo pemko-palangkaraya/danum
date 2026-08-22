@@ -24,11 +24,22 @@ class PdfPreviewWatermarkService
         $pdf = new class extends Fpdi {
             private float $angle = 0.0;
 
+            private function outputCommand(string $command): void
+            {
+                $this->_out($command);
+            }
+
             public function rotate(float $angle, float $x = -1, float $y = -1): void
             {
-                if ($x < 0) $x = $this->GetX();
-                if ($y < 0) $y = $this->GetY();
-                if ($this->angle !== 0.0) $this->out('Q');
+                if ($x < 0) {
+                    $x = $this->GetX();
+                }
+                if ($y < 0) {
+                    $y = $this->GetY();
+                }
+                if ($this->angle !== 0.0) {
+                    $this->outputCommand('Q');
+                }
                 $this->angle = $angle;
                 if ($angle !== 0.0) {
                     $rad = $angle * M_PI / 180;
@@ -36,14 +47,24 @@ class PdfPreviewWatermarkService
                     $s = sin($rad);
                     $cx = $x * $this->k;
                     $cy = ($this->h - $y) * $this->k;
-                    $this->out(sprintf('q %.5F %.5F %.5F %.5F %.5F %.5F cm 1 0 0 1 %.5F %.5F cm', $c, $s, -$s, $c, $cx, $cy, -$cx, -$cy));
+                    $this->outputCommand(sprintf(
+                        'q %.5F %.5F %.5F %.5F %.5F %.5F cm 1 0 0 1 %.5F %.5F cm',
+                        $c,
+                        $s,
+                        -$s,
+                        $c,
+                        $cx,
+                        $cy,
+                        -$cx,
+                        -$cy
+                    ));
                 }
             }
 
             public function closeRotation(): void
             {
                 if ($this->angle !== 0.0) {
-                    $this->out('Q');
+                    $this->outputCommand('Q');
                     $this->angle = 0.0;
                 }
             }
