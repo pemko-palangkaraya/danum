@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\LetterType;
+use App\Models\LetterTypeVersion;
 use App\Services\LetterTypeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -55,6 +56,59 @@ class LetterTypeServiceTest extends TestCase
         $this->assertDatabaseHas('letter_types', [
             'id' => $letterType->id,
         ]);
+    }
+
+    public function test_creating_letter_type_with_template_creates_version_one(): void
+    {
+        $letterType = $this->service->create([
+            ...LetterType::factory()->make()->toArray(),
+            'body_template' => 'Nomor {{number}} untuk {{recipient_name}}.',
+        ]);
+
+        $this->assertDatabaseHas('letter_type_versions', [
+            'letter_type_id' => $letterType->id,
+            'version' => 1,
+            'body_template' => 'Nomor {{number}} untuk {{recipient_name}}.',
+        ]);
+    }
+
+    public function test_changing_template_creates_a_new_immutable_version(): void
+    {
+        $letterType = $this->service->create([
+            ...LetterType::factory()->make()->toArray(),
+            'body_template' => 'Versi {{number}}.',
+        ]);
+
+        $this->service->update($letterType, [
+            'body_template' => 'Versi baru {{number}} untuk {{recipient_name}}.',
+        ]);
+
+        $this->assertDatabaseHas('letter_type_versions', [
+            'letter_type_id' => $letterType->id,
+            'version' => 1,
+            'body_template' => 'Versi {{number}}.',
+        ]);
+
+        $this->assertDatabaseHas('letter_type_versions', [
+            'letter_type_id' => $letterType->id,
+            'version' => 2,
+            'body_template' => 'Versi baru {{number}} untuk {{recipient_name}}.',
+        ]);
+    }
+
+    public function test_same_template_update_does_not_create_duplicate_version(): void
+    {
+        $template = 'Nomor {{number}}.';
+        $letterType = $this->service->create([
+            ...LetterType::factory()->make()->toArray(),
+            'body_template' => $template,
+        ]);
+
+        $this->service->update($letterType, ['body_template' => $template]);
+
+        $this->assertSame(1, LetterTypeVersion::query()
+            ->where('letter_type_id', $letterType->id)
+            ->count());
     }
 
     public function test_can_update_letter_type(): void
