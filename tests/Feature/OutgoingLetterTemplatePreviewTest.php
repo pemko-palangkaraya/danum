@@ -19,6 +19,7 @@ class OutgoingLetterTemplatePreviewTest extends TestCase
     {
         $tenant = Tenant::factory()->create([
             'name' => 'Pemerintah Kota Palangka Raya',
+            'city' => 'Palangka Raya',
         ]);
         $letterType = LetterType::factory()->create([
             'tenant_id' => $tenant->id,
