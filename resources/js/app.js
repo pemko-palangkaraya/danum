@@ -14,9 +14,7 @@ const toastHttpErrors = {
     504: 'Server terlalu lama merespons. Silakan coba lagi.',
 };
 
-const dispatchErrorToast = (status) => {
-    const message = toastHttpErrors[status] ?? 'Terjadi kesalahan saat memproses permintaan. Silakan coba lagi.';
-
+const dispatchErrorToast = (message) => {
     window.dispatchEvent(new CustomEvent('toast', {
         detail: {
             type: 'error',
@@ -26,14 +24,17 @@ const dispatchErrorToast = (status) => {
 };
 
 window.addEventListener('livewire:init', () => {
-    Livewire.hook('request', ({ fail }) => {
-        fail(({ status, preventDefault }) => {
-            if (!status) {
-                return;
-            }
+    Livewire.interceptRequest(({ onError, onFailure }) => {
+        onError(({ response, preventDefault }) => {
+            const message = toastHttpErrors[response.status]
+                ?? 'Terjadi kesalahan saat memproses permintaan. Silakan coba lagi.';
 
-            dispatchErrorToast(status);
+            dispatchErrorToast(message);
             preventDefault();
+        });
+
+        onFailure(() => {
+            dispatchErrorToast('Tidak dapat terhubung ke server. Periksa koneksi Anda lalu coba lagi.');
         });
     });
 });
