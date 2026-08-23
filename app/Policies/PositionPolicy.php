@@ -13,10 +13,11 @@ class PositionPolicy
 {
     public function viewAny(User $user): bool { return $this->isActive($user); }
     public function view(User $user, Position $position): bool { return $this->canAccessPosition($user, $position); }
-    public function create(User $user): bool { return $this->isActive($user); }
-    public function update(User $user, Position $position): bool { return $this->canAccessPosition($user, $position); }
-    public function delete(User $user, Position $position): bool { return $this->canAccessPosition($user, $position); }
+    public function create(User $user): bool { return $user->role === UserRole::SUPER_ADMIN && $this->isActive($user); }
+    public function update(User $user, Position $position): bool { return $user->role === UserRole::SUPER_ADMIN && $this->canAccessPosition($user, $position); }
+    public function delete(User $user, Position $position): bool { return $user->role === UserRole::SUPER_ADMIN && $this->canAccessPosition($user, $position); }
     public function restore(User $user, Position $position): bool { return $user->role === UserRole::SUPER_ADMIN && $this->isActive($user); }
+    public function manageHolder(User $user, Position $position): bool { return $this->canAccessPosition($user, $position); }
 
     private function isActive(User $user): bool { return $user->status === UserStatus::ACTIVE; }
 
