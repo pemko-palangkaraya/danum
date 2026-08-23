@@ -13,17 +13,19 @@ class OutgoingLetterPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->role === UserRole::TENANT_USER && $user->tenant_id !== null;
+        return $user->role === UserRole::SUPER_ADMIN
+            || ($user->role === UserRole::TENANT_USER && $user->tenant_id !== null);
     }
 
     public function view(User $user, OutgoingLetter $outgoingLetter): bool
     {
-        return $this->belongsToTenant($user, $outgoingLetter);
+        return $user->role === UserRole::SUPER_ADMIN
+            || $this->belongsToTenant($user, $outgoingLetter);
     }
 
     public function create(User $user): bool
     {
-        return $this->viewAny($user);
+        return $user->role === UserRole::TENANT_USER && $user->tenant_id !== null;
     }
 
     public function update(User $user, OutgoingLetter $outgoingLetter): bool
@@ -40,6 +42,10 @@ class OutgoingLetterPolicy
 
     public function restore(User $user, OutgoingLetter $outgoingLetter): bool
     {
+        if ($user->role === UserRole::SUPER_ADMIN) {
+            return $outgoingLetter->status !== OutgoingLetterStatus::ISSUED;
+        }
+
         return $this->belongsToTenant($user, $outgoingLetter)
             && $outgoingLetter->status !== OutgoingLetterStatus::ISSUED;
     }
