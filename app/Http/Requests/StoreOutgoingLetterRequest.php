@@ -25,7 +25,7 @@ class StoreOutgoingLetterRequest extends FormRequest
                 'uuid',
                 Rule::exists('letter_types', 'id')->where(function ($query): void {
                     $query
-                        ->where('tenant_id', $this->user()->tenant_id)
+                        ->whereNull('tenant_id')
                         ->where('status', LetterTypeStatus::ACTIVE->value)
                         ->whereNull('deleted_at');
                 }),
