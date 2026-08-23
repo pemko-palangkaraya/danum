@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Enums\LetterTypeStatus;
+use App\Enums\PositionStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -19,13 +20,15 @@ class PreviewOutgoingLetterRequest extends FormRequest
     {
         return [
             'letter_type_id' => [
-                'required',
-                'uuid',
+                'required', 'uuid',
                 Rule::exists('letter_types', 'id')->where(function ($query): void {
-                    $query
-                        ->where('tenant_id', $this->user()->tenant_id)
-                        ->where('status', LetterTypeStatus::ACTIVE->value)
-                        ->whereNull('deleted_at');
+                    $query->where('tenant_id', $this->user()->tenant_id)->where('status', LetterTypeStatus::ACTIVE->value)->whereNull('deleted_at');
+                }),
+            ],
+            'signer_position_id' => [
+                'sometimes', 'nullable', 'uuid',
+                Rule::exists('positions', 'id')->where(function ($query): void {
+                    $query->where('tenant_id', $this->user()->tenant_id)->where('status', PositionStatus::ACTIVE->value)->where('can_sign', true)->whereNull('deleted_at');
                 }),
             ],
             'number' => ['required', 'string', 'max:100'],
