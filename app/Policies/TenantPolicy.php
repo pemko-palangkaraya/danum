@@ -85,7 +85,6 @@ class TenantPolicy
      */
     public function updateProfile(User $user, Tenant $tenant): bool
     {
-        return $user->role === UserRole::TENANT_USER
-            && $user->tenant_id === $tenant->id;
+        return $user->role === UserRole::SUPER_ADMIN;
     }
 }
