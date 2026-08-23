@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::table('outgoing_letters', function (Blueprint $table): void {
             $table->foreignId('created_by')->nullable()->after('tenant_id')->constrained('users')->nullOnDelete();
             $table->timestamp('submitted_at')->nullable()->after('status');
+            $table->json('input_data')->nullable()->after('content');
             $table->text('rejection_reason')->nullable()->after('verification_token');
             $table->foreignId('rejected_by')->nullable()->after('rejection_reason')->constrained('users')->nullOnDelete();
             $table->timestamp('rejected_at')->nullable()->after('rejected_by');
@@ -24,7 +25,7 @@ return new class extends Migration
         Schema::table('outgoing_letters', function (Blueprint $table): void {
             $table->dropConstrainedForeignId('created_by');
             $table->dropConstrainedForeignId('rejected_by');
-            $table->dropColumn(['submitted_at', 'rejection_reason', 'rejected_at']);
+            $table->dropColumn(['submitted_at', 'input_data', 'rejection_reason', 'rejected_at']);
         });
     }
 };
