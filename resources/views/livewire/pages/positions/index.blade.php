@@ -2,7 +2,7 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Jabatan</h1>
-            <p class="mt-1 text-sm text-slate-500">Kelola jabatan dan pejabat yang berwenang menandatangani surat.</p>
+            <p class="mt-1 text-sm text-slate-500">Kelola jabatan dan pejabat yang berwenang menandatangani atau memverifikasi surat.</p>
         </div>
         <button type="button" wire:click="create" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800">+ Tambah Jabatan</button>
     </div>
@@ -25,6 +25,7 @@
                         <th class="px-5 py-3">Jabatan</th>
                         <th class="px-5 py-3">Pemegang Aktif</th>
                         <th class="px-5 py-3">Penandatangan</th>
+                        <th class="px-5 py-3">Validator</th>
                         <th class="px-5 py-3">Status</th>
                         <th class="px-5 py-3 text-right">Aksi</th>
                     </tr>
@@ -53,6 +54,13 @@
                                 @endif
                             </td>
                             <td class="px-5 py-4">
+                                @if($position->can_validate)
+                                    <span class="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">Boleh Validasi</span>
+                                @else
+                                    <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">Tidak</span>
+                                @endif
+                            </td>
+                            <td class="px-5 py-4">
                                 <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $position->status->value === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">{{ $position->status->value === 'active' ? 'Aktif' : 'Tidak Aktif' }}</span>
                             </td>
                             <td class="px-5 py-4 text-right">
@@ -63,7 +71,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-5 py-12 text-center text-sm text-slate-500">Belum ada jabatan.</td></tr>
+                        <tr><td colspan="6" class="px-5 py-12 text-center text-sm text-slate-500">Belum ada jabatan.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -76,7 +84,7 @@
             <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
                 <div class="mb-5">
                     <h2 class="text-lg font-semibold">{{ $editingId ? 'Edit Jabatan' : 'Tambah Jabatan' }}</h2>
-                    <p class="mt-1 text-sm text-slate-500">Tentukan apakah jabatan ini boleh digunakan sebagai penanda tangan TTE.</p>
+                    <p class="mt-1 text-sm text-slate-500">Tentukan apakah jabatan ini dapat menjadi penanda tangan TTE dan/atau validator surat.</p>
                 </div>
                 <div class="space-y-4">
                     <div>
@@ -105,6 +113,13 @@
                         <span>
                             <span class="block text-sm font-semibold">Jabatan dapat menandatangani</span>
                             <span class="block text-xs text-slate-500">Hanya pemegang aktif jabatan ini yang nantinya dapat dipilih sebagai penanda tangan.</span>
+                        </span>
+                    </label>
+                    <label class="flex items-start gap-3 rounded-xl border border-slate-200 p-4">
+                        <input wire:model="can_validate" type="checkbox" class="mt-0.5 rounded border-slate-300">
+                        <span>
+                            <span class="block text-sm font-semibold">Jabatan dapat memverifikasi</span>
+                            <span class="block text-xs text-slate-500">Hanya pemegang aktif jabatan ini yang dapat dipilih sebagai validator dan melakukan validasi surat.</span>
                         </span>
                     </label>
                 </div>
