@@ -25,7 +25,7 @@
         x-show="open"
         x-cloak
         x-transition
-        class="absolute right-0 z-50 mt-2 w-40 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-left shadow-lg">
+        class="absolute right-0 bottom-full z-50 mb-2 w-40 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-left shadow-lg">
         <button
             type="button"
             @click="open = false"
