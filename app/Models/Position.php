@@ -28,12 +28,14 @@ class Position extends Model
         'name',
         'description',
         'status',
+        'can_sign',
     ];
 
     protected function casts(): array
     {
         return [
             'status' => PositionStatus::class,
+            'can_sign' => 'boolean',
         ];
     }
 
