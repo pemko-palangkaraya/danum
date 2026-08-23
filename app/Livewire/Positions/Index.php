@@ -103,11 +103,20 @@ class Index extends Component
 
     public function assignHolder(string $positionId): void
     {
-        $position = Position::query()->findOrFail($positionId);
+        $position = Position::query()->with(['holders' => fn ($query) => $query->whereNull('ended_at')->orderByDesc('started_at')])->findOrFail($positionId);
         $this->authorize('update', $position);
+
         $this->holderPositionId = $position->id;
-        $this->holderUserId = '';
-        $this->holderStartedAt = now()->toDateString();
+
+        $currentHolder = $position->holders->first();
+        $this->holderUserId = $currentHolder?->user_id !== null
+            ? (string) $currentHolder->user_id
+            : '';
+        $this->holderStartedAt = $currentHolder?->started_at
+            ? $currentHolder->started_at->toDateString()
+            : now()->toDateString();
+
+        $this->resetValidation(['holderUserId', 'holderStartedAt']);
         $this->showHolderForm = true;
     }
 
@@ -120,7 +129,13 @@ class Index extends Component
 
         $position = Position::query()->findOrFail($this->holderPositionId);
         $this->authorize('update', $position);
-        $service->assignHolder($position, (int) $this->holderUserId, new \DateTimeImmutable($this->holderStartedAt));
+
+        try {
+            $service->assignHolder($position, (int) $this->holderUserId, new \DateTimeImmutable($this->holderStartedAt));
+        } catch (\Throwable $exception) {
+            $this->dispatch('toast', type: 'error', message: $exception->getMessage());
+            return;
+        }
 
         $this->showHolderForm = false;
         $this->resetHolderForm();
