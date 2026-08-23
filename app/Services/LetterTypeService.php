@@ -17,17 +17,17 @@ class LetterTypeService
         private readonly OutgoingLetterTemplateService $templateService,
     ) {}
 
-    public function find(string $id, string $tenantId): ?LetterType
+    public function find(string $id, ?string $tenantId): ?LetterType
     {
         return $this->repository->find($id, $tenantId);
     }
 
-    public function findWithTrashed(string $id, string $tenantId): ?LetterType
+    public function findWithTrashed(string $id, ?string $tenantId): ?LetterType
     {
         return $this->repository->findWithTrashed($id, $tenantId);
     }
 
-    public function getAll(string $tenantId): Collection
+    public function getAll(?string $tenantId): Collection
     {
         return $this->repository->getAll($tenantId);
     }
