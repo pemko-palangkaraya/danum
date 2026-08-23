@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Enums\LetterTypeStatus;
+use App\Enums\PositionStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -20,25 +21,18 @@ class UpdateOutgoingLetterRequest extends FormRequest
         return [
             'tenant_id' => ['prohibited'],
             'letter_type_id' => [
-                'sometimes',
-                'required',
-                'uuid',
+                'sometimes', 'required', 'uuid',
                 Rule::exists('letter_types', 'id')->where(function ($query): void {
-                    $query
-                        ->where('tenant_id', $this->user()->tenant_id)
-                        ->where('status', LetterTypeStatus::ACTIVE->value)
-                        ->whereNull('deleted_at');
+                    $query->where('tenant_id', $this->user()->tenant_id)->where('status', LetterTypeStatus::ACTIVE->value)->whereNull('deleted_at');
                 }),
             ],
-            'number' => [
-                'sometimes',
-                'required',
-                'string',
-                'max:100',
-                Rule::unique('outgoing_letters', 'number')
-                    ->where('tenant_id', $this->user()->tenant_id)
-                    ->ignore($this->route('outgoing_letter')),
+            'signer_position_id' => [
+                'sometimes', 'nullable', 'uuid',
+                Rule::exists('positions', 'id')->where(function ($query): void {
+                    $query->where('tenant_id', $this->user()->tenant_id)->where('status', PositionStatus::ACTIVE->value)->where('can_sign', true)->whereNull('deleted_at');
+                }),
             ],
+            'number' => ['sometimes', 'required', 'string', 'max:100', Rule::unique('outgoing_letters', 'number')->where('tenant_id', $this->user()->tenant_id)->ignore($this->route('outgoing_letter'))],
             'recipient_name' => ['sometimes', 'required', 'string', 'max:150'],
             'recipient_address' => ['sometimes', 'nullable', 'string'],
             'subject' => ['sometimes', 'required', 'string', 'max:255'],
