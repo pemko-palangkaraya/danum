@@ -15,9 +15,14 @@
                     <a href="{{ route('tenants.index') }}" @class(['mt-1 flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white'=>request()->routeIs('tenants.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('tenants.*')])>Tenants</a>
                     <a href="{{ route('users.index') }}" @class(['mt-1 flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white'=>request()->routeIs('users.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('users.*')])>Users</a>
                     <a href="{{ route('letter-types.index') }}" @class(['mt-1 flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white'=>request()->routeIs('letter-types.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('letter-types.*')])>Letter Types</a>
+                    <a href="{{ route('positions.admin.index') }}" @class(['mt-1 flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white'=>request()->routeIs('positions.admin.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('positions.admin.*')])>Jabatan</a>
                 @endif
 
                 @if (auth()->user()?->isTenantUser())
+                    <a href="{{ route('positions.index') }}" @class(['mt-1 flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white'=>request()->routeIs('positions.index'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('positions.index')])>Jabatan</a>
+                    @if (auth()->user()?->isTenantAdmin())
+                        <a href="{{ route('tenant-users.index') }}" @class(['mt-1 flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white'=>request()->routeIs('tenant-users.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('tenant-users.*')])>Tenant Users</a>
+                    @endif
                     <a href="{{ route('outgoing-letters.index') }}" @class(['mt-1 flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white'=>request()->routeIs('outgoing-letters.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('outgoing-letters.*')])>Outgoing Letters</a>
                 @endif
 
