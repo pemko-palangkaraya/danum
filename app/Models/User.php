@@ -20,6 +20,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name',
+        'nip',
         'email',
         'password',
         'role',
@@ -51,11 +52,28 @@ class User extends Authenticatable
     }
 
     /**
-     * Determine whether this user belongs to a tenant.
+     * Determine whether this user is a tenant administrator.
+     */
+    public function isTenantAdmin(): bool
+    {
+        return $this->role === UserRole::TENANT_ADMIN && $this->tenant_id !== null;
+    }
+
+    /**
+     * Determine whether this user is a tenant-scoped user.
      */
     public function isTenantUser(): bool
     {
-        return $this->role === UserRole::TENANT_USER && $this->tenant_id !== null;
+        return in_array($this->role, [UserRole::TENANT_ADMIN, UserRole::TENANT_USER], true)
+            && $this->tenant_id !== null;
+    }
+
+    /**
+     * Determine whether this user may manage tenant positions/holders.
+     */
+    public function canManagePositions(): bool
+    {
+        return $this->isSuperAdmin() || $this->isTenantAdmin();
     }
 
     /**
