@@ -19,6 +19,9 @@ class UpdateUserRequest extends FormRequest
 
     public function rules(): array
     {
+        $user = $this->route('user');
+        $userId = $user instanceof User ? $user->getKey() : $user;
+
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'nip' => ['sometimes', 'nullable', 'string', 'max:32'],
@@ -27,7 +30,7 @@ class UpdateUserRequest extends FormRequest
                 'required',
                 'email',
                 'max:255',
-                Rule::unique('users', 'email')->ignore($this->route('user')),
+                Rule::unique('users', 'email')->ignore($userId),
             ],
             'password' => ['sometimes', 'required', 'string', 'min:8'],
             'role' => ['sometimes', 'required', Rule::enum(UserRole::class)],
@@ -38,7 +41,10 @@ class UpdateUserRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
-            $user = User::query()->find($this->route('user'));
+            $routeUser = $this->route('user');
+            $user = $routeUser instanceof User
+                ? $routeUser
+                : User::query()->find($routeUser);
 
             if ($user === null) {
                 return;
