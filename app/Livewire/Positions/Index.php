@@ -32,7 +32,6 @@ class Index extends Component
     public string $status = 'active';
     public bool $can_sign = false;
     public bool $can_validate = false;
-
     public bool $showHolderForm = false;
     public ?string $holderPositionId = null;
     public string $holderUserId = '';
@@ -45,9 +44,7 @@ class Index extends Component
     {
         $this->authorize('viewAny', Position::class);
         $user = auth()->user();
-        if ($user->role === UserRole::TENANT_USER) {
-            $this->selectedTenantId = (string) $user->tenant_id;
-        }
+        if ($user->role === UserRole::TENANT_USER) $this->selectedTenantId = (string) $user->tenant_id;
     }
 
     public function updatedSearch(): void { $this->resetPage(); }
@@ -80,12 +77,13 @@ class Index extends Component
     public function save(PositionService $service): void
     {
         $user = auth()->user();
-        $this->authorize($this->editingId ? 'update' : 'create', $this->editingId ? Position::query()->findOrFail($this->editingId) : Position::class);
+        $position = $this->editingId ? Position::query()->findOrFail($this->editingId) : null;
+        $this->authorize($position ? 'update' : 'create', $position ?? Position::class);
         $tenantId = $this->selectedTenantId ?: (string) $user->tenant_id;
         if ($user->role === UserRole::TENANT_USER) $tenantId = (string) $user->tenant_id;
 
         $this->validate([
-            'selectedTenantId' => ['required', 'uuid'],
+            'selectedTenantId' => ['required', 'string', Rule::exists('tenants', 'id')],
             'code' => [
                 'required', 'string', 'max:50',
                 Rule::unique('positions', 'code')->where(fn ($query) => $query->where('tenant_id', $tenantId))->ignore($this->editingId)->whereNull('deleted_at'),
@@ -95,21 +93,9 @@ class Index extends Component
             'status' => ['required', Rule::enum(PositionStatus::class)],
             'can_sign' => ['boolean'],
             'can_validate' => ['boolean'],
-        ], [
-            'code.unique' => 'Kode jabatan sudah digunakan pada organisasi ini.',
-        ]);
+        ], ['code.unique' => 'Kode jabatan sudah digunakan pada organisasi ini.']);
 
-        $position = $this->editingId ? Position::query()->findOrFail($this->editingId) : null;
-        $data = [
-            'tenant_id' => $tenantId,
-            'code' => trim($this->code),
-            'name' => trim($this->name),
-            'description' => $this->description ?: null,
-            'status' => $this->status,
-            'can_sign' => $this->can_sign,
-            'can_validate' => $this->can_validate,
-        ];
-
+        $data = ['tenant_id' => $tenantId, 'code' => trim($this->code), 'name' => trim($this->name), 'description' => $this->description ?: null, 'status' => $this->status, 'can_sign' => $this->can_sign, 'can_validate' => $this->can_validate];
         if ($position) {
             $service->update($position, $data);
             $message = 'Jabatan berhasil diperbarui.';
@@ -117,7 +103,6 @@ class Index extends Component
             $service->create($data);
             $message = 'Jabatan berhasil dibuat.';
         }
-
         $this->showForm = false;
         $this->resetForm();
         $this->dispatch('toast', type: 'success', message: $message);
@@ -137,18 +122,9 @@ class Index extends Component
 
     public function saveHolder(PositionService $service): void
     {
-        $this->validate([
-            'holderUserId' => ['required', 'integer'],
-            'holderStartedAt' => ['required', 'date'],
-        ], [
-            'holderUserId.required' => 'Silakan pilih pejabat.',
-            'holderStartedAt.required' => 'Tanggal mulai wajib diisi.',
-            'holderStartedAt.date' => 'Tanggal mulai tidak valid.',
-        ]);
-
+        $this->validate(['holderUserId' => ['required', 'integer'], 'holderStartedAt' => ['required', 'date']], ['holderUserId.required' => 'Silakan pilih pejabat.', 'holderStartedAt.required' => 'Tanggal mulai wajib diisi.', 'holderStartedAt.date' => 'Tanggal mulai tidak valid.']);
         $position = Position::query()->findOrFail($this->holderPositionId);
         $this->authorize('manageHolder', $position);
-
         try {
             $service->assignHolder($position, (int) $this->holderUserId, new \DateTimeImmutable($this->holderStartedAt));
         } catch (\Throwable $exception) {
@@ -156,7 +132,6 @@ class Index extends Component
             $this->addError($field, $exception->getMessage());
             return;
         }
-
         $this->showHolderForm = false;
         $this->resetHolderForm();
         $this->dispatch('toast', type: 'success', message: 'Pemegang jabatan berhasil ditetapkan.');
@@ -207,21 +182,10 @@ class Index extends Component
         if ($tenantId) $query->where('tenant_id', $tenantId);
         elseif ($user->role !== UserRole::SUPER_ADMIN) $query->whereRaw('1 = 0');
         if ($this->search !== '') $query->where(fn ($q) => $q->where('code', 'like', "%{$this->search}%")->orWhere('name', 'like', "%{$this->search}%"));
-        if ($this->filter === 'deleted') $query->onlyTrashed();
-        elseif ($this->filter !== 'all') $query->where('status', $this->filter);
-
+        if ($this->filter === 'deleted') $query->onlyTrashed(); elseif ($this->filter !== 'all') $query->where('status', $this->filter);
         $users = $tenantId ? User::query()->where('tenant_id', $tenantId)->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email']) : collect();
-        $history = $this->historyPositionId
-            ? Position::withTrashed()->find($this->historyPositionId)?->holders()->with('user')->orderByDesc('started_at')->get() ?? collect()
-            : collect();
+        $history = $this->historyPositionId ? Position::withTrashed()->find($this->historyPositionId)?->holders()->with('user')->orderByDesc('started_at')->get() ?? collect() : collect();
         $tenants = $user->role === UserRole::SUPER_ADMIN ? Tenant::query()->orderBy('name')->get(['id', 'name']) : collect();
-
-        return view('livewire.pages.positions.index', [
-            'positions' => $query->paginate($this->perPage),
-            'users' => $users,
-            'history' => $history,
-            'tenants' => $tenants,
-            'isSuperAdmin' => $user->role === UserRole::SUPER_ADMIN,
-        ]);
+        return view('livewire.pages.positions.index', ['positions' => $query->paginate($this->perPage), 'users' => $users, 'history' => $history, 'tenants' => $tenants, 'isSuperAdmin' => $user->role === UserRole::SUPER_ADMIN]);
     }
 }
