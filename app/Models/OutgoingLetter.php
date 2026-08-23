@@ -18,6 +18,7 @@ class OutgoingLetter extends Model
     use HasFactory;
     use HasUuids;
     use SoftDeletes;
+
     protected $keyType = 'string';
     public $incrementing = false;
 
@@ -25,7 +26,7 @@ class OutgoingLetter extends Model
         'tenant_id','created_by','letter_type_id','letter_type_version_id',
         'signer_position_id','signer_user_id','signer_name','signer_title',
         'validator_position_id','validator_user_id','validator_name','validator_title',
-        'number','recipient_name','recipient_address','subject','content','input_data','issued_at','letter_date','generated_docx_path','status','submitted_at','verification_token',
+        'number','recipient_name','recipient_address','subject','content','input_data','issued_at','valid_from','valid_until','letter_date','generated_docx_path','status','submitted_at','verification_token',
         'rejection_reason','rejected_by','rejected_at',
     ];
 
@@ -34,13 +35,24 @@ class OutgoingLetter extends Model
     protected static function booted(): void
     {
         static::saving(function (self $letter): void {
-            if ($letter->status === OutgoingLetterStatus::ISSUED && blank($letter->verification_token)) $letter->verification_token = Str::random(64);
+            if ($letter->status === OutgoingLetterStatus::ISSUED && blank($letter->verification_token)) {
+                $letter->verification_token = Str::random(64);
+            }
         });
     }
 
     protected function casts(): array
     {
-        return ['issued_at' => 'date', 'letter_date' => 'date', 'submitted_at' => 'datetime', 'rejected_at' => 'datetime', 'input_data' => 'array', 'status' => OutgoingLetterStatus::class];
+        return [
+            'issued_at' => 'date',
+            'valid_from' => 'datetime',
+            'valid_until' => 'datetime',
+            'letter_date' => 'date',
+            'submitted_at' => 'datetime',
+            'rejected_at' => 'datetime',
+            'input_data' => 'array',
+            'status' => OutgoingLetterStatus::class,
+        ];
     }
 
     public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
@@ -53,4 +65,19 @@ class OutgoingLetter extends Model
     public function validatorPosition(): BelongsTo { return $this->belongsTo(Position::class, 'validator_position_id'); }
     public function validatorUser(): BelongsTo { return $this->belongsTo(User::class, 'validator_user_id'); }
     public function statusHistories(): HasMany { return $this->hasMany(OutgoingLetterStatusHistory::class)->orderBy('created_at'); }
+    public function withdrawalRequests(): HasMany { return $this->hasMany(OutgoingLetterWithdrawalRequest::class)->latest('created_at'); }
+
+    public function isExpired(): bool
+    {
+        return $this->status === OutgoingLetterStatus::ISSUED
+            && $this->valid_until !== null
+            && $this->valid_until->isPast();
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === OutgoingLetterStatus::ISSUED
+            && ($this->valid_from === null || $this->valid_from->isPast() || $this->valid_from->equalTo(now()))
+            && ! $this->isExpired();
+    }
 }
