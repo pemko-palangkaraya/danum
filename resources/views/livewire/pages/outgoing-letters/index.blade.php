@@ -52,12 +52,24 @@
                         <div class="rounded-xl border border-slate-200 bg-white p-4"><div><h3 class="text-sm font-semibold text-slate-900">Data Surat</h3><p class="mt-1 text-xs text-slate-500">Identitas verifikator dan penanda tangan dikelola sistem dari jabatan yang dipilih.</p></div>
                             <div class="mt-4 grid gap-4 sm:grid-cols-2">
                                 @foreach($variables as $variable)
-                                    @php($label = $variableLabels[$variable] ?? ucwords(str_replace('_',' ',$variable))) @endphp
+                                    @php($label = $variableLabels[$variable] ?? ucwords(str_replace('_',' ',$variable)))
                                     @php($systemVariable = in_array($variable, ['letterhead','tenant_name','tenant_city','tenant_district','tenant_village','tenant_province','tenant_address','tenant_phone','tenant_email','tenant_head_name','tenant_head_title','tte'], true))
                                     @php($wide = in_array($variable, ['recipient_address','subject','tenant_address'], true))
                                     @php($dateVariable = (bool) preg_match('/(^|_)date$/i', $variable))
                                     @php($birthDateVariable = (bool) preg_match('/(^|_)birth_date$/i', $variable))
-                                    @if(! $systemVariable)<div class="{{ $wide ? 'sm:col-span-2' : '' }}"><label class="text-sm font-medium text-slate-700">{{ $label }}</label>@if($dateVariable)<input type="date" wire:model="variableValues.{{ $variable }}" class="form-control mt-1">@elseif($variable === 'recipient_address')<textarea wire:model="variableValues.{{ $variable }}" rows="2" class="form-textarea mt-1"></textarea>@else<input wire:model="variableValues.{{ $variable }}" class="form-control mt-1">@endif @error('variableValues.'.$variable)<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>@endif
+                                    @if(! $systemVariable)
+                                        <div class="{{ $wide ? 'sm:col-span-2' : '' }}">
+                                            <label class="text-sm font-medium text-slate-700">{{ $label }}</label>
+                                            @if($dateVariable)
+                                                <input type="date" wire:model="variableValues.{{ $variable }}" class="form-control mt-1">
+                                            @elseif($variable === 'recipient_address')
+                                                <textarea wire:model="variableValues.{{ $variable }}" rows="2" class="form-textarea mt-1"></textarea>
+                                            @else
+                                                <input wire:model="variableValues.{{ $variable }}" class="form-control mt-1">
+                                            @endif
+                                            @error('variableValues.'.$variable)<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                                        </div>
+                                    @endif
                                 @endforeach
                             </div>
                         </div>
