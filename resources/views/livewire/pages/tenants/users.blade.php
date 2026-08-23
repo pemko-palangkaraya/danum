@@ -152,7 +152,7 @@ new #[Layout('layouts.app')] class extends Component {
                             <td class="px-6 py-4"><div class="font-medium text-slate-900">{{ $user->name }}</div><div class="text-xs text-slate-500">{{ $user->email }}</div></td>
                             <td class="px-6 py-4 text-sm text-slate-700">{{ $user->role->value }}</td>
                             <td class="px-6 py-4 text-sm"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $user->status === UserStatus::ACTIVE ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">{{ $user->status->value }}</span></td>
-                            <td class="px-6 py-4 text-right"><button wire:click="edit({{ $user->id }})" class="text-sm font-medium text-slate-600 hover:text-slate-900">Edit</button><button wire:click="toggleStatus({{ $user->id }})" class="ml-3 text-sm font-medium text-slate-600 hover:text-slate-900">{{ $user->status === UserStatus::ACTIVE ? 'Deactivate' : 'Activate' }}</button></td>
+                            <td class="px-6 py-4 text-right"><x-ui.user-actions :user="$user" /></td>
                         </tr>
                     @empty
                         <tr><td colspan="4" class="px-6 py-12 text-center text-sm text-slate-500">Belum ada user tenant.</td></tr>
