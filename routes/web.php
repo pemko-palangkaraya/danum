@@ -8,6 +8,7 @@ use App\Livewire\Tenants\Index as TenantIndex;
 use App\Livewire\LetterTypes\Index as LetterTypeIndex;
 use App\Livewire\OutgoingLetters\Index as OutgoingLetterIndex;
 use App\Livewire\OutgoingLetters\Show as OutgoingLetterShow;
+use App\Livewire\Positions\Index as PositionIndex;
 use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\OutgoingLetterController;
 
@@ -35,6 +36,7 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('tenant')->group(function () {
+        Route::get('/positions', PositionIndex::class)->name('positions.index');
         Route::get('/outgoing-letters', OutgoingLetterIndex::class)->name('outgoing-letters.index');
         Route::get('/outgoing-letters/{id}/pdf', [OutgoingLetterController::class, 'downloadPdf'])->name('outgoing-letters.pdf');
         Route::get('/outgoing-letters/{id}', OutgoingLetterShow::class)->name('outgoing-letters.show');
