@@ -53,13 +53,17 @@ class OutgoingLetterPolicy
     public function validate(User $user, OutgoingLetter $outgoingLetter): bool
     {
         return $this->belongsToTenant($user, $outgoingLetter)
-            && $outgoingLetter->status === OutgoingLetterStatus::DRAFT;
+            && $outgoingLetter->status === OutgoingLetterStatus::DRAFT
+            && $outgoingLetter->validator_user_id !== null
+            && (int) $outgoingLetter->validator_user_id === (int) $user->id;
     }
 
     public function issue(User $user, OutgoingLetter $outgoingLetter): bool
     {
         return $this->belongsToTenant($user, $outgoingLetter)
-            && $outgoingLetter->status !== OutgoingLetterStatus::ISSUED;
+            && $outgoingLetter->status === OutgoingLetterStatus::VALIDATED
+            && $outgoingLetter->signer_user_id !== null
+            && (int) $outgoingLetter->signer_user_id === (int) $user->id;
     }
 
     public function cancel(User $user, OutgoingLetter $outgoingLetter): bool
