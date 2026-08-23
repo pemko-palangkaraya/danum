@@ -6,8 +6,11 @@ namespace App\Livewire\OutgoingLetters;
 
 use App\Enums\LetterTypeStatus;
 use App\Enums\OutgoingLetterStatus;
+use App\Enums\PositionStatus;
 use App\Models\LetterType;
 use App\Models\OutgoingLetter;
+use App\Models\Position;
+use App\Models\PositionHolder;
 use App\Services\DocxTemplateService;
 use App\Services\DocxTteService;
 use App\Services\OutgoingLetterService;
@@ -22,17 +25,24 @@ use Livewire\WithPagination;
 class Index extends Component
 {
     use WithPagination;
+
     public string $search = '';
     public string $filter = 'all';
     public int $perPage = 5;
     public bool $showForm = false;
     public string $letter_type_id = '';
+    public string $signer_position_id = '';
     public array $variables = [];
     public array $variableValues = [];
 
     private const SYSTEM_VARIABLES = ['letterhead','tenant_name','tenant_city','tenant_district','tenant_village','tenant_province','tenant_address','tenant_phone','tenant_email','tenant_head_name','tenant_head_title','tte'];
 
-    public function create(): void { $this->authorize('create', OutgoingLetter::class); $this->resetForm(); $this->showForm = true; }
+    public function create(): void
+    {
+        $this->authorize('create', OutgoingLetter::class);
+        $this->resetForm();
+        $this->showForm = true;
+    }
 
     public function updatedLetterTypeId(): void
     {
@@ -46,12 +56,26 @@ class Index extends Component
     {
         $this->validate([
             'letter_type_id' => ['required', Rule::exists('letter_types', 'id')->whereNull('tenant_id')->where('status', LetterTypeStatus::ACTIVE->value)],
+            'signer_position_id' => ['required', 'uuid'],
             'variableValues' => ['array'],
         ]);
 
         $letterType = LetterType::query()->whereNull('tenant_id')->where('status', LetterTypeStatus::ACTIVE)->findOrFail($this->letter_type_id);
         $this->authorize('view', $letterType);
-        $this->applySystemValues();
+
+        $position = $this->availableSignerPositions()->find($this->signer_position_id);
+        if (! $position) {
+            $this->addError('signer_position_id', 'Jabatan penanda tangan tidak tersedia atau tidak memiliki pejabat aktif.');
+            return;
+        }
+
+        $holder = $position->holders->first();
+        if (! $holder?->user) {
+            $this->addError('signer_position_id', 'Jabatan tersebut belum memiliki pejabat aktif.');
+            return;
+        }
+
+        $this->applySystemValues($holder);
 
         foreach ($this->variables as $variable) {
             if ($this->isSystemVariable($variable)) continue;
@@ -78,9 +102,6 @@ class Index extends Component
         $templatePath = Storage::disk('local')->path($letterType->template_path);
         if (! is_file($templatePath)) { $this->addError('letter_type_id', 'File template DOCX tidak ditemukan di storage.'); return; }
 
-        // Generate the verification identity before rendering the DOCX so the
-        // {{tte}} marker can be replaced by the real QR at the exact position
-        // selected by Super Admin in the DOCX template.
         $verificationToken = Str::random(64);
         $verificationUrl = url('/verify/' . $verificationToken);
         $generatedPath = $docx->renderToStorage($templatePath, auth()->user()->tenant, $data);
@@ -91,6 +112,10 @@ class Index extends Component
             'tenant_id' => auth()->user()->tenant_id,
             'letter_type_id' => $letterType->id,
             'letter_type_version_id' => null,
+            'signer_position_id' => $position->id,
+            'signer_user_id' => $holder->user_id,
+            'signer_name' => $holder->user->name,
+            'signer_title' => $position->name,
             'number' => $data['number'],
             'recipient_name' => $data['recipient_name'],
             'recipient_address' => $data['recipient_address'],
@@ -110,23 +135,61 @@ class Index extends Component
     public function validateLetter(string $id, OutgoingLetterService $service): void { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('validate', $letter); $service->validate($letter, auth()->id()); $this->dispatch('toast', type: 'success', message: 'Surat berhasil divalidasi.'); }
     public function issue(string $id, OutgoingLetterService $service): void { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('issue', $letter); $service->issue($letter, auth()->id()); $this->dispatch('toast', type: 'success', message: 'Surat berhasil diterbitkan.'); }
 
-    private function applySystemValues(): void
+    private function applySystemValues(?PositionHolder $holder = null): void
     {
-        $tenant = auth()->user()->tenant; if (! $tenant) return;
-        $values = ['tenant_name'=>$tenant->name,'tenant_city'=>$tenant->city,'tenant_district'=>$tenant->district,'tenant_village'=>$tenant->village,'tenant_province'=>$tenant->province,'tenant_address'=>$tenant->address,'tenant_phone'=>$tenant->phone,'tenant_email'=>$tenant->email,'tenant_head_name'=>$tenant->head_name,'tenant_head_title'=>$tenant->head_title];
-        foreach ($this->variables as $variable) if ($this->isSystemVariable($variable)) $this->variableValues[$variable] = (string) ($values[$variable] ?? '');
+        $tenant = auth()->user()->tenant;
+        if (! $tenant) return;
+
+        $values = [
+            'tenant_name' => $tenant->name,
+            'tenant_city' => $tenant->city,
+            'tenant_district' => $tenant->district,
+            'tenant_village' => $tenant->village,
+            'tenant_province' => $tenant->province,
+            'tenant_address' => $tenant->address,
+            'tenant_phone' => $tenant->phone,
+            'tenant_email' => $tenant->email,
+            'tenant_head_name' => $holder?->user?->name ?? $tenant->head_name,
+            'tenant_head_title' => $holder?->position?->name ?? $tenant->head_title,
+        ];
+
+        foreach ($this->variables as $variable) {
+            if ($this->isSystemVariable($variable)) $this->variableValues[$variable] = (string) ($values[$variable] ?? '');
+        }
     }
+
+    private function availableSignerPositions()
+    {
+        return Position::query()
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->where('status', PositionStatus::ACTIVE)
+            ->where('can_sign', true)
+            ->whereHas('holders', fn ($query) => $query
+                ->whereNull('ended_at')
+                ->where('started_at', '<=', now()))
+            ->with(['holders' => fn ($query) => $query
+                ->whereNull('ended_at')
+                ->where('started_at', '<=', now())
+                ->with('user')]);
+    }
+
     private function isSystemVariable(string $variable): bool { return in_array($variable, self::SYSTEM_VARIABLES, true); }
     private function isDateVariable(string $variable): bool { return (bool) preg_match('/(^|_)date$/i', $variable); }
     private function isBirthDateVariable(string $variable): bool { return (bool) preg_match('/(^|_)birth_date$/i', $variable); }
     private function tenantQuery() { return OutgoingLetter::query()->where('tenant_id', auth()->user()->tenant_id); }
-    private function resetForm(): void { $this->reset(['letter_type_id','variables','variableValues']); }
+    private function resetForm(): void { $this->reset(['letter_type_id','signer_position_id','variables','variableValues']); }
 
     public function render()
     {
-        $letters = $this->tenantQuery()->with(['letterType','letterTypeVersion'])->latest();
+        $letters = $this->tenantQuery()->with(['letterType','letterTypeVersion','signerPosition','signerUser'])->latest();
         if ($this->search !== '') $letters->where(fn ($q) => $q->where('number','like',"%{$this->search}%")->orWhere('recipient_name','like',"%{$this->search}%")->orWhere('subject','like',"%{$this->search}%"));
         if ($this->filter !== 'all') $letters->where('status', $this->filter);
-        return view('livewire.pages.outgoing-letters.index', ['letters'=>$letters->paginate($this->perPage),'letterTypes'=>LetterType::query()->whereNull('tenant_id')->where('status',LetterTypeStatus::ACTIVE)->orderBy('name')->get(),'variableLabels'=>(new DocxTemplateService)->allowedVariables()]);
+
+        return view('livewire.pages.outgoing-letters.index', [
+            'letters' => $letters->paginate($this->perPage),
+            'letterTypes' => LetterType::query()->whereNull('tenant_id')->where('status', LetterTypeStatus::ACTIVE)->orderBy('name')->get(),
+            'signerPositions' => $this->availableSignerPositions()->orderBy('name')->get(),
+            'variableLabels' => (new DocxTemplateService)->allowedVariables(),
+        ]);
     }
 }
