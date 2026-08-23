@@ -16,7 +16,7 @@ class VerificationController extends Controller
         $letter = OutgoingLetter::query()
             ->with(['tenant:id,name,city', 'letterType:id,name'])
             ->where('verification_token', $token)
-            ->where('status', OutgoingLetterStatus::ISSUED)
+            ->whereIn('status', [OutgoingLetterStatus::ISSUED, OutgoingLetterStatus::WITHDRAWN])
             ->first();
 
         if ($letter === null) {
@@ -26,6 +26,10 @@ class VerificationController extends Controller
             ], 404);
         }
 
+        $state = $letter->status === OutgoingLetterStatus::WITHDRAWN
+            ? 'withdrawn'
+            : ($letter->isExpired() ? 'expired' : ($letter->isActive() ? 'active' : 'not_yet_active'));
+
         return response()->json([
             'verified' => true,
             'data' => [
@@ -34,6 +38,9 @@ class VerificationController extends Controller
                 'recipient_name' => $letter->recipient_name,
                 'subject' => $letter->subject,
                 'issued_at' => $letter->issued_at?->toDateString(),
+                'valid_from' => $letter->valid_from?->toIso8601String(),
+                'valid_until' => $letter->valid_until?->toIso8601String(),
+                'state' => $state,
                 'tenant' => $letter->tenant?->name,
                 'city' => $letter->tenant?->city,
             ],
@@ -45,7 +52,7 @@ class VerificationController extends Controller
         $letter = OutgoingLetter::query()
             ->with(['tenant:id,name,city', 'letterType:id,name'])
             ->where('verification_token', $token)
-            ->where('status', OutgoingLetterStatus::ISSUED)
+            ->whereIn('status', [OutgoingLetterStatus::ISSUED, OutgoingLetterStatus::WITHDRAWN])
             ->first();
 
         return view('verification.show', [
