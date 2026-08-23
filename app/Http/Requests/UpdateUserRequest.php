@@ -21,6 +21,7 @@ class UpdateUserRequest extends FormRequest
     {
         $routeUser = $this->route('user');
         $userId = $routeUser instanceof User ? $routeUser->getKey() : $routeUser;
+        $userId ??= $this->input('user_id');
 
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
@@ -42,9 +43,9 @@ class UpdateUserRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $routeUser = $this->route('user');
-            $user = $routeUser instanceof User
-                ? $routeUser
-                : User::query()->find($routeUser);
+            $userId = $routeUser instanceof User ? $routeUser->getKey() : $routeUser;
+            $userId ??= $this->input('user_id');
+            $user = $userId === null ? null : User::query()->find($userId);
 
             if ($user === null) {
                 return;
@@ -56,17 +57,11 @@ class UpdateUserRequest extends FormRequest
                 : $user->tenant_id;
 
             if (in_array($role, [UserRole::TENANT_USER->value, UserRole::TENANT_ADMIN->value], true) && $tenantId === null) {
-                $validator->errors()->add(
-                    'tenant_id',
-                    'Tenant user harus memiliki organisasi.',
-                );
+                $validator->errors()->add('tenant_id', 'Tenant user harus memiliki organisasi.');
             }
 
             if ($role === UserRole::SUPER_ADMIN->value && $tenantId !== null) {
-                $validator->errors()->add(
-                    'tenant_id',
-                    'Super Admin tidak boleh memiliki organisasi.',
-                );
+                $validator->errors()->add('tenant_id', 'Super Admin tidak boleh memiliki organisasi.');
             }
         });
     }
