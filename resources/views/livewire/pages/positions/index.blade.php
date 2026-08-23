@@ -8,8 +8,8 @@
     </div>
 
     <div class="flex flex-col gap-3 sm:flex-row">
-        <input wire:model.live.debounce.300ms="search" type="search" placeholder="Cari kode atau nama jabatan..." class="w-full rounded-xl border-slate-200 text-sm shadow-sm sm:max-w-sm">
-        <select wire:model.live="filter" class="rounded-xl border-slate-200 text-sm shadow-sm sm:w-44">
+        <input wire:model.live.debounce.300ms="search" type="search" placeholder="Cari kode atau nama jabatan..." class="form-control sm:max-w-sm">
+        <select wire:model.live="filter" class="form-select sm:w-44">
             <option value="active">Aktif</option>
             <option value="inactive">Tidak Aktif</option>
             <option value="all">Semua</option>
@@ -74,17 +74,44 @@
     @if($showForm)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" wire:click.self="$set('showForm', false)">
             <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-                <div class="mb-5"><h2 class="text-lg font-semibold">{{ $editingId ? 'Edit Jabatan' : 'Tambah Jabatan' }}</h2><p class="mt-1 text-sm text-slate-500">Tentukan apakah jabatan ini boleh digunakan sebagai penanda tangan TTE.</p></div>
-                <div class="space-y-4">
-                    <input wire:model="code" type="text" placeholder="Kode, contoh: LURAH" class="w-full rounded-xl border-slate-200 text-sm">
-                    <input wire:model="name" type="text" placeholder="Nama jabatan, contoh: Lurah" class="w-full rounded-xl border-slate-200 text-sm">
-                    <textarea wire:model="description" rows="3" placeholder="Deskripsi (opsional)" class="w-full rounded-xl border-slate-200 text-sm"></textarea>
-                    <select wire:model="status" class="w-full rounded-xl border-slate-200 text-sm"><option value="active">Aktif</option><option value="inactive">Tidak Aktif</option></select>
-                    <label class="flex items-start gap-3 rounded-xl border border-slate-200 p-4"><input wire:model="can_sign" type="checkbox" class="mt-0.5 rounded border-slate-300"><span><span class="block text-sm font-semibold">Jabatan dapat menandatangani</span><span class="block text-xs text-slate-500">Hanya pemegang aktif jabatan ini yang nantinya dapat dipilih sebagai penanda tangan.</span></span></label>
-                    @error('code') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
-                    @error('name') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                <div class="mb-5">
+                    <h2 class="text-lg font-semibold">{{ $editingId ? 'Edit Jabatan' : 'Tambah Jabatan' }}</h2>
+                    <p class="mt-1 text-sm text-slate-500">Tentukan apakah jabatan ini boleh digunakan sebagai penanda tangan TTE.</p>
                 </div>
-                <div class="mt-6 flex justify-end gap-2"><button wire:click="$set('showForm', false)" type="button" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold">Batal</button><button wire:click="save" type="button" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Simpan</button></div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Kode Jabatan</label>
+                        <input wire:model="code" type="text" placeholder="Contoh: LURAH" class="form-control mt-1">
+                        @error('code') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Nama Jabatan</label>
+                        <input wire:model="name" type="text" placeholder="Contoh: Lurah" class="form-control mt-1">
+                        @error('name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Deskripsi <span class="font-normal text-slate-400">(opsional)</span></label>
+                        <textarea wire:model="description" rows="3" placeholder="Deskripsi jabatan..." class="form-textarea mt-1"></textarea>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Status</label>
+                        <select wire:model="status" class="form-select mt-1">
+                            <option value="active">Aktif</option>
+                            <option value="inactive">Tidak Aktif</option>
+                        </select>
+                    </div>
+                    <label class="flex items-start gap-3 rounded-xl border border-slate-200 p-4">
+                        <input wire:model="can_sign" type="checkbox" class="mt-0.5 rounded border-slate-300">
+                        <span>
+                            <span class="block text-sm font-semibold">Jabatan dapat menandatangani</span>
+                            <span class="block text-xs text-slate-500">Hanya pemegang aktif jabatan ini yang nantinya dapat dipilih sebagai penanda tangan.</span>
+                        </span>
+                    </label>
+                </div>
+                <div class="mt-6 flex justify-end gap-2">
+                    <button wire:click="$set('showForm', false)" type="button" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Batal</button>
+                    <button wire:click="save" type="button" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Simpan</button>
+                </div>
             </div>
         </div>
     @endif
@@ -95,12 +122,26 @@
                 <h2 class="text-lg font-semibold">Tetapkan Pemegang Jabatan</h2>
                 <p class="mt-1 text-sm text-slate-500">Pemegang lama otomatis diakhiri ketika pejabat baru mulai.</p>
                 <div class="mt-5 space-y-4">
-                    <select wire:model="holderUserId" class="w-full rounded-xl border-slate-200 text-sm"><option value="">Pilih user...</option>@foreach($users as $user)<option value="{{ $user->id }}">{{ $user->name }} — {{ $user->email }}</option>@endforeach</select>
-                    <input wire:model="holderStartedAt" type="date" class="w-full rounded-xl border-slate-200 text-sm">
-                    @error('holderUserId') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
-                    @error('holderStartedAt') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Pejabat</label>
+                        <select wire:model="holderUserId" class="form-select mt-1">
+                            <option value="">Pilih user...</option>
+                            @foreach($users as $user)
+                                <option value="{{ $user->id }}">{{ $user->name }} — {{ $user->email }}</option>
+                            @endforeach
+                        </select>
+                        @error('holderUserId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Tanggal Mulai</label>
+                        <input wire:model="holderStartedAt" type="date" class="form-control mt-1">
+                        @error('holderStartedAt') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
                 </div>
-                <div class="mt-6 flex justify-end gap-2"><button wire:click="$set('showHolderForm', false)" type="button" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold">Batal</button><button wire:click="saveHolder" type="button" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Tetapkan</button></div>
+                <div class="mt-6 flex justify-end gap-2">
+                    <button wire:click="$set('showHolderForm', false)" type="button" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Batal</button>
+                    <button wire:click="saveHolder" type="button" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Tetapkan</button>
+                </div>
             </div>
         </div>
     @endif
