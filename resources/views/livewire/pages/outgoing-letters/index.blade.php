@@ -1,28 +1,46 @@
 <div class="space-y-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div><h1 class="text-2xl font-semibold tracking-tight text-slate-900">Outgoing Letters</h1><p class="mt-1 text-sm text-slate-500">Buat, lihat, validasi, terbitkan, dan verifikasi surat keluar.</p></div>
-        <button wire:click="create" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">+ Create Letter</button>
+        <div><h1 class="text-2xl font-semibold tracking-tight text-slate-900">Outgoing Letters</h1><p class="mt-1 text-sm text-slate-500">{{ $isSuperAdmin ? 'Arsip seluruh surat keluar tenant dan pemulihan surat yang dihapus.' : 'Buat, lihat, validasi, terbitkan, dan verifikasi surat keluar.' }}</p></div>
+        @unless($isSuperAdmin)<button wire:click="create" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">+ Create Letter</button>@endunless
     </div>
 
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div class="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row">
             <input wire:model.live="search" type="search" placeholder="Cari nomor, penerima, perihal..." class="form-control sm:max-w-md">
-            <select wire:model.live="filter" class="form-select sm:w-44"><option value="all">All</option><option value="draft">Draft</option><option value="validated">Validated</option><option value="issued">Issued</option><option value="cancelled">Cancelled</option></select>
+            <select wire:model.live="filter" class="form-select sm:w-44">
+                <option value="all">{{ $isSuperAdmin ? 'Active Letters' : 'All' }}</option>
+                <option value="draft">Draft</option>
+                <option value="validated">Validated</option>
+                <option value="issued">Issued</option>
+                <option value="cancelled">Cancelled</option>
+                @if($isSuperAdmin)<option value="deleted">Deleted</option>@endif
+            </select>
         </div>
         <div class="divide-y divide-slate-100">
             @forelse ($letters as $letter)
-                <div class="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+                <div class="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between {{ $letter->trashed() ? 'bg-rose-50/50' : '' }}">
                     <div class="min-w-0">
-                        <div class="flex flex-wrap items-center gap-2"><span class="font-mono text-xs font-semibold text-slate-400">{{ $letter->number }}</span><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{{ $letter->status->value }}</span></div>
+                        <div class="flex flex-wrap items-center gap-2"><span class="font-mono text-xs font-semibold text-slate-400">{{ $letter->number }}</span><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{{ $letter->status->value }}</span>@if($letter->trashed())<span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">Deleted</span>@endif</div>
                         <h2 class="mt-1 font-semibold text-slate-900">{{ $letter->subject }}</h2>
-                        <p class="mt-1 text-sm text-slate-500">{{ $letter->recipient_name }} · {{ $letter->letterType?->name }}</p>
+                        <p class="mt-1 text-sm text-slate-500">{{ $letter->recipient_name }} · {{ $letter->letterType?->name }}@if($isSuperAdmin && $letter->tenant) · {{ $letter->tenant->name }}@endif</p>
                         @if($letter->signer_name)
                             <p class="mt-1 text-xs text-slate-500">Penanda tangan: <span class="font-medium text-slate-700">{{ $letter->signer_name }}</span> · {{ $letter->signer_title }}</p>
                         @endif
                     </div>
-                    <div class="flex flex-wrap gap-2"><a href="{{ route('outgoing-letters.show', $letter->id) }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Preview</a>@if($letter->status->value === 'draft')<button wire:click="validateLetter('{{ $letter->id }}')" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Validate</button>@endif @if($letter->status->value === 'validated')<button wire:click="issue('{{ $letter->id }}')" class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Issue</button>@endif @if($letter->status->value === 'issued')<a href="{{ route('verification.show', $letter->verification_token) }}" target="_blank" class="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50">Verify</a>@endif</div>
+                    <div class="flex flex-wrap gap-2">
+                        @if(! $letter->trashed())
+                            <a href="{{ route('outgoing-letters.show', $letter->id) }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Preview</a>
+                            @unless($isSuperAdmin)
+                                @if($letter->status->value === 'draft')<button wire:click="validateLetter('{{ $letter->id }}')" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Validate</button>@endif
+                                @if($letter->status->value === 'validated')<button wire:click="issue('{{ $letter->id }}')" class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Issue</button>@endif
+                            @endunless
+                            @if($letter->status->value === 'issued')<a href="{{ route('verification.show', $letter->verification_token) }}" target="_blank" class="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50">Verify</a>@endif
+                        @elseif($isSuperAdmin)
+                            <button wire:click="restoreLetter('{{ $letter->id }}')" wire:confirm="Restore surat ini?" class="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50">Restore</button>
+                        @endif
+                    </div>
                 </div>
-            @empty<div class="p-12 text-center text-sm text-slate-500">Belum ada surat keluar.</div>@endforelse
+            @empty<div class="p-12 text-center text-sm text-slate-500">{{ $isSuperAdmin && $filter === 'deleted' ? 'Tidak ada surat yang dihapus.' : 'Belum ada surat keluar.' }}</div>@endforelse
         </div><div class="border-t border-slate-100 p-4">{{ $letters->links() }}</div>
     </div>
 
