@@ -1,0 +1,73 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use App\Enums\OutgoingLetterWithdrawalStatus;
+use App\Models\OutgoingLetter;
+use App\Models\OutgoingLetterWithdrawalRequest;
+use App\Services\OutgoingLetterService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class OutgoingLetterWithdrawalController extends Controller
+{
+    public function __construct(private readonly OutgoingLetterService $service) {}
+
+    public function store(Request $request, string $id): JsonResponse
+    {
+        $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+            'statement' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+        ]);
+
+        $letter = OutgoingLetter::query()->where('tenant_id', $request->user()->tenant_id)->find($id);
+        if ($letter === null) return response()->json(['message' => 'Outgoing letter not found.'], 404);
+        $this->authorize('requestWithdrawal', $letter);
+
+        try {
+            $path = $request->file('statement')->store('outgoing-letter-withdrawals');
+            $withdrawal = $this->service->requestWithdrawal(
+                $letter,
+                $request->user()->id,
+                $request->string('reason')->toString(),
+                $path,
+            );
+
+            return response()->json(['data' => $withdrawal->load(['requestedBy:id,name'])], 201);
+        } catch (\DomainException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
+    public function approve(Request $request, string $id): JsonResponse
+    {
+        $request->validate(['note' => ['nullable', 'string', 'max:2000']]);
+        $withdrawal = OutgoingLetterWithdrawalRequest::query()->with('outgoingLetter')->find($id);
+        if ($withdrawal === null) return response()->json(['message' => 'Withdrawal request not found.'], 404);
+        $this->authorize('decideWithdrawal', $withdrawal->outgoingLetter);
+
+        try {
+            $letter = $this->service->approveWithdrawal($withdrawal, $request->user()->id, $request->input('note'));
+            return response()->json(['data' => $letter]);
+        } catch (\DomainException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
+    public function reject(Request $request, string $id): JsonResponse
+    {
+        $request->validate(['note' => ['required', 'string', 'max:2000']]);
+        $withdrawal = OutgoingLetterWithdrawalRequest::query()->with('outgoingLetter')->find($id);
+        if ($withdrawal === null) return response()->json(['message' => 'Withdrawal request not found.'], 404);
+        $this->authorize('decideWithdrawal', $withdrawal->outgoingLetter);
+
+        try {
+            $withdrawal = $this->service->rejectWithdrawal($withdrawal, $request->user()->id, $request->string('note')->toString());
+            return response()->json(['data' => $withdrawal]);
+        } catch (\DomainException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+}
