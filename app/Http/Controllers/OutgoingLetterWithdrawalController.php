@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\OutgoingLetterWithdrawalStatus;
 use App\Models\OutgoingLetter;
 use App\Models\OutgoingLetterWithdrawalRequest;
 use App\Services\OutgoingLetterService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class OutgoingLetterWithdrawalController extends Controller
 {
@@ -39,6 +39,25 @@ class OutgoingLetterWithdrawalController extends Controller
         } catch (\DomainException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
         }
+    }
+
+    public function statement(Request $request, string $id)
+    {
+        $withdrawal = OutgoingLetterWithdrawalRequest::query()
+            ->with('outgoingLetter')
+            ->findOrFail($id);
+
+        $this->authorize('decideWithdrawal', $withdrawal->outgoingLetter);
+
+        abort_unless($withdrawal->statement_path, 404);
+
+        $disk = Storage::disk(config('filesystems.default'));
+        abort_unless($disk->exists($withdrawal->statement_path), 404);
+
+        return $disk->download(
+            $withdrawal->statement_path,
+            'surat-pernyataan-' . $withdrawal->outgoingLetter->number . '.' . pathinfo($withdrawal->statement_path, PATHINFO_EXTENSION),
+        );
     }
 
     public function approve(Request $request, string $id): JsonResponse
