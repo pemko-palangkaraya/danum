@@ -33,6 +33,7 @@ class Index extends Component
     public bool $showForm = false;
     public string $letter_type_id = '';
     public string $signer_position_id = '';
+    public string $validator_position_id = '';
     public array $variables = [];
     public array $variableValues = [];
 
@@ -58,6 +59,7 @@ class Index extends Component
         $this->validate([
             'letter_type_id' => ['required', Rule::exists('letter_types', 'id')->whereNull('tenant_id')->where('status', LetterTypeStatus::ACTIVE->value)],
             'signer_position_id' => ['required', 'uuid'],
+            'validator_position_id' => ['required', 'uuid'],
             'variableValues' => ['array'],
         ]);
 
@@ -68,10 +70,20 @@ class Index extends Component
             $this->addError('signer_position_id', 'Jabatan penanda tangan tidak tersedia atau tidak memiliki pejabat aktif.');
             return;
         }
-
         $holder = $position->holders->first();
         if (! $holder?->user) {
             $this->addError('signer_position_id', 'Jabatan tersebut belum memiliki pejabat aktif.');
+            return;
+        }
+
+        $validatorPosition = $this->availableValidatorPositions()->find($this->validator_position_id);
+        if (! $validatorPosition) {
+            $this->addError('validator_position_id', 'Jabatan validator tidak tersedia atau tidak memiliki pejabat aktif.');
+            return;
+        }
+        $validatorHolder = $validatorPosition->holders->first();
+        if (! $validatorHolder?->user) {
+            $this->addError('validator_position_id', 'Jabatan validator tersebut belum memiliki pejabat aktif.');
             return;
         }
 
@@ -116,6 +128,10 @@ class Index extends Component
             'signer_user_id' => $holder->user_id,
             'signer_name' => $holder->user->name,
             'signer_title' => $position->name,
+            'validator_position_id' => $validatorPosition->id,
+            'validator_user_id' => $validatorHolder->user_id,
+            'validator_name' => $validatorHolder->user->name,
+            'validator_title' => $validatorPosition->name,
             'number' => $data['number'],
             'recipient_name' => $data['recipient_name'],
             'recipient_address' => $data['recipient_address'],
@@ -186,19 +202,17 @@ class Index extends Component
         }
     }
 
-    private function availableSignerPositions()
+    private function availableSignerPositions() { return $this->availablePositions('can_sign'); }
+    private function availableValidatorPositions() { return $this->availablePositions('can_validate'); }
+
+    private function availablePositions(string $capability)
     {
         return Position::query()
             ->where('tenant_id', auth()->user()->tenant_id)
             ->where('status', PositionStatus::ACTIVE)
-            ->where('can_sign', true)
-            ->whereHas('holders', fn ($query) => $query
-                ->whereNull('ended_at')
-                ->where('started_at', '<=', now()))
-            ->with(['holders' => fn ($query) => $query
-                ->whereNull('ended_at')
-                ->where('started_at', '<=', now())
-                ->with('user')]);
+            ->where($capability, true)
+            ->whereHas('holders', fn ($query) => $query->whereNull('ended_at')->where('started_at', '<=', now()))
+            ->with(['holders' => fn ($query) => $query->whereNull('ended_at')->where('started_at', '<=', now())->with('user')]);
     }
 
     private function isSystemVariable(string $variable): bool { return in_array($variable, self::SYSTEM_VARIABLES, true); }
@@ -206,39 +220,21 @@ class Index extends Component
     private function isBirthDateVariable(string $variable): bool { return (bool) preg_match('/(^|_)birth_date$/i', $variable); }
     private function isSuperAdmin(): bool { return auth()->user()->role === UserRole::SUPER_ADMIN; }
     private function tenantQuery() { return OutgoingLetter::query()->where('tenant_id', auth()->user()->tenant_id); }
-    private function archiveQuery()
-    {
-        return $this->isSuperAdmin()
-            ? OutgoingLetter::withTrashed()
-            : $this->tenantQuery();
-    }
-    private function resetForm(): void { $this->reset(['letter_type_id','signer_position_id','variables','variableValues']); }
+    private function archiveQuery() { return $this->isSuperAdmin() ? OutgoingLetter::withTrashed() : $this->tenantQuery(); }
+    private function resetForm(): void { $this->reset(['letter_type_id','signer_position_id','validator_position_id','variables','variableValues']); }
 
     public function render()
     {
         $this->authorize('viewAny', OutgoingLetter::class);
-
-        $letters = $this->archiveQuery()
-            ->with(['tenant','letterType','letterTypeVersion','signerPosition','signerUser'])
-            ->latest();
-
-        if ($this->isSuperAdmin() && $this->filter === 'deleted') {
-            $letters->onlyTrashed();
-        } elseif ($this->filter !== 'all') {
-            $letters->where('status', $this->filter);
-        }
-
-        if ($this->search !== '') {
-            $letters->where(fn ($q) => $q
-                ->where('number','like',"%{$this->search}%")
-                ->orWhere('recipient_name','like',"%{$this->search}%")
-                ->orWhere('subject','like',"%{$this->search}%"));
-        }
-
+        $letters = $this->archiveQuery()->with(['tenant','letterType','letterTypeVersion','signerPosition','signerUser','validatorPosition','validatorUser'])->latest();
+        if ($this->isSuperAdmin() && $this->filter === 'deleted') $letters->onlyTrashed();
+        elseif ($this->filter !== 'all') $letters->where('status', $this->filter);
+        if ($this->search !== '') $letters->where(fn ($q) => $q->where('number','like',"%{$this->search}%")->orWhere('recipient_name','like',"%{$this->search}%")->orWhere('subject','like',"%{$this->search}%"));
         return view('livewire.pages.outgoing-letters.index', [
             'letters' => $letters->paginate($this->perPage),
             'letterTypes' => LetterType::query()->whereNull('tenant_id')->where('status', LetterTypeStatus::ACTIVE)->orderBy('name')->get(),
             'signerPositions' => $this->availableSignerPositions()->orderBy('name')->get(),
+            'validatorPositions' => $this->availableValidatorPositions()->orderBy('name')->get(),
             'variableLabels' => (new DocxTemplateService)->allowedVariables(),
             'isSuperAdmin' => $this->isSuperAdmin(),
         ]);
