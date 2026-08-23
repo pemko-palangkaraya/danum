@@ -9,9 +9,9 @@ use Illuminate\Database\Eloquent\Collection;
 
 interface LetterTypeRepositoryInterface
 {
-    public function find(string $id, string $tenantId): ?LetterType;
+    public function find(string $id, ?string $tenantId): ?LetterType;
 
-    public function getAll(string $tenantId): Collection;
+    public function getAll(?string $tenantId): Collection;
 
     public function create(array $data): LetterType;
 
@@ -21,5 +21,5 @@ interface LetterTypeRepositoryInterface
 
     public function restore(LetterType $letterType): bool;
 
-    public function findWithTrashed(string $id, string $tenantId): ?LetterType;
+    public function findWithTrashed(string $id, ?string $tenantId): ?LetterType;
 }
