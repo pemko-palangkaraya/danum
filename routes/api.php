@@ -6,6 +6,7 @@ use App\Http\Controllers\TenantController;
 use App\Http\Controllers\TenantProfileController;
 use App\Http\Controllers\LetterTypeController;
 use App\Http\Controllers\OutgoingLetterController;
+use App\Http\Controllers\OutgoingLetterWithdrawalController;
 use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\PositionController;
 
@@ -26,9 +27,9 @@ Route::middleware('auth')->as('api.')->group(function () {
     Route::post('outgoing-letters/{id}/reject', [OutgoingLetterController::class, 'reject'])->name('outgoing-letters.reject');
     Route::post('outgoing-letters/{id}/issue', [OutgoingLetterController::class, 'issue'])->name('outgoing-letters.issue');
     Route::post('outgoing-letters/{id}/cancel', [OutgoingLetterController::class, 'cancel'])->name('outgoing-letters.cancel');
-    Route::post('outgoing-letters/{id}/withdraw', [OutgoingLetterController::class, 'requestWithdrawal'])->name('outgoing-letters.withdraw');
-    Route::post('outgoing-letter-withdrawals/{request}/approve', [OutgoingLetterController::class, 'approveWithdrawal'])->name('outgoing-letter-withdrawals.approve');
-    Route::post('outgoing-letter-withdrawals/{request}/reject', [OutgoingLetterController::class, 'rejectWithdrawal'])->name('outgoing-letter-withdrawals.reject');
+    Route::post('outgoing-letters/{id}/withdraw', [OutgoingLetterWithdrawalController::class, 'store'])->name('outgoing-letters.withdraw');
+    Route::post('outgoing-letter-withdrawals/{request}/approve', [OutgoingLetterWithdrawalController::class, 'approve'])->name('outgoing-letter-withdrawals.approve');
+    Route::post('outgoing-letter-withdrawals/{request}/reject', [OutgoingLetterWithdrawalController::class, 'reject'])->name('outgoing-letter-withdrawals.reject');
     Route::get('outgoing-letters/{id}/pdf', [OutgoingLetterController::class, 'downloadPdf'])->name('outgoing-letters.pdf');
     Route::get('outgoing-letters/{id}/history', [OutgoingLetterController::class, 'history'])->name('outgoing-letters.history');
     Route::get('tenant/profile', [TenantProfileController::class, 'show'])->name('tenant.profile.show');
