@@ -28,11 +28,20 @@ class StoreOutgoingLetterRequest extends FormRequest
                 }),
             ],
             'signer_position_id' => [
-                'sometimes', 'nullable', 'uuid',
+                'required', 'uuid',
                 Rule::exists('positions', 'id')->where(function ($query): void {
                     $query->where('tenant_id', $this->user()->tenant_id)
                         ->where('status', PositionStatus::ACTIVE->value)
                         ->where('can_sign', true)
+                        ->whereNull('deleted_at');
+                }),
+            ],
+            'validator_position_id' => [
+                'required', 'uuid',
+                Rule::exists('positions', 'id')->where(function ($query): void {
+                    $query->where('tenant_id', $this->user()->tenant_id)
+                        ->where('status', PositionStatus::ACTIVE->value)
+                        ->where('can_validate', true)
                         ->whereNull('deleted_at');
                 }),
             ],
