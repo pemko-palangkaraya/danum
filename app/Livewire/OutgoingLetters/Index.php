@@ -62,7 +62,6 @@ class Index extends Component
         ]);
 
         $letterType = LetterType::query()->whereNull('tenant_id')->where('status', LetterTypeStatus::ACTIVE)->findOrFail($this->letter_type_id);
-        $this->authorize('view', $letterType);
 
         $position = $this->availableSignerPositions()->find($this->signer_position_id);
         if (! $position) {
