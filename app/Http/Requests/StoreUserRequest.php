@@ -19,6 +19,7 @@ class StoreUserRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'nip' => ['nullable', 'string', 'max:32'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', Rule::enum(UserRole::class)],
@@ -26,7 +27,7 @@ class StoreUserRequest extends FormRequest
                 'nullable',
                 'uuid',
                 'exists:tenants,id',
-                'required_if:role,tenant_user',
+                'required_if:role,tenant_user,tenant_admin',
                 'prohibited_if:role,super_admin',
             ],
         ];
