@@ -37,10 +37,11 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('tenant')->group(function () {
         Route::get('/positions', PositionIndex::class)->name('positions.index');
-        Route::get('/outgoing-letters', OutgoingLetterIndex::class)->name('outgoing-letters.index');
-        Route::get('/outgoing-letters/{id}/pdf', [OutgoingLetterController::class, 'downloadPdf'])->name('outgoing-letters.pdf');
-        Route::get('/outgoing-letters/{id}', OutgoingLetterShow::class)->name('outgoing-letters.show');
     });
+
+    Route::get('/outgoing-letters', OutgoingLetterIndex::class)->name('outgoing-letters.index');
+    Route::get('/outgoing-letters/{id}/pdf', [OutgoingLetterController::class, 'downloadPdf'])->name('outgoing-letters.pdf');
+    Route::get('/outgoing-letters/{id}', OutgoingLetterShow::class)->name('outgoing-letters.show');
 
     Route::post('/logout', function (Request $request) {
         Auth::logout();
