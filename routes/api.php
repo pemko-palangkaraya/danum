@@ -9,8 +9,7 @@ use App\Http\Controllers\OutgoingLetterController;
 use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\PositionController;
 
-Route::get('verify/{token}', [VerificationController::class, 'show'])
-    ->name('api.verification.show');
+Route::get('verify/{token}', [VerificationController::class, 'show'])->name('api.verification.show');
 
 Route::middleware('auth')->as('api.')->group(function () {
     Route::apiResource('tenants', TenantController::class)->except(['create', 'edit']);
@@ -22,7 +21,9 @@ Route::middleware('auth')->as('api.')->group(function () {
     Route::apiResource('outgoing-letters', OutgoingLetterController::class)->except(['create', 'edit']);
     Route::post('outgoing-letters/preview', [OutgoingLetterController::class, 'preview'])->name('outgoing-letters.preview');
     Route::post('outgoing-letters/{id}/restore', [OutgoingLetterController::class, 'restore'])->name('outgoing-letters.restore');
+    Route::post('outgoing-letters/{id}/submit', [OutgoingLetterController::class, 'submit'])->name('outgoing-letters.submit');
     Route::post('outgoing-letters/{id}/validate', [OutgoingLetterController::class, 'validateLetter'])->name('outgoing-letters.validate');
+    Route::post('outgoing-letters/{id}/reject', [OutgoingLetterController::class, 'reject'])->name('outgoing-letters.reject');
     Route::post('outgoing-letters/{id}/issue', [OutgoingLetterController::class, 'issue'])->name('outgoing-letters.issue');
     Route::post('outgoing-letters/{id}/cancel', [OutgoingLetterController::class, 'cancel'])->name('outgoing-letters.cancel');
     Route::get('outgoing-letters/{id}/pdf', [OutgoingLetterController::class, 'downloadPdf'])->name('outgoing-letters.pdf');
