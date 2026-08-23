@@ -25,20 +25,11 @@ class PositionFactory extends Factory
             'description' => fake()->optional()->sentence(),
             'status' => PositionStatus::ACTIVE,
             'can_sign' => false,
+            'can_validate' => false,
         ];
     }
 
-    public function signatory(): static
-    {
-        return $this->state(fn(): array => [
-            'can_sign' => true,
-        ]);
-    }
-
-    public function inactive(): static
-    {
-        return $this->state(fn(): array => [
-            'status' => PositionStatus::INACTIVE,
-        ]);
-    }
+    public function signatory(): static { return $this->state(fn(): array => ['can_sign' => true]); }
+    public function validator(): static { return $this->state(fn(): array => ['can_validate' => true]); }
+    public function inactive(): static { return $this->state(fn(): array => ['status' => PositionStatus::INACTIVE]); }
 }
