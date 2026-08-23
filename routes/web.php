@@ -33,10 +33,11 @@ Route::middleware('auth')->group(function () {
         Volt::route('/tenants/{tenant}/users', 'pages.tenants.users')->name('tenants.users');
         Volt::route('/tenants/{tenant}', 'pages.tenants.show')->name('tenants.show');
         Route::get('/letter-types', LetterTypeIndex::class)->name('letter-types.index');
+        Route::get('/positions', PositionIndex::class)->name('positions.index');
     });
 
     Route::middleware('tenant')->group(function () {
-        Route::get('/positions', PositionIndex::class)->name('positions.index');
+        Route::get('/tenant/positions', PositionIndex::class)->name('tenant.positions.index');
         Volt::route('/tenant-profile', 'pages.tenant-profile')->name('tenant-profile');
     });
 
