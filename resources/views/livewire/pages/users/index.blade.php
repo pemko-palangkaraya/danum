@@ -60,7 +60,7 @@ new #[Layout('layouts.app')] class extends Component {
             $this->authorize('update', $user);
             if ($this->password === '') unset($data['password']);
             $data['user_id'] = $user->getKey();
-            $validated = Validator::make($data, (new UpdateUserRequest())->rules())->validate();
+            $validated = Validator::make($data, UpdateUserRequest::rulesFor($user))->validate();
             if (isset($validated['password'])) $validated['password'] = Hash::make($validated['password']);
             $userService->update($user, $validated);
         } else {
