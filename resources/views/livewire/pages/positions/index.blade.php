@@ -25,14 +25,14 @@
                         <th class="px-5 py-3">Jabatan</th>
                         <th class="px-5 py-3">Pemegang Aktif</th>
                         <th class="px-5 py-3">Penandatangan</th>
-                        <th class="px-5 py-3">Validator</th>
+                        <th class="px-5 py-3">Verifikator</th>
                         <th class="px-5 py-3">Status</th>
                         <th class="px-5 py-3 text-right">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse ($positions as $position)
-                        @php($holder = $position->holders->first(fn ($item) => $item->ended_at === null))
+                        @php($holder = $position->holders->first(fn ($item) => $item->ended_at === null && $item->started_at?->lte(now())))
                         <tr>
                             <td class="px-5 py-4">
                                 <div class="font-semibold text-slate-900">{{ $position->name }}</div>
@@ -43,7 +43,7 @@
                                     <div class="font-medium">{{ $holder->user->name }}</div>
                                     <div class="text-xs text-slate-500">Mulai {{ $holder->started_at?->format('d M Y') }}</div>
                                 @else
-                                    <span class="text-slate-400">Belum ditetapkan</span>
+                                    <span class="text-slate-400">Belum aktif</span>
                                 @endif
                             </td>
                             <td class="px-5 py-4">
@@ -55,7 +55,7 @@
                             </td>
                             <td class="px-5 py-4">
                                 @if($position->can_validate)
-                                    <span class="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">Boleh Validasi</span>
+                                    <span class="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">Boleh Verifikasi</span>
                                 @else
                                     <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">Tidak</span>
                                 @endif
@@ -84,7 +84,7 @@
             <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
                 <div class="mb-5">
                     <h2 class="text-lg font-semibold">{{ $editingId ? 'Edit Jabatan' : 'Tambah Jabatan' }}</h2>
-                    <p class="mt-1 text-sm text-slate-500">Tentukan apakah jabatan ini dapat menjadi penanda tangan TTE dan/atau validator surat.</p>
+                    <p class="mt-1 text-sm text-slate-500">Tentukan apakah jabatan ini dapat menjadi penanda tangan TTE dan/atau verifikator surat.</p>
                 </div>
                 <div class="space-y-4">
                     <div>
@@ -118,8 +118,8 @@
                     <label class="flex items-start gap-3 rounded-xl border border-slate-200 p-4">
                         <input wire:model="can_validate" type="checkbox" class="mt-0.5 rounded border-slate-300">
                         <span>
-                            <span class="block text-sm font-semibold">Jabatan dapat memverifikasi</span>
-                            <span class="block text-xs text-slate-500">Hanya pemegang aktif jabatan ini yang dapat dipilih sebagai validator dan melakukan validasi surat.</span>
+                            <span class="block text-sm font-semibold">Jabatan dapat melakukan verifikasi</span>
+                            <span class="block text-xs text-slate-500">Hanya pemegang aktif jabatan ini yang dapat dipilih sebagai verifikator dan melakukan verifikasi surat.</span>
                         </span>
                     </label>
                 </div>
