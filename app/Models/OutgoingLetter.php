@@ -22,8 +22,8 @@ class OutgoingLetter extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'tenant_id','letter_type_id','letter_type_version_id','number','recipient_name','recipient_address','subject',
-        'content','issued_at','letter_date','generated_docx_path','status','verification_token',
+        'tenant_id','letter_type_id','letter_type_version_id','signer_position_id','signer_user_id','signer_name','signer_title',
+        'number','recipient_name','recipient_address','subject','content','issued_at','letter_date','generated_docx_path','status','verification_token',
     ];
 
     protected $hidden = ['verification_token'];
@@ -43,5 +43,7 @@ class OutgoingLetter extends Model
     public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
     public function letterType(): BelongsTo { return $this->belongsTo(LetterType::class); }
     public function letterTypeVersion(): BelongsTo { return $this->belongsTo(LetterTypeVersion::class); }
+    public function signerPosition(): BelongsTo { return $this->belongsTo(Position::class, 'signer_position_id'); }
+    public function signerUser(): BelongsTo { return $this->belongsTo(User::class, 'signer_user_id'); }
     public function statusHistories(): HasMany { return $this->hasMany(OutgoingLetterStatusHistory::class)->orderBy('created_at'); }
 }
