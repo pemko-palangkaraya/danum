@@ -23,6 +23,7 @@ class StorePositionRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'status' => ['required', new Enum(PositionStatus::class)],
             'can_sign' => ['boolean'],
+            'can_validate' => ['boolean'],
         ];
     }
 }
