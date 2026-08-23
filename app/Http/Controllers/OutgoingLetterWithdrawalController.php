@@ -41,7 +41,7 @@ class OutgoingLetterWithdrawalController extends Controller
         }
     }
 
-    public function statement(Request $request, string $id)
+    public function statement(string $id)
     {
         $withdrawal = OutgoingLetterWithdrawalRequest::query()
             ->with('outgoingLetter')
