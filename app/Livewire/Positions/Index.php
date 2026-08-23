@@ -8,7 +8,6 @@ use App\Enums\PositionStatus;
 use App\Models\Position;
 use App\Models\User;
 use App\Services\PositionService;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -29,6 +28,7 @@ class Index extends Component
     public string $description = '';
     public string $status = 'active';
     public bool $can_sign = false;
+    public bool $can_validate = false;
 
     public bool $showHolderForm = false;
     public ?string $holderPositionId = null;
@@ -60,6 +60,7 @@ class Index extends Component
         $this->description = (string) $position->description;
         $this->status = $position->status->value;
         $this->can_sign = (bool) $position->can_sign;
+        $this->can_validate = (bool) $position->can_validate;
         $this->showForm = true;
     }
 
@@ -71,6 +72,7 @@ class Index extends Component
             'description' => ['nullable', 'string'],
             'status' => ['required', Rule::enum(PositionStatus::class)],
             'can_sign' => ['boolean'],
+            'can_validate' => ['boolean'],
         ]);
 
         $position = $this->editingId ? Position::query()->findOrFail($this->editingId) : null;
@@ -80,6 +82,7 @@ class Index extends Component
             'description' => $this->description ?: null,
             'status' => $this->status,
             'can_sign' => $this->can_sign,
+            'can_validate' => $this->can_validate,
         ];
 
         if ($position) {
@@ -144,7 +147,7 @@ class Index extends Component
 
     private function resetForm(): void
     {
-        $this->reset(['editingId', 'code', 'name', 'description', 'can_sign']);
+        $this->reset(['editingId', 'code', 'name', 'description', 'can_sign', 'can_validate']);
         $this->status = PositionStatus::ACTIVE->value;
     }
 
