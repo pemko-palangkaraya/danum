@@ -10,4 +10,5 @@ enum OutgoingLetterStatus: string
     case VALIDATED = 'validated';
     case ISSUED = 'issued';
     case CANCELLED = 'cancelled';
+    case WITHDRAWN = 'withdrawn';
 }
