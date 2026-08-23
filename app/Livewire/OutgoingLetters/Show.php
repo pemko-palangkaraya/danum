@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\OutgoingLetters;
 
+use App\Enums\UserRole;
 use App\Models\OutgoingLetter;
 use App\Services\VerificationQrCodeService;
 use Illuminate\Support\Collection;
@@ -20,10 +21,16 @@ class Show extends Component
 
     public function mount(string $id, VerificationQrCodeService $qrCodeService): void
     {
-        $this->letter = OutgoingLetter::query()
-            ->with(['tenant', 'letterType', 'letterTypeVersion'])
-            ->where('tenant_id', auth()->user()->tenant_id)
-            ->findOrFail($id);
+        $query = OutgoingLetter::query()
+            ->with(['tenant', 'letterType', 'letterTypeVersion']);
+
+        if (auth()->user()->role === UserRole::SUPER_ADMIN) {
+            $query->withTrashed();
+        } else {
+            $query->where('tenant_id', auth()->user()->tenant_id);
+        }
+
+        $this->letter = $query->findOrFail($id);
 
         $this->authorize('view', $this->letter);
 
