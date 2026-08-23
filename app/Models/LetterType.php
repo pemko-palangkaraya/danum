@@ -21,6 +21,7 @@ class LetterType extends Model
 
     protected $fillable = [
         'tenant_id', 'code', 'name', 'description', 'body_template', 'template_path', 'variables', 'status',
+        'has_expiry', 'validity_days',
     ];
 
     protected function casts(): array
@@ -28,6 +29,8 @@ class LetterType extends Model
         return [
             'status' => LetterTypeStatus::class,
             'variables' => 'array',
+            'has_expiry' => 'boolean',
+            'validity_days' => 'integer',
         ];
     }
 
