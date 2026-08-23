@@ -15,10 +15,23 @@
         </div>
 
         @if ($letter)
-            <section class="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-sm">
-                <div class="border-b border-emerald-100 bg-emerald-50 px-6 py-5">
-                    <p class="text-sm font-semibold text-emerald-700">✓ Dokumen Terverifikasi</p>
-                    <p class="mt-1 text-sm text-emerald-700/80">Surat ini tercatat sebagai dokumen yang diterbitkan secara resmi.</p>
+            @php
+                $state = $letter->status->value === 'withdrawn'
+                    ? 'withdrawn'
+                    : ($letter->isExpired() ? 'expired' : ($letter->isActive() ? 'active' : 'not_yet_active'));
+            @endphp
+            <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div class="border-b border-slate-100 bg-slate-50 px-6 py-5">
+                    <p class="text-sm font-semibold">✓ Dokumen Terverifikasi</p>
+                    @if ($state === 'withdrawn')
+                        <p class="mt-1 text-sm font-medium text-rose-700">Surat ini telah ditarik dan tidak lagi berlaku.</p>
+                    @elseif ($state === 'expired')
+                        <p class="mt-1 text-sm font-medium text-amber-700">Surat ini telah melewati masa berlaku.</p>
+                    @elseif ($state === 'not_yet_active')
+                        <p class="mt-1 text-sm font-medium text-slate-600">Surat ini belum memasuki masa berlaku.</p>
+                    @else
+                        <p class="mt-1 text-sm text-slate-600">Surat ini tercatat sebagai dokumen yang diterbitkan secara resmi dan masih berlaku.</p>
+                    @endif
                 </div>
                 <dl class="divide-y divide-slate-100 px-6">
                     <div class="grid grid-cols-3 gap-4 py-4"><dt class="text-sm text-slate-500">Nomor</dt><dd class="col-span-2 text-sm font-semibold">{{ $letter->number }}</dd></div>
@@ -27,6 +40,9 @@
                     <div class="grid grid-cols-3 gap-4 py-4"><dt class="text-sm text-slate-500">Penerima</dt><dd class="col-span-2 text-sm">{{ $letter->recipient_name }}</dd></div>
                     <div class="grid grid-cols-3 gap-4 py-4"><dt class="text-sm text-slate-500">Perihal</dt><dd class="col-span-2 text-sm">{{ $letter->subject }}</dd></div>
                     <div class="grid grid-cols-3 gap-4 py-4"><dt class="text-sm text-slate-500">Diterbitkan</dt><dd class="col-span-2 text-sm">{{ optional($letter->issued_at)->translatedFormat('d F Y') ?? '-' }}</dd></div>
+                    <div class="grid grid-cols-3 gap-4 py-4"><dt class="text-sm text-slate-500">Berlaku mulai</dt><dd class="col-span-2 text-sm">{{ optional($letter->valid_from)->translatedFormat('d F Y H:i') ?? '-' }}</dd></div>
+                    <div class="grid grid-cols-3 gap-4 py-4"><dt class="text-sm text-slate-500">Berlaku sampai</dt><dd class="col-span-2 text-sm">{{ optional($letter->valid_until)->translatedFormat('d F Y H:i') ?? 'Tidak terbatas' }}</dd></div>
+                    <div class="grid grid-cols-3 gap-4 py-4"><dt class="text-sm text-slate-500">Status</dt><dd class="col-span-2 text-sm font-semibold">{{ match ($state) { 'active' => 'Aktif', 'expired' => 'Kedaluwarsa', 'withdrawn' => 'Ditarik', default => 'Belum Aktif' } }}</dd></div>
                 </dl>
             </section>
         @else
