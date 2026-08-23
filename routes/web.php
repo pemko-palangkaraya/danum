@@ -12,6 +12,7 @@ use App\Livewire\OutgoingLetterWithdrawals\Index as OutgoingLetterWithdrawalInde
 use App\Livewire\Positions\Index as PositionIndex;
 use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\OutgoingLetterController;
+use App\Http\Controllers\OutgoingLetterWithdrawalController;
 
 Route::view('/', 'welcome')->name('home');
 Route::get('/verify/{token}', [VerificationController::class, 'page'])->name('verification.show');
@@ -45,6 +46,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/outgoing-letters', OutgoingLetterIndex::class)->name('outgoing-letters.index');
     Route::get('/outgoing-letter-withdrawals/{letter?}', OutgoingLetterWithdrawalIndex::class)->name('outgoing-letter-withdrawals.index');
+    Route::get('/outgoing-letter-withdrawals/{id}/statement', [OutgoingLetterWithdrawalController::class, 'statement'])->name('outgoing-letter-withdrawals.statement');
     Route::get('/outgoing-letters/{id}/pdf', [OutgoingLetterController::class, 'downloadPdf'])->name('outgoing-letters.pdf');
     Route::get('/outgoing-letters/{id}', OutgoingLetterShow::class)->name('outgoing-letters.show');
 
