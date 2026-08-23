@@ -29,7 +29,7 @@
                                 <p class="mt-1 text-sm text-slate-500">{{ $request->outgoingLetter->tenant?->name }} · {{ $request->outgoingLetter->recipient_name }}</p>
                                 <p class="mt-3 text-sm text-slate-700"><span class="font-semibold">Pemohon:</span> {{ $request->requestedBy?->name ?? '—' }} · {{ optional($request->requested_at)->format('d M Y H:i') }}</p>
                                 <div class="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900"><span class="font-semibold">Alasan:</span> {{ $request->reason }}</div>
-                                <p class="mt-2 text-xs text-slate-500">Surat pernyataan: <span class="font-medium text-slate-700">terlampir</span></p>
+                                <p class="mt-2 text-xs text-slate-500">Surat pernyataan: <a href="{{ route('outgoing-letter-withdrawals.statement', $request->id) }}" class="font-semibold text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-slate-900">Unduh lampiran</a></p>
                             </div>
                             <div class="flex shrink-0 gap-2">
                                 <a href="{{ route('outgoing-letters.show', $request->outgoingLetter->id) }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Lihat Surat</a>
