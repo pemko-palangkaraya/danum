@@ -22,10 +22,11 @@ class OutgoingLetter extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'tenant_id','letter_type_id','letter_type_version_id',
+        'tenant_id','created_by','letter_type_id','letter_type_version_id',
         'signer_position_id','signer_user_id','signer_name','signer_title',
         'validator_position_id','validator_user_id','validator_name','validator_title',
-        'number','recipient_name','recipient_address','subject','content','issued_at','letter_date','generated_docx_path','status','verification_token',
+        'number','recipient_name','recipient_address','subject','content','issued_at','letter_date','generated_docx_path','status','submitted_at','verification_token',
+        'rejection_reason','rejected_by','rejected_at',
     ];
 
     protected $hidden = ['verification_token'];
@@ -39,10 +40,12 @@ class OutgoingLetter extends Model
 
     protected function casts(): array
     {
-        return ['issued_at' => 'date', 'letter_date' => 'date', 'status' => OutgoingLetterStatus::class];
+        return ['issued_at' => 'date', 'letter_date' => 'date', 'submitted_at' => 'datetime', 'rejected_at' => 'datetime', 'status' => OutgoingLetterStatus::class];
     }
 
     public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
+    public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
+    public function rejectedBy(): BelongsTo { return $this->belongsTo(User::class, 'rejected_by'); }
     public function letterType(): BelongsTo { return $this->belongsTo(LetterType::class); }
     public function letterTypeVersion(): BelongsTo { return $this->belongsTo(LetterTypeVersion::class); }
     public function signerPosition(): BelongsTo { return $this->belongsTo(Position::class, 'signer_position_id'); }
