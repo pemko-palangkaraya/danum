@@ -7,6 +7,7 @@ namespace App\Livewire\OutgoingLetters;
 use App\Enums\LetterTypeStatus;
 use App\Enums\OutgoingLetterStatus;
 use App\Enums\PositionStatus;
+use App\Enums\UserRole;
 use App\Models\LetterType;
 use App\Models\OutgoingLetter;
 use App\Models\Position;
@@ -132,8 +133,36 @@ class Index extends Component
         $this->dispatch('toast', type: 'success', message: 'Draft surat berhasil dibuat.');
     }
 
-    public function validateLetter(string $id, OutgoingLetterService $service): void { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('validate', $letter); $service->validate($letter, auth()->id()); $this->dispatch('toast', type: 'success', message: 'Surat berhasil divalidasi.'); }
-    public function issue(string $id, OutgoingLetterService $service): void { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('issue', $letter); $service->issue($letter, auth()->id()); $this->dispatch('toast', type: 'success', message: 'Surat berhasil diterbitkan.'); }
+    public function validateLetter(string $id, OutgoingLetterService $service): void
+    {
+        $letter = $this->tenantQuery()->findOrFail($id);
+        $this->authorize('validate', $letter);
+        $service->validate($letter, auth()->id());
+        $this->dispatch('toast', type: 'success', message: 'Surat berhasil divalidasi.');
+    }
+
+    public function issue(string $id, OutgoingLetterService $service): void
+    {
+        $letter = $this->tenantQuery()->findOrFail($id);
+        $this->authorize('issue', $letter);
+        $service->issue($letter, auth()->id());
+        $this->dispatch('toast', type: 'success', message: 'Surat berhasil diterbitkan.');
+    }
+
+    public function restoreLetter(string $id, OutgoingLetterService $service): void
+    {
+        $letter = OutgoingLetter::withTrashed()->findOrFail($id);
+        $this->authorize('restore', $letter);
+        try {
+            $service->restore($letter);
+        } catch (\DomainException $exception) {
+            $this->addError('restore', $exception->getMessage());
+            return;
+        }
+
+        $this->dispatch('toast', type: 'success', message: 'Surat berhasil direstore.');
+        $this->resetPage();
+    }
 
     private function applySystemValues(?PositionHolder $holder = null): void
     {
@@ -176,20 +205,43 @@ class Index extends Component
     private function isSystemVariable(string $variable): bool { return in_array($variable, self::SYSTEM_VARIABLES, true); }
     private function isDateVariable(string $variable): bool { return (bool) preg_match('/(^|_)date$/i', $variable); }
     private function isBirthDateVariable(string $variable): bool { return (bool) preg_match('/(^|_)birth_date$/i', $variable); }
+    private function isSuperAdmin(): bool { return auth()->user()->role === UserRole::SUPER_ADMIN; }
     private function tenantQuery() { return OutgoingLetter::query()->where('tenant_id', auth()->user()->tenant_id); }
+    private function archiveQuery()
+    {
+        return $this->isSuperAdmin()
+            ? OutgoingLetter::withTrashed()
+            : $this->tenantQuery();
+    }
     private function resetForm(): void { $this->reset(['letter_type_id','signer_position_id','variables','variableValues']); }
 
     public function render()
     {
-        $letters = $this->tenantQuery()->with(['letterType','letterTypeVersion','signerPosition','signerUser'])->latest();
-        if ($this->search !== '') $letters->where(fn ($q) => $q->where('number','like',"%{$this->search}%")->orWhere('recipient_name','like',"%{$this->search}%")->orWhere('subject','like',"%{$this->search}%"));
-        if ($this->filter !== 'all') $letters->where('status', $this->filter);
+        $this->authorize('viewAny', OutgoingLetter::class);
+
+        $letters = $this->archiveQuery()
+            ->with(['tenant','letterType','letterTypeVersion','signerPosition','signerUser'])
+            ->latest();
+
+        if ($this->isSuperAdmin() && $this->filter === 'deleted') {
+            $letters->onlyTrashed();
+        } elseif ($this->filter !== 'all') {
+            $letters->where('status', $this->filter);
+        }
+
+        if ($this->search !== '') {
+            $letters->where(fn ($q) => $q
+                ->where('number','like',"%{$this->search}%")
+                ->orWhere('recipient_name','like',"%{$this->search}%")
+                ->orWhere('subject','like',"%{$this->search}%"));
+        }
 
         return view('livewire.pages.outgoing-letters.index', [
             'letters' => $letters->paginate($this->perPage),
             'letterTypes' => LetterType::query()->whereNull('tenant_id')->where('status', LetterTypeStatus::ACTIVE)->orderBy('name')->get(),
             'signerPositions' => $this->availableSignerPositions()->orderBy('name')->get(),
             'variableLabels' => (new DocxTemplateService)->allowedVariables(),
+            'isSuperAdmin' => $this->isSuperAdmin(),
         ]);
     }
 }
