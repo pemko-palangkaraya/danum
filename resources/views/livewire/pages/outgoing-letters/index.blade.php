@@ -9,14 +9,15 @@
         <div class="divide-y divide-slate-100">
             @forelse ($letters as $letter)
                 @php($submitted = $letter->submitted_at !== null)
+                @php($rejected = filled($letter->rejection_reason))
                 <div class="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between {{ $letter->trashed() ? 'bg-rose-50/50' : '' }}">
                     <div class="min-w-0">
-                        <div class="flex flex-wrap items-center gap-2"><span class="font-mono text-xs font-semibold text-slate-400">{{ $letter->number }}</span><span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $letter->status->value === 'issued' ? 'bg-emerald-100 text-emerald-700' : ($letter->status->value === 'validated' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600') }}">{{ $submitted && $letter->status->value === 'draft' ? 'Menunggu Verifikasi' : ucfirst($letter->status->value) }}</span>@if($letter->trashed())<span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">Deleted</span>@endif</div>
+                        <div class="flex flex-wrap items-center gap-2"><span class="font-mono text-xs font-semibold text-slate-400">{{ $letter->number }}</span><span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $letter->status->value === 'issued' ? 'bg-emerald-100 text-emerald-700' : ($letter->status->value === 'validated' ? 'bg-amber-100 text-amber-800' : ($rejected ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600')) }}">{{ $submitted && $letter->status->value === 'draft' ? 'Menunggu Verifikasi' : ($rejected ? 'Ditolak' : ucfirst($letter->status->value)) }}</span>@if($letter->trashed())<span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">Deleted</span>@endif</div>
                         <h2 class="mt-1 font-semibold text-slate-900">{{ $letter->subject }}</h2>
                         <p class="mt-1 text-sm text-slate-500">{{ $letter->recipient_name }} · {{ $letter->letterType?->name }}@if($isSuperAdmin && $letter->tenant) · {{ $letter->tenant->name }}@endif</p>
                         @if($letter->signer_name)<p class="mt-1 text-xs text-slate-500">Penanda tangan: <span class="font-medium text-slate-700">{{ $letter->signer_name }}</span> · {{ $letter->signer_title }}</p>@endif
                         @if($letter->validator_name)<p class="mt-1 text-xs text-slate-500">Verifikator: <span class="font-medium text-slate-700">{{ $letter->validator_name }}</span> · {{ $letter->validator_title }}</p>@endif
-                        @if($letter->rejection_reason)<div class="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800"><span class="font-semibold">Ditolak:</span> {{ $letter->rejection_reason }}</div>@endif
+                        @if($rejected)<div class="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800"><div><span class="font-semibold">Ditolak oleh:</span> {{ $letter->rejectedBy?->name ?? 'Pengguna tidak diketahui' }}@if($letter->rejected_at) · {{ $letter->rejected_at->format('d M Y H:i') }}@endif</div><div class="mt-0.5"><span class="font-semibold">Alasan:</span> {{ $letter->rejection_reason }}</div></div>@endif
                     </div>
                     <div class="flex flex-wrap gap-2">
                         @if(! $letter->trashed())
