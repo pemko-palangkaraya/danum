@@ -22,7 +22,7 @@ class OutgoingLetterControllerTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $letterType = LetterType::factory()->create([
-            'tenant_id' => $tenant->id,
+            'tenant_id' => null,
             'status' => LetterTypeStatus::ACTIVE,
         ]);
         $user = User::factory()->tenantUser($tenant)->create();
@@ -47,7 +47,7 @@ class OutgoingLetterControllerTest extends TestCase
     {
         $tenant = Tenant::factory()->create(['name' => 'Kelurahan Danum']);
         $letterType = LetterType::factory()->create([
-            'tenant_id' => $tenant->id,
+            'tenant_id' => null,
             'status' => LetterTypeStatus::ACTIVE,
             'body_template' => 'Nomor {{number}} untuk {{recipient_name}} dari {{tenant_name}}.',
         ]);
@@ -73,7 +73,7 @@ class OutgoingLetterControllerTest extends TestCase
         $ownTenant = Tenant::factory()->create();
         $otherTenant = Tenant::factory()->create();
         $otherLetterType = LetterType::factory()->create([
-            'tenant_id' => $otherTenant->id,
+            'tenant_id' => null,
             'status' => LetterTypeStatus::ACTIVE,
         ]);
         $otherLetter = OutgoingLetter::factory()->create([
@@ -98,7 +98,7 @@ class OutgoingLetterControllerTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $inactiveLetterType = LetterType::factory()->create([
-            'tenant_id' => $tenant->id,
+            'tenant_id' => null,
             'status' => LetterTypeStatus::DRAFT,
         ]);
         $user = User::factory()->tenantUser($tenant)->create();
@@ -116,7 +116,7 @@ class OutgoingLetterControllerTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $letterType = LetterType::factory()->create([
-            'tenant_id' => $tenant->id,
+            'tenant_id' => null,
             'status' => LetterTypeStatus::ACTIVE,
         ]);
         OutgoingLetter::factory()->create([
@@ -138,7 +138,7 @@ class OutgoingLetterControllerTest extends TestCase
         $tenant = Tenant::factory()->create();
         $otherTenant = Tenant::factory()->create();
         $letterType = LetterType::factory()->create([
-            'tenant_id' => $tenant->id,
+            'tenant_id' => null,
             'status' => LetterTypeStatus::ACTIVE,
         ]);
         $user = User::factory()->tenantUser($tenant)->create();
@@ -157,7 +157,7 @@ class OutgoingLetterControllerTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $letterType = LetterType::factory()->create([
-            'tenant_id' => $tenant->id,
+            'tenant_id' => null,
             'status' => LetterTypeStatus::ACTIVE,
         ]);
         $letter = OutgoingLetter::factory()->create([
@@ -192,7 +192,7 @@ class OutgoingLetterControllerTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $letterType = LetterType::factory()->create([
-            'tenant_id' => $tenant->id,
+            'tenant_id' => null,
             'status' => LetterTypeStatus::ACTIVE,
         ]);
         $user = User::factory()->tenantUser($tenant)->create();
@@ -251,7 +251,7 @@ class OutgoingLetterControllerTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $letterType = LetterType::factory()->create([
-            'tenant_id' => $tenant->id,
+            'tenant_id' => null,
             'status' => LetterTypeStatus::ACTIVE,
         ]);
         $letter = OutgoingLetter::factory()->create([
@@ -273,7 +273,7 @@ class OutgoingLetterControllerTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $letterType = LetterType::factory()->create([
-            'tenant_id' => $tenant->id,
+            'tenant_id' => null,
             'status' => LetterTypeStatus::ACTIVE,
         ]);
         $letter = OutgoingLetter::factory()->create([
