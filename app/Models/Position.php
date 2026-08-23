@@ -29,6 +29,7 @@ class Position extends Model
         'description',
         'status',
         'can_sign',
+        'can_validate',
     ];
 
     protected function casts(): array
@@ -36,6 +37,7 @@ class Position extends Model
         return [
             'status' => PositionStatus::class,
             'can_sign' => 'boolean',
+            'can_validate' => 'boolean',
         ];
     }
 
