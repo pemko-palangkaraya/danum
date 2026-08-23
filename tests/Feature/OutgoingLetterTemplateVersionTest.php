@@ -20,13 +20,14 @@ class OutgoingLetterTemplateVersionTest extends TestCase
     {
         $tenant = Tenant::factory()->create(['name' => 'Kelurahan Danum']);
         $letterType = LetterType::factory()->create([
-            'tenant_id' => $tenant->id,
+            'tenant_id' => null,
             'status' => LetterTypeStatus::ACTIVE,
             'body_template' => 'Versi pertama: {{number}} - {{recipient_name}}.',
         ]);
-        $user = User::factory()->tenantUser($tenant)->create();
+        $superAdmin = User::factory()->superAdmin()->create();
+        $tenantUser = User::factory()->tenantUser($tenant)->create();
 
-        $first = $this->actingAs($user)
+        $first = $this->actingAs($tenantUser)
             ->postJson('/api/outgoing-letters', [
                 'letter_type_id' => $letterType->id,
                 'number' => '001/SK/2026',
@@ -38,7 +39,7 @@ class OutgoingLetterTemplateVersionTest extends TestCase
 
         $firstVersionId = $first->json('data.letter_type_version_id');
 
-        $this->actingAs($user)
+        $this->actingAs($superAdmin)
             ->putJson("/api/letter-types/{$letterType->id}", [
                 'body_template' => 'Versi kedua: {{number}} - {{recipient_name}} - {{subject}}.',
             ])
@@ -52,7 +53,7 @@ class OutgoingLetterTemplateVersionTest extends TestCase
         $this->assertNotNull($secondVersion);
         $this->assertNotSame($firstVersionId, $secondVersion->id);
 
-        $second = $this->actingAs($user)
+        $second = $this->actingAs($tenantUser)
             ->postJson('/api/outgoing-letters', [
                 'letter_type_id' => $letterType->id,
                 'number' => '002/SK/2026',
@@ -64,13 +65,7 @@ class OutgoingLetterTemplateVersionTest extends TestCase
 
         $this->assertSame($firstVersionId, $first->json('data.letter_type_version_id'));
         $this->assertSame($secondVersion->id, $second->json('data.letter_type_version_id'));
-        $this->assertSame(
-            'Versi pertama: 001/SK/2026 - Budi Santoso.',
-            $first->json('data.content'),
-        );
-        $this->assertSame(
-            'Versi kedua: 002/SK/2026 - Siti Aminah - Surat Keterangan Baru.',
-            $second->json('data.content'),
-        );
+        $this->assertSame('Versi pertama: 001/SK/2026 - Budi Santoso.', $first->json('data.content'));
+        $this->assertSame('Versi kedua: 002/SK/2026 - Siti Aminah - Surat Keterangan Baru.', $second->json('data.content'));
     }
 }
