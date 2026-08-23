@@ -18,28 +18,11 @@ class UpdatePositionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => [
-                'sometimes',
-                'string',
-                'max:50',
-            ],
-
-            'name' => [
-                'sometimes',
-                'string',
-                'max:255',
-            ],
-
-            'description' => [
-                'sometimes',
-                'nullable',
-                'string',
-            ],
-
-            'status' => [
-                'sometimes',
-                new Enum(PositionStatus::class),
-            ],
+            'code' => ['sometimes', 'string', 'max:50'],
+            'name' => ['sometimes', 'string', 'max:255'],
+            'description' => ['sometimes', 'nullable', 'string'],
+            'status' => ['sometimes', new Enum(PositionStatus::class)],
+            'can_sign' => ['sometimes', 'boolean'],
         ];
     }
 }
