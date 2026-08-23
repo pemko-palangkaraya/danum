@@ -8,7 +8,9 @@ use App\Http\Requests\PreviewOutgoingLetterRequest;
 use App\Http\Requests\StoreOutgoingLetterRequest;
 use App\Http\Requests\UpdateOutgoingLetterRequest;
 use App\Enums\OutgoingLetterStatus;
+use App\Enums\PositionStatus;
 use App\Models\OutgoingLetter;
+use App\Models\Position;
 use App\Services\DocxTteService;
 use App\Services\LetterTypeService;
 use App\Services\OutgoingLetterService;
@@ -57,6 +59,35 @@ class OutgoingLetterController extends Controller
         $tenant = $request->user()->tenant;
         $letterType = $this->letterTypeService->find($data['letter_type_id'], $tenant->id);
         if ($letterType === null) return response()->json(['message' => 'Letter type not found.'], 404);
+
+        $signer = null;
+        if (! empty($data['signer_position_id'])) {
+            $signer = Position::query()
+                ->where('tenant_id', $tenant->id)
+                ->where('status', PositionStatus::ACTIVE)
+                ->where('can_sign', true)
+                ->whereNull('deleted_at')
+                ->with(['holders' => fn ($query) => $query
+                    ->whereNull('ended_at')
+                    ->where('started_at', '<=', now())
+                    ->with('user')])
+                ->find($data['signer_position_id']);
+
+            $holder = $signer?->holders->first();
+            if (! $signer || ! $holder?->user) {
+                return response()->json([
+                    'message' => 'Signer position is unavailable or has no active holder.',
+                    'errors' => ['signer_position_id' => ['The selected signer position is not currently available.']],
+                ], 422);
+            }
+
+            $data['tenant_head_name'] = $holder->user->name;
+            $data['tenant_head_title'] = $signer->name;
+            $data['signer_user_id'] = $holder->user_id;
+            $data['signer_name'] = $holder->user->name;
+            $data['signer_title'] = $signer->name;
+        }
+
         $templateVersion = $this->letterTypeService->ensureCurrentVersion($letterType);
         if (! isset($data['content']) && $templateVersion !== null) $data['content'] = $this->outgoingLetterTemplateService->renderVersion($templateVersion, $tenant, $data);
         if (! isset($data['content']) || trim($data['content']) === '') return response()->json(['message' => 'The content field is required when the letter type has no template.', 'errors' => ['content' => ['The content field is required.']]], 422);
@@ -86,7 +117,21 @@ class OutgoingLetterController extends Controller
         if ($outgoingLetter === null) return $this->notFoundResponse();
         $this->authorize('update', $outgoingLetter);
         try {
-            $outgoingLetter = $this->outgoingLetterService->update($outgoingLetter, $request->validated());
+            $data = $request->validated();
+            if (array_key_exists('signer_position_id', $data)) {
+                $signer = Position::query()
+                    ->where('tenant_id', $request->user()->tenant_id)
+                    ->where('status', PositionStatus::ACTIVE)
+                    ->where('can_sign', true)
+                    ->with(['holders' => fn ($query) => $query->whereNull('ended_at')->where('started_at', '<=', now())->with('user')])
+                    ->find($data['signer_position_id']);
+                $holder = $signer?->holders->first();
+                if (! $signer || ! $holder?->user) return response()->json(['message' => 'Signer position is unavailable or has no active holder.'], 422);
+                $data['signer_user_id'] = $holder->user_id;
+                $data['signer_name'] = $holder->user->name;
+                $data['signer_title'] = $signer->name;
+            }
+            $outgoingLetter = $this->outgoingLetterService->update($outgoingLetter, $data);
         } catch (\DomainException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
         }
@@ -98,11 +143,8 @@ class OutgoingLetterController extends Controller
         $outgoingLetter = $this->findForTenant($id, $request);
         if ($outgoingLetter === null) return $this->notFoundResponse();
         $this->authorize('delete', $outgoingLetter);
-        try {
-            $this->outgoingLetterService->delete($outgoingLetter);
-        } catch (\DomainException $exception) {
-            return response()->json(['message' => $exception->getMessage()], 422);
-        }
+        try { $this->outgoingLetterService->delete($outgoingLetter); }
+        catch (\DomainException $exception) { return response()->json(['message' => $exception->getMessage()], 422); }
         return response()->json(['message' => 'Outgoing letter deleted successfully.']);
     }
 
@@ -111,11 +153,8 @@ class OutgoingLetterController extends Controller
         $outgoingLetter = $this->outgoingLetterService->findWithTrashed($id, $request->user()->tenant_id);
         if ($outgoingLetter === null) return $this->notFoundResponse();
         $this->authorize('restore', $outgoingLetter);
-        try {
-            $this->outgoingLetterService->restore($outgoingLetter);
-        } catch (\DomainException $exception) {
-            return response()->json(['message' => $exception->getMessage()], 422);
-        }
+        try { $this->outgoingLetterService->restore($outgoingLetter); }
+        catch (\DomainException $exception) { return response()->json(['message' => $exception->getMessage()], 422); }
         return response()->json(['data' => $outgoingLetter->refresh()]);
     }
 
@@ -139,7 +178,7 @@ class OutgoingLetterController extends Controller
         $outgoingLetter = $this->findForTenant($id, $request);
         if ($outgoingLetter === null) abort(404, 'Outgoing letter not found.');
         $this->authorize('view', $outgoingLetter);
-        $outgoingLetter->loadMissing(['tenant', 'letterType', 'letterTypeVersion']);
+        $outgoingLetter->loadMissing(['tenant', 'letterType', 'letterTypeVersion', 'signerPosition', 'signerUser']);
 
         $sourceDocxPath = $outgoingLetter->generated_docx_path;
         if (! $sourceDocxPath || ! Storage::disk('local')->exists($sourceDocxPath)) abort(422, 'DOCX hasil surat belum tersedia. Buat ulang draft surat terlebih dahulu.');
@@ -149,39 +188,21 @@ class OutgoingLetterController extends Controller
 
         try {
             if ($isIssued) {
-                // The model creates the verification token when the letter enters
-                // ISSUED. PDF generation must therefore be read-only and must not
-                // mutate an official document merely because it is being viewed.
-                if (blank($outgoingLetter->verification_token)) {
-                    abort(422, 'Surat terbit belum memiliki token verifikasi. Terbitkan ulang surat tersebut.');
-                }
-
+                if (blank($outgoingLetter->verification_token)) abort(422, 'Surat terbit belum memiliki token verifikasi. Terbitkan ulang surat tersebut.');
                 $verificationUrl = url('/verify/' . $outgoingLetter->verification_token);
-                // Never mutate generated_docx_path. The official TTE lives only
-                // in this temporary issued copy; drafts therefore remain clean.
-                $temporaryDocx = $this->docxTteService->createIssuedCopy(
-                    Storage::disk('local')->path($sourceDocxPath),
-                    $verificationUrl,
-                );
+                $temporaryDocx = $this->docxTteService->createIssuedCopy(Storage::disk('local')->path($sourceDocxPath), $verificationUrl);
                 $pdfPath = $this->docxPdfService->convert($temporaryDocx);
             } else {
-                // Remove a stale QR produced by older builds before watermarking.
-                $temporaryDocx = $this->docxTteService->createPreviewCopy(
-                    Storage::disk('local')->path($sourceDocxPath),
-                );
+                $temporaryDocx = $this->docxTteService->createPreviewCopy(Storage::disk('local')->path($sourceDocxPath));
                 $pdfPath = $this->docxPdfService->convert($temporaryDocx);
             }
 
             $absolutePath = Storage::disk('local')->path($pdfPath);
-
             if (! $isIssued) {
                 $label = sprintf('%s | %s | PREVIEW', $request->user()->name, now()->format('d-m-Y'));
                 $watermarked = $this->pdfPreviewWatermarkService->apply($absolutePath, $label);
                 $filename = sprintf('preview-surat-%s.pdf', str($outgoingLetter->number)->slug());
-                return response()->file($watermarked, [
-                    'Content-Type' => 'application/pdf',
-                    'Content-Disposition' => 'inline; filename="' . $filename . '"',
-                ])->deleteFileAfterSend(true);
+                return response()->file($watermarked, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="' . $filename . '"'])->deleteFileAfterSend(true);
             }
         } catch (\RuntimeException $exception) {
             abort(422, $exception->getMessage());
@@ -195,15 +216,8 @@ class OutgoingLetterController extends Controller
         return response()->file($absolutePath, $headers);
     }
 
-    private function findForTenant(string $id, Request $request): ?OutgoingLetter
-    {
-        return $this->outgoingLetterService->find($id, $request->user()->tenant_id);
-    }
-
-    private function notFoundResponse(): JsonResponse
-    {
-        return response()->json(['message' => 'Outgoing letter not found.'], 404);
-    }
+    private function findForTenant(string $id, Request $request): ?OutgoingLetter { return $this->outgoingLetterService->find($id, $request->user()->tenant_id); }
+    private function notFoundResponse(): JsonResponse { return response()->json(['message' => 'Outgoing letter not found.'], 404); }
 
     private function transition(Request $request, string $id, string $ability, callable $transition): JsonResponse
     {
