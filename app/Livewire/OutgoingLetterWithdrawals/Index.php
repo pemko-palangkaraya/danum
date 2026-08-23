@@ -10,7 +10,6 @@ use App\Enums\UserRole;
 use App\Models\OutgoingLetter;
 use App\Models\OutgoingLetterWithdrawalRequest;
 use App\Services\OutgoingLetterService;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -132,11 +131,6 @@ class Index extends Component
             ->with(['outgoingLetter.tenant', 'outgoingLetter.letterType', 'requestedBy']);
     }
 
-    private function statementUrl(string $path): string
-    {
-        return Storage::disk('local')->exists($path) ? route('outgoing-letter-withdrawals.statement', ['path' => encrypt($path)]) : '#';
-    }
-
     public function render()
     {
         $isSuperAdmin = auth()->user()->role === UserRole::SUPER_ADMIN;
@@ -145,7 +139,6 @@ class Index extends Component
             'issuedLetters' => $isSuperAdmin ? collect() : $this->tenantIssuedLetters()->latest('issued_at')->get(),
             'pendingRequests' => $isSuperAdmin ? $this->pendingRequests()->latest('requested_at')->get() : collect(),
             'selectedLetter' => $this->selectedLetterId && ! $isSuperAdmin ? $this->tenantIssuedLetters()->find($this->selectedLetterId) : null,
-            'statementUrl' => fn ($path) => $this->statementUrl($path),
         ]);
     }
 }
