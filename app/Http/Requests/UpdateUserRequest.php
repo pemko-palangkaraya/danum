@@ -23,16 +23,25 @@ class UpdateUserRequest extends FormRequest
         $userId = $routeUser instanceof User ? $routeUser->getKey() : $routeUser;
         $userId ??= $this->input('user_id');
 
+        $currentUser = $userId !== null ? User::query()->find($userId) : null;
+        $email = $this->input('email');
+
+        $emailRules = ['sometimes', 'required', 'email', 'max:255'];
+
+        // Livewire does not have a route parameter. When the submitted email is
+        // the user's existing email, do not run the unique check at all.
+        if (
+            $currentUser === null
+            || $email === null
+            || strcasecmp(trim((string) $currentUser->email), trim((string) $email)) !== 0
+        ) {
+            $emailRules[] = Rule::unique('users', 'email')->ignore($userId);
+        }
+
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'nip' => ['sometimes', 'nullable', 'string', 'max:32'],
-            'email' => [
-                'sometimes',
-                'required',
-                'email',
-                'max:255',
-                Rule::unique('users', 'email')->ignore($userId),
-            ],
+            'email' => $emailRules,
             'password' => ['sometimes', 'required', 'string', 'min:8'],
             'role' => ['sometimes', 'required', Rule::enum(UserRole::class)],
             'tenant_id' => ['sometimes', 'nullable', 'uuid', 'exists:tenants,id'],
