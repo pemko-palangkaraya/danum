@@ -18,27 +18,11 @@ class StorePositionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => [
-                'required',
-                'string',
-                'max:50',
-            ],
-
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-
-            'description' => [
-                'nullable',
-                'string',
-            ],
-
-            'status' => [
-                'required',
-                new Enum(PositionStatus::class),
-            ],
+            'code' => ['required', 'string', 'max:50'],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'status' => ['required', new Enum(PositionStatus::class)],
+            'can_sign' => ['boolean'],
         ];
     }
 }
