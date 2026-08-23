@@ -21,6 +21,7 @@ class UpdateUserRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'nip' => ['sometimes', 'nullable', 'string', 'max:32'],
             'email' => [
                 'sometimes',
                 'required',
@@ -48,17 +49,17 @@ class UpdateUserRequest extends FormRequest
                 ? $this->input('tenant_id')
                 : $user->tenant_id;
 
-            if ($role === UserRole::TENANT_USER->value && $tenantId === null) {
+            if (in_array($role, [UserRole::TENANT_USER->value, UserRole::TENANT_ADMIN->value], true) && $tenantId === null) {
                 $validator->errors()->add(
                     'tenant_id',
-                    'A tenant user must belong to a tenant.',
+                    'Tenant user harus memiliki organisasi.',
                 );
             }
 
             if ($role === UserRole::SUPER_ADMIN->value && $tenantId !== null) {
                 $validator->errors()->add(
                     'tenant_id',
-                    'A super admin cannot belong to a tenant.',
+                    'Super Admin tidak boleh memiliki organisasi.',
                 );
             }
         });
