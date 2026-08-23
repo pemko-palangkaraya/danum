@@ -23,6 +23,7 @@ class UpdatePositionRequest extends FormRequest
             'description' => ['sometimes', 'nullable', 'string'],
             'status' => ['sometimes', new Enum(PositionStatus::class)],
             'can_sign' => ['sometimes', 'boolean'],
+            'can_validate' => ['sometimes', 'boolean'],
         ];
     }
 }
