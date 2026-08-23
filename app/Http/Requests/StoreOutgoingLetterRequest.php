@@ -28,21 +28,15 @@ class StoreOutgoingLetterRequest extends FormRequest
                 }),
             ],
             'signer_position_id' => [
-                'required', 'uuid',
+                'sometimes', 'nullable', 'uuid',
                 Rule::exists('positions', 'id')->where(function ($query): void {
-                    $query->where('tenant_id', $this->user()->tenant_id)
-                        ->where('status', PositionStatus::ACTIVE->value)
-                        ->where('can_sign', true)
-                        ->whereNull('deleted_at');
+                    $query->where('tenant_id', $this->user()->tenant_id)->where('status', PositionStatus::ACTIVE->value)->where('can_sign', true)->whereNull('deleted_at');
                 }),
             ],
             'validator_position_id' => [
-                'required', 'uuid',
+                'sometimes', 'nullable', 'uuid',
                 Rule::exists('positions', 'id')->where(function ($query): void {
-                    $query->where('tenant_id', $this->user()->tenant_id)
-                        ->where('status', PositionStatus::ACTIVE->value)
-                        ->where('can_validate', true)
-                        ->whereNull('deleted_at');
+                    $query->where('tenant_id', $this->user()->tenant_id)->where('status', PositionStatus::ACTIVE->value)->where('can_validate', true)->whereNull('deleted_at');
                 }),
             ],
             'number' => ['required', 'string', 'max:100', Rule::unique('outgoing_letters', 'number')->where('tenant_id', $this->user()->tenant_id)],
