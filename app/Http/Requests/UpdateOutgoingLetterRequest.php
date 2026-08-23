@@ -23,13 +23,19 @@ class UpdateOutgoingLetterRequest extends FormRequest
             'letter_type_id' => [
                 'sometimes', 'required', 'uuid',
                 Rule::exists('letter_types', 'id')->where(function ($query): void {
-                    $query->where('tenant_id', $this->user()->tenant_id)->where('status', LetterTypeStatus::ACTIVE->value)->whereNull('deleted_at');
+                    $query->whereNull('tenant_id')->where('status', LetterTypeStatus::ACTIVE->value)->whereNull('deleted_at');
                 }),
             ],
             'signer_position_id' => [
-                'sometimes', 'nullable', 'uuid',
+                'sometimes', 'required', 'uuid',
                 Rule::exists('positions', 'id')->where(function ($query): void {
                     $query->where('tenant_id', $this->user()->tenant_id)->where('status', PositionStatus::ACTIVE->value)->where('can_sign', true)->whereNull('deleted_at');
+                }),
+            ],
+            'validator_position_id' => [
+                'sometimes', 'required', 'uuid',
+                Rule::exists('positions', 'id')->where(function ($query): void {
+                    $query->where('tenant_id', $this->user()->tenant_id)->where('status', PositionStatus::ACTIVE->value)->where('can_validate', true)->whereNull('deleted_at');
                 }),
             ],
             'number' => ['sometimes', 'required', 'string', 'max:100', Rule::unique('outgoing_letters', 'number')->where('tenant_id', $this->user()->tenant_id)->ignore($this->route('outgoing_letter'))],
