@@ -38,6 +38,7 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('tenant')->group(function () {
         Route::get('/tenant/positions', PositionIndex::class)->name('positions.index');
+        Volt::route('/tenant/users', 'pages.tenant-users')->name('tenant-users.index');
         Volt::route('/tenant-profile', 'pages.tenant-profile')->name('tenant-profile');
     });
 
