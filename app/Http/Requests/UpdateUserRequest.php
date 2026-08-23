@@ -19,8 +19,15 @@ class UpdateUserRequest extends FormRequest
 
     public function rules(): array
     {
-        $userId = $this->userId();
+        return self::rulesFor($this->currentUser());
+    }
 
+    /**
+     * Validation rules for an update when the current user is already known.
+     * This is used by Livewire, where the FormRequest is not the actual HTTP request.
+     */
+    public static function rulesFor(?User $user): array
+    {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'nip' => ['sometimes', 'nullable', 'string', 'max:32'],
@@ -29,7 +36,7 @@ class UpdateUserRequest extends FormRequest
                 'required',
                 'email',
                 'max:255',
-                Rule::unique('users', 'email')->ignore($userId),
+                Rule::unique('users', 'email')->ignore($user?->getKey()),
             ],
             'password' => ['sometimes', 'required', 'string', 'min:8'],
             'role' => ['sometimes', 'required', Rule::enum(UserRole::class)],
@@ -40,8 +47,7 @@ class UpdateUserRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
-            $userId = $this->userId();
-            $user = $userId === null ? null : User::query()->find($userId);
+            $user = $this->currentUser();
 
             if ($user === null) {
                 return;
@@ -62,14 +68,16 @@ class UpdateUserRequest extends FormRequest
         });
     }
 
-    private function userId(): mixed
+    private function currentUser(): ?User
     {
         $routeUser = $this->route('user') ?? $this->route('id');
 
         if ($routeUser instanceof User) {
-            return $routeUser->getKey();
+            return $routeUser;
         }
 
-        return $routeUser ?? $this->input('user_id');
+        $userId = $routeUser ?? $this->input('user_id');
+
+        return $userId === null ? null : User::query()->find($userId);
     }
 }
