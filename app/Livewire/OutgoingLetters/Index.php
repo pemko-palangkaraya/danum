@@ -17,6 +17,7 @@ use App\Services\DocxTteService;
 use App\Services\OutgoingLetterService;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -103,7 +104,7 @@ class Index extends Component
                 if ($value === now()->toDateString()) $this->addError('variableValues.'.$variable, 'Tanggal tidak boleh tanggal hari ini.');
                 if ($this->isBirthDateVariable($variable) && $value > now()->toDateString()) $this->addError('variableValues.'.$variable, 'Tanggal lahir tidak boleh tanggal di masa depan.');
             }
-            if ($this->getErrorBag()->isNotEmpty()) { $message = $this->getErrorBag()->first(); $this->resetValidation(); $this->toastError($message); return; }
+            if ($this->getErrorBag()->isNotEmpty()) return;
 
             $data = $this->variableValues;
             $data['number'] = (string) ($data['number'] ?? ''); $data['recipient_name'] = (string) ($data['recipient_name'] ?? ''); $data['recipient_address'] = (string) ($data['recipient_address'] ?? ''); $data['subject'] = (string) ($data['subject'] ?? '');
@@ -125,6 +126,8 @@ class Index extends Component
             if ($existing) { $oldPath = $existing->generated_docx_path; $service->update($existing, $attributes); if ($oldPath && $oldPath !== $generatedPath) Storage::disk('local')->delete($oldPath); $message = 'Draft surat berhasil diperbarui.'; }
             else { $attributes['created_by'] = auth()->id(); $attributes['status'] = OutgoingLetterStatus::DRAFT; $service->create($attributes, auth()->id()); $message = 'Draft surat berhasil dibuat.'; }
             $this->showForm = false; $this->resetForm(); $this->dispatch('toast', type: 'success', message: $message);
+        } catch (ValidationException $exception) {
+            $this->setErrorBag($exception->validator->errors());
         } catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal disimpan. Silakan coba lagi.'); }
     }
 
@@ -143,6 +146,7 @@ class Index extends Component
     public function rejectLetter(OutgoingLetterService $service): void
     {
         try { $this->validate(['rejectReason' => ['required', 'string', 'max:2000']]); $letter = $this->tenantQuery()->findOrFail($this->rejectId); $this->authorize('reject', $letter); $service->reject($letter, auth()->id(), $this->rejectReason); $this->showRejectForm = false; $this->rejectId = ''; $this->rejectReason = ''; $this->dispatch('toast', type: 'success', message: 'Surat ditolak dan dikembalikan kepada pembuat beserta alasan penolakan.'); }
+        catch (ValidationException $exception) { $this->setErrorBag($exception->validator->errors()); }
         catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal ditolak.'); }
     }
 
