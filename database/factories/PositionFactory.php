@@ -24,7 +24,15 @@ class PositionFactory extends Factory
             'name' => fake()->jobTitle(),
             'description' => fake()->optional()->sentence(),
             'status' => PositionStatus::ACTIVE,
+            'can_sign' => false,
         ];
+    }
+
+    public function signatory(): static
+    {
+        return $this->state(fn(): array => [
+            'can_sign' => true,
+        ]);
     }
 
     public function inactive(): static
