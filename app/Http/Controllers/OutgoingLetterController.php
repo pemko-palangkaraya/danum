@@ -51,13 +51,16 @@ class OutgoingLetterController extends Controller
         if ($letterType->body_template === null) return response()->json(['message' => 'The selected letter type has no template.'], 422);
 
         if (! empty($data['signer_position_id'])) {
-            $signer = Position::query()->where('tenant_id', $tenant->id)->where('status', PositionStatus::ACTIVE)->where('can_sign', true)->whereNull('deleted_at')
-                ->with(['holders' => fn ($query) => $query->whereNull('ended_at')->where('started_at', '<=', now())->with('user')])
-                ->find($data['signer_position_id']);
+            $signer = $this->availablePosition($tenant->id, $data['signer_position_id'], 'can_sign');
             $holder = $signer?->holders->first();
             if (! $signer || ! $holder?->user) return response()->json(['message' => 'Signer position is unavailable or has no active holder.'], 422);
             $data['tenant_head_name'] = $holder->user->name;
             $data['tenant_head_title'] = $signer->name;
+        }
+
+        if (! empty($data['validator_position_id'])) {
+            $validator = $this->availablePosition($tenant->id, $data['validator_position_id'], 'can_validate');
+            if (! $validator?->holders->first()?->user) return response()->json(['message' => 'Validator position is unavailable or has no active holder.'], 422);
         }
 
         return response()->json(['data' => ['letter_type_id' => $letterType->id, 'content' => $this->outgoingLetterTemplateService->render($letterType, $tenant, $data)]]);
@@ -71,18 +74,26 @@ class OutgoingLetterController extends Controller
         $letterType = $this->letterTypeService->find($data['letter_type_id'], $tenant->id);
         if ($letterType === null) return response()->json(['message' => 'Letter type not found.'], 404);
 
-        if (! empty($data['signer_position_id'])) {
-            $signer = Position::query()->where('tenant_id', $tenant->id)->where('status', PositionStatus::ACTIVE)->where('can_sign', true)->whereNull('deleted_at')
-                ->with(['holders' => fn ($query) => $query->whereNull('ended_at')->where('started_at', '<=', now())->with('user')])
-                ->find($data['signer_position_id']);
-            $holder = $signer?->holders->first();
-            if (! $signer || ! $holder?->user) return response()->json(['message' => 'Signer position is unavailable or has no active holder.', 'errors' => ['signer_position_id' => ['The selected signer position is not currently available.']]], 422);
-            $data['tenant_head_name'] = $holder->user->name;
-            $data['tenant_head_title'] = $signer->name;
-            $data['signer_user_id'] = $holder->user_id;
-            $data['signer_name'] = $holder->user->name;
-            $data['signer_title'] = $signer->name;
+        $signer = $this->availablePosition($tenant->id, $data['signer_position_id'], 'can_sign');
+        $signerHolder = $signer?->holders->first();
+        if (! $signer || ! $signerHolder?->user) {
+            return response()->json(['message' => 'Signer position is unavailable or has no active holder.', 'errors' => ['signer_position_id' => ['The selected signer position is not currently available.']]], 422);
         }
+
+        $validator = $this->availablePosition($tenant->id, $data['validator_position_id'], 'can_validate');
+        $validatorHolder = $validator?->holders->first();
+        if (! $validator || ! $validatorHolder?->user) {
+            return response()->json(['message' => 'Validator position is unavailable or has no active holder.', 'errors' => ['validator_position_id' => ['The selected validator position is not currently available.']]], 422);
+        }
+
+        $data['tenant_head_name'] = $signerHolder->user->name;
+        $data['tenant_head_title'] = $signer->name;
+        $data['signer_user_id'] = $signerHolder->user_id;
+        $data['signer_name'] = $signerHolder->user->name;
+        $data['signer_title'] = $signer->name;
+        $data['validator_user_id'] = $validatorHolder->user_id;
+        $data['validator_name'] = $validatorHolder->user->name;
+        $data['validator_title'] = $validator->name;
 
         $templateVersion = $this->letterTypeService->ensureCurrentVersion($letterType);
         if (! isset($data['content']) && $templateVersion !== null) $data['content'] = $this->outgoingLetterTemplateService->renderVersion($templateVersion, $tenant, $data);
@@ -115,14 +126,20 @@ class OutgoingLetterController extends Controller
         try {
             $data = $request->validated();
             if (array_key_exists('signer_position_id', $data)) {
-                $signer = Position::query()->where('tenant_id', $request->user()->tenant_id)->where('status', PositionStatus::ACTIVE)->where('can_sign', true)->whereNull('deleted_at')
-                    ->with(['holders' => fn ($query) => $query->whereNull('ended_at')->where('started_at', '<=', now())->with('user')])
-                    ->find($data['signer_position_id']);
+                $signer = $this->availablePosition($request->user()->tenant_id, $data['signer_position_id'], 'can_sign');
                 $holder = $signer?->holders->first();
                 if (! $signer || ! $holder?->user) return response()->json(['message' => 'Signer position is unavailable or has no active holder.'], 422);
                 $data['signer_user_id'] = $holder->user_id;
                 $data['signer_name'] = $holder->user->name;
                 $data['signer_title'] = $signer->name;
+            }
+            if (array_key_exists('validator_position_id', $data)) {
+                $validator = $this->availablePosition($request->user()->tenant_id, $data['validator_position_id'], 'can_validate');
+                $holder = $validator?->holders->first();
+                if (! $validator || ! $holder?->user) return response()->json(['message' => 'Validator position is unavailable or has no active holder.'], 422);
+                $data['validator_user_id'] = $holder->user_id;
+                $data['validator_name'] = $holder->user->name;
+                $data['validator_title'] = $validator->name;
             }
             $outgoingLetter = $this->outgoingLetterService->update($outgoingLetter, $data);
         } catch (\DomainException $exception) { return response()->json(['message' => $exception->getMessage()], 422); }
@@ -158,7 +175,7 @@ class OutgoingLetterController extends Controller
         $outgoingLetter = $this->findForTenant($id, $request);
         if ($outgoingLetter === null) abort(404, 'Outgoing letter not found.');
         $this->authorize('view', $outgoingLetter);
-        $outgoingLetter->loadMissing(['tenant', 'letterType', 'letterTypeVersion', 'signerPosition', 'signerUser']);
+        $outgoingLetter->loadMissing(['tenant', 'letterType', 'letterTypeVersion', 'signerPosition', 'signerUser', 'validatorPosition', 'validatorUser']);
         $sourceDocxPath = $outgoingLetter->generated_docx_path;
         if (! $sourceDocxPath || ! Storage::disk('local')->exists($sourceDocxPath)) abort(422, 'DOCX hasil surat belum tersedia. Buat ulang draft surat terlebih dahulu.');
         $isIssued = $outgoingLetter->status === OutgoingLetterStatus::ISSUED;
@@ -185,6 +202,18 @@ class OutgoingLetterController extends Controller
         $headers = ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="' . $filename . '"'];
         if ($request->boolean('download')) $headers['Content-Disposition'] = 'attachment; filename="' . $filename . '"';
         return response()->file($absolutePath, $headers);
+    }
+
+    private function availablePosition(string $tenantId, string $positionId, string $capability): ?Position
+    {
+        return Position::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', PositionStatus::ACTIVE)
+            ->where($capability, true)
+            ->whereNull('deleted_at')
+            ->whereHas('holders', fn ($query) => $query->whereNull('ended_at')->where('started_at', '<=', now()))
+            ->with(['holders' => fn ($query) => $query->whereNull('ended_at')->where('started_at', '<=', now())->with('user')])
+            ->find($positionId);
     }
 
     private function findForTenant(string $id, Request $request): ?OutgoingLetter { return $this->outgoingLetterService->find($id, $request->user()->tenant_id); }
