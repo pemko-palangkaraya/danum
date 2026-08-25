@@ -11,12 +11,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('letter_type_versions', function (Blueprint $table): void {
+            $table->unsignedBigInteger('created_by')->nullable()->after('change_note');
             $table->string('template_path')->nullable()->after('body_template');
             $table->timestampTz('effective_from')->nullable()->after('template_path');
             $table->timestampTz('effective_until')->nullable()->after('effective_from');
             $table->boolean('is_active')->default(true)->after('effective_until');
             $table->text('change_note')->nullable()->after('is_active');
-            $table->uuid('created_by')->nullable()->after('change_note');
             $table->foreign('created_by')->references('id')->on('users')->nullOnDelete();
             $table->index(['letter_type_id', 'is_active']);
             $table->index(['effective_from', 'effective_until']);
