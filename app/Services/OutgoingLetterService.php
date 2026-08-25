@@ -12,7 +12,6 @@ use App\Models\User;
 use App\Repositories\Contracts\OutgoingLetterRepositoryInterface;
 use App\Repositories\Contracts\OutgoingLetterStatusHistoryRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class OutgoingLetterService
@@ -42,6 +41,13 @@ class OutgoingLetterService
 
         if (! $actor->isSuperAdmin() && ! $this->letterTypeService->isAllowedForTenant($letterType, (string) $data['tenant_id'])) {
             throw new \DomainException('Jenis surat tidak diizinkan untuk unit ini.');
+        }
+
+        if (empty($data['letter_type_version_id'])) {
+            $version = $this->letterTypeService->ensureCurrentVersion($letterType);
+            if ($version !== null) {
+                $data['letter_type_version_id'] = $version->id;
+            }
         }
 
         $letter = $this->repository->create($data);
