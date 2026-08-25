@@ -4,11 +4,19 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LetterTypeVersion extends Model
 {
+    use HasFactory;
+    use HasUuids;
+
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     protected $fillable = [
         'letter_type_id', 'version', 'body_template', 'template_path',
         'effective_from', 'effective_until', 'is_active', 'change_note', 'created_by',
