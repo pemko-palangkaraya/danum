@@ -89,7 +89,7 @@ class OutgoingLetterService
         if ($letter->validator_user_id !== $changedBy) throw new \DomainException('Hanya verifikator yang ditentukan untuk surat ini yang dapat melakukan verifikasi.');
         $oldValues = $this->auditValues($letter);
         $letter = $this->repository->update($letter, ['status' => OutgoingLetterStatus::VALIDATED, 'submitted_at' => null, 'verification_note' => $note]);
-        $this->recordHistory($letter, 'validated', $changedBy);
+        $this->recordHistory($letter, 'validated', $changedBy, $note);
         $this->recordAudit('outgoing_letter.validated', $letter, $changedBy, $oldValues, $this->auditValues($letter));
         return $letter;
     }
@@ -112,7 +112,7 @@ class OutgoingLetterService
         }
         $oldValues = $this->auditValues($letter);
         $letter = $this->repository->update($letter, [...$attributes, 'status' => OutgoingLetterStatus::ISSUED]);
-        $this->recordHistory($letter, 'issued', $changedBy);
+        $this->recordHistory($letter, 'issued', $changedBy, $note);
         $this->recordAudit('outgoing_letter.issued', $letter, $changedBy, $oldValues, $this->auditValues($letter));
         return $letter;
     }
@@ -124,7 +124,7 @@ class OutgoingLetterService
         if (! in_array($letter->status, [OutgoingLetterStatus::DRAFT, OutgoingLetterStatus::VALIDATED], true)) throw new \DomainException('Surat tidak dapat ditolak pada status saat ini.');
         $oldValues = $this->auditValues($letter);
         $letter = $this->repository->update($letter, ['status' => OutgoingLetterStatus::DRAFT, 'submitted_at' => null, 'rejection_reason' => $reason, 'rejected_by' => $changedBy, 'rejected_at' => now()]);
-        $this->recordHistory($letter, 'rejected', $changedBy);
+        $this->recordHistory($letter, 'rejected', $changedBy, $reason);
         $this->recordAudit('outgoing_letter.rejected', $letter, $changedBy, $oldValues, $this->auditValues($letter));
         return $letter;
     }
@@ -143,7 +143,7 @@ class OutgoingLetterService
         if (trim($statementPath) === '') throw new \DomainException('Pernyataan penarikan wajib dilampirkan.');
         if ($letter->withdrawalRequests()->where('status', OutgoingLetterWithdrawalStatus::PENDING)->exists()) throw new \DomainException('Pengajuan penarikan sedang menunggu persetujuan.');
         $request = OutgoingLetterWithdrawalRequest::query()->create(['outgoing_letter_id' => $letter->id, 'requested_by' => $requestedBy, 'requested_at' => now(), 'reason' => $reason, 'statement_path' => $statementPath, 'status' => OutgoingLetterWithdrawalStatus::PENDING]);
-        $this->recordHistory($letter, 'withdrawal_requested', $requestedBy);
+        $this->recordHistory($letter, 'withdrawal_requested', $requestedBy, $reason);
         $this->recordAudit('outgoing_letter.withdrawal_requested', $letter, $requestedBy, null, ['status' => $letter->status?->value, 'withdrawal_request_id' => $request->id, 'reason' => $reason]);
         return $request;
     }
@@ -158,7 +158,7 @@ class OutgoingLetterService
             $oldValues = $this->auditValues($letter);
             $request->update(['status' => OutgoingLetterWithdrawalStatus::APPROVED, 'decided_by' => $decidedBy, 'decided_at' => now(), 'decision_note' => $note]);
             $letter = $this->repository->update($letter, ['status' => OutgoingLetterStatus::WITHDRAWN]);
-            $this->recordHistory($letter, 'withdrawn', $decidedBy);
+            $this->recordHistory($letter, 'withdrawn', $decidedBy, $note);
             $this->recordAudit('outgoing_letter.withdrawn', $letter, $decidedBy, $oldValues, $this->auditValues($letter));
             return $letter;
         });
@@ -172,7 +172,7 @@ class OutgoingLetterService
         if ($note === '') throw new \DomainException('Catatan penolakan wajib diisi.');
         $request->update(['status' => OutgoingLetterWithdrawalStatus::REJECTED, 'decided_by' => $decidedBy, 'decided_at' => now(), 'decision_note' => $note]);
         $letter = $request->outgoingLetter;
-        $this->recordHistory($letter, 'withdrawal_rejected', $decidedBy);
+        $this->recordHistory($letter, 'withdrawal_rejected', $decidedBy, $note);
         $this->recordAudit('outgoing_letter.withdrawal_rejected', $letter, $decidedBy, null, ['status' => $letter->status?->value, 'withdrawal_request_id' => $request->id, 'decision_note' => $note]);
         return $request->refresh();
     }
@@ -204,9 +204,15 @@ class OutgoingLetterService
         if ($letter->status !== OutgoingLetterStatus::DRAFT) throw new \DomainException('Only draft letters can be modified.');
     }
 
-    private function recordHistory(OutgoingLetter $letter, string $action, int $changedBy): void
+    private function recordHistory(OutgoingLetter $letter, string $action, int $changedBy, ?string $note = null): void
     {
-        $this->historyRepository->create(['outgoing_letter_id' => $letter->id, 'changed_by' => $changedBy, 'status' => $letter->status, 'action' => $action]);
+        $this->historyRepository->create([
+            'outgoing_letter_id' => $letter->id,
+            'changed_by' => $changedBy,
+            'status' => $letter->status,
+            'action' => $action,
+            'note' => $note !== null ? trim($note) : null,
+        ]);
     }
 
     private function recordAudit(string $action, OutgoingLetter $letter, ?int $changedBy, ?array $oldValues, ?array $newValues): void
