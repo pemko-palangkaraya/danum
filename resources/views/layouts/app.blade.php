@@ -26,7 +26,7 @@
         </div>
     </div>
     <div
-        x-data="{ open: false, action: '', id: '', title: '', description: '', note: '', submit() { const note = this.note.trim(); if (!note) return; const event = this.action === 'validate' ? 'workflow-validate-submitted' : 'workflow-issue-submitted'; Livewire.dispatch(event, { id: this.id, note }); this.open = false; this.note = ''; } }"
+        x-data="{ open: false, action: '', id: '', title: '', description: '', note: '', submit() { const note = this.note.trim(); if (!note) return; Livewire.dispatch('workflow-note-submitted', { action: this.action, id: this.id, note }); this.open = false; this.note = ''; } }"
         x-on:workflow-note-required.window="action = $event.detail.action; id = $event.detail.id; title = $event.detail.title; description = $event.detail.description; note = ''; open = true; $nextTick(() => $refs.note?.focus())"
         x-show="open" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4"
         x-on:keydown.escape.window="open = false; note = ''" x-on:click.self="open = false; note = ''"
