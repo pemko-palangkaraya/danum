@@ -25,6 +25,7 @@ class Versions extends Component
     public string $effective_until = '';
     public string $change_note = '';
     public string $templateCheckStatus = '';
+    public array $versionVariables = [];
     public array $templateFoundVariables = [];
     public array $templateUnknownVariables = [];
     public array $templateMissingVariables = [];
@@ -33,7 +34,6 @@ class Versions extends Component
     {
         $this->authorize('viewAny', LetterType::class);
         $this->letterTypeId = $letterType instanceof LetterType ? $letterType->getKey() : $letterType;
-
         $model = $this->letterType();
         $this->authorize('view', $model);
         $this->resetForm();
@@ -44,17 +44,18 @@ class Versions extends Component
         $letterType = $this->letterType();
         $this->authorize('update', $letterType);
         $this->resetForm();
+        $this->versionVariables = $this->normalizedVariables($letterType->variables ?? []);
         $this->effective_from = now()->format('Y-m-d\TH:i');
         $this->showForm = true;
     }
 
-    public function updatedTemplateFile(DocxTemplateService $docx): void
-    {
-        $this->validateTemplate($docx);
-    }
+    public function updatedTemplateFile(DocxTemplateService $docx): void { $this->validateTemplate($docx); }
+    public function checkTemplate(DocxTemplateService $docx): void { $this->validateTemplate($docx); }
 
-    public function checkTemplate(DocxTemplateService $docx): void
+    public function addFoundVariables(DocxTemplateService $docx): void
     {
+        if (! $this->templateUnknownVariables) return;
+        $this->versionVariables = $this->normalizedVariables(array_merge($this->versionVariables, $this->templateUnknownVariables));
         $this->validateTemplate($docx);
     }
 
@@ -65,31 +66,22 @@ class Versions extends Component
         $this->templateFoundVariables = [];
         $this->templateUnknownVariables = [];
         $this->templateMissingVariables = [];
+        if (! $this->template_file) return false;
 
-        if (!$this->template_file) {
-            return false;
-        }
-
-        $validator = validator(['template_file' => $this->template_file], [
-            'template_file' => ['required', 'file', 'mimes:docx', 'max:10240'],
-        ]);
-
+        $validator = validator(['template_file' => $this->template_file], ['template_file' => ['required', 'file', 'mimes:docx', 'max:10240']]);
         if ($validator->fails()) {
             $this->addError('template_file', $validator->errors()->first('template_file'));
             return false;
         }
 
         try {
-            $letterType = $this->letterType();
-            $declared = $letterType->variables ?? [];
             $found = $docx->extractVariables($this->template_file->getRealPath());
+            $declared = $this->normalizedVariables($this->versionVariables);
             $diff = $docx->compareVariables($declared, $found);
-
             $this->templateFoundVariables = array_values($found);
             $this->templateUnknownVariables = array_values($diff['unknown']);
             $this->templateMissingVariables = array_values($diff['missing']);
             $this->templateCheckStatus = ($diff['unknown'] || $diff['missing']) ? 'failed' : 'passed';
-
             return $this->templateCheckStatus === 'passed';
         } catch (\Throwable $e) {
             $this->addError('template_file', 'Template tidak dapat diperiksa: '.$e->getMessage());
@@ -102,7 +94,6 @@ class Versions extends Component
     {
         $letterType = $this->letterType();
         $this->authorize('update', $letterType);
-
         $this->validate([
             'template_file' => ['required', 'file', 'mimes:docx', 'max:10240'],
             'effective_from' => ['required', 'date'],
@@ -110,17 +101,20 @@ class Versions extends Component
             'change_note' => ['required', 'string', 'max:2000'],
         ]);
 
-        if (!$this->validateTemplate($docx)) {
+        $this->versionVariables = $this->normalizedVariables($this->versionVariables);
+        if (! $this->versionVariables) {
+            $this->addError('template_file', 'Versi template wajib memiliki minimal satu variabel input.');
             return;
         }
+        if (! $this->validateTemplate($docx)) return;
 
         $storedPath = null;
         try {
             $storedPath = $this->template_file->store('letter-templates', 'local');
-
             $service->createVersion($letterType, [
                 'template_path' => $storedPath,
                 'body_template' => $letterType->body_template,
+                'variables' => $this->versionVariables,
                 'effective_from' => Carbon::parse($this->effective_from),
                 'effective_until' => $this->effective_until !== '' ? Carbon::parse($this->effective_until) : null,
                 'change_note' => $this->change_note,
@@ -132,13 +126,15 @@ class Versions extends Component
 
         $this->showForm = false;
         $this->resetForm();
-        $this->dispatch('toast', type: 'success', message: 'Versi template berhasil dibuat. Versi lama tetap dipertahankan.');
+        $this->dispatch('toast', type: 'success', message: 'Versi template berhasil dibuat. Variabel versi disimpan sebagai snapshot.');
     }
 
-    private function letterType(): LetterType
+    private function normalizedVariables(array $variables): array
     {
-        return LetterType::query()->findOrFail($this->letterTypeId);
+        return array_values(array_unique(array_filter(array_map(static fn ($value) => trim((string) $value), $variables))));
     }
+
+    private function letterType(): LetterType { return LetterType::query()->findOrFail($this->letterTypeId); }
 
     private function resetForm(): void
     {
@@ -147,6 +143,7 @@ class Versions extends Component
         $this->effective_until = '';
         $this->change_note = '';
         $this->templateCheckStatus = '';
+        $this->versionVariables = [];
         $this->templateFoundVariables = [];
         $this->templateUnknownVariables = [];
         $this->templateMissingVariables = [];
@@ -155,10 +152,9 @@ class Versions extends Component
     public function render()
     {
         $letterType = $this->letterType();
-
         return view('livewire.pages.letter-types.versions', [
             'letterType' => $letterType,
-            'declaredVariables' => array_values($letterType->variables ?? []),
+            'declaredVariables' => $this->versionVariables ?: $this->normalizedVariables($letterType->variables ?? []),
             'versions' => $letterType->versions()->with('creator')->get(),
         ]);
     }
