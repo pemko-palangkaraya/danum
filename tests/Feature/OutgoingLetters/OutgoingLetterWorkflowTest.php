@@ -30,7 +30,7 @@ class OutgoingLetterWorkflowTest extends TestCase
 
     public function test_submit_validate_issue_workflow_sets_active_letter_and_history(): void
     {
-        Carbon::setTestNow(Carbon::parse('2026-08-25 10:20:00', 'Asia/Pontianak')); $user = User::factory()->superAdmin()->create(); $validator = User::factory()->superAdmin()->create(); $type = LetterType::factory()->create(['status' => LetterTypeStatus::ACTIVE, 'validity_period' => '6_months', 'has_expiry' => true]); $letter = OutgoingLetter::factory()->create(['letter_type_id' => $type->id, 'validator_user_id' => $validator->id]); $service = app(OutgoingLetterService::class);
+        Carbon::setTestNow(Carbon::parse('2026-08-25 10:20:00', 'Asia/Pontianak')); $user = User::factory()->superAdmin()->create(); $validator = User::factory()->superAdmin()->create(); $type = LetterType::factory()->create(['status' => LetterTypeStatus::ACTIVE, 'validity_period' => '6_months', 'has_expiry' => true]); $letter = OutgoingLetter::factory()->create(['letter_type_id' => $type->id, 'validator_user_id' => $validator->id, 'signer_user_id' => $user->id]); $service = app(OutgoingLetterService::class);
         try {
             $service->submit($letter, $user->id); $letter->refresh(); $this->assertNotNull($letter->submitted_at);
             $service->validate($letter, $validator->id, 'Saya telah memeriksa kelengkapan dan kesesuaian surat.'); $letter->refresh(); $this->assertSame(OutgoingLetterStatus::VALIDATED, $letter->status); $this->assertNull($letter->submitted_at); $this->assertSame('Saya telah memeriksa kelengkapan dan kesesuaian surat.', $letter->verification_note);
@@ -42,7 +42,7 @@ class OutgoingLetterWorkflowTest extends TestCase
 
     public function test_submit_validate_and_issue_require_notes(): void
     {
-        $user = User::factory()->superAdmin()->create(); $validator = User::factory()->superAdmin()->create(); $letter = OutgoingLetter::factory()->create(['validator_user_id' => $validator->id]); $service = app(OutgoingLetterService::class); $service->submit($letter, $user->id); $letter->refresh();
+        $user = User::factory()->superAdmin()->create(); $validator = User::factory()->superAdmin()->create(); $letter = OutgoingLetter::factory()->create(['validator_user_id' => $validator->id, 'signer_user_id' => $user->id]); $service = app(OutgoingLetterService::class); $service->submit($letter, $user->id); $letter->refresh();
         try { $service->validate($letter, $validator->id); $this->fail('Verification without note should fail.'); } catch (\DomainException $exception) { $this->assertSame('Catatan verifikasi wajib diisi.', $exception->getMessage()); }
         $service->validate($letter, $validator->id, 'Verifikasi lengkap.'); $letter->refresh();
         try { $service->issue($letter, $user->id); $this->fail('Signing without note should fail.'); } catch (\DomainException $exception) { $this->assertSame('Catatan penandatanganan wajib diisi.', $exception->getMessage()); }
@@ -67,7 +67,7 @@ class OutgoingLetterWorkflowTest extends TestCase
     public function test_issue_calculates_valid_until_from_letter_type(string $period, string $expected): void
     {
         Carbon::setTestNow(Carbon::parse('2026-08-25 10:20:00', 'Asia/Pontianak'));
-        try { $user = User::factory()->superAdmin()->create(); $type = LetterType::factory()->create(['status' => LetterTypeStatus::ACTIVE, 'validity_period' => $period, 'has_expiry' => $period !== 'none']); $letter = OutgoingLetter::factory()->create(['letter_type_id' => $type->id, 'status' => OutgoingLetterStatus::VALIDATED]); app(OutgoingLetterService::class)->issue($letter, $user->id, 'Saya menandatangani dan menyetujui penerbitan surat ini.'); $letter->refresh(); if ($period === 'none') $this->assertNull($letter->valid_until); else $this->assertSame($expected, $letter->valid_until->format('Y-m-d H:i:s')); } finally { Carbon::setTestNow(); }
+        try { $user = User::factory()->superAdmin()->create(); $type = LetterType::factory()->create(['status' => LetterTypeStatus::ACTIVE, 'validity_period' => $period, 'has_expiry' => $period !== 'none']); $letter = OutgoingLetter::factory()->create(['letter_type_id' => $type->id, 'status' => OutgoingLetterStatus::VALIDATED, 'signer_user_id' => $user->id]); app(OutgoingLetterService::class)->issue($letter, $user->id, 'Saya menandatangani dan menyetujui penerbitan surat ini.'); $letter->refresh(); if ($period === 'none') $this->assertNull($letter->valid_until); else $this->assertSame($expected, $letter->valid_until->format('Y-m-d H:i:s')); } finally { Carbon::setTestNow(); }
     }
 
     public static function validityPeriods(): array { return ['none' => ['none', ''], 'one week' => ['1_week', '2026-09-01 10:20:00'], 'two weeks' => ['2_weeks', '2026-09-08 10:20:00'], 'one month' => ['1_month', '2026-09-25 10:20:00'], 'three months' => ['3_months', '2026-11-25 10:20:00'], 'six months' => ['6_months', '2027-02-25 10:20:00'], 'one year' => ['1_year', '2027-08-25 10:20:00']]; }
