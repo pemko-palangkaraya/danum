@@ -11,6 +11,7 @@
             <a href="{{ route('positions.admin.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('positions.admin.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('positions.admin.*')])>Jabatan</a>
             <a href="{{ route('outgoing-letters.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('outgoing-letters.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('outgoing-letters.*')])>Outgoing Letters</a>
             <a href="{{ route('outgoing-letter-withdrawals.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('outgoing-letter-withdrawals.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('outgoing-letter-withdrawals.*')])>Penarikan Surat</a>
+            <a href="{{ route('audit-logs.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('audit-logs.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('audit-logs.*')])>Audit Log</a>
         @endif
 
         @if (auth()->user()?->isTenantUser())
