@@ -5,6 +5,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\TenantProfileController;
 use App\Http\Controllers\LetterTypeController;
+use App\Http\Controllers\LetterTypePermissionController;
 use App\Http\Controllers\OutgoingLetterController;
 use App\Http\Controllers\OutgoingLetterWithdrawalController;
 use App\Http\Controllers\VerificationController;
@@ -19,6 +20,9 @@ Route::middleware('auth')->as('api.')->group(function () {
     Route::apiResource('letter-types', LetterTypeController::class)->except(['create', 'edit']);
     Route::get('letter-types/{id}/versions', [LetterTypeController::class, 'versions'])->name('letter-types.versions');
     Route::post('letter-types/{id}/restore', [LetterTypeController::class, 'restore'])->name('letter-types.restore');
+    Route::get('letter-types/{id}/permissions', [LetterTypePermissionController::class, 'index'])->name('letter-types.permissions.index');
+    Route::post('letter-types/{id}/permissions', [LetterTypePermissionController::class, 'store'])->name('letter-types.permissions.store');
+    Route::delete('letter-types/{id}/permissions/{tenantId}', [LetterTypePermissionController::class, 'destroy'])->name('letter-types.permissions.destroy');
     Route::apiResource('outgoing-letters', OutgoingLetterController::class)->except(['create', 'edit']);
     Route::post('outgoing-letters/preview', [OutgoingLetterController::class, 'preview'])->name('outgoing-letters.preview');
     Route::post('outgoing-letters/{id}/restore', [OutgoingLetterController::class, 'restore'])->name('outgoing-letters.restore');
