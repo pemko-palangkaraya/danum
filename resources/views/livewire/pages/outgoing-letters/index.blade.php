@@ -5,14 +5,15 @@
     </div>
 
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div class="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row"><input wire:model.live="search" type="search" placeholder="Cari nomor, penerima, perihal..." class="form-control sm:max-w-md"><select wire:model.live="filter" class="form-select sm:w-52"><option value="all">{{ $isSuperAdmin ? 'Active Letters' : 'All' }}</option><option value="draft">Draft</option><option value="validated">Validated</option><option value="issued">Issued</option><option value="cancelled">Cancelled</option>@if($isSuperAdmin)<option value="deleted">Deleted</option>@endif</select></div>
+        <div class="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row"><input wire:model.live="search" type="search" placeholder="Cari nomor, penerima, perihal..." class="form-control sm:max-w-md"><select wire:model.live="filter" class="form-select sm:w-52"><option value="all">{{ $isSuperAdmin ? 'Active Letters' : 'All' }}</option><option value="draft">Draft</option><option value="validated">Validated</option><option value="issued">Issued</option><option value="withdrawn">Withdrawn</option><option value="cancelled">Cancelled</option>@if($isSuperAdmin)<option value="deleted">Deleted</option>@endif</select></div>
         <div class="divide-y divide-slate-100">
             @forelse ($letters as $letter)
                 @php($submitted = $letter->submitted_at !== null)
                 @php($rejected = filled($letter->rejection_reason))
+                @php($effectiveState = $letter->status->value === 'withdrawn' ? 'withdrawn' : ($letter->status->value === 'issued' && $letter->isExpired() ? 'expired' : $letter->status->value))
                 <div class="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between {{ $letter->trashed() ? 'bg-rose-50/50' : '' }}">
                     <div class="min-w-0">
-                        <div class="flex flex-wrap items-center gap-2"><span class="font-mono text-xs font-semibold text-slate-400">{{ $letter->number }}</span><span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $letter->status->value === 'issued' ? 'bg-emerald-100 text-emerald-700' : ($letter->status->value === 'validated' ? 'bg-amber-100 text-amber-800' : ($rejected ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600')) }}">{{ $submitted && $letter->status->value === 'draft' ? 'Menunggu Verifikasi' : ($rejected ? 'Ditolak' : ucfirst($letter->status->value)) }}</span>@if($letter->trashed())<span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">Deleted</span>@endif</div>
+                        <div class="flex flex-wrap items-center gap-2"><span class="font-mono text-xs font-semibold text-slate-400">{{ $letter->number }}</span><span @class(['rounded-full px-2 py-0.5 text-xs font-medium','bg-emerald-100 text-emerald-700' => $effectiveState === 'issued','bg-amber-100 text-amber-800' => in_array($effectiveState, ['validated','expired'], true),'bg-red-100 text-red-700' => in_array($effectiveState, ['withdrawn','cancelled'], true),'bg-blue-100 text-blue-800' => $status = ($letter->status->value === 'draft' && $submitted),'bg-slate-100 text-slate-600' => $effectiveState === 'draft' && ! $submitted])>{{ $submitted && $letter->status->value === 'draft' ? 'Menunggu Verifikasi' : ($rejected ? 'Ditolak' : match($effectiveState) { 'withdrawn' => 'Ditarik', 'expired' => 'Kedaluwarsa', 'issued' => 'Issued', 'validated' => 'Validated', 'cancelled' => 'Cancelled', default => 'Draft' }) }}</span>@if($letter->trashed())<span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">Deleted</span>@endif</div>
                         <h2 class="mt-1 font-semibold text-slate-900">{{ $letter->subject }}</h2>
                         <p class="mt-1 text-sm text-slate-500">{{ $letter->recipient_name }} · {{ $letter->letterType?->name }}@if($isSuperAdmin && $letter->tenant) · {{ $letter->tenant->name }}@endif</p>
                         @if($letter->signer_name)<p class="mt-1 text-xs text-slate-500">Penanda tangan: <span class="font-medium text-slate-700">{{ $letter->signer_name }}</span> · {{ $letter->signer_title }}</p>@endif
@@ -57,19 +58,8 @@
                                     @php($systemVariable = in_array($variable, ['letterhead','tenant_name','tenant_city','tenant_district','tenant_village','tenant_province','tenant_address','tenant_phone','tenant_email','tenant_head_name','tenant_head_title','tte'], true))
                                     @php($wide = in_array($variable, ['recipient_address','subject','tenant_address'], true))
                                     @php($dateVariable = (bool) preg_match('/(^|_)date$/i', $variable))
-                                    @php($birthDateVariable = (bool) preg_match('/(^|_)birth_date$/i', $variable))
                                     @if(! $systemVariable)
-                                        <div class="{{ $wide ? 'sm:col-span-2' : '' }}">
-                                            <label class="text-sm font-medium text-slate-700">{{ $label }}</label>
-                                            @if($dateVariable)
-                                                <input type="date" wire:model="variableValues.{{ $variable }}" class="form-control mt-1">
-                                            @elseif($variable === 'recipient_address')
-                                                <textarea wire:model="variableValues.{{ $variable }}" rows="2" class="form-textarea mt-1"></textarea>
-                                            @else
-                                                <input wire:model="variableValues.{{ $variable }}" class="form-control mt-1">
-                                            @endif
-                                            @error('variableValues.'.$variable)<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-                                        </div>
+                                        <div class="{{ $wide ? 'sm:col-span-2' : '' }}"><label class="text-sm font-medium text-slate-700">{{ $label }}</label>@if($dateVariable)<input type="date" wire:model="variableValues.{{ $variable }}" class="form-control mt-1">@elseif($variable === 'recipient_address')<textarea wire:model="variableValues.{{ $variable }}" rows="2" class="form-textarea mt-1"></textarea>@else<input wire:model="variableValues.{{ $variable }}" class="form-control mt-1">@endif @error('variableValues.'.$variable)<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
                                     @endif
                                 @endforeach
                             </div>
@@ -83,11 +73,7 @@
 
     @if($showRejectForm)
         <div class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 p-4" wire:click.self="$set('showRejectForm', false)">
-            <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-                <h2 class="text-lg font-semibold text-slate-900">Tolak Surat</h2><p class="mt-1 text-sm text-slate-500">Surat akan dikembalikan kepada pembuat dan dapat diperbaiki. Alasan penolakan wajib dicatat.</p>
-                <div class="mt-5"><label class="text-sm font-medium text-slate-700">Alasan Penolakan</label><textarea wire:model="rejectReason" rows="5" class="form-textarea mt-1" placeholder="Jelaskan bagian yang perlu diperbaiki..."></textarea>@error('rejectReason')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                <div class="mt-6 flex justify-end gap-2"><button wire:click="$set('showRejectForm', false)" type="button" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700">Batal</button><button wire:click="rejectLetter" type="button" class="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-800">Tolak Surat</button></div>
-            </div>
+            <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><h2 class="text-lg font-semibold text-slate-900">Tolak Surat</h2><p class="mt-1 text-sm text-slate-500">Surat akan dikembalikan kepada pembuat dan dapat diperbaiki. Alasan penolakan wajib dicatat.</p><div class="mt-5"><label class="text-sm font-medium text-slate-700">Alasan Penolakan</label><textarea wire:model="rejectReason" rows="5" class="form-textarea mt-1" placeholder="Jelaskan bagian yang perlu diperbaiki..."></textarea>@error('rejectReason')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div><div class="mt-6 flex justify-end gap-2"><button wire:click="$set('showRejectForm', false)" type="button" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700">Batal</button><button wire:click="rejectLetter" type="button" class="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-800">Tolak Surat</button></div></div>
         </div>
     @endif
 </div>
