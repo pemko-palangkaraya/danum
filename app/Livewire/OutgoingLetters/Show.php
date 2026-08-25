@@ -63,7 +63,10 @@ class Show extends Component
             ->statusHistories()
             ->with('changedBy')
             ->latest('created_at')
-            ->get();
+            ->get()
+            ->each(function ($event): void {
+                $event->setAttribute('action', $event->timeline_label);
+            });
 
         $this->verificationQrCode = null;
 
