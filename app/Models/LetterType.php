@@ -36,6 +36,7 @@ class LetterType extends Model
 
     public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
     public function versions(): HasMany { return $this->hasMany(LetterTypeVersion::class)->orderByDesc('version'); }
+    public function permissions(): HasMany { return $this->hasMany(LetterTypePermission::class); }
     public function currentVersion(): ?LetterTypeVersion { return $this->versions()->first(); }
     public function isGlobal(): bool { return $this->tenant_id === null; }
 
