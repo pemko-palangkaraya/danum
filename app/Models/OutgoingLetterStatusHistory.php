@@ -22,6 +22,7 @@ class OutgoingLetterStatusHistory extends Model
         'changed_by',
         'status',
         'action',
+        'note',
     ];
 
     protected function casts(): array
