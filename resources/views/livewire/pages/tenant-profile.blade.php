@@ -47,7 +47,7 @@ new #[Layout('layouts.app')] class extends Component {
     </div>
 
     <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
-        Profil organisasi hanya dapat diubah oleh Super User. Jika ada perubahan data, silakan hubungi Super User.
+        Profil organisasi hanya dapat diubah oleh Administrator. Jika ada perubahan data, silakan hubungi Administrator.
     </div>
 
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -58,34 +58,38 @@ new #[Layout('layouts.app')] class extends Component {
         <div class="p-5 sm:p-6">
             <div class="flex min-h-32 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-4">
                 @if ($currentLetterhead)
-                    <img src="{{ $currentLetterhead }}" alt="Kop surat saat ini" class="max-h-32 max-w-full object-contain">
+                <img src="{{ $currentLetterhead }}" alt="Kop surat saat ini" class="max-h-32 max-w-full object-contain">
                 @else
-                    <div class="text-center text-xs text-slate-400">Belum ada kop surat</div>
+                <div class="text-center text-xs text-slate-400">Belum ada kop surat</div>
                 @endif
             </div>
         </div>
     </div>
 
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div class="border-b border-slate-200 px-5 py-4 sm:px-6"><h2 class="text-sm font-semibold text-slate-900">Identitas</h2></div>
+        <div class="border-b border-slate-200 px-5 py-4 sm:px-6">
+            <h2 class="text-sm font-semibold text-slate-900">Identitas</h2>
+        </div>
         <div class="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
             @foreach (['name'=>'Nama Organisasi','phone'=>'Telepon','email'=>'Email'] as $field => $label)
-                <div class="{{ $field === 'name' ? 'sm:col-span-2' : '' }}">
-                    <label for="{{ $field }}" class="block text-sm font-medium text-slate-700">{{ $label }}</label>
-                    <input id="{{ $field }}" type="{{ $field === 'email' ? 'email' : 'text' }}" value="{{ $this->{$field} }}" disabled class="mt-2 block w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-700">
-                </div>
+            <div class="{{ $field === 'name' ? 'sm:col-span-2' : '' }}">
+                <label for="{{ $field }}" class="block text-sm font-medium text-slate-700">{{ $label }}</label>
+                <input id="{{ $field }}" type="{{ $field === 'email' ? 'email' : 'text' }}" value="{{ $this->{$field} }}" disabled class="mt-2 block w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-700">
+            </div>
             @endforeach
         </div>
     </div>
 
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div class="border-b border-slate-200 px-5 py-4 sm:px-6"><h2 class="text-sm font-semibold text-slate-900">Alamat</h2></div>
+        <div class="border-b border-slate-200 px-5 py-4 sm:px-6">
+            <h2 class="text-sm font-semibold text-slate-900">Alamat</h2>
+        </div>
         <div class="grid gap-5 p-5 sm:grid-cols-2 lg:grid-cols-4 sm:p-6">
             @foreach (['province'=>'Provinsi','city'=>'Kota/Kabupaten','district'=>'Kecamatan','village'=>'Kelurahan/Desa'] as $field => $label)
-                <div>
-                    <label for="{{ $field }}" class="block text-sm font-medium text-slate-700">{{ $label }}</label>
-                    <input id="{{ $field }}" type="text" value="{{ $this->{$field} }}" disabled class="mt-2 block w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-700">
-                </div>
+            <div>
+                <label for="{{ $field }}" class="block text-sm font-medium text-slate-700">{{ $label }}</label>
+                <input id="{{ $field }}" type="text" value="{{ $this->{$field} }}" disabled class="mt-2 block w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-700">
+            </div>
             @endforeach
             <div class="sm:col-span-2 lg:col-span-4">
                 <label for="address" class="block text-sm font-medium text-slate-700">Alamat Lengkap</label>
@@ -95,7 +99,9 @@ new #[Layout('layouts.app')] class extends Component {
     </div>
 
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div class="border-b border-slate-200 px-5 py-4 sm:px-6"><h2 class="text-sm font-semibold text-slate-900">Pimpinan</h2></div>
+        <div class="border-b border-slate-200 px-5 py-4 sm:px-6">
+            <h2 class="text-sm font-semibold text-slate-900">Pimpinan</h2>
+        </div>
         <div class="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
             <div>
                 <label for="head_name" class="block text-sm font-medium text-slate-700">Nama Pimpinan</label>
