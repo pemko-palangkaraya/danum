@@ -5,13 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature\LetterTypes;
 
 use App\Enums\UserRole;
-use App\Models\AuditLog;
 use App\Models\LetterType;
 use App\Models\LetterTypeVersion;
 use App\Models\User;
 use App\Services\LetterTypeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class LetterTypeVersionManagementTest extends TestCase
@@ -73,6 +71,37 @@ class LetterTypeVersionManagementTest extends TestCase
         $this->assertSame('body-v2', $v2->body_template);
         $this->assertSame('letter-templates/v2.docx', $v2->template_path);
         $this->assertSame('Penyesuaian format surat.', $v2->change_note);
+    }
+
+    public function test_scheduled_future_version_does_not_replace_current_version(): void
+    {
+        $letterType = LetterType::factory()->create([
+            'tenant_id' => null,
+            'status' => 'active',
+            'body_template' => 'body-v1',
+            'template_path' => 'letter-templates/v1.docx',
+        ]);
+        $v1 = LetterTypeVersion::factory()->create([
+            'letter_type_id' => $letterType->id,
+            'version' => 1,
+            'body_template' => 'body-v1',
+            'template_path' => 'letter-templates/v1.docx',
+            'effective_from' => now()->subDay(),
+            'effective_until' => now()->addDay(),
+        ]);
+        $v2 = LetterTypeVersion::factory()->create([
+            'letter_type_id' => $letterType->id,
+            'version' => 2,
+            'body_template' => 'body-v2',
+            'template_path' => 'letter-templates/v2.docx',
+            'effective_from' => now()->addDay(),
+        ]);
+
+        $resolved = app(LetterTypeService::class)->ensureCurrentVersion($letterType);
+
+        $this->assertSame($v1->id, $resolved?->id);
+        $this->assertSame(2, LetterTypeVersion::query()->where('letter_type_id', $letterType->id)->count());
+        $this->assertSame('body-v2', $v2->fresh()->body_template);
     }
 
     public function test_version_creation_is_audited(): void
