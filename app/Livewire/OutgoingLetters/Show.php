@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Livewire\OutgoingLetters;
 
+use App\Enums\OutgoingLetterWithdrawalStatus;
 use App\Enums\UserRole;
 use App\Models\OutgoingLetter;
+use App\Models\OutgoingLetterWithdrawalRequest;
 use App\Services\VerificationQrCodeService;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Layout;
@@ -18,11 +20,12 @@ class Show extends Component
     public ?string $verificationQrCode = null;
     public array $contentParts = [];
     public Collection $history;
+    public ?OutgoingLetterWithdrawalRequest $withdrawalDecision = null;
 
     public function mount(string $id, VerificationQrCodeService $qrCodeService): void
     {
         $query = OutgoingLetter::query()
-            ->with(['tenant', 'letterType', 'letterTypeVersion']);
+            ->with(['tenant', 'letterType', 'letterTypeVersion', 'withdrawalRequests.decidedBy']);
 
         if (auth()->user()->role === UserRole::SUPER_ADMIN) {
             $query->withTrashed();
@@ -33,6 +36,9 @@ class Show extends Component
         $this->letter = $query->findOrFail($id);
 
         $this->authorize('view', $this->letter);
+
+        $this->withdrawalDecision = $this->letter->withdrawalRequests
+            ->first(fn (OutgoingLetterWithdrawalRequest $request) => $request->status !== OutgoingLetterWithdrawalStatus::PENDING);
 
         $this->contentParts = preg_split(
             '/(\{\{\s*tte\s*\}\})/i',
