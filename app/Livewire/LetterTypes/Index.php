@@ -29,6 +29,7 @@ class Index extends Component
     public string $name = '';
     public string $description = '';
     public string $status = 'draft';
+    public string $validity_period = 'none';
     public string $variables_input = '';
     public $template_file = null;
 
@@ -52,6 +53,7 @@ class Index extends Component
         $this->name = $letterType->name;
         $this->description = (string) $letterType->description;
         $this->status = $letterType->status->value;
+        $this->validity_period = (string) ($letterType->validity_period ?: ($letterType->has_expiry ? $this->legacyValidityPeriod($letterType->validity_days) : 'none'));
         $this->variables_input = implode("\n", $letterType->variables ?? []);
         $this->template_file = null;
         $this->showForm = true;
@@ -64,6 +66,7 @@ class Index extends Component
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string'],
             'status' => ['required', 'in:draft,validated,active,retired'],
+            'validity_period' => ['required', 'in:none,1_week,2_weeks,1_month,3_months,6_months,1_year'],
             'variables_input' => ['required', 'string'],
             'template_file' => [$this->editingId ? 'nullable' : 'required', 'file', 'mimes:docx', 'max:10240'],
         ]);
@@ -71,8 +74,6 @@ class Index extends Component
         $letterType = $this->editingId ? LetterType::query()->findOrFail($this->editingId) : null;
         if ($letterType) $this->authorize('update', $letterType); else $this->authorize('create', LetterType::class);
 
-        // The variable list entered by Super Admin is the source of truth for this Letter Type.
-        // It is compared with the placeholders extracted from the DOCX before anything is saved.
         $declared = $docx->normalizeVariables($this->variables_input);
         if (!$declared) {
             $this->addError('variables_input', 'Isi minimal satu variabel, misalnya recipient_name.');
@@ -89,32 +90,24 @@ class Index extends Component
         if ($templatePath) {
             $found = $docx->extractVariables($templatePath);
             $diff = $docx->compareVariables($declared, $found);
-
             if ($diff['unknown']) {
-                $this->addError(
-                    'template_file',
-                    'Cross-check gagal. DOCX memiliki variabel yang belum kamu daftarkan pada field "Variabel Template": {{'.implode('}}, {{', $diff['unknown']).'}}. Tambahkan variabel tersebut ke daftar input lalu simpan kembali.'
-                );
+                $this->addError('template_file', 'Cross-check gagal. DOCX memiliki variabel yang belum kamu daftarkan pada field "Variabel Template": {{'.implode('}}, {{', $diff['unknown']).'}}. Tambahkan variabel tersebut ke daftar input lalu simpan kembali.');
                 return;
             }
-
             if ($diff['missing']) {
-                $this->addError(
-                    'template_file',
-                    'Cross-check gagal. Kamu mendaftarkan variabel yang tidak ditemukan di DOCX: {{'.implode('}}, {{', $diff['missing']).'}}. Hapus dari daftar input atau tambahkan ke DOCX.'
-                );
+                $this->addError('template_file', 'Cross-check gagal. Kamu mendaftarkan variabel yang tidak ditemukan di DOCX: {{'.implode('}}, {{', $diff['missing']).'}}. Hapus dari daftar input atau tambahkan ke DOCX.');
                 return;
             }
         }
 
         $data['variables'] = $declared;
+        $data['has_expiry'] = $this->validity_period !== 'none';
+        $data['validity_days'] = $this->legacyValidityDays($this->validity_period);
         unset($data['variables_input'], $data['template_file']);
         $data['tenant_id'] = null;
         $data['body_template'] = null;
 
-        if ($this->template_file) {
-            $data['template_path'] = $this->template_file->store('letter-templates', 'local');
-        }
+        if ($this->template_file) $data['template_path'] = $this->template_file->store('letter-templates', 'local');
 
         if ($letterType) {
             $oldPath = $letterType->template_path;
@@ -143,6 +136,33 @@ class Index extends Component
     {
         $this->reset(['editingId', 'code', 'name', 'description', 'variables_input', 'template_file']);
         $this->status = LetterTypeStatus::DRAFT->value;
+        $this->validity_period = 'none';
+    }
+
+    private function legacyValidityDays(string $period): ?int
+    {
+        return match ($period) {
+            '1_week' => 7,
+            '2_weeks' => 14,
+            '1_month' => 30,
+            '3_months' => 90,
+            '6_months' => 180,
+            '1_year' => 365,
+            default => null,
+        };
+    }
+
+    private function legacyValidityPeriod(?int $days): string
+    {
+        return match ($days) {
+            7 => '1_week',
+            14 => '2_weeks',
+            30 => '1_month',
+            90 => '3_months',
+            180 => '6_months',
+            365 => '1_year',
+            default => 'none',
+        };
     }
 
     public function render()
@@ -150,8 +170,6 @@ class Index extends Component
         $query = LetterType::query()->latest();
         if ($this->search !== '') $query->where(fn ($q) => $q->where('code', 'like', "%{$this->search}%")->orWhere('name', 'like', "%{$this->search}%"));
         if ($this->filter === 'deleted') $query->onlyTrashed(); else $query->where('status', LetterTypeStatus::from($this->filter));
-        return view('livewire.pages.letter-types.index', [
-            'letterTypes' => $query->paginate($this->perPage),
-        ]);
+        return view('livewire.pages.letter-types.index', ['letterTypes' => $query->paginate($this->perPage)]);
     }
 }
