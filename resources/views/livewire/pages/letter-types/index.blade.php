@@ -21,7 +21,12 @@
                         <p class="mt-1 text-sm text-slate-500">{{ $letterType->description ?: 'Tidak ada deskripsi.' }}</p>
                         <p class="mt-2 text-xs text-slate-400">{{ count($letterType->variables ?? []) }} variabel · Template {{ $letterType->template_path ? 'DOCX' : 'belum diupload' }} · Masa berlaku: {{ match($letterType->validity_period ?? 'none') { '1_week' => '1 minggu', '2_weeks' => '2 minggu', '1_month' => '1 bulan', '3_months' => '3 bulan', '6_months' => '6 bulan', '1_year' => '1 tahun', default => 'Tidak ada' } }}</p>
                     </div>
-                    <div class="flex shrink-0 gap-2"><button wire:click="edit('{{ $letterType->id }}')" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Edit</button><button wire:click="delete('{{ $letterType->id }}')" wire:confirm="Hapus jenis surat ini?" class="rounded-lg border border-rose-200 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50">Delete</button></div>
+                    <div class="flex shrink-0 gap-2">
+                        @if ($letterType->isGlobal())
+                            <a href="{{ route('letter-types.permissions', $letterType) }}" class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">Atur Akses OPD</a>
+                        @endif
+                        <button wire:click="edit('{{ $letterType->id }}')" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Edit</button><button wire:click="delete('{{ $letterType->id }}')" wire:confirm="Hapus jenis surat ini?" class="rounded-lg border border-rose-200 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50">Delete</button>
+                    </div>
                 </div>
             @empty
                 <div class="p-12 text-center text-sm text-slate-500">Belum ada jenis surat.</div>
@@ -45,13 +50,7 @@
                         <label class="text-sm font-semibold text-emerald-900">Masa Berlaku Surat</label>
                         <p class="mt-1 text-xs text-emerald-700">Pilih masa berlaku yang sudah ditentukan. Perhitungan dilakukan dari tanggal surat diterbitkan dan menggunakan kalender, bukan input jumlah hari manual.</p>
                         <select wire:model="validity_period" class="form-select mt-3 bg-white">
-                            <option value="none">Tidak memiliki masa berlaku</option>
-                            <option value="1_week">1 minggu</option>
-                            <option value="2_weeks">2 minggu</option>
-                            <option value="1_month">1 bulan</option>
-                            <option value="3_months">3 bulan</option>
-                            <option value="6_months">6 bulan</option>
-                            <option value="1_year">1 tahun</option>
+                            <option value="none">Tidak memiliki masa berlaku</option><option value="1_week">1 minggu</option><option value="2_weeks">2 minggu</option><option value="1_month">1 bulan</option><option value="3_months">3 bulan</option><option value="6_months">6 bulan</option><option value="1_year">1 tahun</option>
                         </select>
                         @error('validity_period')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                     </div>
