@@ -13,6 +13,7 @@ use App\Models\OutgoingLetterWithdrawalRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class VerificationTest extends TestCase
@@ -88,7 +89,10 @@ class VerificationTest extends TestCase
 
     public function test_public_verification_hides_unissued_or_unknown_documents(): void
     {
-        $draft = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::DRAFT]);
+        $draft = OutgoingLetter::factory()->create([
+            'status' => OutgoingLetterStatus::DRAFT,
+            'verification_token' => Str::random(64),
+        ]);
 
         $this->get('/verify/'.$draft->verification_token)
             ->assertOk()
