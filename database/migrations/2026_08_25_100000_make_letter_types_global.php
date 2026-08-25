@@ -16,7 +16,7 @@ return new class extends Migration
         });
 
         DB::statement(
-            'CREATE UNIQUE INDEX letter_types_global_code_unique ON letter_types (code) WHERE tenant_id IS NULL'
+            'CREATE UNIQUE INDEX IF NOT EXISTS letter_types_global_code_unique ON letter_types (code) WHERE tenant_id IS NULL'
         );
     }
 
