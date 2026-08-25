@@ -1,6 +1,6 @@
 # DANUM — Implementasi Template Versioning
 
-**Status:** Aktif
+**Status:** Selesai — 25 Agustus 2026
 
 ## Tujuan
 
@@ -14,6 +14,23 @@ Setiap perubahan template TND menghasilkan version baru dan tidak memutasi versi
 - User OPD tidak memilih versi secara bebas.
 - Versi aktif dipilih sistem berdasarkan konfigurasi/effective period.
 - Versi historis tidak boleh berubah jika sudah dipakai surat.
+- File template lama dipertahankan agar snapshot historis tetap dapat direkonstruksi.
+- Pembuatan versi baru wajib memiliki catatan perubahan.
+- Periode versi tidak boleh bertumpang tindih.
+
+## Implementasi
+
+```text
+LetterType
+  -> active/current version
+  -> template resolution
+  -> LetterTypeVersion
+  -> OutgoingLetter.letter_type_version_id
+  -> immutable historical template file
+  -> audit log
+```
+
+Super Admin memiliki halaman pengelolaan versi dari menu Letter Types. Halaman tersebut menampilkan versi historis, periode efektif, pembuat, dan catatan perubahan, serta menyediakan pembuatan versi baru dengan cross-check placeholder DOCX terhadap variabel Letter Type.
 
 ## Acceptance criteria
 
@@ -23,13 +40,6 @@ Setiap perubahan template TND menghasilkan version baru dan tidak memutasi versi
 4. Surat baru menggunakan version aktif.
 5. Surat lama tetap menunjuk version lama.
 6. Test memastikan perubahan template tidak mengubah histori.
-
-## Next implementation
-
-```text
-LetterType
-  -> active/current version
-  -> template resolution
-  -> OutgoingLetter version reference
-  -> immutable historical snapshot
-```
+7. Versi lama tidak dihapus ketika template baru diunggah.
+8. Pembuatan version baru tercatat pada Audit Log.
+9. User non-Super Admin tidak dapat mengelola version global.
