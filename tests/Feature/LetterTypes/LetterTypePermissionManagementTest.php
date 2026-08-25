@@ -73,4 +73,30 @@ class LetterTypePermissionManagementTest extends TestCase
 
         $this->assertDatabaseCount('letter_type_permissions', 1);
     }
+
+    public function test_available_for_tenant_returns_only_active_allowed_global_types_and_own_types(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $otherTenant = Tenant::factory()->create();
+
+        $allowed = LetterType::factory()->create(['tenant_id' => null, 'status' => 'active', 'code' => 'ALLOWED']);
+        $denied = LetterType::factory()->create(['tenant_id' => null, 'status' => 'active', 'code' => 'DENIED']);
+        $inactiveAllowed = LetterType::factory()->create(['tenant_id' => null, 'status' => 'draft', 'code' => 'INACTIVE']);
+        $own = LetterType::factory()->create(['tenant_id' => $tenant->id, 'status' => 'active', 'code' => 'OWN']);
+        $otherOwn = LetterType::factory()->create(['tenant_id' => $otherTenant->id, 'status' => 'active', 'code' => 'OTHER']);
+
+        app(LetterTypeService::class)->grantTenantPermission($allowed, $tenant->id);
+        app(LetterTypeService::class)->grantTenantPermission($inactiveAllowed, $tenant->id);
+
+        $codes = app(LetterTypeService::class)
+            ->getAvailableForTenant($tenant->id)
+            ->pluck('code')
+            ->all();
+
+        $this->assertContains('ALLOWED', $codes);
+        $this->assertContains('OWN', $codes);
+        $this->assertNotContains('DENIED', $codes);
+        $this->assertNotContains('INACTIVE', $codes);
+        $this->assertNotContains('OTHER', $codes);
+    }
 }
