@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\LetterType;
+use App\Models\LetterTypePermission;
 use App\Models\LetterTypeVersion;
 use App\Repositories\Contracts\LetterTypeRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
@@ -30,6 +31,64 @@ class LetterTypeService
     public function getAll(?string $tenantId): Collection
     {
         return $this->repository->getAll($tenantId);
+    }
+
+    public function getAvailableForTenant(string $tenantId): Collection
+    {
+        return LetterType::query()
+            ->where('status', 'active')
+            ->where(function ($query) use ($tenantId): void {
+                $query->where('tenant_id', $tenantId)
+                    ->orWhere(function ($global) use ($tenantId): void {
+                        $global->whereNull('tenant_id')
+                            ->whereHas('permissions', function ($permission) use ($tenantId): void {
+                                $permission->where('tenant_id', $tenantId)
+                                    ->where('allowed', true);
+                            });
+                    });
+            })
+            ->get();
+    }
+
+    public function isAllowedForTenant(LetterType $letterType, string $tenantId): bool
+    {
+        if ($letterType->tenant_id === $tenantId) {
+            return true;
+        }
+
+        if (! $letterType->isGlobal()) {
+            return false;
+        }
+
+        return LetterTypePermission::query()
+            ->where('letter_type_id', $letterType->id)
+            ->where('tenant_id', $tenantId)
+            ->where('allowed', true)
+            ->exists();
+    }
+
+    public function grantTenantPermission(LetterType $letterType, string $tenantId): LetterTypePermission
+    {
+        if (! $letterType->isGlobal()) {
+            throw new \InvalidArgumentException('Only global letter types can be assigned to tenants.');
+        }
+
+        return LetterTypePermission::query()->updateOrCreate(
+            ['letter_type_id' => $letterType->id, 'tenant_id' => $tenantId],
+            ['allowed' => true],
+        );
+    }
+
+    public function revokeTenantPermission(LetterType $letterType, string $tenantId): bool
+    {
+        if (! $letterType->isGlobal()) {
+            return false;
+        }
+
+        return LetterTypePermission::query()
+            ->where('letter_type_id', $letterType->id)
+            ->where('tenant_id', $tenantId)
+            ->update(['allowed' => false]) > 0;
     }
 
     public function create(array $data): LetterType
