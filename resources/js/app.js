@@ -5,7 +5,7 @@ const toastHttpErrors = {
     403: 'Anda tidak memiliki izin untuk melakukan tindakan ini.',
     404: 'Data atau halaman yang diminta tidak ditemukan.',
     409: 'Tindakan tidak dapat dilakukan karena data sedang bertentangan dengan kondisi saat ini.',
-    419: 'Sesi Anda telah berakhir. Silakan muat ulang halaman lalu coba lagi.',
+    419: 'Sesi Anda telah berakhir. Silakan login kembali.',
     422: 'Data yang dikirim tidak valid. Periksa kembali isian Anda.',
     429: 'Terlalu banyak permintaan. Silakan tunggu sebentar lalu coba lagi.',
     500: 'Terjadi kesalahan pada server. Silakan coba lagi.',
@@ -76,8 +76,15 @@ window.addEventListener('livewire:init', () => {
     });
 
     window.setInterval(() => {
-        if (document.visibilityState === 'visible') {
-            Livewire.dispatch('outgoing-letters-refresh');
+        if (document.visibilityState !== 'visible') {
+            return;
         }
+
+        // Refresh every mounted Livewire/Volt component on the current page.
+        // This keeps Users, Tenants, Positions, Letter Types, Outgoing Letters,
+        // Audit Logs, etc. synchronized across browser tabs/windows.
+        Livewire.all().forEach((component) => {
+            component.$wire.$refresh();
+        });
     }, 3000);
 });
