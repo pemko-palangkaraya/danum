@@ -9,6 +9,8 @@ use App\Models\LetterTypePermission;
 use App\Models\LetterTypeVersion;
 use App\Repositories\Contracts\LetterTypeRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class LetterTypeService
@@ -18,89 +20,46 @@ class LetterTypeService
         private readonly OutgoingLetterTemplateService $templateService,
     ) {}
 
-    public function find(string $id, ?string $tenantId): ?LetterType
-    {
-        return $this->repository->find($id, $tenantId);
-    }
-
-    public function findWithTrashed(string $id, ?string $tenantId): ?LetterType
-    {
-        return $this->repository->findWithTrashed($id, $tenantId);
-    }
-
-    public function getAll(?string $tenantId): Collection
-    {
-        return $this->repository->getAll($tenantId);
-    }
+    public function find(string $id, ?string $tenantId): ?LetterType { return $this->repository->find($id, $tenantId); }
+    public function findWithTrashed(string $id, ?string $tenantId): ?LetterType { return $this->repository->findWithTrashed($id, $tenantId); }
+    public function getAll(?string $tenantId): Collection { return $this->repository->getAll($tenantId); }
 
     public function getAvailableForTenant(string $tenantId): Collection
     {
-        return LetterType::query()
-            ->where('status', 'active')
-            ->where(function ($query) use ($tenantId): void {
-                $query->where('tenant_id', $tenantId)
-                    ->orWhere(function ($global) use ($tenantId): void {
-                        $global->whereNull('tenant_id')
-                            ->whereHas('permissions', function ($permission) use ($tenantId): void {
-                                $permission->where('tenant_id', $tenantId)
-                                    ->where('allowed', true);
-                            });
-                    });
-            })
-            ->get();
+        return LetterType::query()->where('status', 'active')->where(function ($query) use ($tenantId): void {
+            $query->where('tenant_id', $tenantId)->orWhere(function ($global) use ($tenantId): void {
+                $global->whereNull('tenant_id')->whereHas('permissions', function ($permission) use ($tenantId): void {
+                    $permission->where('tenant_id', $tenantId)->where('allowed', true);
+                });
+            });
+        })->get();
     }
 
     public function isAllowedForTenant(LetterType $letterType, string $tenantId): bool
     {
-        if ($letterType->tenant_id === $tenantId) {
-            return true;
-        }
-
-        if (! $letterType->isGlobal()) {
-            return false;
-        }
-
-        return LetterTypePermission::query()
-            ->where('letter_type_id', $letterType->id)
-            ->where('tenant_id', $tenantId)
-            ->where('allowed', true)
-            ->exists();
+        if ($letterType->tenant_id === $tenantId) return true;
+        if (! $letterType->isGlobal()) return false;
+        return LetterTypePermission::query()->where('letter_type_id', $letterType->id)->where('tenant_id', $tenantId)->where('allowed', true)->exists();
     }
 
     public function grantTenantPermission(LetterType $letterType, string $tenantId): LetterTypePermission
     {
-        if (! $letterType->isGlobal()) {
-            throw new \InvalidArgumentException('Only global letter types can be assigned to tenants.');
-        }
-
-        return LetterTypePermission::query()->updateOrCreate(
-            ['letter_type_id' => $letterType->id, 'tenant_id' => $tenantId],
-            ['allowed' => true],
-        );
+        if (! $letterType->isGlobal()) throw new \InvalidArgumentException('Only global letter types can be assigned to tenants.');
+        return LetterTypePermission::query()->updateOrCreate(['letter_type_id' => $letterType->id, 'tenant_id' => $tenantId], ['allowed' => true]);
     }
 
     public function revokeTenantPermission(LetterType $letterType, string $tenantId): bool
     {
-        if (! $letterType->isGlobal()) {
-            return false;
-        }
-
-        return LetterTypePermission::query()
-            ->where('letter_type_id', $letterType->id)
-            ->where('tenant_id', $tenantId)
-            ->update(['allowed' => false]) > 0;
+        if (! $letterType->isGlobal()) return false;
+        return LetterTypePermission::query()->where('letter_type_id', $letterType->id)->where('tenant_id', $tenantId)->update(['allowed' => false]) > 0;
     }
 
     public function create(array $data): LetterType
     {
         return DB::transaction(function () use ($data): LetterType {
-            if (($data['body_template'] ?? null) !== null) {
-                $this->templateService->validate((string) $data['body_template']);
-            }
-
+            if (($data['body_template'] ?? null) !== null) $this->templateService->validate((string) $data['body_template']);
             $letterType = $this->repository->create($data);
             $this->ensureCurrentVersion($letterType);
-
             return $letterType->refresh();
         });
     }
@@ -110,57 +69,41 @@ class LetterTypeService
         return DB::transaction(function () use ($letterType, $data): LetterType {
             if (array_key_exists('body_template', $data)) {
                 $template = $data['body_template'];
-
-                if ($template !== null) {
-                    $this->templateService->validate((string) $template);
-                }
-
+                if ($template !== null) $this->templateService->validate((string) $template);
                 if ($template !== $letterType->body_template) {
                     $letterType = $this->repository->update($letterType, $data);
                     $this->ensureCurrentVersion($letterType);
-
                     return $letterType;
                 }
             }
-
             return $this->repository->update($letterType, $data);
         });
     }
 
-    public function delete(LetterType $letterType): bool
-    {
-        return $this->repository->delete($letterType);
-    }
+    public function delete(LetterType $letterType): bool { return $this->repository->delete($letterType); }
+    public function restore(LetterType $letterType): bool { return $this->repository->restore($letterType); }
+    public function currentVersion(LetterType $letterType): ?LetterTypeVersion { return $this->activeVersion($letterType); }
 
-    public function restore(LetterType $letterType): bool
+    public function activeVersion(LetterType $letterType, ?Carbon $at = null): ?LetterTypeVersion
     {
-        return $this->repository->restore($letterType);
-    }
-
-    public function currentVersion(LetterType $letterType): ?LetterTypeVersion
-    {
-        return $letterType->currentVersion();
+        $at ??= now();
+        return LetterTypeVersion::query()->where('letter_type_id', $letterType->id)->where('is_active', true)
+            ->where(function ($q) use ($at): void { $q->whereNull('effective_from')->orWhere('effective_from', '<=', $at); })
+            ->where(function ($q) use ($at): void { $q->whereNull('effective_until')->orWhere('effective_until', '>', $at); })
+            ->orderByDesc('version')->first();
     }
 
     public function ensureCurrentVersion(LetterType $letterType): ?LetterTypeVersion
     {
-        if ($letterType->body_template === null) {
-            return null;
-        }
-
-        $latest = LetterTypeVersion::query()
-            ->where('letter_type_id', $letterType->id)
-            ->orderByDesc('version')
-            ->first();
-
-        if ($latest !== null && $latest->body_template === $letterType->body_template) {
-            return $latest;
-        }
-
+        if ($letterType->body_template === null) return null;
+        $latest = LetterTypeVersion::query()->where('letter_type_id', $letterType->id)->orderByDesc('version')->first();
+        if ($latest !== null && $latest->body_template === $letterType->body_template) return $latest;
         return LetterTypeVersion::query()->create([
             'letter_type_id' => $letterType->id,
             'version' => ($latest?->version ?? 0) + 1,
             'body_template' => $letterType->body_template,
+            'effective_from' => now(),
+            'is_active' => true,
         ]);
     }
 }
