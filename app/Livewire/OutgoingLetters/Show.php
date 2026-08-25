@@ -11,6 +11,7 @@ use App\Models\OutgoingLetterWithdrawalRequest;
 use App\Services\VerificationQrCodeService;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
@@ -23,6 +24,17 @@ class Show extends Component
     public ?OutgoingLetterWithdrawalRequest $withdrawalDecision = null;
 
     public function mount(string $id, VerificationQrCodeService $qrCodeService): void
+    {
+        $this->loadLetter($id, $qrCodeService);
+    }
+
+    #[On('outgoing-letters-refresh')]
+    public function refreshForRealtime(VerificationQrCodeService $qrCodeService): void
+    {
+        $this->loadLetter($this->letter->id, $qrCodeService);
+    }
+
+    private function loadLetter(string $id, VerificationQrCodeService $qrCodeService): void
     {
         $query = OutgoingLetter::query()
             ->with(['tenant', 'letterType', 'letterTypeVersion', 'withdrawalRequests.decidedBy']);
@@ -52,6 +64,8 @@ class Show extends Component
             ->with('changedBy')
             ->latest('created_at')
             ->get();
+
+        $this->verificationQrCode = null;
 
         if ($this->letter->status->value === 'issued' && $this->letter->verification_token) {
             $this->verificationQrCode = $qrCodeService->render(
