@@ -18,13 +18,14 @@ class LetterTypeVersion extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'letter_type_id', 'version', 'body_template', 'template_path',
+        'letter_type_id', 'version', 'body_template', 'template_path', 'variables',
         'effective_from', 'effective_until', 'is_active', 'change_note', 'created_by',
     ];
 
     protected function casts(): array
     {
         return [
+            'variables' => 'array',
             'effective_from' => 'datetime',
             'effective_until' => 'datetime',
             'is_active' => 'boolean',
