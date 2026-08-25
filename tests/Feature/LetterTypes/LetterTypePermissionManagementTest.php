@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature\LetterTypes;
 
+use App\Livewire\LetterTypes\Permissions;
 use App\Models\LetterType;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\LetterTypeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class LetterTypePermissionManagementTest extends TestCase
@@ -58,6 +60,40 @@ class LetterTypePermissionManagementTest extends TestCase
         $this->actingAs($admin)
             ->deleteJson('/api/letter-types/'.$letterType->id.'/permissions/'.$tenant->id)
             ->assertOk();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'tenant_id' => $tenant->id,
+            'action' => 'letter_type.permission.revoked',
+            'auditable_type' => $permission::class,
+            'auditable_id' => $permission->id,
+        ]);
+    }
+
+    public function test_permission_changes_from_livewire_page_are_audited(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $admin = User::factory()->superAdmin()->create();
+        $letterType = LetterType::factory()->create(['tenant_id' => null]);
+
+        $this->actingAs($admin);
+
+        Livewire::test(Permissions::class, ['letterType' => $letterType->id])
+            ->call('grant', $tenant->id);
+
+        $permission = $letterType->permissions()->where('tenant_id', $tenant->id)->firstOrFail();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'tenant_id' => $tenant->id,
+            'action' => 'letter_type.permission.granted',
+            'auditable_type' => $permission::class,
+            'auditable_id' => $permission->id,
+        ]);
+
+        Livewire::test(Permissions::class, ['letterType' => $letterType->id])
+            ->call('confirmRevoke', $tenant->id)
+            ->call('revoke');
 
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => $admin->id,
