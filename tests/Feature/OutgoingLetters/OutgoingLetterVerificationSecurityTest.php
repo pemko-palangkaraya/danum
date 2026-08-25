@@ -33,7 +33,7 @@ class OutgoingLetterVerificationSecurityTest extends TestCase
 
     public function test_unknown_verification_token_returns_not_found(): void
     {
-        $this->getJson('/verify/non-existent-token')->assertNotFound();
+        $this->get('/verify/non-existent-token')->assertNotFound();
     }
 
     public function test_withdrawn_document_remains_verifiable_as_withdrawn(): void
