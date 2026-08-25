@@ -136,8 +136,11 @@ class Index extends Component
                 $value = $this->variableValues[$variable] ?? null;
                 if (blank($value)) { $this->addError('variableValues.'.$variable, 'Tanggal wajib diisi.'); continue; }
                 if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $value)) { $this->addError('variableValues.'.$variable, 'Format tanggal tidak valid.'); continue; }
-                if ($value > now()->toDateString()) $this->addError('variableValues.'.$variable, 'Tanggal tidak boleh melewati hari ini.');
-                if ($this->isBirthDateVariable($variable) && $value > now()->toDateString()) $this->addError('variableValues.'.$variable, 'Tanggal lahir tidak boleh tanggal di masa depan.');
+                if ($this->isBirthDateVariable($variable)) {
+                    if ($value > now()->toDateString()) $this->addError('variableValues.'.$variable, 'Tanggal lahir tidak boleh tanggal di masa depan.');
+                } elseif ($value > now()->toDateString()) {
+                    $this->addError('variableValues.'.$variable, 'Tanggal tidak boleh melewati hari ini.');
+                }
             }
             if ($this->getErrorBag()->isNotEmpty()) return;
 
