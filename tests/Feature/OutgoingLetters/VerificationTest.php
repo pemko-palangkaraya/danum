@@ -23,52 +23,61 @@ class VerificationTest extends TestCase
     public function test_public_verification_shows_active_for_current_issued_letter(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-08-25 10:20:00', 'Asia/Pontianak'));
-        $type = LetterType::factory()->create([
-            'status' => LetterTypeStatus::ACTIVE,
-            'has_expiry' => true,
-            'validity_period' => '6_months',
-        ]);
-        $letter = OutgoingLetter::factory()->create([
-            'letter_type_id' => $type->id,
-            'status' => OutgoingLetterStatus::ISSUED,
-            'valid_from' => now(),
-            'valid_until' => now()->addMonths(6),
-        ]);
+        try {
+            $type = LetterType::factory()->create([
+                'status' => LetterTypeStatus::ACTIVE,
+                'has_expiry' => true,
+                'validity_period' => '6_months',
+            ]);
+            $letter = OutgoingLetter::factory()->create([
+                'letter_type_id' => $type->id,
+                'status' => OutgoingLetterStatus::ISSUED,
+                'valid_from' => now(),
+                'valid_until' => now()->addMonths(6),
+                'verification_token' => Str::random(64),
+            ]);
 
-        $this->get('/verify/'.$letter->verification_token)
-            ->assertOk()
-            ->assertSee('Aktif / Valid');
-
-        Carbon::setTestNow();
+            $this->get('/verify/'.$letter->verification_token)
+                ->assertOk()
+                ->assertSee('Aktif / Valid');
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_public_verification_shows_expired_for_issued_expired_letter(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-09-02 10:20:00', 'Asia/Pontianak'));
-        $type = LetterType::factory()->create([
-            'status' => LetterTypeStatus::ACTIVE,
-            'has_expiry' => true,
-            'validity_period' => '1_week',
-        ]);
-        $letter = OutgoingLetter::factory()->create([
-            'letter_type_id' => $type->id,
-            'status' => OutgoingLetterStatus::ISSUED,
-            'valid_from' => Carbon::parse('2026-08-25 10:20:00', 'Asia/Pontianak'),
-            'valid_until' => Carbon::parse('2026-09-01 10:20:00', 'Asia/Pontianak'),
-        ]);
+        try {
+            $type = LetterType::factory()->create([
+                'status' => LetterTypeStatus::ACTIVE,
+                'has_expiry' => true,
+                'validity_period' => '1_week',
+            ]);
+            $letter = OutgoingLetter::factory()->create([
+                'letter_type_id' => $type->id,
+                'status' => OutgoingLetterStatus::ISSUED,
+                'valid_from' => Carbon::parse('2026-08-25 10:20:00', 'Asia/Pontianak'),
+                'valid_until' => Carbon::parse('2026-09-01 10:20:00', 'Asia/Pontianak'),
+                'verification_token' => Str::random(64),
+            ]);
 
-        $this->get('/verify/'.$letter->verification_token)
-            ->assertOk()
-            ->assertSee('Kedaluwarsa');
-
-        Carbon::setTestNow();
+            $this->get('/verify/'.$letter->verification_token)
+                ->assertOk()
+                ->assertSee('Kedaluwarsa');
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_public_verification_shows_withdrawn_for_withdrawn_letter(): void
     {
         $requester = User::factory()->superAdmin()->create();
         $decider = User::factory()->superAdmin()->create();
-        $letter = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::WITHDRAWN]);
+        $letter = OutgoingLetter::factory()->create([
+            'status' => OutgoingLetterStatus::WITHDRAWN,
+            'verification_token' => Str::random(64),
+        ]);
         OutgoingLetterWithdrawalRequest::query()->create([
             'outgoing_letter_id' => $letter->id,
             'requested_by' => $requester->id,
