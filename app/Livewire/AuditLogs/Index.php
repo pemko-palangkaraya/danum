@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\Tenant;
 use App\Models\User;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -24,6 +25,12 @@ class Index extends Component
     public string $dateFrom = '';
     public string $dateTo = '';
     public int $perPage = 15;
+
+    #[On('outgoing-letters-refresh')]
+    public function refreshForRealtime(): void
+    {
+        // The next render reloads the latest audit records using the active filters.
+    }
 
     public function updatedSearch(): void
     {
