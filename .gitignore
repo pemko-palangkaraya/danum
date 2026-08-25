@@ -1,9 +1,23 @@
 # Laravel / Environment
 .env
-.env.backup
-.env.production
-.env.local
-.env.testing
+.env.*
+!.env.example
+
+# Laravel runtime / generated files
+/public/storage
+/public/hot
+/storage/*.key
+/storage/pail
+/storage/framework/cache/data/
+/storage/framework/sessions/
+/storage/framework/testing/
+/storage/framework/views/
+/bootstrap/cache/*.php
+
+# Local SQLite databases (DANUM uses PostgreSQL)
+/database/*.sqlite
+/database/*.sqlite3
+/database/*.sqlite-journal
 
 # Logs
 *.log
@@ -12,17 +26,16 @@
 /vendor/
 /auth.json
 .phpunit.result.cache
-.phpunit.cache/
-/storage/*.key
+/.phpunit.cache/
+/coverage/
 
-# Node / NPM
+# Node / NPM / Vite
 /node_modules/
 /public/build/
-/public/hot/
-
-# Laravel generated files
-/public/storage
-/storage/pail
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # IDE / Editors
 /.idea/
