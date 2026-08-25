@@ -37,7 +37,7 @@ class OutgoingLetterStateTransitionTest extends TestCase
     public function test_draft_can_be_submitted_only_when_validator_exists(): void
     {
         [$letter, $admin] = $this->letter();
-        $letter->update(['submitted_at' => null]);
+        $letter->update(['validator_user_id' => null, 'submitted_at' => null]);
         $this->expectException(\DomainException::class);
         app(OutgoingLetterService::class)->submit($letter, $admin->id);
     }
