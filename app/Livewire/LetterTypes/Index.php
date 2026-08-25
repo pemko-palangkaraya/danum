@@ -110,10 +110,8 @@ class Index extends Component
         if ($this->template_file) $data['template_path'] = $this->template_file->store('letter-templates', 'local');
 
         if ($letterType) {
-            $oldPath = $letterType->template_path;
             $service->update($letterType, $data);
-            if (!empty($data['template_path']) && $oldPath && $oldPath !== $data['template_path']) Storage::disk('local')->delete($oldPath);
-            $message = 'Master jenis surat berhasil diperbarui.';
+            $message = 'Master jenis surat berhasil diperbarui. Template lama dipertahankan sebagai versi historis.';
         } else {
             $service->create($data);
             $message = 'Master jenis surat berhasil dibuat.';
