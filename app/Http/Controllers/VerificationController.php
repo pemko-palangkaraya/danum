@@ -60,6 +60,10 @@ class VerificationController extends Controller
     {
         $letter = $this->findLetter($token);
 
+        if ($letter === null) {
+            abort(404);
+        }
+
         return view('verification.show', [
             'letter' => $letter,
         ]);
