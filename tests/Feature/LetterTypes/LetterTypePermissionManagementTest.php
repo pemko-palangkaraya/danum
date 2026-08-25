@@ -35,6 +35,39 @@ class LetterTypePermissionManagementTest extends TestCase
         $this->assertFalse(app(LetterTypeService::class)->isAllowedForTenant($letterType->fresh(), $tenant->id));
     }
 
+    public function test_permission_changes_are_audited(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $admin = User::factory()->superAdmin()->create();
+        $letterType = LetterType::factory()->create(['tenant_id' => null]);
+
+        $this->actingAs($admin)
+            ->postJson('/api/letter-types/'.$letterType->id.'/permissions', ['tenant_id' => $tenant->id])
+            ->assertCreated();
+
+        $permission = $letterType->permissions()->where('tenant_id', $tenant->id)->firstOrFail();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'tenant_id' => $tenant->id,
+            'action' => 'letter_type.permission.granted',
+            'auditable_type' => $permission::class,
+            'auditable_id' => $permission->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->deleteJson('/api/letter-types/'.$letterType->id.'/permissions/'.$tenant->id)
+            ->assertOk();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $admin->id,
+            'tenant_id' => $tenant->id,
+            'action' => 'letter_type.permission.revoked',
+            'auditable_type' => $permission::class,
+            'auditable_id' => $permission->id,
+        ]);
+    }
+
     public function test_tenant_admin_cannot_manage_letter_type_permissions(): void
     {
         $tenant = Tenant::factory()->create();
@@ -72,6 +105,7 @@ class LetterTypePermissionManagementTest extends TestCase
         $this->actingAs($admin)->postJson('/api/letter-types/'.$letterType->id.'/permissions', ['tenant_id' => $tenant->id])->assertCreated();
 
         $this->assertDatabaseCount('letter_type_permissions', 1);
+        $this->assertDatabaseCount('audit_logs', 1);
     }
 
     public function test_available_for_tenant_returns_only_active_allowed_global_types_and_own_types(): void
