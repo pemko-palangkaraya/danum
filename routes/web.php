@@ -8,6 +8,7 @@ use App\Livewire\AuditLogs\Index as AuditLogIndex;
 use App\Livewire\Tenants\Index as TenantIndex;
 use App\Livewire\LetterTypes\Index as LetterTypeIndex;
 use App\Livewire\LetterTypes\Permissions as LetterTypePermissions;
+use App\Livewire\LetterTypes\Versions as LetterTypeVersions;
 use App\Livewire\OutgoingLetters\Index as OutgoingLetterIndex;
 use App\Livewire\OutgoingLetters\Show as OutgoingLetterShow;
 use App\Livewire\OutgoingLetterWithdrawals\Index as OutgoingLetterWithdrawalIndex;
@@ -38,6 +39,7 @@ Route::middleware('auth')->group(function () {
         Volt::route('/tenants/{tenant}', 'pages.tenants.show')->name('tenants.show');
         Route::get('/letter-types', LetterTypeIndex::class)->name('letter-types.index');
         Route::get('/letter-types/{letterType}/permissions', LetterTypePermissions::class)->name('letter-types.permissions');
+        Route::get('/letter-types/{letterType}/versions', LetterTypeVersions::class)->name('letter-types.versions');
         Route::get('/positions', PositionIndex::class)->name('positions.admin.index');
         Route::get('/audit-logs', AuditLogIndex::class)->name('audit-logs.index');
     });
