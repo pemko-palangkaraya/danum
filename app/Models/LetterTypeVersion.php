@@ -4,14 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LetterTypeVersion extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
         'letter_type_id', 'version', 'body_template', 'template_path',
         'effective_from', 'effective_until', 'is_active', 'change_note', 'created_by',
