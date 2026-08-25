@@ -55,7 +55,7 @@
                     <dd class="col-span-2 text-sm">{{ $letter->tenant?->name ?? '-' }}</dd>
                 </div>
                 <div class="grid grid-cols-3 gap-4 py-4">
-                    <dt class="text-sm text-slate-500">Penerima</dt>
+                    <dt class="text-sm text-slate-500">Pemohon</dt>
                     <dd class="col-span-2 text-sm">{{ $letter->recipient_name }}</dd>
                 </div>
                 <div class="grid grid-cols-3 gap-4 py-4">

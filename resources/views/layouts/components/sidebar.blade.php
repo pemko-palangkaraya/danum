@@ -5,23 +5,23 @@
         <a href="{{ route('dashboard') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('dashboard'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('dashboard')])>Dashboard</a>
 
         @if (auth()->user()?->isSuperAdmin())
-            <a href="{{ route('tenants.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('tenants.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('tenants.*')])>Tenants</a>
-            <a href="{{ route('users.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('users.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('users.*')])>Users</a>
-            <a href="{{ route('letter-types.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('letter-types.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('letter-types.*')])>Letter Types</a>
-            <a href="{{ route('positions.admin.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('positions.admin.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('positions.admin.*')])>Jabatan</a>
-            <a href="{{ route('outgoing-letters.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('outgoing-letters.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('outgoing-letters.*')])>Outgoing Letters</a>
-            <a href="{{ route('outgoing-letter-withdrawals.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('outgoing-letter-withdrawals.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('outgoing-letter-withdrawals.*')])>Penarikan Surat</a>
-            <a href="{{ route('audit-logs.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('audit-logs.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('audit-logs.*')])>Audit Log</a>
+        <a href="{{ route('tenants.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('tenants.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('tenants.*')])>Tenants</a>
+        <a href="{{ route('users.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('users.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('users.*')])>Users</a>
+        <a href="{{ route('letter-types.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('letter-types.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('letter-types.*')])>Letter Types</a>
+        <a href="{{ route('positions.admin.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('positions.admin.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('positions.admin.*')])>Jabatan</a>
+        <a href="{{ route('outgoing-letters.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('outgoing-letters.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('outgoing-letters.*')])>Outgoing Letters</a>
+        <a href="{{ route('outgoing-letter-withdrawals.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('outgoing-letter-withdrawals.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('outgoing-letter-withdrawals.*')])>Penarikan Surat</a>
+        <a href="{{ route('audit-logs.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('audit-logs.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('audit-logs.*')])>Audit Log</a>
         @endif
 
         @if (auth()->user()?->isTenantUser())
-            <a href="{{ route('positions.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('positions.index'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('positions.index')])>Jabatan</a>
-            @if (auth()->user()?->isTenantAdmin())
-                <a href="{{ route('tenant-users.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('tenant-users.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('tenant-users.*')])>Tenant Users</a>
-            @endif
-            <a href="{{ route('outgoing-letters.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('outgoing-letters.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('outgoing-letters.*')])>Outgoing Letters</a>
-            <a href="{{ route('outgoing-letter-withdrawals.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('outgoing-letter-withdrawals.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('outgoing-letter-withdrawals.*')])>Penarikan Surat</a>
-            <a href="{{ route('tenant-profile') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('tenant-profile'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('tenant-profile')])>Profil Organisasi</a>
+        @if (auth()->user()?->isTenantAdmin())
+        <a href="{{ route('positions.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('positions.index'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('positions.index')])>Jabatan</a>
+        <a href="{{ route('tenant-users.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('tenant-users.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('tenant-users.*')])>Tenant Users</a>
+        @endif
+        <a href="{{ route('outgoing-letters.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('outgoing-letters.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('outgoing-letters.*')])>Outgoing Letters</a>
+        <a href="{{ route('outgoing-letter-withdrawals.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('outgoing-letter-withdrawals.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('outgoing-letter-withdrawals.*')])>Penarikan Surat</a>
+        <a href="{{ route('tenant-profile') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('tenant-profile'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('tenant-profile')])>Profil Organisasi</a>
         @endif
     </nav>
     <div class="border-t border-slate-100 p-4">
@@ -31,8 +31,7 @@
                 class="mt-0.5 font-mono text-sm text-slate-900"
                 data-server-clock
                 data-server-timestamp="{{ now()->getTimestampMs() }}"
-                data-server-timezone="{{ config('app.timezone') }}"
-            >{{ now()->format('d M Y, H:i:s') }}</div>
+                data-server-timezone="{{ config('app.timezone') }}">{{ now()->format('d M Y, H:i:s') }}</div>
             <div class="mt-0.5 text-[11px] text-slate-400">{{ config('app.timezone') }}</div>
         </div>
         <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="flex w-full items-center rounded-xl px-3 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-900">Logout</button></form>
