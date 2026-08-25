@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use App\Models\Tenant;
@@ -19,7 +20,15 @@ class TenantServiceTest extends TestCase
     public function test_create_with_initial_user_creates_and_links_tenant_administrator(): void
     {
         $tenant = app(TenantService::class)->createWithInitialUser(
-            ['code' => 'TST001', 'name' => 'Test Tenant'],
+            [
+                'code' => 'TST001',
+                'name' => 'Test Tenant',
+                'province' => 'Kalimantan Tengah',
+                'city' => 'Palangka Raya',
+                'district' => 'Jekan Raya',
+                'village' => 'Menteng',
+                'status' => TenantStatus::ACTIVE,
+            ],
             ['name' => 'Initial Admin', 'email' => 'admin@test.local', 'password' => 'password'],
         );
 
