@@ -18,15 +18,16 @@ class Versions extends Component
 {
     use WithFileUploads;
 
-    // Keep only the UUID in Livewire state. Eloquent models are serialized by
-    // Livewire between requests and may come back as an attribute array,
-    // which must never be passed to a UUID query as the primary key.
     public string $letterTypeId = '';
     public bool $showForm = false;
     public $template_file = null;
     public string $effective_from = '';
     public string $effective_until = '';
     public string $change_note = '';
+    public string $templateCheckStatus = '';
+    public array $templateFoundVariables = [];
+    public array $templateUnknownVariables = [];
+    public array $templateMissingVariables = [];
 
     public function mount(string|LetterType $letterType): void
     {
@@ -47,6 +48,56 @@ class Versions extends Component
         $this->showForm = true;
     }
 
+    public function updatedTemplateFile(DocxTemplateService $docx): void
+    {
+        $this->validateTemplate($docx);
+    }
+
+    public function checkTemplate(DocxTemplateService $docx): void
+    {
+        $this->validateTemplate($docx);
+    }
+
+    private function validateTemplate(DocxTemplateService $docx): bool
+    {
+        $this->resetValidation('template_file');
+        $this->templateCheckStatus = '';
+        $this->templateFoundVariables = [];
+        $this->templateUnknownVariables = [];
+        $this->templateMissingVariables = [];
+
+        if (!$this->template_file) {
+            return false;
+        }
+
+        $validator = validator(['template_file' => $this->template_file], [
+            'template_file' => ['required', 'file', 'mimes:docx', 'max:10240'],
+        ]);
+
+        if ($validator->fails()) {
+            $this->addError('template_file', $validator->errors()->first('template_file'));
+            return false;
+        }
+
+        try {
+            $letterType = $this->letterType();
+            $declared = $letterType->variables ?? [];
+            $found = $docx->extractVariables($this->template_file->getRealPath());
+            $diff = $docx->compareVariables($declared, $found);
+
+            $this->templateFoundVariables = array_values($found);
+            $this->templateUnknownVariables = array_values($diff['unknown']);
+            $this->templateMissingVariables = array_values($diff['missing']);
+            $this->templateCheckStatus = ($diff['unknown'] || $diff['missing']) ? 'failed' : 'passed';
+
+            return $this->templateCheckStatus === 'passed';
+        } catch (\Throwable $e) {
+            $this->addError('template_file', 'Template tidak dapat diperiksa: '.$e->getMessage());
+            $this->templateCheckStatus = 'failed';
+            return false;
+        }
+    }
+
     public function save(LetterTypeService $service, DocxTemplateService $docx): void
     {
         $letterType = $this->letterType();
@@ -59,22 +110,12 @@ class Versions extends Component
             'change_note' => ['required', 'string', 'max:2000'],
         ]);
 
+        if (!$this->validateTemplate($docx)) {
+            return;
+        }
+
         $storedPath = null;
         try {
-            $declared = $letterType->variables ?? [];
-            $temporaryPath = $this->template_file->getRealPath();
-            $found = $docx->extractVariables($temporaryPath);
-            $diff = $docx->compareVariables($declared, $found);
-
-            if ($diff['unknown']) {
-                $this->addError('template_file', 'Template baru memiliki variabel yang belum terdaftar: {{'.implode('}}, {{', $diff['unknown']).'}}.');
-                return;
-            }
-            if ($diff['missing']) {
-                $this->addError('template_file', 'Template baru tidak memuat variabel yang masih diwajibkan: {{'.implode('}}, {{', $diff['missing']).'}}.');
-                return;
-            }
-
             $storedPath = $this->template_file->store('letter-templates', 'local');
 
             $service->createVersion($letterType, [
@@ -105,6 +146,10 @@ class Versions extends Component
         $this->effective_from = '';
         $this->effective_until = '';
         $this->change_note = '';
+        $this->templateCheckStatus = '';
+        $this->templateFoundVariables = [];
+        $this->templateUnknownVariables = [];
+        $this->templateMissingVariables = [];
     }
 
     public function render()
@@ -113,6 +158,7 @@ class Versions extends Component
 
         return view('livewire.pages.letter-types.versions', [
             'letterType' => $letterType,
+            'declaredVariables' => array_values($letterType->variables ?? []),
             'versions' => $letterType->versions()->with('creator')->get(),
         ]);
     }
