@@ -1,4 +1,9 @@
-<div class="space-y-6">
+<div
+    x-data="{ open: false, detail: null }"
+    x-on:audit-detail.window="detail = $event.detail; open = true"
+    x-on:keydown.escape.window="open = false"
+    class="space-y-6"
+>
     <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
             <p class="text-sm font-medium text-slate-500">Super Admin</p>
@@ -73,55 +78,58 @@
             <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-50">
                     <tr class="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        <th class="px-5 py-3">Waktu</th>
-                        <th class="px-5 py-3">Actor</th>
-                        <th class="px-5 py-3">Tenant</th>
-                        <th class="px-5 py-3">Action</th>
-                        <th class="px-5 py-3">Object</th>
-                        <th class="px-5 py-3">Detail</th>
+                        <th class="px-4 py-3">Waktu</th>
+                        <th class="px-4 py-3">Actor</th>
+                        <th class="px-4 py-3">Tenant</th>
+                        <th class="px-4 py-3">Action</th>
+                        <th class="px-4 py-3">Object</th>
+                        <th class="px-4 py-3 text-right">Detail</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse ($logs as $log)
-                        <tr class="align-top hover:bg-slate-50/70">
-                            <td class="whitespace-nowrap px-5 py-4 text-sm text-slate-600">{{ $log->created_at?->format('d M Y H:i:s') }}</td>
-                            <td class="px-5 py-4">
-                                <div class="text-sm font-semibold text-slate-900">{{ $log->user?->name ?? 'System / Unknown' }}</div>
+                        <tr class="hover:bg-slate-50/70">
+                            <td class="whitespace-nowrap px-4 py-3 text-xs text-slate-600">{{ $log->created_at?->format('d M Y H:i:s') }}</td>
+                            <td class="max-w-44 px-4 py-3">
+                                <div class="truncate text-sm font-semibold text-slate-900" title="{{ $log->user?->name ?? 'System / Unknown' }}">{{ $log->user?->name ?? 'System / Unknown' }}</div>
                                 @if ($log->user?->email)
-                                    <div class="mt-0.5 text-xs text-slate-500">{{ $log->user->email }}</div>
+                                    <div class="mt-0.5 truncate text-xs text-slate-500" title="{{ $log->user->email }}">{{ $log->user->email }}</div>
                                 @endif
                             </td>
-                            <td class="px-5 py-4 text-sm text-slate-600">
+                            <td class="max-w-40 px-4 py-3">
                                 @if ($log->tenant)
-                                    <div class="font-medium text-slate-800">{{ $log->tenant->name }}</div>
-                                    @if ($log->tenant->code)<div class="text-xs text-slate-500">{{ $log->tenant->code }}</div>@endif
+                                    <div class="truncate text-sm font-medium text-slate-800" title="{{ $log->tenant->name }}">{{ $log->tenant->name }}</div>
+                                    @if ($log->tenant->code)<div class="truncate text-xs text-slate-500">{{ $log->tenant->code }}</div>@endif
                                 @else
-                                    <span class="text-slate-400">Global</span>
+                                    <span class="text-sm text-slate-400">Global</span>
                                 @endif
                             </td>
-                            <td class="px-5 py-4"><span class="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ $log->action }}</span></td>
-                            <td class="max-w-xs px-5 py-4">
+                            <td class="px-4 py-3"><span class="inline-flex max-w-48 truncate rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700" title="{{ $log->action }}">{{ $log->action }}</span></td>
+                            <td class="max-w-48 px-4 py-3">
                                 <div class="truncate text-sm font-medium text-slate-800" title="{{ $log->auditable_type }}">{{ class_basename($log->auditable_type ?? '—') }}</div>
-                                <div class="mt-0.5 truncate font-mono text-xs text-slate-500">{{ $log->auditable_id ?? '—' }}</div>
+                                <div class="mt-0.5 truncate font-mono text-xs text-slate-500" title="{{ $log->auditable_id ?? '—' }}">{{ $log->auditable_id ?? '—' }}</div>
                             </td>
-                            <td class="px-5 py-4">
-                                <details class="max-w-sm">
-                                    <summary class="cursor-pointer text-sm font-semibold text-slate-700 hover:text-slate-900">Before / After</summary>
-                                    <div class="mt-3 space-y-3">
-                                        <div>
-                                            <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">Before</p>
-                                            <pre class="max-h-56 overflow-auto rounded-xl bg-slate-950 p-3 text-xs leading-5 text-slate-100">{{ json_encode($log->old_values ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
-                                        </div>
-                                        <div>
-                                            <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">After</p>
-                                            <pre class="max-h-56 overflow-auto rounded-xl bg-slate-950 p-3 text-xs leading-5 text-slate-100">{{ json_encode($log->new_values ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
-                                        </div>
-                                        <div class="grid grid-cols-2 gap-3 text-xs text-slate-500">
-                                            <div><span class="font-semibold text-slate-700">IP:</span> {{ $log->ip_address ?? '—' }}</div>
-                                            <div><span class="font-semibold text-slate-700">ID:</span> {{ $log->id }}</div>
-                                        </div>
-                                    </div>
-                                </details>
+                            <td class="whitespace-nowrap px-4 py-3 text-right">
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
+                                    x-on:click="$dispatch('audit-detail', {
+                                        action: @js($log->action),
+                                        createdAt: @js($log->created_at?->format('d M Y H:i:s')),
+                                        actor: @js($log->user?->name ?? 'System / Unknown'),
+                                        actorEmail: @js($log->user?->email),
+                                        tenant: @js($log->tenant?->name ?? 'Global'),
+                                        tenantCode: @js($log->tenant?->code),
+                                        object: @js(class_basename($log->auditable_type ?? '—')),
+                                        objectId: @js($log->auditable_id ?? '—'),
+                                        oldValues: @js($log->old_values ?? []),
+                                        newValues: @js($log->new_values ?? []),
+                                        ip: @js($log->ip_address ?? '—'),
+                                        id: @js($log->id),
+                                    })"
+                                >
+                                    View
+                                </button>
                             </td>
                         </tr>
                     @empty
@@ -133,35 +141,36 @@
 
         <div class="divide-y divide-slate-100 lg:hidden">
             @forelse ($logs as $log)
-                <details class="group p-4">
-                    <summary class="cursor-pointer list-none">
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span class="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ $log->action }}</span>
-                                    <span class="text-xs text-slate-400">{{ $log->created_at?->format('d M Y H:i') }}</span>
-                                </div>
-                                <div class="mt-2 truncate text-sm font-semibold text-slate-900">{{ $log->user?->name ?? 'System / Unknown' }}</div>
-                                <div class="mt-0.5 truncate text-xs text-slate-500">{{ class_basename($log->auditable_type ?? '—') }} · {{ $log->auditable_id ?? '—' }}</div>
+                <div class="p-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="inline-flex max-w-full truncate rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ $log->action }}</span>
+                                <span class="text-xs text-slate-400">{{ $log->created_at?->format('d M Y H:i') }}</span>
                             </div>
-                            <span class="shrink-0 text-xs font-semibold text-slate-400 group-open:text-slate-700">Detail</span>
+                            <div class="mt-2 truncate text-sm font-semibold text-slate-900">{{ $log->user?->name ?? 'System / Unknown' }}</div>
+                            <div class="mt-0.5 truncate text-xs text-slate-500">{{ $log->tenant?->name ?? 'Global' }} · {{ class_basename($log->auditable_type ?? '—') }}</div>
                         </div>
-                    </summary>
-                    <div class="mt-4 space-y-3 rounded-xl bg-slate-50 p-3">
-                        <div class="grid grid-cols-2 gap-3 text-xs">
-                            <div><p class="text-slate-400">Tenant</p><p class="mt-0.5 font-semibold text-slate-700">{{ $log->tenant?->name ?? 'Global' }}</p></div>
-                            <div><p class="text-slate-400">IP</p><p class="mt-0.5 font-mono font-semibold text-slate-700">{{ $log->ip_address ?? '—' }}</p></div>
-                        </div>
-                        <div>
-                            <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">Before</p>
-                            <pre class="max-h-48 overflow-auto rounded-xl bg-slate-950 p-3 text-xs leading-5 text-slate-100">{{ json_encode($log->old_values ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
-                        </div>
-                        <div>
-                            <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">After</p>
-                            <pre class="max-h-48 overflow-auto rounded-xl bg-slate-950 p-3 text-xs leading-5 text-slate-100">{{ json_encode($log->new_values ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
-                        </div>
+                        <button
+                            type="button"
+                            class="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm"
+                            x-on:click="$dispatch('audit-detail', {
+                                action: @js($log->action),
+                                createdAt: @js($log->created_at?->format('d M Y H:i:s')),
+                                actor: @js($log->user?->name ?? 'System / Unknown'),
+                                actorEmail: @js($log->user?->email),
+                                tenant: @js($log->tenant?->name ?? 'Global'),
+                                tenantCode: @js($log->tenant?->code),
+                                object: @js(class_basename($log->auditable_type ?? '—')),
+                                objectId: @js($log->auditable_id ?? '—'),
+                                oldValues: @js($log->old_values ?? []),
+                                newValues: @js($log->new_values ?? []),
+                                ip: @js($log->ip_address ?? '—'),
+                                id: @js($log->id),
+                            })"
+                        >View</button>
                     </div>
-                </details>
+                </div>
             @empty
                 <div class="px-4 py-12 text-center text-sm text-slate-500">Belum ada audit log yang sesuai dengan filter.</div>
             @endforelse
@@ -172,5 +181,73 @@
                 {{ $logs->links() }}
             </div>
         @endif
+    </div>
+
+    <div
+        x-cloak
+        x-show="open"
+        x-transition.opacity
+        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+        x-on:click.self="open = false"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="audit-detail-title"
+    >
+        <div
+            x-show="open"
+            x-transition
+            class="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl"
+        >
+            <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h2 id="audit-detail-title" class="text-lg font-bold text-slate-900">Detail Audit Log</h2>
+                        <span class="inline-flex max-w-full truncate rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700" x-text="detail?.action"></span>
+                    </div>
+                    <p class="mt-1 text-xs text-slate-500" x-text="detail?.createdAt"></p>
+                </div>
+                <button type="button" x-on:click="open = false" class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Tutup">✕</button>
+            </div>
+
+            <div class="max-h-[calc(90vh-80px)] space-y-5 overflow-y-auto p-5">
+                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                        <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Actor</p>
+                        <p class="mt-1 text-sm font-semibold text-slate-800" x-text="detail?.actor || '—'"></p>
+                        <p class="mt-0.5 truncate text-xs text-slate-500" x-text="detail?.actorEmail || ''"></p>
+                    </div>
+                    <div>
+                        <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Tenant</p>
+                        <p class="mt-1 text-sm font-semibold text-slate-800" x-text="detail?.tenant || 'Global'"></p>
+                        <p class="mt-0.5 text-xs text-slate-500" x-text="detail?.tenantCode || ''"></p>
+                    </div>
+                    <div>
+                        <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Object</p>
+                        <p class="mt-1 text-sm font-semibold text-slate-800" x-text="detail?.object || '—'"></p>
+                        <p class="mt-0.5 break-all font-mono text-xs text-slate-500" x-text="detail?.objectId || '—'"></p>
+                    </div>
+                    <div>
+                        <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">IP</p>
+                        <p class="mt-1 break-all font-mono text-sm font-semibold text-slate-800" x-text="detail?.ip || '—'"></p>
+                        <p class="mt-0.5 text-xs text-slate-500">Audit ID: <span x-text="detail?.id || '—'"></span></p>
+                    </div>
+                </div>
+
+                <div class="grid gap-4 lg:grid-cols-2">
+                    <div>
+                        <div class="mb-2 flex items-center justify-between">
+                            <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Before</p>
+                        </div>
+                        <pre class="max-h-80 overflow-auto rounded-xl bg-slate-950 p-4 text-xs leading-5 text-slate-100" x-text="JSON.stringify(detail?.oldValues ?? {}, null, 2)"></pre>
+                    </div>
+                    <div>
+                        <div class="mb-2 flex items-center justify-between">
+                            <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">After</p>
+                        </div>
+                        <pre class="max-h-80 overflow-auto rounded-xl bg-slate-950 p-4 text-xs leading-5 text-slate-100" x-text="JSON.stringify(detail?.newValues ?? {}, null, 2)"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
