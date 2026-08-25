@@ -17,85 +17,53 @@ Setiap tahap harus:
 
 ## 2. Tahap 0 — Foundation
 
-**Status: sebagian besar selesai**
+**Status: selesai**
 
-Sudah tersedia:
-
-- authentication;
-- tenant;
-- user management;
-- role authorization;
-- tenant isolation;
-- tenant profile authorization;
-- PostgreSQL testing;
-- timezone `Asia/Pontianak`;
-- live server clock;
-- outgoing letter lifecycle dasar;
-- public verification;
-- regression suite.
-
-Baseline test saat roadmap ini dibuat: **49 passing tests**.
+Sudah tersedia authentication, tenant, user management, role authorization, tenant isolation, tenant profile authorization, PostgreSQL testing, timezone `Asia/Pontianak`, live server clock, outgoing letter lifecycle, public verification, dan regression suite.
 
 ## 3. Tahap 1 — TND Master
 
-**Target berikutnya**
+**Status: selesai**
 
-Bangun master terpusat:
-
-- Document Type / Letter Type;
-- kode dan nama;
-- deskripsi user-friendly;
-- status active/inactive;
-- kategori bila benar-benar diperlukan;
-- konfigurasi field/form;
-- template terkait.
-
-Acceptance criteria:
-
-- admin dapat mengelola jenis surat;
-- jenis surat inactive tidak tersedia untuk surat baru;
-- perubahan tidak membutuhkan hard-code;
-- seluruh perubahan dilindungi authorization.
+Sudah tersedia master Letter Type global dengan kode, nama, deskripsi, status, variabel, template DOCX, dan konfigurasi masa berlaku. Seluruh pengelolaan dilindungi authorization Super Admin.
 
 ## 4. Tahap 2 — Document Type Permission
 
-Tambahkan konfigurasi:
+**Status: selesai**
 
-```text
-Organization / Tenant
-        +
-Document Type
-        = Permission
-```
-
-Acceptance criteria:
-
-- unit hanya melihat jenis surat yang diizinkan;
-- backend menolak request ilegal;
-- Super Admin/TND Admin sesuai policy dapat mengatur permission;
-- perubahan permission berlaku untuk surat baru;
-- surat lama tidak berubah.
+Sudah tersedia permission per Tenant/OPD untuk Letter Type global. Enforcement berlaku pada daftar jenis surat dan backend pembuatan surat baru. Surat lama tidak berubah ketika permission berubah.
 
 ## 5. Tahap 3 — Template Management
 
-Bangun:
+**Status: selesai**
 
-- template;
-- template version;
-- status;
-- effective from;
-- effective until;
-- change note;
-- audit metadata.
+Sudah tersedia:
 
-Acceptance criteria:
+- `LetterTypeVersion`;
+- template DOCX per versi;
+- `effective_from` dan `effective_until`;
+- `is_active`;
+- `change_note`;
+- `created_by`;
+- pemilihan versi aktif berdasarkan periode;
+- penguncian reference versi pada `OutgoingLetter`;
+- UI riwayat dan pembuatan versi oleh Super Admin;
+- audit log pembuatan versi;
+- preservasi file template historis.
 
-- user OPD tidak memilih template secara bebas;
+Acceptance criteria terpenuhi:
+
+- user OPD tidak memilih template version secara bebas;
 - sistem memilih active version;
 - versi lama tetap dapat direferensikan;
-- versi yang telah digunakan tidak merusak histori.
+- versi yang sudah digunakan tidak dimutasi;
+- perubahan template menghasilkan version baru;
+- periode versi tidak boleh overlap;
+- template file lama tidak dihapus ketika versi baru dibuat.
 
 ## 6. Tahap 4 — Dynamic Letter Form
+
+**Target berikutnya**
 
 Setiap jenis surat dapat menentukan data yang perlu diisi user.
 
@@ -117,13 +85,14 @@ UI menampilkan form sederhana. Detail TND tetap berada pada konfigurasi.
 
 ## 7. Tahap 5 — Outgoing Letter Integration
 
-Integrasikan master TND dengan `OutgoingLetter`:
+**Status: fondasi selesai, perlu penyempurnaan dynamic form/snapshot**
+
+Integrasi yang sudah berjalan:
 
 ```text
 User
  -> allowed Document Type
  -> active Template Version
- -> Dynamic Form
  -> Draft
  -> Preview
  -> Workflow
@@ -131,11 +100,11 @@ User
  -> Verification
 ```
 
-Pastikan surat menyimpan reference ke konfigurasi yang digunakan.
+OutgoingLetter menyimpan reference ke `letter_type_version_id` sehingga dokumen tidak mengikuti perubahan template setelah dibuat.
 
 ## 8. Tahap 6 — Historical Snapshot
 
-Setelah reference version stabil, implementasikan snapshot untuk konfigurasi penting.
+**Target berikutnya setelah Dynamic Letter Form**
 
 Target:
 
@@ -156,25 +125,11 @@ Acceptance criteria:
 
 Setelah master TND stabil, tambahkan aturan pejabat/penandatangan.
 
-Jangan hard-code:
-
-```php
-if ($role === '...') ...
-```
-
-Gunakan configuration/policy yang dapat diaudit.
+Jangan hard-code role. Gunakan configuration/policy yang dapat diaudit.
 
 ## 10. Tahap 8 — Hardening
 
-Tambahkan:
-
-- authorization matrix lengkap;
-- edge-case tests;
-- audit review;
-- concurrency considerations;
-- historical integrity tests;
-- public verification security tests;
-- performance checks untuk daftar jenis surat dan permission.
+Tambahkan authorization matrix lengkap, edge-case tests, audit review, concurrency considerations, historical integrity tests, public verification security tests, dan performance checks.
 
 ## 11. Modul yang belum menjadi prioritas
 
@@ -187,17 +142,7 @@ Sampai scope Surat Keluar stabil, jangan memperluas implementasi ke:
 
 ## 12. Definition of Done untuk setiap tahap
 
-Sebuah tahap dianggap selesai jika:
-
-- desain terdokumentasi;
-- schema/model sesuai;
-- authorization tersedia;
-- tenant isolation aman;
-- happy path tersedia;
-- negative path tersedia;
-- regression test lulus;
-- full `php artisan test` lulus;
-- perubahan tidak merusak historical data.
+Sebuah tahap dianggap selesai jika desain terdokumentasi, schema/model sesuai, authorization tersedia, tenant isolation aman, happy path tersedia, negative path tersedia, regression test lulus, full `php artisan test` lulus, dan perubahan tidak merusak historical data.
 
 ## 13. Urutan kerja yang disepakati
 
