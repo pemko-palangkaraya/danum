@@ -74,4 +74,10 @@ window.addEventListener('livewire:init', () => {
             dispatchErrorToast('Tidak dapat terhubung ke server. Periksa koneksi Anda lalu coba lagi.');
         });
     });
+
+    window.setInterval(() => {
+        if (document.visibilityState === 'visible') {
+            Livewire.dispatch('outgoing-letters-refresh');
+        }
+    }, 3000);
 });
