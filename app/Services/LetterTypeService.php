@@ -9,7 +9,6 @@ use App\Models\LetterTypePermission;
 use App\Models\LetterTypeVersion;
 use App\Repositories\Contracts\LetterTypeRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -67,16 +66,20 @@ class LetterTypeService
     public function update(LetterType $letterType, array $data): LetterType
     {
         return DB::transaction(function () use ($letterType, $data): LetterType {
-            if (array_key_exists('body_template', $data)) {
-                $template = $data['body_template'];
-                if ($template !== null) $this->templateService->validate((string) $template);
-                if ($template !== $letterType->body_template) {
-                    $letterType = $this->repository->update($letterType, $data);
-                    $this->ensureCurrentVersion($letterType);
-                    return $letterType;
-                }
+            $templateChanged = array_key_exists('body_template', $data) && $data['body_template'] !== $letterType->body_template;
+            $pathChanged = array_key_exists('template_path', $data) && $data['template_path'] !== $letterType->template_path;
+
+            if ($templateChanged && $data['body_template'] !== null) {
+                $this->templateService->validate((string) $data['body_template']);
             }
-            return $this->repository->update($letterType, $data);
+
+            $letterType = $this->repository->update($letterType, $data);
+
+            if ($templateChanged || $pathChanged) {
+                $this->ensureCurrentVersion($letterType);
+            }
+
+            return $letterType;
         });
     }
 
@@ -93,16 +96,86 @@ class LetterTypeService
             ->orderByDesc('version')->first();
     }
 
+    public function createVersion(LetterType $letterType, array $data, int $createdBy): LetterTypeVersion
+    {
+        if (! $letterType->isGlobal()) {
+            throw new \DomainException('Template version hanya dapat dikelola untuk jenis surat global.');
+        }
+
+        return DB::transaction(function () use ($letterType, $data, $createdBy): LetterTypeVersion {
+            $effectiveFrom = Carbon::parse($data['effective_from'] ?? now());
+            $effectiveUntil = !empty($data['effective_until']) ? Carbon::parse($data['effective_until']) : null;
+            $latest = LetterTypeVersion::query()->where('letter_type_id', $letterType->id)->orderByDesc('version')->first();
+
+            if ($latest?->effective_from && $effectiveFrom->lt($latest->effective_from)) {
+                throw new \DomainException('Tanggal mulai versi baru tidak boleh lebih awal dari versi sebelumnya.');
+            }
+            if ($latest !== null && $effectiveFrom->lte($latest->effective_from)) {
+                throw new \DomainException('Versi baru harus memiliki periode mulai setelah versi terakhir.');
+            }
+            if ($effectiveUntil !== null && $effectiveUntil->lte($effectiveFrom)) {
+                throw new \DomainException('Tanggal selesai harus lebih besar dari tanggal mulai.');
+            }
+
+            if ($latest !== null && $latest->effective_until === null) {
+                $latest->update(['effective_until' => $effectiveFrom]);
+            }
+
+            $version = LetterTypeVersion::query()->create([
+                'letter_type_id' => $letterType->id,
+                'version' => ($latest?->version ?? 0) + 1,
+                'body_template' => (string) ($data['body_template'] ?? $letterType->body_template ?? ''),
+                'template_path' => $data['template_path'] ?? $letterType->template_path,
+                'effective_from' => $effectiveFrom,
+                'effective_until' => $effectiveUntil,
+                'is_active' => true,
+                'change_note' => trim((string) ($data['change_note'] ?? '')) ?: null,
+                'created_by' => $createdBy,
+            ]);
+
+            app(AuditLogService::class)->record(
+                'letter_type.version.created',
+                auth()->user(),
+                $version,
+                null,
+                [
+                    'letter_type_id' => $letterType->id,
+                    'version' => $version->version,
+                    'effective_from' => $version->effective_from?->toIso8601String(),
+                    'effective_until' => $version->effective_until?->toIso8601String(),
+                    'template_path' => $version->template_path,
+                    'change_note' => $version->change_note,
+                ],
+            );
+
+            return $version->refresh();
+        });
+    }
+
     public function ensureCurrentVersion(LetterType $letterType): ?LetterTypeVersion
     {
-        if ($letterType->body_template === null) return null;
+        $hasTemplate = $letterType->body_template !== null || $letterType->template_path !== null;
+        if (! $hasTemplate) return null;
+
         $latest = LetterTypeVersion::query()->where('letter_type_id', $letterType->id)->orderByDesc('version')->first();
-        if ($latest !== null && $latest->body_template === $letterType->body_template) return $latest;
+        $bodyTemplate = (string) ($letterType->body_template ?? '');
+        $templatePath = $letterType->template_path;
+
+        if ($latest !== null && $latest->body_template === $bodyTemplate && $latest->template_path === $templatePath) {
+            return $latest;
+        }
+
+        $effectiveFrom = now();
+        if ($latest !== null && $latest->effective_until === null) {
+            $latest->update(['effective_until' => $effectiveFrom]);
+        }
+
         return LetterTypeVersion::query()->create([
             'letter_type_id' => $letterType->id,
             'version' => ($latest?->version ?? 0) + 1,
-            'body_template' => $letterType->body_template,
-            'effective_from' => now(),
+            'body_template' => $bodyTemplate,
+            'template_path' => $templatePath,
+            'effective_from' => $effectiveFrom,
             'is_active' => true,
         ]);
     }
