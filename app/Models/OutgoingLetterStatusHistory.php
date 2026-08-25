@@ -70,4 +70,10 @@ class OutgoingLetterStatusHistory extends Model
     {
         return $this->belongsTo(User::class, 'changed_by');
     }
+
+    public function getTimelineLabelAttribute(): string
+    {
+        $label = ucfirst(str_replace('_', ' ', (string) $this->getRawOriginal('action')));
+        return filled($this->note) ? $label . ' — ' . $this->note : $label;
+    }
 }
