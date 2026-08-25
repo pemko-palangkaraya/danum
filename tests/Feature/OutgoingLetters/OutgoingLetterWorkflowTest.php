@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\OutgoingLetterService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class OutgoingLetterWorkflowTest extends TestCase
@@ -22,10 +23,15 @@ class OutgoingLetterWorkflowTest extends TestCase
     public function test_create_records_draft_and_history(): void
     {
         $user = User::factory()->superAdmin()->create();
-        $letter = OutgoingLetter::factory()->create();
+        $source = OutgoingLetter::factory()->create();
+        $data = $source->only([
+            'tenant_id', 'created_by', 'letter_type_id', 'number', 'recipient_name',
+            'recipient_address', 'subject', 'content', 'issued_at', 'status',
+        ]);
+        $data['number'] = fake()->unique()->bothify('###/SK/####');
         $service = app(OutgoingLetterService::class);
 
-        $created = $service->create($letter->toArray(), $user->id);
+        $created = $service->create($data, $user->id);
 
         $this->assertSame(OutgoingLetterStatus::DRAFT, $created->status);
         $this->assertDatabaseHas('outgoing_letter_status_histories', [
@@ -52,33 +58,35 @@ class OutgoingLetterWorkflowTest extends TestCase
         ]);
         $service = app(OutgoingLetterService::class);
 
-        $service->submit($letter, $user->id);
-        $letter->refresh();
-        $this->assertNotNull($letter->submitted_at);
+        try {
+            $service->submit($letter, $user->id);
+            $letter->refresh();
+            $this->assertNotNull($letter->submitted_at);
 
-        $service->validate($letter, $validator->id);
-        $letter->refresh();
-        $this->assertSame(OutgoingLetterStatus::VALIDATED, $letter->status);
-        $this->assertNull($letter->submitted_at);
+            $service->validate($letter, $validator->id);
+            $letter->refresh();
+            $this->assertSame(OutgoingLetterStatus::VALIDATED, $letter->status);
+            $this->assertNull($letter->submitted_at);
 
-        $service->issue($letter, $user->id);
-        $letter->refresh();
+            $service->issue($letter, $user->id);
+            $letter->refresh();
 
-        $this->assertSame(OutgoingLetterStatus::ISSUED, $letter->status);
-        $this->assertSame('2026-08-25', $letter->issued_at->toDateString());
-        $this->assertSame('2026-08-25 10:20:00', $letter->valid_from->format('Y-m-d H:i:s'));
-        $this->assertSame('2027-02-25 10:20:00', $letter->valid_until->format('Y-m-d H:i:s'));
-        $this->assertTrue($letter->isActive());
-        $this->assertFalse($letter->isExpired());
-        $this->assertNotNull($letter->verification_token);
+            $this->assertSame(OutgoingLetterStatus::ISSUED, $letter->status);
+            $this->assertSame('2026-08-25', $letter->issued_at->toDateString());
+            $this->assertSame('2026-08-25 10:20:00', $letter->valid_from->format('Y-m-d H:i:s'));
+            $this->assertSame('2027-02-25 10:20:00', $letter->valid_until->format('Y-m-d H:i:s'));
+            $this->assertTrue($letter->isActive());
+            $this->assertFalse($letter->isExpired());
+            $this->assertNotNull($letter->verification_token);
 
-        $this->assertDatabaseHas('outgoing_letter_status_histories', [
-            'outgoing_letter_id' => $letter->id,
-            'action' => 'issued',
-            'status' => OutgoingLetterStatus::ISSUED->value,
-        ]);
-
-        Carbon::setTestNow();
+            $this->assertDatabaseHas('outgoing_letter_status_histories', [
+                'outgoing_letter_id' => $letter->id,
+                'action' => 'issued',
+                'status' => OutgoingLetterStatus::ISSUED->value,
+            ]);
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_submitted_draft_cannot_be_edited_or_deleted(): void
@@ -92,7 +100,6 @@ class OutgoingLetterWorkflowTest extends TestCase
 
         $this->expectException(\DomainException::class);
         $service->update($letter, ['subject' => 'Tidak boleh']);
-        $service->delete($letter);
     }
 
     public function test_reject_returns_letter_to_draft_with_reason(): void
@@ -126,31 +133,33 @@ class OutgoingLetterWorkflowTest extends TestCase
         ]);
     }
 
-    /** @dataProvider validityPeriods */
+    #[DataProvider('validityPeriods')]
     public function test_issue_calculates_valid_until_from_letter_type(string $period, string $expected): void
     {
         Carbon::setTestNow(Carbon::parse('2026-08-25 10:20:00', 'Asia/Pontianak'));
-        $user = User::factory()->superAdmin()->create();
-        $type = LetterType::factory()->create([
-            'status' => LetterTypeStatus::ACTIVE,
-            'validity_period' => $period,
-            'has_expiry' => $period !== 'none',
-        ]);
-        $letter = OutgoingLetter::factory()->create([
-            'letter_type_id' => $type->id,
-            'status' => OutgoingLetterStatus::VALIDATED,
-        ]);
+        try {
+            $user = User::factory()->superAdmin()->create();
+            $type = LetterType::factory()->create([
+                'status' => LetterTypeStatus::ACTIVE,
+                'validity_period' => $period,
+                'has_expiry' => $period !== 'none',
+            ]);
+            $letter = OutgoingLetter::factory()->create([
+                'letter_type_id' => $type->id,
+                'status' => OutgoingLetterStatus::VALIDATED,
+            ]);
 
-        app(OutgoingLetterService::class)->issue($letter, $user->id);
-        $letter->refresh();
+            app(OutgoingLetterService::class)->issue($letter, $user->id);
+            $letter->refresh();
 
-        if ($period === 'none') {
-            $this->assertNull($letter->valid_until);
-        } else {
-            $this->assertSame($expected, $letter->valid_until->format('Y-m-d H:i:s'));
+            if ($period === 'none') {
+                $this->assertNull($letter->valid_until);
+            } else {
+                $this->assertSame($expected, $letter->valid_until->format('Y-m-d H:i:s'));
+            }
+        } finally {
+            Carbon::setTestNow();
         }
-
-        Carbon::setTestNow();
     }
 
     public static function validityPeriods(): array
@@ -169,15 +178,18 @@ class OutgoingLetterWorkflowTest extends TestCase
     public function test_expired_letter_is_not_active(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-09-02 10:20:00', 'Asia/Pontianak'));
-        $letter = OutgoingLetter::factory()->create([
-            'status' => OutgoingLetterStatus::ISSUED,
-            'valid_from' => Carbon::parse('2026-08-25 10:20:00', 'Asia/Pontianak'),
-            'valid_until' => Carbon::parse('2026-09-01 10:20:00', 'Asia/Pontianak'),
-        ]);
+        try {
+            $letter = OutgoingLetter::factory()->create([
+                'status' => OutgoingLetterStatus::ISSUED,
+                'valid_from' => Carbon::parse('2026-08-25 10:20:00', 'Asia/Pontianak'),
+                'valid_until' => Carbon::parse('2026-09-01 10:20:00', 'Asia/Pontianak'),
+            ]);
 
-        $this->assertTrue($letter->isExpired());
-        $this->assertFalse($letter->isActive());
-        Carbon::setTestNow();
+            $this->assertTrue($letter->isExpired());
+            $this->assertFalse($letter->isActive());
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_withdrawal_request_requires_issued_letter_and_pending_request_blocks_duplicate(): void
