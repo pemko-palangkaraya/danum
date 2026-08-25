@@ -51,7 +51,7 @@ class Index extends Component
         $this->validate([
             'selectedLetterId' => ['required', 'uuid'],
             'reason' => ['required', 'string', 'max:2000'],
-            'statementFile' => ['required', 'file', 'mimes:pdf,doc,docx', 'max:10240'],
+            'statementFile' => ['required', 'file', 'mimes:pdf', 'max:10240'],
         ]);
 
         $letter = $this->tenantIssuedLetters()->findOrFail($this->selectedLetterId);
