@@ -18,8 +18,8 @@ class DocxTemplateService
     {
         return [
             'number' => 'Nomor surat',
-            'recipient_name' => 'Nama penerima',
-            'recipient_address' => 'Alamat penerima',
+            'recipient_name' => 'Nama pemohon',
+            'recipient_address' => 'Alamat pemohon',
             'recipient_birth_place' => 'Tempat lahir',
             'recipient_birth_date' => 'Tanggal lahir',
             'recipient_nik' => 'NIK',
@@ -124,10 +124,13 @@ class DocxTemplateService
         $tmp = tempnam(sys_get_temp_dir(), 'danum-docx-');
         if ($tmp === false || !copy($templatePath, $tmp)) throw new RuntimeException('Tidak dapat membuat DOCX hasil.');
         $output = new ZipArchive();
-        if ($output->open($tmp) !== true) { @unlink($tmp); throw new RuntimeException('Tidak dapat membuka DOCX hasil.'); }
+        if ($output->open($tmp) !== true) {
+            @unlink($tmp);
+            throw new RuntimeException('Tidak dapat membuka DOCX hasil.');
+        }
         $output->addFromString('word/document.xml', $xml);
         if ($letterheadPath !== null && isset($mediaName)) {
-            $output->addFile($letterheadPath, 'word/media/'.$mediaName);
+            $output->addFile($letterheadPath, 'word/media/' . $mediaName);
             $output->addFromString('word/_rels/document.xml.rels', $rels);
             $output->addFromString('[Content_Types].xml', $contentTypes);
         }
@@ -155,7 +158,7 @@ class DocxTemplateService
         $allowed = ['png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'gif' => 'image/gif'];
         if (! isset($allowed[$extension])) throw new RuntimeException('Kop surat harus berupa PNG, JPG, JPEG, atau GIF.');
         $mime = $allowed[$extension];
-        $mediaName = 'danum-letterhead-'.substr(sha1($imagePath), 0, 12).'.'.$extension;
+        $mediaName = 'danum-letterhead-' . substr(sha1($imagePath), 0, 12) . '.' . $extension;
         $rid = 'rIdDanumLetterhead';
 
         $dom = new DOMDocument();
@@ -173,7 +176,7 @@ class DocxTemplateService
         $cx = $maxWidthEmu;
         $cy = max(1, (int) round($height * ($cx / $width)));
         $drawingXml = '<w:r xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-            .'<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="'.$cx.'" cy="'.$cy.'"/><wp:docPr id="9001" name="DANUM Letterhead"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="'.$mediaName.'"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="'.$rid.'"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'.$cx.'" cy="'.$cy.'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>';
+            . '<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' . $cx . '" cy="' . $cy . '"/><wp:docPr id="9001" name="DANUM Letterhead"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="' . $mediaName . '"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="' . $rid . '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' . $cx . '" cy="' . $cy . '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>';
         $fragment = $dom->createDocumentFragment();
         $fragment->appendXML($drawingXml);
         $run = $nodes->item(0)->parentNode;
@@ -187,7 +190,7 @@ class DocxTemplateService
         $rel = $relsDom->createElementNS('http://schemas.openxmlformats.org/package/2006/relationships', 'Relationship');
         $rel->setAttribute('Id', $rid);
         $rel->setAttribute('Type', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image');
-        $rel->setAttribute('Target', 'media/'.$mediaName);
+        $rel->setAttribute('Target', 'media/' . $mediaName);
         $root?->appendChild($rel);
         $rels = $relsDom->saveXML() ?: $rels;
 
@@ -240,19 +243,36 @@ class DocxTemplateService
             if (!$textNodes) continue;
             $text = '';
             $offsets = [];
-            foreach ($textNodes as $index => $node) { $start = strlen($text); $text .= $node->textContent; $offsets[] = [$start, strlen($text), $index]; }
+            foreach ($textNodes as $index => $node) {
+                $start = strlen($text);
+                $text .= $node->textContent;
+                $offsets[] = [$start, strlen($text), $index];
+            }
             preg_match_all('/\{\{\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\}\}/', $text, $matches, PREG_OFFSET_CAPTURE);
             if (empty($matches[0])) continue;
             for ($matchIndex = count($matches[0]) - 1; $matchIndex >= 0; $matchIndex--) {
-                $raw = $matches[0][$matchIndex][0]; $start = $matches[0][$matchIndex][1]; $end = $start + strlen($raw); $variable = $matches[1][$matchIndex][0];
-                $first = null; $last = null;
-                foreach ($offsets as [$nodeStart, $nodeEnd, $index]) if ($nodeEnd > $start && $nodeStart < $end) { $first ??= $index; $last = $index; }
+                $raw = $matches[0][$matchIndex][0];
+                $start = $matches[0][$matchIndex][1];
+                $end = $start + strlen($raw);
+                $variable = $matches[1][$matchIndex][0];
+                $first = null;
+                $last = null;
+                foreach ($offsets as [$nodeStart, $nodeEnd, $index]) if ($nodeEnd > $start && $nodeStart < $end) {
+                    $first ??= $index;
+                    $last = $index;
+                }
                 if ($first === null || $last === null) continue;
                 if ($variable === 'letterhead') $replacement = '{{letterhead}}';
                 elseif ($variable === 'tte') $replacement = '{{tte}}';
                 else $replacement = htmlspecialchars((string) ($values[$variable] ?? ''), ENT_XML1 | ENT_QUOTES, 'UTF-8');
-                $firstNode = $textNodes[$first]; $firstStart = $offsets[$first][0]; $localStart = max(0, $start - $firstStart); $prefix = substr($firstNode->textContent, 0, $localStart);
-                $lastText = $textNodes[$last]->textContent; $lastStart = $offsets[$last][0]; $localEnd = min(strlen($lastText), $end - $lastStart); $suffix = substr($lastText, $localEnd);
+                $firstNode = $textNodes[$first];
+                $firstStart = $offsets[$first][0];
+                $localStart = max(0, $start - $firstStart);
+                $prefix = substr($firstNode->textContent, 0, $localStart);
+                $lastText = $textNodes[$last]->textContent;
+                $lastStart = $offsets[$last][0];
+                $localEnd = min(strlen($lastText), $end - $lastStart);
+                $suffix = substr($lastText, $localEnd);
                 $firstNode->nodeValue = $prefix . $replacement . ($first === $last ? $suffix : '');
                 for ($i = $first + 1; $i <= $last; $i++) $textNodes[$i]->nodeValue = ($i === $last ? $suffix : '');
             }
@@ -266,11 +286,19 @@ class DocxTemplateService
         if ($zip->open($path) !== true) throw new RuntimeException('File DOCX tidak dapat dibuka.');
         $xml = $zip->getFromName('word/document.xml') ?: '';
         $zip->close();
-        $dom = new DOMDocument(); $dom->preserveWhiteSpace = true;
+        $dom = new DOMDocument();
+        $dom->preserveWhiteSpace = true;
         if ($dom->loadXML($xml, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) {
-            $xpath = new DOMXPath($dom); $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
-            $paragraphs = $xpath->query('//w:p'); $parts = [];
-            if ($paragraphs) foreach ($paragraphs as $paragraph) { $nodes = $xpath->query('.//w:t', $paragraph); $line = ''; if ($nodes) foreach ($nodes as $node) $line .= $node->textContent; if ($line !== '') $parts[] = $line; }
+            $xpath = new DOMXPath($dom);
+            $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+            $paragraphs = $xpath->query('//w:p');
+            $parts = [];
+            if ($paragraphs) foreach ($paragraphs as $paragraph) {
+                $nodes = $xpath->query('.//w:t', $paragraph);
+                $line = '';
+                if ($nodes) foreach ($nodes as $node) $line .= $node->textContent;
+                if ($line !== '') $parts[] = $line;
+            }
             return trim(preg_replace("/\n{3,}/", "\n\n", implode("\n", $parts)) ?? implode("\n", $parts));
         }
         return trim(html_entity_decode(strip_tags($xml), ENT_QUOTES | ENT_XML1, 'UTF-8'));

@@ -14,8 +14,8 @@ class OutgoingLetterTemplateService
     /** @var array<string, string> */
     private const VARIABLES = [
         'number' => 'Nomor surat',
-        'recipient_name' => 'Nama penerima',
-        'recipient_address' => 'Alamat penerima',
+        'recipient_name' => 'Nama pemohon',
+        'recipient_address' => 'Alamat pemohon',
         'subject' => 'Perihal',
         'tenant_name' => 'Nama organisasi',
         'tenant_city' => 'Kota organisasi',
