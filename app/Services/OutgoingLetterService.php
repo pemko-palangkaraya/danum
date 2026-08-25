@@ -86,8 +86,9 @@ class OutgoingLetterService
     {
         $note = $this->requiredWorkflowNote($note, 'Catatan verifikasi wajib diisi.');
         if ($letter->status !== OutgoingLetterStatus::DRAFT || $letter->submitted_at === null) throw new \DomainException('Surat belum dikirim untuk verifikasi.');
+        if ($letter->validator_user_id !== $changedBy) throw new \DomainException('Hanya verifikator yang ditentukan untuk surat ini yang dapat melakukan verifikasi.');
         $oldValues = $this->auditValues($letter);
-        $letter = $this->repository->update($letter, ['submitted_at' => null, 'verification_note' => $note]);
+        $letter = $this->repository->update($letter, ['status' => OutgoingLetterStatus::VALIDATED, 'submitted_at' => null, 'verification_note' => $note]);
         $this->recordHistory($letter, 'validated', $changedBy);
         $this->recordAudit('outgoing_letter.validated', $letter, $changedBy, $oldValues, $this->auditValues($letter));
         return $letter;
@@ -96,6 +97,8 @@ class OutgoingLetterService
     public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null): OutgoingLetter
     {
         $note = $this->requiredWorkflowNote($note, 'Catatan penandatanganan wajib diisi.');
+        if ($letter->status !== OutgoingLetterStatus::VALIDATED) throw new \DomainException('Hanya surat yang sudah divalidasi yang dapat diterbitkan.');
+        if ($letter->signer_user_id !== $changedBy) throw new \DomainException('Hanya penanda tangan yang ditentukan untuk surat ini yang dapat menerbitkan surat.');
         $letterType = $letter->letterType()->first();
         $issuedAt = now();
         $attributes = ['issued_at' => $issuedAt->toDateString(), 'valid_from' => $issuedAt, 'valid_until' => null, 'signing_note' => $note];
