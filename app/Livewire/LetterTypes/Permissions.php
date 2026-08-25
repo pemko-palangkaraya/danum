@@ -15,6 +15,8 @@ class Permissions extends Component
 {
     public string $letterTypeId;
     public string $search = '';
+    public ?string $selectedTenantId = null;
+    public string $selectedTenantName = '';
 
     public function mount(string $letterType): void
     {
@@ -33,16 +35,45 @@ class Permissions extends Component
         $this->dispatch('toast', type: 'success', message: 'Akses jenis surat diberikan ke '.$tenant->name.'.');
     }
 
-    public function revoke(string $tenantId, LetterTypeService $service): void
+    public function confirmRevoke(string $tenantId): void
     {
+        $this->letterType();
+        $this->authorize('update', $this->letterType());
+
+        $tenant = Tenant::query()->findOrFail($tenantId);
+
+        $this->selectedTenantId = $tenant->id;
+        $this->selectedTenantName = $tenant->name;
+
+        $this->dispatch('open-confirmation-modal', id: 'letter-type-permission-revoke');
+    }
+
+    public function cancelRevoke(): void
+    {
+        $this->selectedTenantId = null;
+        $this->selectedTenantName = '';
+    }
+
+    public function revoke(LetterTypeService $service): void
+    {
+        if (! $this->selectedTenantId) {
+            return;
+        }
+
         $letterType = $this->letterType();
         $this->authorize('update', $letterType);
 
+        $tenantId = $this->selectedTenantId;
+
         if (! $service->revokeTenantPermission($letterType, $tenantId)) {
+            $this->selectedTenantId = null;
+            $this->selectedTenantName = '';
             $this->dispatch('toast', type: 'error', message: 'Akses tidak ditemukan.');
             return;
         }
 
+        $this->selectedTenantId = null;
+        $this->selectedTenantName = '';
         $this->dispatch('toast', type: 'success', message: 'Akses jenis surat dicabut.');
     }
 
