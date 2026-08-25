@@ -65,36 +65,38 @@
             <div class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl">
                 <div class="border-b border-slate-100 px-6 py-5">
                     <h2 class="text-lg font-semibold text-slate-900">Tambah Versi Template</h2>
-                    <p class="mt-1 text-sm text-slate-500">Upload DOCX baru. Versi lama tidak akan diubah atau dihapus.</p>
+                    <p class="mt-1 text-sm text-slate-500">Upload DOCX baru. Sebelum disimpan, DANUM akan mencocokkan semua placeholder DOCX dengan variabel yang didefinisikan pada jenis surat.</p>
                 </div>
                 <form wire:submit="save" class="space-y-5 p-6">
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <label class="text-sm font-semibold text-slate-800">Template DOCX</label>
+                        <div class="flex items-start justify-between gap-4">
+                            <div><label class="text-sm font-semibold text-slate-800">Template DOCX</label><p class="mt-1 text-xs text-slate-500">Maksimal 10 MB. Pemeriksaan otomatis setelah file dipilih.</p></div>
+                            @if ($templateCheckStatus === 'passed')
+                                <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">✓ XC PASS</span>
+                            @elseif ($templateCheckStatus === 'failed')
+                                <span class="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">✕ XC GAGAL</span>
+                            @endif
+                        </div>
                         <input wire:model="template_file" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="mt-3 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
-                        <p class="mt-2 text-xs text-slate-500">Maksimal 10 MB. Placeholder akan dicross-check dengan variabel jenis surat.</p>
                         @error('template_file')<p class="mt-2 text-xs text-rose-600">{{ $message }}</p>@enderror
+                        <button type="button" wire:click="checkTemplate" wire:loading.attr="disabled" class="mt-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Periksa Template</button>
+
+                        @if ($templateCheckStatus !== '')
+                            <div class="mt-4 space-y-3 rounded-xl border bg-white p-4 {{ $templateCheckStatus === 'passed' ? 'border-emerald-200' : 'border-rose-200' }}">
+                                <div><p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Variabel pada DOCX</p><div class="mt-2 flex flex-wrap gap-1.5">@forelse ($templateFoundVariables as $variable)<span class="rounded-md bg-slate-100 px-2 py-1 font-mono text-xs text-slate-700">{{ $variable }}</span>@empty<span class="text-xs text-slate-400">Tidak ditemukan</span>@endforelse</div></div>
+                                <div><p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Variabel yang diharapkan</p><div class="mt-2 flex flex-wrap gap-1.5">@forelse ($declaredVariables as $variable)<span class="rounded-md bg-indigo-50 px-2 py-1 font-mono text-xs text-indigo-700">{{ $variable }}</span>@empty<span class="text-xs text-slate-400">Belum didefinisikan</span>@endforelse</div></div>
+                                @if ($templateUnknownVariables)<div><p class="text-xs font-semibold text-rose-700">Ada di DOCX, tetapi belum terdaftar</p><div class="mt-2 flex flex-wrap gap-1.5">@foreach ($templateUnknownVariables as $variable)<span class="rounded-md bg-rose-50 px-2 py-1 font-mono text-xs text-rose-700">{{ $variable }}</span>@endforeach</div></div>@endif
+                                @if ($templateMissingVariables)<div><p class="text-xs font-semibold text-amber-700">Terdaftar, tetapi tidak ditemukan di DOCX</p><div class="mt-2 flex flex-wrap gap-1.5">@foreach ($templateMissingVariables as $variable)<span class="rounded-md bg-amber-50 px-2 py-1 font-mono text-xs text-amber-700">{{ $variable }}</span>@endforeach</div></div>@endif
+                                @if ($templateCheckStatus === 'passed')<p class="text-xs font-medium text-emerald-700">✓ Semua variabel sinkron. Versi boleh disimpan.</p>@endif
+                            </div>
+                        @endif
                     </div>
                     <div class="grid gap-5 sm:grid-cols-2">
-                        <div>
-                            <label class="text-sm font-medium text-slate-700">Berlaku mulai</label>
-                            <input wire:model="effective_from" type="datetime-local" class="form-control mt-1">
-                            @error('effective_from')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-slate-700">Berlaku sampai <span class="font-normal text-slate-400">(opsional)</span></label>
-                            <input wire:model="effective_until" type="datetime-local" class="form-control mt-1">
-                            @error('effective_until')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
-                        </div>
+                        <div><label class="text-sm font-medium text-slate-700">Berlaku mulai</label><input wire:model="effective_from" type="datetime-local" class="form-control mt-1">@error('effective_from')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</div>
+                        <div><label class="text-sm font-medium text-slate-700">Berlaku sampai <span class="font-normal text-slate-400">(opsional)</span></label><input wire:model="effective_until" type="datetime-local" class="form-control mt-1">@error('effective_until')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</div>
                     </div>
-                    <div>
-                        <label class="text-sm font-medium text-slate-700">Catatan perubahan</label>
-                        <textarea wire:model="change_note" rows="4" maxlength="2000" placeholder="Contoh: Penyesuaian format nomor surat dan blok penandatangan." class="form-textarea mt-1"></textarea>
-                        @error('change_note')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
-                    </div>
-                    <div class="flex justify-end gap-2 border-t border-slate-100 pt-5">
-                        <button type="button" wire:click="$set('showForm', false)" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Batal</button>
-                        <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Simpan Versi</button>
-                    </div>
+                    <div><label class="text-sm font-medium text-slate-700">Catatan perubahan</label><textarea wire:model="change_note" rows="4" maxlength="2000" placeholder="Contoh: Penyesuaian format nomor surat dan blok penandatangan." class="form-textarea mt-1"></textarea>@error('change_note')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</div>
+                    <div class="flex justify-end gap-2 border-t border-slate-100 pt-5"><button type="button" wire:click="$set('showForm', false)" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Batal</button><button type="submit" wire:loading.attr="disabled" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50">Simpan Versi</button></div>
                 </form>
             </div>
         </div>
