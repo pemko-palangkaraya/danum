@@ -18,24 +18,30 @@ class Versions extends Component
 {
     use WithFileUploads;
 
-    public LetterType $letterType;
+    // Keep only the UUID in Livewire state. Eloquent models are serialized by
+    // Livewire between requests and may come back as an attribute array,
+    // which must never be passed to a UUID query as the primary key.
+    public string $letterTypeId = '';
     public bool $showForm = false;
     public $template_file = null;
     public string $effective_from = '';
     public string $effective_until = '';
     public string $change_note = '';
 
-    public function mount(string $letterType): void
+    public function mount(string|LetterType $letterType): void
     {
         $this->authorize('viewAny', LetterType::class);
-        $this->letterType = LetterType::query()->findOrFail($letterType);
-        $this->authorize('view', $this->letterType);
+        $this->letterTypeId = $letterType instanceof LetterType ? $letterType->getKey() : $letterType;
+
+        $model = $this->letterType();
+        $this->authorize('view', $model);
         $this->resetForm();
     }
 
     public function create(): void
     {
-        $this->authorize('update', $this->letterType);
+        $letterType = $this->letterType();
+        $this->authorize('update', $letterType);
         $this->resetForm();
         $this->effective_from = now()->format('Y-m-d\TH:i');
         $this->showForm = true;
@@ -43,7 +49,8 @@ class Versions extends Component
 
     public function save(LetterTypeService $service, DocxTemplateService $docx): void
     {
-        $this->authorize('update', $this->letterType);
+        $letterType = $this->letterType();
+        $this->authorize('update', $letterType);
 
         $this->validate([
             'template_file' => ['required', 'file', 'mimes:docx', 'max:10240'],
@@ -54,7 +61,7 @@ class Versions extends Component
 
         $storedPath = null;
         try {
-            $declared = $this->letterType->variables ?? [];
+            $declared = $letterType->variables ?? [];
             $temporaryPath = $this->template_file->getRealPath();
             $found = $docx->extractVariables($temporaryPath);
             $diff = $docx->compareVariables($declared, $found);
@@ -70,9 +77,9 @@ class Versions extends Component
 
             $storedPath = $this->template_file->store('letter-templates', 'local');
 
-            $service->createVersion($this->letterType->fresh(), [
+            $service->createVersion($letterType, [
                 'template_path' => $storedPath,
-                'body_template' => $this->letterType->body_template,
+                'body_template' => $letterType->body_template,
                 'effective_from' => Carbon::parse($this->effective_from),
                 'effective_until' => $this->effective_until !== '' ? Carbon::parse($this->effective_until) : null,
                 'change_note' => $this->change_note,
@@ -87,6 +94,11 @@ class Versions extends Component
         $this->dispatch('toast', type: 'success', message: 'Versi template berhasil dibuat. Versi lama tetap dipertahankan.');
     }
 
+    private function letterType(): LetterType
+    {
+        return LetterType::query()->findOrFail($this->letterTypeId);
+    }
+
     private function resetForm(): void
     {
         $this->template_file = null;
@@ -97,8 +109,11 @@ class Versions extends Component
 
     public function render()
     {
+        $letterType = $this->letterType();
+
         return view('livewire.pages.letter-types.versions', [
-            'versions' => $this->letterType->versions()->with('creator')->get(),
+            'letterType' => $letterType,
+            'versions' => $letterType->versions()->with('creator')->get(),
         ]);
     }
 }
