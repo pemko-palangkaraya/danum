@@ -49,8 +49,7 @@
                     @if ($allowed)
                         <button
                             type="button"
-                            wire:click="revoke('{{ $tenant->id }}')"
-                            wire:confirm="Cabut akses {{ $tenant->name }} untuk jenis surat ini?"
+                            wire:click="confirmRevoke('{{ $tenant->id }}')"
                             class="rounded-lg border border-rose-200 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50">
                             Cabut Akses
                         </button>
@@ -68,4 +67,14 @@
             @endforelse
         </div>
     </div>
+
+    <x-ui.confirmation-modal
+        modal-id="letter-type-permission-revoke"
+        title="Cabut Akses OPD"
+        :message="'Apakah Anda yakin ingin mencabut akses '.$selectedTenantName.' untuk jenis surat ini?'"
+        confirm-text="Cabut Akses"
+        cancel-text="Batal"
+        confirm-action="revoke"
+        cancel-action="cancelRevoke"
+        variant="danger" />
 </div>
