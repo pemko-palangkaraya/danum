@@ -14,6 +14,7 @@ use App\Models\Position;
 use App\Models\PositionHolder;
 use App\Services\DocxTemplateService;
 use App\Services\DocxTteService;
+use App\Services\LetterTypeService;
 use App\Services\OutgoingLetterService;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -55,6 +56,12 @@ class Index extends Component
         try {
             $letter = $this->tenantQuery()->findOrFail($id);
             $this->authorize('update', $letter);
+
+            $letterType = $letter->letterType;
+            if (! $letterType || ! app(LetterTypeService::class)->isAllowedForTenant($letterType, (string) auth()->user()->tenant_id)) {
+                throw new \DomainException('Jenis surat ini sudah tidak diberikan akses ke OPD Anda.');
+            }
+
             $this->editingId = $letter->id;
             $this->letter_type_id = $letter->letter_type_id;
             $this->signer_position_id = $letter->signer_position_id;
@@ -75,8 +82,19 @@ class Index extends Component
 
     public function updatedLetterTypeId(): void
     {
-        $type = LetterType::query()->whereNull('tenant_id')->where('status', LetterTypeStatus::ACTIVE)->find($this->letter_type_id);
-        $this->variables = $type?->variables ?? [];
+        $type = app(LetterTypeService::class)
+            ->getAvailableForTenant((string) auth()->user()->tenant_id)
+            ->firstWhere('id', $this->letter_type_id);
+
+        if (! $type) {
+            $this->letter_type_id = '';
+            $this->variables = [];
+            $this->variableValues = [];
+            $this->toastError('Jenis surat tersebut belum diberikan akses ke OPD Anda.');
+            return;
+        }
+
+        $this->variables = $type->variables ?? [];
         $this->variableValues = array_fill_keys($this->variables, '');
         $this->applySystemValues();
     }
@@ -85,8 +103,16 @@ class Index extends Component
     {
         try {
             $this->resetValidation();
-            $this->validate(['letter_type_id' => ['required', Rule::exists('letter_types', 'id')->whereNull('tenant_id')->where('status', LetterTypeStatus::ACTIVE->value)], 'signer_position_id' => ['required', 'uuid'], 'validator_position_id' => ['required', 'uuid'], 'variableValues' => ['array']]);
-            $letterType = LetterType::query()->whereNull('tenant_id')->where('status', LetterTypeStatus::ACTIVE)->findOrFail($this->letter_type_id);
+            $this->validate(['letter_type_id' => ['required', Rule::exists('letter_types', 'id')->where('status', LetterTypeStatus::ACTIVE->value)], 'signer_position_id' => ['required', 'uuid'], 'validator_position_id' => ['required', 'uuid'], 'variableValues' => ['array']]);
+
+            $letterType = app(LetterTypeService::class)
+                ->getAvailableForTenant((string) auth()->user()->tenant_id)
+                ->firstWhere('id', $this->letter_type_id);
+
+            if (! $letterType) {
+                throw new \DomainException('Jenis surat tidak tersedia atau belum diberikan akses ke OPD Anda.');
+            }
+
             $position = $this->availableSignerPositions()->find($this->signer_position_id); $holder = $position?->holders->first();
             if (! $position || ! $holder?->user) throw new \DomainException('Jabatan penanda tangan tidak tersedia atau belum memiliki pejabat aktif.');
             $validatorPosition = $this->availableValidatorPositions()->find($this->validator_position_id); $validatorHolder = $validatorPosition?->holders->first();
@@ -192,6 +218,12 @@ class Index extends Component
         $this->authorize('viewAny', OutgoingLetter::class); $letters = $this->archiveQuery()->with(['tenant','letterType','letterTypeVersion','signerPosition','signerUser','validatorPosition','validatorUser','creator','rejectedBy'])->latest();
         if ($this->isSuperAdmin() && $this->filter === 'deleted') $letters->onlyTrashed(); elseif ($this->filter !== 'all') $letters->where('status', $this->filter);
         if ($this->search !== '') $letters->where(fn ($q) => $q->where('number','like',"%{$this->search}%")->orWhere('recipient_name','like',"%{$this->search}%")->orWhere('subject','like',"%{$this->search}%"));
-        return view('livewire.pages.outgoing-letters.index', ['letters' => $letters->paginate($this->perPage),'letterTypes' => LetterType::query()->whereNull('tenant_id')->where('status', LetterTypeStatus::ACTIVE)->orderBy('name')->get(),'signerPositions' => $this->availableSignerPositions()->orderBy('name')->get(),'validatorPositions' => $this->availableValidatorPositions()->orderBy('name')->get(),'variableLabels' => (new DocxTemplateService)->allowedVariables(),'isSuperAdmin' => $this->isSuperAdmin()]);
+
+        $letterTypeService = app(LetterTypeService::class);
+        $letterTypes = $this->isSuperAdmin()
+            ? collect()
+            : $letterTypeService->getAvailableForTenant((string) auth()->user()->tenant_id)->sortBy('name')->values();
+
+        return view('livewire.pages.outgoing-letters.index', ['letters' => $letters->paginate($this->perPage),'letterTypes' => $letterTypes,'signerPositions' => $this->availableSignerPositions()->orderBy('name')->get(),'validatorPositions' => $this->availableValidatorPositions()->orderBy('name')->get(),'variableLabels' => (new DocxTemplateService)->allowedVariables(),'isSuperAdmin' => $this->isSuperAdmin()]);
     }
 }
