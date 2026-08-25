@@ -83,10 +83,11 @@ class Index extends Component
     public function approve(OutgoingLetterService $service): void
     {
         $this->authorizePage();
+        $this->validate(['decisionNote' => ['required', 'string', 'max:2000']]);
         $request = $this->pendingRequests()->findOrFail($this->decisionId);
         $this->authorize('decideWithdrawal', $request->outgoingLetter);
         try {
-            $service->approveWithdrawal($request, auth()->id(), trim($this->decisionNote) ?: null);
+            $service->approveWithdrawal($request, auth()->id(), $this->decisionNote);
             $this->showDecisionForm = false;
             $this->dispatch('toast', type: 'success', message: 'Penarikan disetujui. Surat sekarang berstatus Ditarik.');
         } catch (\Throwable $exception) {
