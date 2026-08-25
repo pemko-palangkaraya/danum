@@ -68,7 +68,7 @@ class VerificationTest extends TestCase
         $requester = User::factory()->superAdmin()->create();
         $decider = User::factory()->superAdmin()->create();
         $letter = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::WITHDRAWN]);
-        OutgoingLetterWithdrawalRequest::factory()->create([
+        OutgoingLetterWithdrawalRequest::query()->create([
             'outgoing_letter_id' => $letter->id,
             'requested_by' => $requester->id,
             'requested_at' => now()->subHour(),
