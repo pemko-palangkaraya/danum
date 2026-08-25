@@ -1,0 +1,239 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature\OutgoingLetters;
+
+use App\Enums\LetterTypeStatus;
+use App\Enums\OutgoingLetterStatus;
+use App\Enums\OutgoingLetterWithdrawalStatus;
+use App\Models\LetterType;
+use App\Models\OutgoingLetter;
+use App\Models\User;
+use App\Services\OutgoingLetterService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Tests\TestCase;
+
+class OutgoingLetterWorkflowTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_create_records_draft_and_history(): void
+    {
+        $user = User::factory()->superAdmin()->create();
+        $letter = OutgoingLetter::factory()->create();
+        $service = app(OutgoingLetterService::class);
+
+        $created = $service->create($letter->toArray(), $user->id);
+
+        $this->assertSame(OutgoingLetterStatus::DRAFT, $created->status);
+        $this->assertDatabaseHas('outgoing_letter_status_histories', [
+            'outgoing_letter_id' => $created->id,
+            'changed_by' => $user->id,
+            'status' => OutgoingLetterStatus::DRAFT->value,
+            'action' => 'created',
+        ]);
+    }
+
+    public function test_submit_validate_issue_workflow_sets_active_letter_and_history(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-25 10:20:00', 'Asia/Pontianak'));
+        $user = User::factory()->superAdmin()->create();
+        $validator = User::factory()->superAdmin()->create();
+        $type = LetterType::factory()->create([
+            'status' => LetterTypeStatus::ACTIVE,
+            'validity_period' => '6_months',
+            'has_expiry' => true,
+        ]);
+        $letter = OutgoingLetter::factory()->create([
+            'letter_type_id' => $type->id,
+            'validator_user_id' => $validator->id,
+        ]);
+        $service = app(OutgoingLetterService::class);
+
+        $service->submit($letter, $user->id);
+        $letter->refresh();
+        $this->assertNotNull($letter->submitted_at);
+
+        $service->validate($letter, $validator->id);
+        $letter->refresh();
+        $this->assertSame(OutgoingLetterStatus::VALIDATED, $letter->status);
+        $this->assertNull($letter->submitted_at);
+
+        $service->issue($letter, $user->id);
+        $letter->refresh();
+
+        $this->assertSame(OutgoingLetterStatus::ISSUED, $letter->status);
+        $this->assertSame('2026-08-25', $letter->issued_at->toDateString());
+        $this->assertSame('2026-08-25 10:20:00', $letter->valid_from->format('Y-m-d H:i:s'));
+        $this->assertSame('2027-02-25 10:20:00', $letter->valid_until->format('Y-m-d H:i:s'));
+        $this->assertTrue($letter->isActive());
+        $this->assertFalse($letter->isExpired());
+        $this->assertNotNull($letter->verification_token);
+
+        $this->assertDatabaseHas('outgoing_letter_status_histories', [
+            'outgoing_letter_id' => $letter->id,
+            'action' => 'issued',
+            'status' => OutgoingLetterStatus::ISSUED->value,
+        ]);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_submitted_draft_cannot_be_edited_or_deleted(): void
+    {
+        $user = User::factory()->superAdmin()->create();
+        $validator = User::factory()->superAdmin()->create();
+        $letter = OutgoingLetter::factory()->create(['validator_user_id' => $validator->id]);
+        $service = app(OutgoingLetterService::class);
+        $service->submit($letter, $user->id);
+        $letter->refresh();
+
+        $this->expectException(\DomainException::class);
+        $service->update($letter, ['subject' => 'Tidak boleh']);
+        $service->delete($letter);
+    }
+
+    public function test_reject_returns_letter_to_draft_with_reason(): void
+    {
+        $user = User::factory()->superAdmin()->create();
+        $letter = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::VALIDATED]);
+        $service = app(OutgoingLetterService::class);
+
+        $service->reject($letter, $user->id, 'Data penerima perlu diperbaiki.');
+        $letter->refresh();
+
+        $this->assertSame(OutgoingLetterStatus::DRAFT, $letter->status);
+        $this->assertSame('Data penerima perlu diperbaiki.', $letter->rejection_reason);
+        $this->assertSame($user->id, $letter->rejected_by);
+        $this->assertNotNull($letter->rejected_at);
+    }
+
+    public function test_editable_draft_can_be_cancelled(): void
+    {
+        $user = User::factory()->superAdmin()->create();
+        $letter = OutgoingLetter::factory()->create();
+        $service = app(OutgoingLetterService::class);
+
+        $service->cancel($letter, $user->id);
+        $letter->refresh();
+
+        $this->assertSame(OutgoingLetterStatus::CANCELLED, $letter->status);
+        $this->assertDatabaseHas('outgoing_letter_status_histories', [
+            'outgoing_letter_id' => $letter->id,
+            'action' => 'cancelled',
+        ]);
+    }
+
+    /** @dataProvider validityPeriods */
+    public function test_issue_calculates_valid_until_from_letter_type(string $period, string $expected): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-25 10:20:00', 'Asia/Pontianak'));
+        $user = User::factory()->superAdmin()->create();
+        $type = LetterType::factory()->create([
+            'status' => LetterTypeStatus::ACTIVE,
+            'validity_period' => $period,
+            'has_expiry' => $period !== 'none',
+        ]);
+        $letter = OutgoingLetter::factory()->create([
+            'letter_type_id' => $type->id,
+            'status' => OutgoingLetterStatus::VALIDATED,
+        ]);
+
+        app(OutgoingLetterService::class)->issue($letter, $user->id);
+        $letter->refresh();
+
+        if ($period === 'none') {
+            $this->assertNull($letter->valid_until);
+        } else {
+            $this->assertSame($expected, $letter->valid_until->format('Y-m-d H:i:s'));
+        }
+
+        Carbon::setTestNow();
+    }
+
+    public static function validityPeriods(): array
+    {
+        return [
+            'none' => ['none', ''],
+            'one week' => ['1_week', '2026-09-01 10:20:00'],
+            'two weeks' => ['2_weeks', '2026-09-08 10:20:00'],
+            'one month' => ['1_month', '2026-09-25 10:20:00'],
+            'three months' => ['3_months', '2026-11-25 10:20:00'],
+            'six months' => ['6_months', '2027-02-25 10:20:00'],
+            'one year' => ['1_year', '2027-08-25 10:20:00'],
+        ];
+    }
+
+    public function test_expired_letter_is_not_active(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-02 10:20:00', 'Asia/Pontianak'));
+        $letter = OutgoingLetter::factory()->create([
+            'status' => OutgoingLetterStatus::ISSUED,
+            'valid_from' => Carbon::parse('2026-08-25 10:20:00', 'Asia/Pontianak'),
+            'valid_until' => Carbon::parse('2026-09-01 10:20:00', 'Asia/Pontianak'),
+        ]);
+
+        $this->assertTrue($letter->isExpired());
+        $this->assertFalse($letter->isActive());
+        Carbon::setTestNow();
+    }
+
+    public function test_withdrawal_request_requires_issued_letter_and_pending_request_blocks_duplicate(): void
+    {
+        $user = User::factory()->superAdmin()->create();
+        $letter = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::ISSUED]);
+        $service = app(OutgoingLetterService::class);
+
+        $request = $service->requestWithdrawal($letter, $user->id, 'Surat perlu ditarik.', 'withdrawals/statement.pdf');
+
+        $this->assertSame(OutgoingLetterWithdrawalStatus::PENDING, $request->status);
+        $this->assertDatabaseHas('outgoing_letter_withdrawal_requests', [
+            'id' => $request->id,
+            'outgoing_letter_id' => $letter->id,
+            'status' => OutgoingLetterWithdrawalStatus::PENDING->value,
+        ]);
+
+        $this->expectException(\DomainException::class);
+        $service->requestWithdrawal($letter, $user->id, 'Pengajuan kedua.', 'withdrawals/second.pdf');
+    }
+
+    public function test_approved_withdrawal_changes_issued_letter_to_withdrawn(): void
+    {
+        $requester = User::factory()->superAdmin()->create();
+        $decider = User::factory()->superAdmin()->create();
+        $letter = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::ISSUED]);
+        $service = app(OutgoingLetterService::class);
+        $request = $service->requestWithdrawal($letter, $requester->id, 'Surat dibatalkan.', 'withdrawals/statement.pdf');
+
+        $result = $service->approveWithdrawal($request, $decider->id, 'Disetujui.');
+        $letter->refresh();
+        $request->refresh();
+
+        $this->assertSame(OutgoingLetterStatus::WITHDRAWN, $result->status);
+        $this->assertSame(OutgoingLetterStatus::WITHDRAWN, $letter->status);
+        $this->assertSame(OutgoingLetterWithdrawalStatus::APPROVED, $request->status);
+        $this->assertSame($decider->id, $request->decided_by);
+        $this->assertNotNull($request->decided_at);
+        $this->assertSame('Disetujui.', $request->decision_note);
+    }
+
+    public function test_rejected_withdrawal_keeps_letter_issued(): void
+    {
+        $requester = User::factory()->superAdmin()->create();
+        $decider = User::factory()->superAdmin()->create();
+        $letter = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::ISSUED]);
+        $service = app(OutgoingLetterService::class);
+        $request = $service->requestWithdrawal($letter, $requester->id, 'Mohon ditarik.', 'withdrawals/statement.pdf');
+
+        $service->rejectWithdrawal($request, $decider->id, 'Alasan belum cukup.');
+        $letter->refresh();
+        $request->refresh();
+
+        $this->assertSame(OutgoingLetterStatus::ISSUED, $letter->status);
+        $this->assertSame(OutgoingLetterWithdrawalStatus::REJECTED, $request->status);
+        $this->assertSame($decider->id, $request->decided_by);
+        $this->assertSame('Alasan belum cukup.', $request->decision_note);
+    }
+}
