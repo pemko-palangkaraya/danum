@@ -6,6 +6,7 @@ namespace Tests\Feature\OutgoingLetters;
 
 use App\Enums\UserRole;
 use App\Models\LetterType;
+use App\Models\LetterTypePermission;
 use App\Models\LetterTypeVersion;
 use App\Models\Tenant;
 use App\Models\User;
@@ -17,21 +18,23 @@ class OutgoingLetterTemplateVersionIntegrityTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function createLetterTypeFor(Tenant $tenant): LetterType
+    {
+        $type = LetterType::factory()->create(['tenant_id' => null, 'status' => 'active', 'body_template' => 'v1']);
+        LetterTypePermission::query()->create(['tenant_id' => $tenant->id, 'letter_type_id' => $type->id, 'allowed' => true]);
+        return $type;
+    }
+
     public function test_new_letter_locks_the_active_template_version(): void
     {
         $tenant = Tenant::factory()->create();
         $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => UserRole::TENANT_ADMIN]);
-        $type = LetterType::factory()->create(['tenant_id' => null, 'status' => 'active', 'body_template' => 'v1']);
+        $type = $this->createLetterTypeFor($tenant);
         $version = LetterTypeVersion::query()->create(['letter_type_id' => $type->id, 'version' => 1, 'body_template' => 'v1', 'is_active' => true, 'effective_from' => now()->subDay()]);
 
         $letter = app(OutgoingLetterService::class)->create([
-            'tenant_id' => $tenant->id,
-            'letter_type_id' => $type->id,
-            'number' => '001/SK/2026',
-            'recipient_name' => 'Budi',
-            'recipient_address' => 'Jl. Merdeka',
-            'subject' => 'Test',
-            'content' => 'Test',
+            'tenant_id' => $tenant->id, 'letter_type_id' => $type->id, 'number' => '001/SK/2026',
+            'recipient_name' => 'Budi', 'recipient_address' => 'Jl. Merdeka', 'subject' => 'Test', 'content' => 'Test',
         ], $user->id);
 
         $this->assertSame($version->id, $letter->letter_type_version_id);
@@ -41,7 +44,7 @@ class OutgoingLetterTemplateVersionIntegrityTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => UserRole::TENANT_ADMIN]);
-        $type = LetterType::factory()->create(['tenant_id' => null, 'status' => 'active', 'body_template' => 'v1']);
+        $type = $this->createLetterTypeFor($tenant);
         $version = LetterTypeVersion::query()->create(['letter_type_id' => $type->id, 'version' => 1, 'body_template' => 'v1', 'is_active' => true, 'effective_from' => now()->subDay()]);
 
         $letter = app(OutgoingLetterService::class)->create([
