@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
+use App\Livewire\AuditLogs\Index as AuditLogIndex;
 use App\Livewire\Tenants\Index as TenantIndex;
 use App\Livewire\LetterTypes\Index as LetterTypeIndex;
 use App\Livewire\OutgoingLetters\Index as OutgoingLetterIndex;
@@ -36,6 +37,7 @@ Route::middleware('auth')->group(function () {
         Volt::route('/tenants/{tenant}', 'pages.tenants.show')->name('tenants.show');
         Route::get('/letter-types', LetterTypeIndex::class)->name('letter-types.index');
         Route::get('/positions', PositionIndex::class)->name('positions.admin.index');
+        Route::get('/audit-logs', AuditLogIndex::class)->name('audit-logs.index');
     });
 
     Route::middleware('tenant')->group(function () {
