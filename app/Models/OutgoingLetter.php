@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class OutgoingLetter extends Model
@@ -67,17 +68,31 @@ class OutgoingLetter extends Model
     public function statusHistories(): HasMany { return $this->hasMany(OutgoingLetterStatusHistory::class)->orderBy('created_at'); }
     public function withdrawalRequests(): HasMany { return $this->hasMany(OutgoingLetterWithdrawalRequest::class)->latest('created_at'); }
 
+    /**
+     * PostgreSQL stores these legacy datetime columns without timezone metadata.
+     * Interpret the persisted wall-clock value in DANUM's configured application timezone
+     * before comparing it with the application's current time.
+     */
+    private function localValidityTime(?Carbon $value): ?Carbon
+    {
+        return $value?->shiftTimezone(config('app.timezone'));
+    }
+
     public function isExpired(): bool
     {
+        $validUntil = $this->localValidityTime($this->valid_until);
+
         return $this->status === OutgoingLetterStatus::ISSUED
-            && $this->valid_until !== null
-            && $this->valid_until->isPast();
+            && $validUntil !== null
+            && $validUntil->isPast();
     }
 
     public function isActive(): bool
     {
+        $validFrom = $this->localValidityTime($this->valid_from);
+
         return $this->status === OutgoingLetterStatus::ISSUED
-            && ($this->valid_from === null || $this->valid_from->isPast() || $this->valid_from->equalTo(now()))
+            && ($validFrom === null || $validFrom->lessThanOrEqualTo(now()))
             && ! $this->isExpired();
     }
 }
