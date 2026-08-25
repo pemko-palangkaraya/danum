@@ -16,7 +16,8 @@ return new class extends Migration
             $table->timestampTz('effective_until')->nullable()->after('effective_from');
             $table->boolean('is_active')->default(true)->after('effective_until');
             $table->text('change_note')->nullable()->after('is_active');
-            $table->foreignUuid('created_by')->nullable()->after('change_note')->constrained('users')->nullOnDelete();
+            $table->unsignedBigInteger('created_by')->nullable()->after('change_note');
+            $table->foreign('created_by')->references('id')->on('users')->nullOnDelete();
             $table->index(['letter_type_id', 'is_active']);
             $table->index(['effective_from', 'effective_until']);
         });
