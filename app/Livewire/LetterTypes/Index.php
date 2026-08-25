@@ -8,16 +8,13 @@ use App\Enums\LetterTypeStatus;
 use App\Models\LetterType;
 use App\Services\DocxTemplateService;
 use App\Services\LetterTypeService;
-use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
-use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
 class Index extends Component
 {
-    use WithFileUploads;
     use WithPagination;
 
     public string $search = '';
@@ -31,7 +28,6 @@ class Index extends Component
     public string $status = 'draft';
     public string $validity_period = 'none';
     public string $variables_input = '';
-    public $template_file = null;
 
     public function mount(): void { $this->authorize('viewAny', LetterType::class); }
     public function updatedSearch(): void { $this->resetPage(); }
@@ -55,7 +51,6 @@ class Index extends Component
         $this->status = $letterType->status->value;
         $this->validity_period = (string) ($letterType->validity_period ?: ($letterType->has_expiry ? $this->legacyValidityPeriod($letterType->validity_days) : 'none'));
         $this->variables_input = implode("\n", $letterType->variables ?? []);
-        $this->template_file = null;
         $this->showForm = true;
     }
 
@@ -68,16 +63,10 @@ class Index extends Component
             'status' => ['required', 'in:draft,validated,active,retired'],
             'validity_period' => ['required', 'in:none,1_week,2_weeks,1_month,3_months,6_months,1_year'],
             'variables_input' => ['required', 'string'],
-            'template_file' => [$this->editingId ? 'nullable' : 'required', 'file', 'mimes:docx', 'max:10240'],
         ]);
 
         $letterType = $this->editingId ? LetterType::query()->findOrFail($this->editingId) : null;
         if ($letterType) $this->authorize('update', $letterType); else $this->authorize('create', LetterType::class);
-
-        if ($letterType && $this->template_file) {
-            $this->addError('template_file', 'Template DOCX yang sudah ada dikelola melalui menu Kelola Versi agar histori template tetap utuh.');
-            return;
-        }
 
         $declared = $docx->normalizeVariables($this->variables_input);
         if (!$declared) {
@@ -85,22 +74,23 @@ class Index extends Component
             return;
         }
 
-        $templatePath = null;
-        if ($this->template_file) {
-            $templatePath = $this->template_file->getRealPath();
-        } elseif ($letterType?->template_path) {
-            $templatePath = Storage::disk('local')->path($letterType->template_path);
+        $templatePath = $letterType?->template_path;
+        if ($templatePath) {
+            $templatePath = storage_path('app/private/'.$templatePath);
+            if (!is_file($templatePath)) {
+                $templatePath = null;
+            }
         }
 
         if ($templatePath) {
             $found = $docx->extractVariables($templatePath);
             $diff = $docx->compareVariables($declared, $found);
             if ($diff['unknown']) {
-                $this->addError('template_file', 'Cross-check gagal. DOCX memiliki variabel yang belum kamu daftarkan pada field "Variabel Template": {{'.implode('}}, {{', $diff['unknown']).'}}. Tambahkan variabel tersebut ke daftar input lalu simpan kembali.');
+                $this->addError('variables_input', 'Cross-check gagal. Template saat ini memiliki variabel yang belum kamu daftarkan: {{'.implode('}}, {{', $diff['unknown']).'}}.');
                 return;
             }
             if ($diff['missing']) {
-                $this->addError('template_file', 'Cross-check gagal. Kamu mendaftarkan variabel yang tidak ditemukan di DOCX: {{'.implode('}}, {{', $diff['missing']).'}}. Hapus dari daftar input atau tambahkan ke DOCX.');
+                $this->addError('variables_input', 'Cross-check gagal. Kamu mendaftarkan variabel yang tidak ditemukan pada template saat ini: {{'.implode('}}, {{', $diff['missing']).'}}.');
                 return;
             }
         }
@@ -108,18 +98,16 @@ class Index extends Component
         $data['variables'] = $declared;
         $data['has_expiry'] = $this->validity_period !== 'none';
         $data['validity_days'] = $this->legacyValidityDays($this->validity_period);
-        unset($data['variables_input'], $data['template_file']);
+        unset($data['variables_input']);
         $data['tenant_id'] = null;
         $data['body_template'] = null;
 
-        if ($this->template_file) $data['template_path'] = $this->template_file->store('letter-templates', 'local');
-
         if ($letterType) {
             $service->update($letterType, $data);
-            $message = 'Master jenis surat berhasil diperbarui. Template dikelola terpisah melalui versioning.';
+            $message = 'Master jenis surat berhasil diperbarui. Perubahan template dilakukan melalui Kelola Versi.';
         } else {
             $service->create($data);
-            $message = 'Master jenis surat berhasil dibuat.';
+            $message = 'Master jenis surat berhasil dibuat. Tambahkan template melalui Kelola Versi.';
         }
 
         $this->showForm = false;
@@ -137,7 +125,7 @@ class Index extends Component
 
     private function resetForm(): void
     {
-        $this->reset(['editingId', 'code', 'name', 'description', 'variables_input', 'template_file']);
+        $this->reset(['editingId', 'code', 'name', 'description', 'variables_input']);
         $this->status = LetterTypeStatus::DRAFT->value;
         $this->validity_period = 'none';
     }
