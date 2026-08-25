@@ -8,21 +8,47 @@ use App\Enums\OutgoingLetterStatus;
 use App\Enums\OutgoingLetterWithdrawalStatus;
 use App\Models\OutgoingLetter;
 use App\Models\OutgoingLetterWithdrawalRequest;
+use App\Models\User;
 use App\Repositories\Contracts\OutgoingLetterRepositoryInterface;
 use App\Repositories\Contracts\OutgoingLetterStatusHistoryRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class OutgoingLetterService
 {
-    public function __construct(private readonly OutgoingLetterRepositoryInterface $repository, private readonly OutgoingLetterStatusHistoryRepositoryInterface $historyRepository) {}
+    public function __construct(
+        private readonly OutgoingLetterRepositoryInterface $repository,
+        private readonly OutgoingLetterStatusHistoryRepositoryInterface $historyRepository,
+        private readonly LetterTypeService $letterTypeService,
+    ) {}
+
     public function getAll(string $tenantId): Collection { return $this->repository->getAll($tenantId); }
     public function find(string $id, string $tenantId): ?OutgoingLetter { return $this->repository->find($id, $tenantId); }
     public function findWithTrashed(string $id, string $tenantId): ?OutgoingLetter { return $this->repository->findWithTrashed($id, $tenantId); }
 
-    public function create(array $data, int $changedBy): OutgoingLetter { $letter = $this->repository->create($data); $this->recordHistory($letter, 'created', $changedBy); return $letter; }
+    public function create(array $data, int $changedBy): OutgoingLetter
+    {
+        $actor = User::query()->findOrFail($changedBy);
+        $letterType = $this->letterTypeService->find((string) $data['letter_type_id'], (string) $data['tenant_id']);
+
+        if ($letterType === null) {
+            throw new \DomainException('Jenis surat tidak ditemukan.');
+        }
+
+        if ($letterType->status->value !== 'active') {
+            throw new \DomainException('Jenis surat tidak aktif.');
+        }
+
+        if (! $actor->isSuperAdmin() && ! $this->letterTypeService->isAllowedForTenant($letterType, (string) $data['tenant_id'])) {
+            throw new \DomainException('Jenis surat tidak diizinkan untuk unit ini.');
+        }
+
+        $letter = $this->repository->create($data);
+        $this->recordHistory($letter, 'created', $changedBy);
+        return $letter;
+    }
+
     public function update(OutgoingLetter $letter, array $data): OutgoingLetter { $this->ensureMutable($letter); if ($letter->status === OutgoingLetterStatus::DRAFT && $letter->submitted_at !== null) throw new \DomainException('Surat sudah dikirim untuk verifikasi dan tidak dapat diedit.'); return $this->repository->update($letter, $data); }
 
     public function submit(OutgoingLetter $letter, int $changedBy): OutgoingLetter
