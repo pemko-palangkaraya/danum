@@ -113,6 +113,9 @@ class LetterTypeService
             if ($latest !== null && $effectiveFrom->lte($latest->effective_from)) {
                 throw new \DomainException('Versi baru harus memiliki periode mulai setelah versi terakhir.');
             }
+            if ($latest?->effective_until && $effectiveFrom->lt($latest->effective_until)) {
+                throw new \DomainException('Periode versi baru tidak boleh bertumpang tindih dengan versi sebelumnya.');
+            }
             if ($effectiveUntil !== null && $effectiveUntil->lte($effectiveFrom)) {
                 throw new \DomainException('Tanggal selesai harus lebih besar dari tanggal mulai.');
             }
