@@ -23,6 +23,43 @@ const dispatchErrorToast = (message) => {
     }));
 };
 
+const startServerClock = () => {
+    const clock = document.querySelector('[data-server-clock]');
+
+    if (!clock) {
+        return;
+    }
+
+    const serverTimestamp = Number(clock.dataset.serverTimestamp);
+    const timezone = clock.dataset.serverTimezone;
+
+    if (!Number.isFinite(serverTimestamp) || !timezone) {
+        return;
+    }
+
+    const clientTimestampAtSync = Date.now();
+    const formatter = new Intl.DateTimeFormat('id-ID', {
+        timeZone: timezone,
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    });
+
+    const updateClock = () => {
+        const elapsed = Date.now() - clientTimestampAtSync;
+        clock.textContent = formatter.format(new Date(serverTimestamp + elapsed));
+    };
+
+    updateClock();
+    window.setInterval(updateClock, 1000);
+};
+
+startServerClock();
+
 window.addEventListener('livewire:init', () => {
     Livewire.interceptRequest(({ onError, onFailure }) => {
         onError(({ response, preventDefault }) => {
