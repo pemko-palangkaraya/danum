@@ -18,97 +18,22 @@ class OutgoingLetterAuditLogTest extends TestCase
 
     public function test_create_update_submit_validate_and_issue_are_audited(): void
     {
-        $actor = User::factory()->superAdmin()->create();
-        $validator = User::factory()->superAdmin()->create();
-        $letter = OutgoingLetter::factory()->create([
-            'status' => OutgoingLetterStatus::DRAFT,
-            'validator_user_id' => $validator->id,
-        ]);
-
-        $service = app(OutgoingLetterService::class);
-        $this->actingAs($actor);
-
-        $source = $letter->only([
-            'tenant_id', 'created_by', 'letter_type_id', 'letter_type_version_id',
-            'validator_user_id',
-            'number', 'recipient_name', 'recipient_address', 'subject', 'content', 'status',
-        ]);
-        $source['number'] = fake()->unique()->bothify('###/AUDIT/####');
-
-        $created = $service->create($source, $actor->id);
-        $service->update($created, ['subject' => 'Subjek Audit Baru']);
-        $created->refresh();
-        $service->submit($created, $actor->id);
-        $created->refresh();
-        $service->validate($created, $validator->id);
-        $created->refresh();
-        $service->issue($created, $actor->id);
-
-        $this->assertSame([
-            'outgoing_letter.created',
-            'outgoing_letter.updated',
-            'outgoing_letter.submitted',
-            'outgoing_letter.validated',
-            'outgoing_letter.issued',
-        ], AuditLog::query()
-            ->where('auditable_type', OutgoingLetter::class)
-            ->where('auditable_id', $created->id)
-            ->orderBy('created_at')
-            ->pluck('action')
-            ->all());
+        $actor = User::factory()->superAdmin()->create(); $validator = User::factory()->superAdmin()->create(); $letter = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::DRAFT, 'validator_user_id' => $validator->id]); $service = app(OutgoingLetterService::class); $this->actingAs($actor);
+        $source = $letter->only(['tenant_id','created_by','letter_type_id','letter_type_version_id','validator_user_id','number','recipient_name','recipient_address','subject','content','status']); $source['number'] = fake()->unique()->bothify('###/AUDIT/####');
+        $created = $service->create($source, $actor->id); $service->update($created, ['subject' => 'Subjek Audit Baru']); $created->refresh(); $service->submit($created, $actor->id); $created->refresh(); $service->validate($created, $validator->id, 'Saya telah memeriksa isi dan kelengkapan surat.'); $created->refresh(); $service->issue($created, $actor->id, 'Saya menyetujui dan menandatangani surat untuk diterbitkan.');
+        $this->assertSame(['outgoing_letter.created','outgoing_letter.updated','outgoing_letter.submitted','outgoing_letter.validated','outgoing_letter.issued'], AuditLog::query()->where('auditable_type', OutgoingLetter::class)->where('auditable_id', $created->id)->orderBy('created_at')->pluck('action')->all());
+        $created->refresh(); $this->assertSame('Saya telah memeriksa isi dan kelengkapan surat.', $created->verification_note); $this->assertSame('Saya menyetujui dan menandatangani surat untuk diterbitkan.', $created->signing_note);
     }
 
     public function test_cancel_is_audited(): void
     {
-        $actor = User::factory()->superAdmin()->create();
-        $letter = OutgoingLetter::factory()->create([
-            'status' => OutgoingLetterStatus::DRAFT,
-        ]);
-
-        $service = app(OutgoingLetterService::class);
-        $service->cancel($letter, $actor->id);
-
-        $this->assertSame(
-            ['outgoing_letter.cancelled'],
-            AuditLog::query()
-                ->where('auditable_type', OutgoingLetter::class)
-                ->where('auditable_id', $letter->id)
-                ->orderBy('created_at')
-                ->pluck('action')
-                ->all(),
-        );
+        $actor = User::factory()->superAdmin()->create(); $letter = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::DRAFT]); app(OutgoingLetterService::class)->cancel($letter, $actor->id);
+        $this->assertSame(['outgoing_letter.cancelled'], AuditLog::query()->where('auditable_type', OutgoingLetter::class)->where('auditable_id', $letter->id)->orderBy('created_at')->pluck('action')->all());
     }
 
     public function test_rejection_and_withdrawal_decision_are_audited_without_exposing_verification_token(): void
     {
-        $requester = User::factory()->superAdmin()->create();
-        $decider = User::factory()->superAdmin()->create();
-        $letter = OutgoingLetter::factory()->create([
-            'status' => OutgoingLetterStatus::ISSUED,
-        ]);
-
-        $service = app(OutgoingLetterService::class);
-        $request = $service->requestWithdrawal(
-            $letter,
-            $requester->id,
-            'Surat perlu ditarik.',
-            'withdrawals/statement.pdf',
-        );
-
-        $service->approveWithdrawal($request, $decider->id, 'Disetujui.');
-
-        $logs = AuditLog::query()
-            ->where('auditable_type', OutgoingLetter::class)
-            ->where('auditable_id', $letter->id)
-            ->orderBy('created_at')
-            ->get();
-
-        $this->assertSame([
-            'outgoing_letter.withdrawal_requested',
-            'outgoing_letter.withdrawn',
-        ], $logs->pluck('action')->all());
-
-        $this->assertArrayNotHasKey('verification_token', $logs->last()->new_values ?? []);
-        $this->assertSame('withdrawn', $logs->last()->new_values['status']);
+        $requester = User::factory()->superAdmin()->create(); $decider = User::factory()->superAdmin()->create(); $letter = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::ISSUED]); $service = app(OutgoingLetterService::class); $request = $service->requestWithdrawal($letter, $requester->id, 'Surat perlu ditarik.', 'withdrawals/statement.pdf'); $service->approveWithdrawal($request, $decider->id, 'Disetujui.');
+        $logs = AuditLog::query()->where('auditable_type', OutgoingLetter::class)->where('auditable_id', $letter->id)->orderBy('created_at')->get(); $this->assertSame(['outgoing_letter.withdrawal_requested','outgoing_letter.withdrawn'], $logs->pluck('action')->all()); $this->assertArrayNotHasKey('verification_token', $logs->last()->new_values ?? []); $this->assertSame('withdrawn', $logs->last()->new_values['status']);
     }
 }
