@@ -28,7 +28,7 @@ class OutgoingLetter extends Model
         'signer_position_id','signer_user_id','signer_name','signer_title',
         'validator_position_id','validator_user_id','validator_name','validator_title',
         'number','recipient_name','recipient_address','subject','content','input_data','issued_at','valid_from','valid_until','letter_date','generated_docx_path','status','submitted_at','verification_token',
-        'rejection_reason','rejected_by','rejected_at',
+        'rejection_reason','rejected_by','rejected_at','verification_note','signing_note',
     ];
 
     protected $hidden = ['verification_token'];
@@ -68,11 +68,6 @@ class OutgoingLetter extends Model
     public function statusHistories(): HasMany { return $this->hasMany(OutgoingLetterStatusHistory::class)->orderBy('created_at'); }
     public function withdrawalRequests(): HasMany { return $this->hasMany(OutgoingLetterWithdrawalRequest::class)->latest('created_at'); }
 
-    /**
-     * PostgreSQL stores these legacy datetime columns without timezone metadata.
-     * Interpret the persisted wall-clock value in DANUM's configured application timezone
-     * before comparing it with the application's current time.
-     */
     private function localValidityTime(?Carbon $value): ?Carbon
     {
         return $value?->shiftTimezone(config('app.timezone'));
