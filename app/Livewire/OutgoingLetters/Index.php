@@ -21,6 +21,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -99,6 +100,14 @@ class Index extends Component
         $this->applySystemValues();
     }
 
+    #[On('outgoing-letters-refresh')]
+    public function refreshForRealtime(): void
+    {
+        if ($this->showForm || $this->showRejectForm) {
+            $this->skipRender();
+        }
+    }
+
     public function save(OutgoingLetterService $service, DocxTemplateService $docx, DocxTteService $tte): void
     {
         try {
@@ -127,7 +136,7 @@ class Index extends Component
                 $value = $this->variableValues[$variable] ?? null;
                 if (blank($value)) { $this->addError('variableValues.'.$variable, 'Tanggal wajib diisi.'); continue; }
                 if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $value)) { $this->addError('variableValues.'.$variable, 'Format tanggal tidak valid.'); continue; }
-                if ($value === now()->toDateString()) $this->addError('variableValues.'.$variable, 'Tanggal tidak boleh tanggal hari ini.');
+                if ($value > now()->toDateString()) $this->addError('variableValues.'.$variable, 'Tanggal tidak boleh melewati hari ini.');
                 if ($this->isBirthDateVariable($variable) && $value > now()->toDateString()) $this->addError('variableValues.'.$variable, 'Tanggal lahir tidak boleh tanggal di masa depan.');
             }
             if ($this->getErrorBag()->isNotEmpty()) return;
