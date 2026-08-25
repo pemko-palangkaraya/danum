@@ -16,7 +16,7 @@ class OutgoingLetterAuditLogTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_create_update_submit_validate_issue_and_cancel_are_audited(): void
+    public function test_create_update_submit_validate_and_issue_are_audited(): void
     {
         $actor = User::factory()->superAdmin()->create();
         $validator = User::factory()->superAdmin()->create();
@@ -30,6 +30,7 @@ class OutgoingLetterAuditLogTest extends TestCase
 
         $source = $letter->only([
             'tenant_id', 'created_by', 'letter_type_id', 'letter_type_version_id',
+            'validator_user_id',
             'number', 'recipient_name', 'recipient_address', 'subject', 'content', 'status',
         ]);
         $source['number'] = fake()->unique()->bothify('###/AUDIT/####');
@@ -55,6 +56,27 @@ class OutgoingLetterAuditLogTest extends TestCase
             ->orderBy('created_at')
             ->pluck('action')
             ->all());
+    }
+
+    public function test_cancel_is_audited(): void
+    {
+        $actor = User::factory()->superAdmin()->create();
+        $letter = OutgoingLetter::factory()->create([
+            'status' => OutgoingLetterStatus::DRAFT,
+        ]);
+
+        $service = app(OutgoingLetterService::class);
+        $service->cancel($letter, $actor->id);
+
+        $this->assertSame(
+            ['outgoing_letter.cancelled'],
+            AuditLog::query()
+                ->where('auditable_type', OutgoingLetter::class)
+                ->where('auditable_id', $letter->id)
+                ->orderBy('created_at')
+                ->pluck('action')
+                ->all(),
+        );
     }
 
     public function test_rejection_and_withdrawal_decision_are_audited_without_exposing_verification_token(): void
