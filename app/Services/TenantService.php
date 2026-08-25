@@ -11,12 +11,14 @@ use App\Models\User;
 use App\Repositories\Contracts\TenantRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class TenantService
 {
     public function __construct(
         private readonly TenantRepositoryInterface $tenantRepository,
+        private readonly AuditLogService $auditLogService,
     ) {}
 
     public function find(string $id): ?Tenant
@@ -41,7 +43,17 @@ class TenantService
 
     public function create(array $data): Tenant
     {
-        return $this->tenantRepository->create($data);
+        $tenant = $this->tenantRepository->create($data);
+
+        $this->auditLogService->record(
+            action: 'tenant.created',
+            user: $this->actor(),
+            auditable: $tenant,
+            newValues: $this->tenantAuditValues($tenant),
+            tenantId: $tenant->id,
+        );
+
+        return $tenant;
     }
 
     public function createWithInitialUser(array $tenantData, array $userData): Tenant
@@ -62,6 +74,22 @@ class TenantService
                 'administrator_user_id' => $administrator->id,
             ])->save();
 
+            $this->auditLogService->record(
+                action: 'tenant.created',
+                user: $this->actor(),
+                auditable: $tenant,
+                newValues: $this->tenantAuditValues($tenant->fresh()),
+                tenantId: $tenant->id,
+            );
+
+            $this->auditLogService->record(
+                action: 'user.created',
+                user: $this->actor(),
+                auditable: $administrator,
+                newValues: $this->userAuditValues($administrator),
+                tenantId: $tenant->id,
+            );
+
             return $tenant->fresh(['administrator']);
         });
     }
@@ -69,20 +97,40 @@ class TenantService
     public function update(Tenant $tenant, array $data): Tenant
     {
         $administrator = $tenant->administrator;
+        $oldTenantValues = $this->tenantAuditValues($tenant);
 
-        return DB::transaction(function () use ($tenant, $data, $administrator): Tenant {
+        return DB::transaction(function () use ($tenant, $data, $administrator, $oldTenantValues): Tenant {
             $administratorData = $data['_administrator'] ?? null;
             unset($data['_administrator']);
 
             $updatedTenant = $this->tenantRepository->update($tenant, $data);
 
+            $this->auditLogService->record(
+                action: 'tenant.updated',
+                user: $this->actor(),
+                auditable: $updatedTenant,
+                oldValues: $oldTenantValues,
+                newValues: $this->tenantAuditValues($updatedTenant->fresh()),
+                tenantId: $updatedTenant->id,
+            );
+
             if (is_array($administratorData) && $administrator !== null) {
+                $oldAdministratorValues = $this->userAuditValues($administrator);
                 $administrator->update(array_filter([
                     'name' => $administratorData['name'] ?? null,
                     'email' => $administratorData['email'] ?? null,
                     'password' => $administratorData['password'] ?? null,
                     'status' => $administratorData['status'] ?? null,
                 ], static fn (mixed $value): bool => $value !== null && $value !== ''));
+
+                $this->auditLogService->record(
+                    action: 'user.updated',
+                    user: $this->actor(),
+                    auditable: $administrator,
+                    oldValues: $oldAdministratorValues,
+                    newValues: $this->userAuditValues($administrator->fresh()),
+                    tenantId: $updatedTenant->id,
+                );
 
                 return $updatedTenant->fresh(['administrator']);
             }
@@ -93,12 +141,36 @@ class TenantService
 
     public function delete(Tenant $tenant): bool
     {
-        return $this->tenantRepository->delete($tenant);
+        $deleted = $this->tenantRepository->delete($tenant);
+
+        if ($deleted) {
+            $this->auditLogService->record(
+                action: 'tenant.deleted',
+                user: $this->actor(),
+                auditable: $tenant,
+                oldValues: $this->tenantAuditValues($tenant),
+                tenantId: $tenant->id,
+            );
+        }
+
+        return $deleted;
     }
 
     public function restore(Tenant $tenant): bool
     {
-        return $this->tenantRepository->restore($tenant);
+        $restored = $this->tenantRepository->restore($tenant);
+
+        if ($restored) {
+            $this->auditLogService->record(
+                action: 'tenant.restored',
+                user: $this->actor(),
+                auditable: $tenant,
+                newValues: $this->tenantAuditValues($tenant->fresh()),
+                tenantId: $tenant->id,
+            );
+        }
+
+        return $restored;
     }
 
     public function findWithTrashed(string $id): ?Tenant
@@ -109,5 +181,43 @@ class TenantService
     public function getAllWithTrashed(): Collection
     {
         return $this->tenantRepository->getAllWithTrashed();
+    }
+
+    private function actor(): ?User
+    {
+        $user = Auth::user();
+
+        return $user instanceof User ? $user : null;
+    }
+
+    private function tenantAuditValues(Tenant $tenant): array
+    {
+        return [
+            'code' => $tenant->code,
+            'name' => $tenant->name,
+            'province' => $tenant->province,
+            'city' => $tenant->city,
+            'district' => $tenant->district,
+            'village' => $tenant->village,
+            'address' => $tenant->address,
+            'phone' => $tenant->phone,
+            'email' => $tenant->email,
+            'head_name' => $tenant->head_name,
+            'head_title' => $tenant->head_title,
+            'status' => $tenant->status?->value,
+            'administrator_user_id' => $tenant->administrator_user_id,
+        ];
+    }
+
+    private function userAuditValues(User $user): array
+    {
+        return [
+            'name' => $user->name,
+            'nip' => $user->nip,
+            'email' => $user->email,
+            'role' => $user->role?->value,
+            'status' => $user->status?->value,
+            'tenant_id' => $user->tenant_id,
+        ];
     }
 }
