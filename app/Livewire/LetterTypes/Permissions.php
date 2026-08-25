@@ -6,6 +6,7 @@ namespace App\Livewire\LetterTypes;
 
 use App\Models\LetterType;
 use App\Models\Tenant;
+use App\Services\AuditLogService;
 use App\Services\LetterTypeService;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -24,13 +25,25 @@ class Permissions extends Component
         $this->authorize('view', $this->letterType());
     }
 
-    public function grant(string $tenantId, LetterTypeService $service): void
+    public function grant(string $tenantId, LetterTypeService $service, AuditLogService $auditLog): void
     {
         $letterType = $this->letterType();
         $this->authorize('update', $letterType);
 
         $tenant = Tenant::query()->findOrFail($tenantId);
-        $service->grantTenantPermission($letterType, $tenant->id);
+        $existing = $letterType->permissions()->where('tenant_id', $tenant->id)->first();
+        $permission = $service->grantTenantPermission($letterType, $tenant->id);
+
+        if (! $existing || ! $existing->allowed) {
+            $auditLog->record(
+                'letter_type.permission.granted',
+                auth()->user(),
+                $permission,
+                $existing?->only(['tenant_id', 'letter_type_id', 'allowed']),
+                $permission->only(['tenant_id', 'letter_type_id', 'allowed']),
+                $tenant->id,
+            );
+        }
 
         $this->dispatch('toast', type: 'success', message: 'Akses jenis surat diberikan ke '.$tenant->name.'.');
     }
@@ -54,7 +67,7 @@ class Permissions extends Component
         $this->selectedTenantName = '';
     }
 
-    public function revoke(LetterTypeService $service): void
+    public function revoke(LetterTypeService $service, AuditLogService $auditLog): void
     {
         if (! $this->selectedTenantId) {
             return;
@@ -64,12 +77,25 @@ class Permissions extends Component
         $this->authorize('update', $letterType);
 
         $tenantId = $this->selectedTenantId;
+        $permission = $letterType->permissions()->where('tenant_id', $tenantId)->first();
 
         if (! $service->revokeTenantPermission($letterType, $tenantId)) {
             $this->selectedTenantId = null;
             $this->selectedTenantName = '';
             $this->dispatch('toast', type: 'error', message: 'Akses tidak ditemukan.');
             return;
+        }
+
+        if ($permission?->allowed) {
+            $permission->refresh();
+            $auditLog->record(
+                'letter_type.permission.revoked',
+                auth()->user(),
+                $permission,
+                ['tenant_id' => $tenantId, 'letter_type_id' => $letterType->id, 'allowed' => true],
+                $permission->only(['tenant_id', 'letter_type_id', 'allowed']),
+                $tenantId,
+            );
         }
 
         $this->selectedTenantId = null;
