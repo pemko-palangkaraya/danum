@@ -1,95 +1,59 @@
 # DANUM — Proses Bisnis Saat Ini
 
 **Status:** Proses bisnis aktif hasil implementasi bertahap  
-**Scope:** Tahap awal DANUM, terutama Surat Keluar  
-**Tanggal dokumentasi:** 25 Agustus 2026
+**Scope:** Tahap awal, terutama Surat Keluar  
+**Tanggal:** 25 Agustus 2026
 
-Dokumen ini menjadi ringkasan proses bisnis yang **sudah dibangun dan disepakati selama pengembangan**, bukan daftar fitur hipotetis. Detail arsitektur tetap dirujuk dari dokumen TND lainnya di folder `docs/`.
+Dokumen ini merangkum proses bisnis yang sudah dibangun dan disepakati selama pengembangan DANUM. Detail arsitektur dan implementasi tetap dijelaskan pada dokumen lain di folder `docs/`.
 
----
+## 1. Prinsip Utama
 
-## 1. Prinsip Bisnis Utama
+DANUM menerapkan prinsip **TND dikelola secara terpusat, digunakan secara terdistribusi**.
 
-DANUM menggunakan prinsip:
+Kompleksitas TND dikelola oleh pihak yang berwenang, sedangkan user OPD mendapatkan pengalaman sederhana. User cukup memilih kebutuhan surat; sistem menentukan kewenangan unit dan konfigurasi/template yang berlaku.
 
-> **TND dikelola secara terpusat, digunakan secara terdistribusi.**
+```text
+User OPD
+   |
+   v
+Jenis Surat yang tersedia untuk unit
+   |
+   v
+Template / Version yang berlaku
+   |
+   v
+Surat Keluar
+```
 
-Kompleksitas TND dikelola oleh pihak yang berwenang, sedangkan user OPD mendapatkan pengalaman penggunaan yang sederhana.
+## 2. Aktor
 
-User OPD tidak perlu memahami:
+### Super Admin
 
-- klasifikasi TND secara teknis;
-- template yang harus dipilih;
-- versi template;
-- font dan margin;
-- struktur layout;
-- aturan konfigurasi internal.
+Administrator sistem dengan akses lintas tenant untuk kebutuhan administrasi. Tindakan administratif yang wajib dicatat tetap melalui audit trail.
 
-User cukup menjawab kebutuhan bisnis:
+### Administrator TND / Ortal
 
-> **"Saya ingin membuat surat apa?"**
+Mengelola konfigurasi TND, termasuk jenis surat, template, versioning, kewenangan unit, dan riwayat perubahan.
 
-Sistem yang menentukan:
+### Tenant Admin
 
-> **"Apakah unit ini boleh membuatnya, dan konfigurasi surat mana yang berlaku?"**
+Mengelola kebutuhan operasional tenant sesuai authorization.
 
-Prinsip ini merupakan dasar desain arsitektur DANUM. fileciteturn451file0L2-L2
+### Tenant User / User OPD
 
----
+Membuat, mengisi, preview, dan memproses Surat Keluar sesuai kewenangan unit.
 
-## 2. Aktor dan Tanggung Jawab
+### Verifikator
 
-### 2.1 Super Admin
+User yang ditunjuk untuk memeriksa surat. Verifikasi wajib disertai catatan.
 
-Super Admin merupakan administrator sistem dengan akses lintas tenant untuk kebutuhan administrasi sistem.
+### Penanda tangan
 
-Tindakan administratif yang wajib dicatat harus tetap melalui audit trail. Super Admin tidak boleh menggunakan akses tinggi sebagai alasan untuk melewati pencatatan.
-
-### 2.2 Administrator TND / Ortal
-
-Bertanggung jawab terhadap konfigurasi TND, antara lain:
-
-- jenis surat;
-- template;
-- versi template;
-- masa berlaku konfigurasi;
-- kewenangan unit terhadap jenis surat;
-- konfigurasi pendukung yang relevan;
-- riwayat perubahan konfigurasi.
-
-Konsep Administrator TND/Ortal tidak otomatis identik dengan role Super Admin; pemisahan kewenangan dapat berkembang sesuai kebutuhan. fileciteturn451file0L2-L2
-
-### 2.3 Tenant Admin
-
-Bertanggung jawab atas administrasi operasional tenant/unit sesuai authorization.
-
-### 2.4 Tenant User / User OPD
-
-User operasional yang:
-
-- melihat jenis surat yang tersedia untuk unitnya;
-- membuat draft Surat Keluar;
-- mengisi data;
-- melakukan preview;
-- mengirim surat ke proses berikutnya;
-- melihat surat unitnya;
-- memperbaiki surat jika dikembalikan/rejected sesuai aturan workflow.
-
-User OPD tidak boleh:
-
-- mengubah template resmi;
-- mengubah format TND;
-- mengubah kop/struktur resmi;
-- mengaktifkan jenis surat;
-- memberikan permission jenis surat kepada unit lain.
-
----
+User yang ditunjuk untuk menerbitkan/menandatangani surat. Penerbitan wajib disertai catatan.
 
 ## 3. Kewenangan Jenis Surat
 
-Kewenangan jenis surat merupakan data/configuration, bukan hard-code.
-
-Model bisnis:
+Kewenangan jenis surat adalah configuration, bukan hard-code.
 
 ```text
 Unit / Tenant
@@ -104,123 +68,66 @@ Jenis Surat
 Template / Version
 ```
 
-### Contoh
+Jika suatu unit tidak memiliki akses:
 
-```text
-Kelurahan
-  ├── Surat Dinas       -> diizinkan
-  ├── Surat Undangan    -> diizinkan
-  ├── Surat Keterangan  -> diizinkan
-  └── Surat Tugas       -> tidak diizinkan
-```
+1. jenis surat tidak ditampilkan pada **Buat Surat**;
+2. backend tetap menolak request langsung/manipulasi endpoint.
 
-Jika jenis surat tidak diberikan kepada unit:
-
-1. jenis surat tidak ditampilkan di UI **Buat Surat**;
-2. request langsung/manipulasi endpoint tetap ditolak oleh backend.
-
-Jadi UI filtering adalah pengalaman pengguna, sedangkan backend authorization adalah enforcement sebenarnya.
-
----
+Menyembunyikan pilihan di UI bukan pengganti authorization backend.
 
 ## 4. Proses Buat Surat
-
-Alur bisnis user OPD:
 
 ```text
 Login
   |
-  v
 Surat Keluar
   |
-  v
 Buat Surat
   |
-  v
-Sistem membaca unit/tenant user
+Sistem membaca unit/tenant
   |
-  v
 Sistem mengambil jenis surat yang diizinkan
   |
-  v
 User memilih jenis surat
   |
-  v
-Sistem menentukan template/configuration yang berlaku
+Sistem menentukan template/configuration
   |
-  v
 Form surat
   |
-  v
 User mengisi data
   |
-  v
 Preview
   |
-  v
 Simpan sebagai Draft
 ```
 
-User tidak memilih template secara bebas.
-
----
+User OPD tidak memilih template, versi, font, margin, kop, atau layout secara bebas.
 
 ## 5. Template dan Versioning
 
-Template menentukan bagaimana surat ditampilkan, sedangkan data surat menentukan apa yang ditulis dalam surat.
+Template menentukan tampilan resmi; data surat menentukan isi.
 
-### Template mengatur
+Template dapat mengatur:
 
 - kop;
 - margin;
-- font;
-- ukuran font;
+- font dan ukuran;
 - posisi elemen;
 - struktur surat;
 - footer;
 - tanda tangan;
-- layout resmi lainnya.
-
-### User mengisi data
-
-Contohnya:
-
-- nomor/dasar sesuai field yang tersedia;
-- nama;
-- jabatan;
-- tujuan;
-- waktu;
-- tempat;
-- keperluan;
-- data lain yang dibutuhkan jenis surat.
-
-### Versioning
+- layout resmi.
 
 Template memiliki versi dan periode berlaku.
 
-Contoh:
-
 ```text
-Surat Tugas v1
-  berlaku Januari 2025 - Juli 2026
-
-Surat Tugas v2
-  berlaku mulai Agustus 2026
+Template v1 -> periode lama
+Template v2 -> mulai berlaku pada tanggal tertentu
 ```
 
-Ketika versi baru aktif:
-
-- surat baru menggunakan versi yang berlaku;
-- surat lama tetap mempertahankan konfigurasi/version yang menjadi dasar historisnya;
-- perubahan template tidak boleh mengubah dokumen historis secara otomatis.
-
-Detail versioning tersedia pada `docs/03-template-versioning-dan-snapshot.md`.
-
----
+Versi baru digunakan untuk surat baru sesuai configuration. Surat historis tetap menggunakan konfigurasi/version yang menjadi dasar dokumennya dan tidak berubah otomatis hanya karena template baru aktif.
 
 ## 6. Workflow Surat Keluar
-
-Workflow utama saat ini:
 
 ```text
 DRAFT
@@ -229,87 +136,50 @@ DRAFT
   v
 SUBMITTED
   |
-  +------------------+
-  |                  |
-  | Reject           | Validate
-  v                  v
-DRAFT             VALIDATED
-                      |
-                      +-------------+
-                      |             |
-                      | Reject      | Issue
-                      v             v
-                    DRAFT         ISSUED
+  +---- Reject + alasan ----> DRAFT
+  |
+  | Validate + catatan
+  v
+VALIDATED
+  |
+  +---- Reject + alasan ----> DRAFT
+  |
+  | Issue + catatan signer
+  v
+ISSUED
 ```
 
-Transition penting harus diperiksa di backend.
-
----
+Semua transition penting harus ditegakkan di backend.
 
 ## 7. Draft
 
-`DRAFT` merupakan kondisi surat yang masih dikerjakan oleh pembuat sesuai authorization.
-
-Pada tahap ini user dapat memperbaiki data surat selama aturan status/policy mengizinkan.
-
-Draft belum boleh dianggap sebagai dokumen yang telah diterbitkan atau dokumen publik yang sah.
-
----
+`DRAFT` adalah surat yang masih dapat dikerjakan sesuai authorization. Draft belum merupakan dokumen yang diterbitkan atau dokumen publik yang sah.
 
 ## 8. Submit
 
-Submit berarti pembuat mengajukan surat ke tahap workflow berikutnya.
-
-Setelah submit, surat masuk ke proses verifikasi dan aturan edit mengikuti status/policy.
-
-Tujuan submit adalah memisahkan surat yang masih dikerjakan dengan surat yang sudah diajukan untuk keputusan pihak berikutnya.
-
----
+Submit berarti pembuat mengajukan draft ke proses berikutnya. Setelah submit, aturan edit mengikuti status dan policy workflow.
 
 ## 9. Verifikasi
 
-Verifikasi hanya dapat dilakukan oleh user yang memang ditunjuk sebagai verifikator dan memenuhi authorization backend.
+Verifikasi hanya boleh dilakukan oleh verifikator yang ditunjuk dan berwenang.
 
-### Catatan wajib
-
-Verifikator **wajib memberikan catatan** sebelum melakukan validasi.
-
-Tidak boleh terjadi:
+**Catatan verifikasi wajib.** Alurnya:
 
 ```text
 Klik Verifikasi
       |
-      v
-VALIDATED
-```
-
-Tanpa evidence.
-
-Alur yang benar:
-
-```text
-Klik Verifikasi
-      |
-      v
 Modal Catatan Verifikasi
       |
-      v
 Catatan wajib diisi
       |
-      v
 Simpan & Lanjutkan
       |
-      v
 VALIDATED
 ```
 
-Catatan verifikasi disimpan pada history event sehingga menjadi bagian dari bukti historis workflow.
-
----
+Tidak ada validasi yang sah tanpa evidence note.
 
 ## 10. Penolakan
-
-Verifikator/pihak yang memiliki kewenangan reject dapat mengembalikan surat ke tahap yang sesuai menurut workflow.
 
 Penolakan wajib memiliki alasan/catatan.
 
@@ -323,84 +193,46 @@ SUBMITTED
 DRAFT
 ```
 
-Jika surat diperbaiki lalu dikirim kembali, history tidak dihapus.
-
-Contoh histori:
-
-```text
-Created
-Submitted
-Rejected + catatan A
-Submitted
-Validated + catatan B
-```
-
-Dengan demikian proses perbaikan tetap dapat ditelusuri.
-
----
+Jika surat diperbaiki dan disubmit kembali, history lama tidak dihapus.
 
 ## 11. Penerbitan / Penandatanganan
 
-Penerbitan hanya boleh dilakukan oleh user yang ditunjuk sebagai penanda tangan dan memenuhi authorization backend.
+Issue hanya boleh dilakukan oleh signer yang ditunjuk dan berwenang.
 
-### Catatan wajib
-
-Penanda tangan **wajib memberikan catatan** sebelum menerbitkan surat.
-
-Alur:
+**Catatan penandatanganan wajib.** Alurnya:
 
 ```text
 VALIDATED
     |
-    v
-Klik Issue / Terbitkan
+Klik Issue
     |
-    v
 Modal Catatan Penandatanganan
     |
-    v
 Catatan wajib diisi
     |
-    v
 Simpan & Lanjutkan
     |
-    v
 ISSUED
 ```
 
-Penerbitan bukan sekadar perubahan status. Pada titik ini sistem harus menjaga historical integrity, termasuk data penerbitan dan verification token sesuai business rule.
+Penerbitan menjaga historical integrity dan menghasilkan data yang diperlukan untuk public verification sesuai business rule.
 
----
+## 12. Masa Berlaku
 
-## 12. Status dan Masa Berlaku
-
-Surat yang sudah `ISSUED` dapat memiliki masa berlaku.
-
-Secara konseptual:
+Surat `ISSUED` dapat memiliki masa berlaku.
 
 ```text
-ISSUED + belum mulai berlaku
-    -> NOT_YET_ACTIVE
-
-ISSUED + masih dalam periode berlaku
-    -> ACTIVE
-
-ISSUED + melewati valid_until
-    -> EXPIRED
-
-WITHDRAWN
-    -> WITHDRAWN
+ISSUED + future valid_from -> NOT_YET_ACTIVE
+ISSUED + masih berlaku      -> ACTIVE
+ISSUED + melewati valid_until -> EXPIRED
+WITHDRAWN                   -> WITHDRAWN
 ```
 
-`expired` merupakan hasil perhitungan masa berlaku dan tidak harus menjadi pengganti status database `ISSUED`.
-
----
+`EXPIRED` merupakan hasil perhitungan masa berlaku dan tidak harus mengganti current database status `ISSUED`.
 
 ## 13. Withdrawal
 
-Surat yang sudah diterbitkan dapat masuk proses penarikan sesuai business rule.
-
-Alur:
+Surat yang sudah diterbitkan dapat masuk proses penarikan.
 
 ```text
 ISSUED
@@ -413,139 +245,96 @@ Withdrawal Request
    +----> REJECTED -> tetap ISSUED
 ```
 
-Request/decision harus menyimpan actor, waktu, dan alasan/catatan yang diwajibkan.
-
-Detail workflow withdrawal dirujuk pada `docs/04-workflow-surat-keluar.md`.
-
----
+Request dan keputusan menyimpan actor, waktu, serta alasan/catatan sesuai business rule.
 
 ## 14. Status History
 
-Setiap perubahan lifecycle penting dicatat sebagai history.
-
-History berfungsi sebagai kronologi, bukan pengganti current state.
-
-Model konseptual:
+Status history merupakan kronologi lifecycle satu surat.
 
 ```text
 OutgoingLetter
    |
-   +---- current status
+   +-- current status
    |
-   +---- Status History[]
-              |
-              +-- status
-              +-- action
-              +-- actor
-              +-- timestamp
-              +-- note
+   +-- Status History[]
+          |
+          +-- status
+          +-- action
+          +-- actor
+          +-- timestamp
+          +-- note
 ```
 
-Catatan workflow disimpan langsung pada event history.
+Catatan workflow disimpan langsung pada event history agar tidak hilang ketika field current surat berubah.
 
-Ini penting untuk mencegah kasus seperti:
+Contoh:
 
 ```text
-Verifikasi #1 -> catatan A
-Tolak         -> catatan B
-Submit ulang
-Verifikasi #2 -> catatan C
+Created
+Submitted
+Rejected + catatan A
+Submitted
+Validated + catatan B
+Issued + catatan C
 ```
-
-Semua catatan tetap menjadi histori dan tidak tertimpa oleh nilai current surat.
-
----
 
 ## 15. Audit Log
 
 Audit Log digunakan untuk aktivitas administratif dan perubahan data penting.
 
-Informasi yang ditelusuri mencakup, sesuai object/action yang dicatat:
+Informasi yang dapat dicatat:
 
 - actor;
 - tenant;
 - action;
-- object/model;
-- object ID;
+- object/model dan ID;
 - before;
 - after;
 - timestamp;
 - IP address;
 - user-agent.
 
-Contoh:
-
-```text
-Actor: DANUM Admin
-Tenant: Kelurahan Mungku Baru
-Action: letter_type.permission.granted
-Object: LetterTypePermission
-Before: allowed = false
-After:  allowed = true
-```
-
-Audit Log bersifat administratif dan berbeda fungsi dengan status history Surat Keluar:
+Status History dan Audit Log berbeda fungsi:
 
 ```text
 Status History -> kronologi lifecycle satu surat
 Audit Log      -> aktivitas/perubahan data sistem yang dapat diaudit
 ```
 
----
-
 ## 16. Public Verification
 
-Setelah surat `ISSUED`, sistem memiliki verification token yang dapat digunakan oleh halaman publik.
-
-Public verification tidak boleh membocorkan data administratif yang tidak diperlukan.
-
-State yang dibedakan:
+Surat yang sudah `ISSUED` memiliki verification token untuk pemeriksaan publik.
 
 ```text
-Unknown / unissued token
-    -> tidak terverifikasi
-
-ISSUED + active
-    -> dokumen valid
-
-ISSUED + expired
-    -> dokumen pernah diterbitkan, tetapi sudah kedaluwarsa
-
-ISSUED + future valid_from
-    -> dokumen belum mulai berlaku
-
-WITHDRAWN
-    -> dokumen telah ditarik
+Unknown / unissued -> tidak terverifikasi
+ISSUED + active    -> valid
+ISSUED + expired   -> pernah diterbitkan, tetapi kedaluwarsa
+ISSUED + future    -> belum mulai berlaku
+WITHDRAWN          -> telah ditarik
 ```
 
-Dokumen yang belum diterbitkan tidak boleh tampil sebagai dokumen publik yang sah.
+Surat yang belum diterbitkan tidak boleh dianggap sebagai dokumen publik yang sah.
 
----
+## 17. Realtime / Multi-browser
 
-## 17. Realtime / Multi-browser Update
-
-Workflow mendukung pembaruan state dari browser lain melalui mekanisme refresh Livewire/polling yang sudah diterapkan.
-
-Contoh:
+Detail workflow mendukung pembaruan state dari browser lain melalui event Livewire/polling.
 
 ```text
-Browser 1 — Verifikator
-    |
-    | Verify + catatan
-    v
+Browser Verifikator
+       |
+       | Verify / Reject / Issue
+       v
 Database
-    |
-    v
-Browser 2 — Admin / requester
-    |
-    +--> status terbaru
-    +--> history terbaru
-    +--> note terbaru
+       |
+       v
+Browser Admin / requester
+       |
+       +--> status terbaru
+       +--> history terbaru
+       +--> note terbaru
 ```
 
-Tujuannya agar user tidak perlu melakukan full page reload secara manual untuk melihat perubahan workflow.
-
----
+Tujuannya agar user tidak harus melakukan full page reload manual untuk melihat perubahan workflow.
 
 ## 18. Authorization dan Security
 
@@ -553,30 +342,18 @@ Prinsip utama:
 
 > **Menyembunyikan tombol bukan authorization.**
 
-Contoh:
-
-Jika seorang user bukan verifikator:
-
-- tombol Verifikasi boleh tidak ditampilkan;
-- tetapi jika request dipanggil langsung, backend tetap harus menolak.
-
-Demikian pula untuk:
+Backend harus menolak:
 
 - jenis surat yang tidak diizinkan;
-- Issue oleh user yang bukan signer;
-- akses tenant lain;
 - transition status yang tidak sah;
-- akses data administratif Super Admin.
-
-Semua business rule penting harus ditegakkan di backend.
-
----
+- verifikasi oleh user yang bukan verifier;
+- issue oleh user yang bukan signer;
+- akses tenant lain;
+- akses administratif yang tidak sesuai role/policy.
 
 ## 19. Historical Integrity
 
-DANUM harus menjaga agar data historis tidak berubah secara diam-diam.
-
-Contoh yang harus dipertahankan:
+Data historis tidak boleh berubah diam-diam.
 
 ```text
 Surat dibuat dengan Template v1
@@ -586,24 +363,20 @@ Template v2 diaktifkan
 Surat lama tetap merepresentasikan v1
 ```
 
-Hal yang sama berlaku untuk workflow history dan catatan keputusan.
+Prinsip yang sama berlaku untuk status history, catatan keputusan, dan audit trail.
 
----
+## 20. Prinsip UI/UX
 
-## 20. Prinsip UI/UX yang Sudah Ditetapkan
+Untuk user biasa:
 
-### Untuk user biasa
+- UI sederhana;
+- kompleksitas TND disembunyikan;
+- hanya pilihan yang berwenang yang ditampilkan;
+- action penting memakai modal internal DANUM;
+- pagination konsisten;
+- status workflow mudah dipahami.
 
-- sederhana;
-- tidak menampilkan kompleksitas TND;
-- pilihan hanya yang berwenang;
-- modal konfirmasi menggunakan komponen UI DANUM, bukan browser `alert/confirm` bila sudah tersedia pola komponen internal;
-- pagination konsisten dengan desain pagination yang sudah digunakan;
-- status dan workflow harus mudah dipahami.
-
-### Untuk workflow decision
-
-Action penting menggunakan modal yang meminta evidence ketika diperlukan:
+Untuk decision workflow:
 
 ```text
 Verifikasi -> catatan wajib
@@ -611,51 +384,38 @@ Tolak      -> alasan wajib
 Issue      -> catatan wajib
 ```
 
----
+## 21. Testing
 
-## 21. Testing sebagai bagian dari Proses Bisnis
+Business rule dianggap selesai jika workflow dan regression test-nya aman, bukan hanya jika method dapat dipanggil.
 
-Business rule tidak dianggap selesai hanya karena method berhasil dipanggil.
+Regression test harus mencakup antara lain:
 
-Regression test harus memastikan:
+- authorization actor;
+- tenant isolation;
+- permission jenis surat;
+- valid transition;
+- catatan wajib;
+- history note persistence;
+- audit log;
+- public verification;
+- realtime refresh.
 
-- actor yang salah ditolak;
-- tenant isolation tetap berlaku;
-- jenis surat yang tidak berwenang ditolak;
-- transition status tidak sah ditolak;
-- catatan wajib tidak dapat dilewati;
-- catatan tersimpan pada history yang benar;
-- audit log tercatat;
-- public verification hanya menampilkan state yang sesuai;
-- realtime refresh tidak merusak state UI.
+Checkpoint pengembangan pada saat dokumentasi ini dibuat: **103 test passed**.
 
-Checkpoint pengembangan yang terdokumentasi saat file ini dibuat adalah **103 test passed**.
-
----
-
-## 22. Batas Scope Saat Ini
+## 22. Scope Tahap Awal
 
 Fokus tahap awal DANUM adalah **Surat Keluar**.
 
-Modul berikut belum menjadi fokus utama tahap awal kecuali sebagai fondasi/roadmap:
+Surat Masuk, Disposisi, Arsip umum, dan workflow persuratan lain berada di luar fokus tahap awal sampai business rule dan roadmap-nya ditetapkan.
 
-- Surat Masuk;
-- Disposisi;
-- Arsip umum;
-- workflow persuratan lain di luar lifecycle Surat Keluar.
+## 23. Referensi
 
-Jangan memperluas scope hanya demi menambah banyak menu. Setiap modul baru harus memiliki business rule yang jelas, authorization yang jelas, dan regression test yang memadai.
-
----
-
-## 23. Referensi Dokumentasi
-
-- `docs/01-arsitektur-tnd.md` — arsitektur TND.
-- `docs/02-model-tnd-dan-kewenangan.md` — model TND dan kewenangan.
-- `docs/03-template-versioning-dan-snapshot.md` — versioning dan snapshot.
-- `docs/04-workflow-surat-keluar.md` — lifecycle Surat Keluar.
-- `docs/05-testing-strategy.md` — strategi testing.
-- `docs/06-roadmap-tnd.md` — roadmap TND.
-- `docs/07-super-admin-dan-break-glass-access.md` — Super Admin dan break-glass access.
-- `docs/08-implementasi-template-versioning.md` — implementasi template versioning.
-- `docs/UI_ERROR_CONVENTION.md` — konvensi error UI.
+- `docs/01-arsitektur-tnd.md`
+- `docs/02-model-tnd-dan-kewenangan.md`
+- `docs/03-template-versioning-dan-snapshot.md`
+- `docs/04-workflow-surat-keluar.md`
+- `docs/05-testing-strategy.md`
+- `docs/06-roadmap-tnd.md`
+- `docs/07-super-admin-dan-break-glass-access.md`
+- `docs/08-implementasi-template-versioning.md`
+- `docs/UI_ERROR_CONVENTION.md`
