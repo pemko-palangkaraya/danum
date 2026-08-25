@@ -157,6 +157,10 @@ class LetterTypeService
 
     public function ensureCurrentVersion(LetterType $letterType): ?LetterTypeVersion
     {
+        if ($active = $this->activeVersion($letterType)) {
+            return $active;
+        }
+
         $hasTemplate = $letterType->body_template !== null || $letterType->template_path !== null;
         if (! $hasTemplate) return null;
 
