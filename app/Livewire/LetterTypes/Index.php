@@ -74,6 +74,11 @@ class Index extends Component
         $letterType = $this->editingId ? LetterType::query()->findOrFail($this->editingId) : null;
         if ($letterType) $this->authorize('update', $letterType); else $this->authorize('create', LetterType::class);
 
+        if ($letterType && $this->template_file) {
+            $this->addError('template_file', 'Template DOCX yang sudah ada dikelola melalui menu Kelola Versi agar histori template tetap utuh.');
+            return;
+        }
+
         $declared = $docx->normalizeVariables($this->variables_input);
         if (!$declared) {
             $this->addError('variables_input', 'Isi minimal satu variabel, misalnya recipient_name.');
@@ -111,7 +116,7 @@ class Index extends Component
 
         if ($letterType) {
             $service->update($letterType, $data);
-            $message = 'Master jenis surat berhasil diperbarui. Template lama dipertahankan sebagai versi historis.';
+            $message = 'Master jenis surat berhasil diperbarui. Template dikelola terpisah melalui versioning.';
         } else {
             $service->create($data);
             $message = 'Master jenis surat berhasil dibuat.';
