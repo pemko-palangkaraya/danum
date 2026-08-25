@@ -5,7 +5,7 @@ const toastHttpErrors = {
     403: 'Anda tidak memiliki izin untuk melakukan tindakan ini.',
     404: 'Data atau halaman yang diminta tidak ditemukan.',
     409: 'Tindakan tidak dapat dilakukan karena data sedang bertentangan dengan kondisi saat ini.',
-    419: 'Sesi Anda telah berakhir. Silakan login kembali.',
+    419: 'Sesi Anda telah berakhir. Silakan muat ulang halaman lalu coba lagi.',
     422: 'Data yang dikirim tidak valid. Periksa kembali isian Anda.',
     429: 'Terlalu banyak permintaan. Silakan tunggu sebentar lalu coba lagi.',
     500: 'Terjadi kesalahan pada server. Silakan coba lagi.',
