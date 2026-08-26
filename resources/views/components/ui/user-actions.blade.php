@@ -14,7 +14,7 @@
             if (!trigger) return;
 
             const rect = trigger.getBoundingClientRect();
-            const menuHeight = 96;
+            const menuHeight = 144;
             const viewportPadding = 8;
 
             let nextLeft = rect.right - this.menuWidth;
@@ -77,6 +77,15 @@
                 wire:loading.attr="disabled"
                 class="block w-full px-4 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50 disabled:opacity-50">
                 Edit
+            </button>
+
+            <button
+                type="button"
+                @click="close()"
+                wire:click="openSignerPin({{ $user->id }})"
+                wire:loading.attr="disabled"
+                class="block w-full px-4 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50 disabled:opacity-50">
+                PIN Tanda Tangan
             </button>
 
             <button
