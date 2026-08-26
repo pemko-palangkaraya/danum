@@ -26,15 +26,11 @@ class SignerCertificateService
         $serial = strtoupper(bin2hex(random_bytes(16)));
         $validFrom = now()->startOfSecond();
         $validUntil = $validFrom->copy()->addYear();
-        $opensslConfig = $this->opensslConfigPath();
 
-        $keyOptions = [
+        $key = openssl_pkey_new([
             'private_key_type' => OPENSSL_KEYTYPE_RSA,
             'private_key_bits' => 3072,
-        ];
-        if ($opensslConfig !== null) $keyOptions['config'] = $opensslConfig;
-
-        $key = openssl_pkey_new($keyOptions);
+        ]);
         if ($key === false) throw new RuntimeException('Gagal membuat private key sertifikat: '.$this->opensslError());
 
         $dn = [
@@ -47,18 +43,28 @@ class SignerCertificateService
             'emailAddress' => (string) $user->email,
         ];
 
-        $csrOptions = ['digest_alg' => 'sha256'];
-        if ($opensslConfig !== null) {
-            $csrOptions['config'] = $opensslConfig;
-            $csrOptions['req_extensions'] = 'v3_req';
-        }
-
-        $csr = openssl_csr_new($dn, $key, $csrOptions);
+        $csr = openssl_csr_new($dn, $key, ['digest_alg' => 'sha256']);
         if ($csr === false) throw new RuntimeException('Gagal membuat CSR sertifikat: '.$this->opensslError());
 
-        $signOptions = ['digest_alg' => 'sha256'];
-        if ($opensslConfig !== null) $signOptions['x509_extensions'] = 'v3_req';
-        $cert = openssl_csr_sign($csr, null, $key, 365, $signOptions, 0);
+        $certificateConfig = base_path('resources/certificates/openssl.cnf');
+        if (! is_file($certificateConfig)) throw new RuntimeException('Konfigurasi OpenSSL sertifikat tidak ditemukan.');
+
+        $previousOpenSslConf = getenv('OPENSSL_CONF');
+        putenv('OPENSSL_CONF='.$certificateConfig);
+
+        try {
+            $cert = openssl_csr_sign($csr, null, $key, 365, [
+                'digest_alg' => 'sha256',
+                'x509_extensions' => 'v3_req',
+            ], 0);
+        } finally {
+            if ($previousOpenSslConf === false) {
+                putenv('OPENSSL_CONF');
+            } else {
+                putenv('OPENSSL_CONF='.$previousOpenSslConf);
+            }
+        }
+
         if ($cert === false) throw new RuntimeException('Gagal menerbitkan sertifikat publik: '.$this->opensslError());
 
         if (! openssl_x509_export($cert, $certificatePem)) throw new RuntimeException('Gagal mengekspor sertifikat publik: '.$this->opensslError());
@@ -66,7 +72,7 @@ class SignerCertificateService
 
         $parsed = openssl_x509_parse($certificatePem);
         $fingerprint = openssl_x509_fingerprint($certificatePem, 'sha256');
-        if (! $fingerprint) throw new RuntimeException('Gagal menghitung fingerprint sertifikat: '.$this->opensslError());
+        if (! $fingerprint) throw new RuntimeException('Gagal menghitung fingerprint sertifikat.');
 
         return DB::transaction(function () use ($position, $holder, $generatedBy, $serial, $validFrom, $validUntil, $certificatePem, $privateKeyPem, $parsed, $fingerprint): SignerCertificate {
             SignerCertificate::query()
@@ -114,16 +120,13 @@ class SignerCertificateService
         return Crypt::decryptString($certificate->private_key_encrypted);
     }
 
-    private function opensslConfigPath(): ?string
-    {
-        $path = resource_path('certificates/openssl.cnf');
-        return is_file($path) ? $path : null;
-    }
-
     private function opensslError(): string
     {
         $errors = [];
-        while (($error = openssl_error_string()) !== false) $errors[] = $error;
-        return $errors !== [] ? implode(' | ', $errors) : 'OpenSSL tidak memberikan detail error.';
+        while (($error = openssl_error_string()) !== false) {
+            $errors[] = $error;
+        }
+
+        return $errors !== [] ? implode(' | ', $errors) : 'unknown OpenSSL error';
     }
 }
