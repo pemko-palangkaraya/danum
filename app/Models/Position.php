@@ -19,17 +19,10 @@ class Position extends Model
     use SoftDeletes;
 
     protected $keyType = 'string';
-
     public $incrementing = false;
 
     protected $fillable = [
-        'tenant_id',
-        'code',
-        'name',
-        'description',
-        'status',
-        'can_sign',
-        'can_validate',
+        'tenant_id', 'code', 'name', 'description', 'status', 'can_sign', 'can_validate',
     ];
 
     protected function casts(): array
@@ -41,13 +34,11 @@ class Position extends Model
         ];
     }
 
-    public function tenant(): BelongsTo
+    public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
+    public function holders(): HasMany { return $this->hasMany(PositionHolder::class); }
+    public function signerCertificates(): HasMany { return $this->hasMany(SignerCertificate::class); }
+    public function activeSignerCertificate(): ?SignerCertificate
     {
-        return $this->belongsTo(Tenant::class);
-    }
-
-    public function holders(): HasMany
-    {
-        return $this->hasMany(PositionHolder::class);
+        return $this->signerCertificates()->where('is_active', true)->latest('created_at')->first();
     }
 }
