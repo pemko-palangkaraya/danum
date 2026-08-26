@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -33,24 +34,19 @@ return new class extends Migration
         if (
             Schema::hasColumn('outgoing_letters', 'signature_certificate_id')
             && Schema::hasTable('signer_certificates')
+            && ! DB::table('pg_constraint as c')
+                ->join('pg_class as t', 't.oid', '=', 'c.conrelid')
+                ->where('t.relname', 'outgoing_letters')
+                ->where('c.contype', 'f')
+                ->whereRaw("pg_get_constraintdef(c.oid) LIKE '%signature_certificate_id%signer_certificates%'")
+                ->exists()
         ) {
-            $foreignKeys = Schema::getConnection()
-                ->getDoctrineSchemaManager()
-                ->listTableForeignKeys('outgoing_letters');
-
-            $hasCertificateForeignKey = collect($foreignKeys)->contains(
-                fn ($foreignKey): bool => in_array('signature_certificate_id', $foreignKey->getLocalColumns(), true)
-                    && $foreignKey->getForeignTableName() === 'signer_certificates'
-            );
-
-            if (! $hasCertificateForeignKey) {
-                Schema::table('outgoing_letters', function (Blueprint $table): void {
-                    $table->foreign('signature_certificate_id')
-                        ->references('id')
-                        ->on('signer_certificates')
-                        ->nullOnDelete();
-                });
-            }
+            Schema::table('outgoing_letters', function (Blueprint $table): void {
+                $table->foreign('signature_certificate_id')
+                    ->references('id')
+                    ->on('signer_certificates')
+                    ->nullOnDelete();
+            });
         }
     }
 
@@ -60,22 +56,26 @@ return new class extends Migration
             return;
         }
 
-        Schema::table('outgoing_letters', function (Blueprint $table): void {
-            $table->dropForeign(['signature_certificate_id']);
+        if (Schema::hasColumn('outgoing_letters', 'signature_certificate_id')) {
+            Schema::table('outgoing_letters', function (Blueprint $table): void {
+                $table->dropForeign(['signature_certificate_id']);
+            });
+        }
 
-            $columns = [
-                'signed_pdf_path',
-                'signature_certificate_id',
-                'signature_profile',
-                'signed_at',
-            ];
+        $columns = [
+            'signed_pdf_path',
+            'signature_certificate_id',
+            'signature_profile',
+            'signed_at',
+        ];
 
-            $existingColumns = Schema::getColumnListing('outgoing_letters');
-            $columns = array_values(array_intersect($columns, $existingColumns));
+        $existingColumns = Schema::getColumnListing('outgoing_letters');
+        $columns = array_values(array_intersect($columns, $existingColumns));
 
-            if ($columns !== []) {
+        if ($columns !== []) {
+            Schema::table('outgoing_letters', function (Blueprint $table) use ($columns): void {
                 $table->dropColumn($columns);
-            }
-        });
+            });
+        }
     }
 };
