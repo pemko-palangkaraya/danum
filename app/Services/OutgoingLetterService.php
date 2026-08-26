@@ -8,12 +8,14 @@ use App\Enums\OutgoingLetterStatus;
 use App\Enums\OutgoingLetterWithdrawalStatus;
 use App\Models\OutgoingLetter;
 use App\Models\OutgoingLetterWithdrawalRequest;
+use App\Models\SignerCertificate;
 use App\Models\User;
 use App\Repositories\Contracts\OutgoingLetterRepositoryInterface;
 use App\Repositories\Contracts\OutgoingLetterStatusHistoryRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class OutgoingLetterService
 {
@@ -22,6 +24,8 @@ class OutgoingLetterService
         private readonly OutgoingLetterStatusHistoryRepositoryInterface $historyRepository,
         private readonly LetterTypeService $letterTypeService,
         private readonly AuditLogService $auditLogService,
+        private readonly DocxPdfService $docxPdfService,
+        private readonly PdfSigningService $pdfSigningService,
     ) {}
 
     public function getAll(string $tenantId): Collection { return $this->repository->getAll($tenantId); }
@@ -99,9 +103,16 @@ class OutgoingLetterService
         $note = $this->requiredWorkflowNote($note, 'Catatan penandatanganan wajib diisi.');
         if ($letter->status !== OutgoingLetterStatus::VALIDATED) throw new \DomainException('Hanya surat yang sudah divalidasi yang dapat diterbitkan.');
         if ($letter->signer_user_id !== $changedBy) throw new \DomainException('Hanya penanda tangan yang ditentukan untuk surat ini yang dapat menerbitkan surat.');
+
         $letterType = $letter->letterType()->first();
+        $signerCertificate = $this->resolveSignerCertificate($letter);
         $issuedAt = now();
-        $attributes = ['issued_at' => $issuedAt->toDateString(), 'valid_from' => $issuedAt, 'valid_until' => null, 'signing_note' => $note];
+        $attributes = [
+            'issued_at' => $issuedAt->toDateString(),
+            'valid_from' => $issuedAt,
+            'valid_until' => null,
+            'signing_note' => $note,
+        ];
         $period = $letterType?->validity_period ?? 'none';
         if ($period !== 'none') {
             $attributes['valid_until'] = match ($period) {
@@ -110,11 +121,47 @@ class OutgoingLetterService
                 default => throw new \DomainException('Masa berlaku jenis surat tidak valid.'),
             };
         }
-        $oldValues = $this->auditValues($letter);
-        $letter = $this->repository->update($letter, [...$attributes, 'status' => OutgoingLetterStatus::ISSUED]);
-        $this->recordHistory($letter, 'issued', $changedBy, $note);
-        $this->recordAudit('outgoing_letter.issued', $letter, $changedBy, $oldValues, $this->auditValues($letter));
-        return $letter;
+
+        if (blank($letter->generated_docx_path)) {
+            throw new \DomainException('Dokumen DOCX surat belum tersedia untuk ditandatangani.');
+        }
+
+        $unsignedPdfPath = $this->docxPdfService->convert((string) $letter->generated_docx_path);
+        $signedPdfPath = null;
+
+        try {
+            $signedPdfPath = $this->pdfSigningService->sign(
+                sourcePdfPath: $unsignedPdfPath,
+                certificate: $signerCertificate,
+                signerName: (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $signerCertificate->user()->value('name')),
+                reason: $note,
+            );
+
+            $oldValues = $this->auditValues($letter);
+
+            $letter = DB::transaction(function () use ($letter, $changedBy, $note, $attributes, $signerCertificate, $signedPdfPath, $oldValues): OutgoingLetter {
+                $letter = $this->repository->update($letter, [
+                    ...$attributes,
+                    'signed_pdf_path' => $signedPdfPath,
+                    'signature_certificate_id' => $signerCertificate->id,
+                    'signature_profile' => 'pades-b-b',
+                    'signed_at' => now(),
+                ]);
+                $this->recordHistory($letter, 'signed', $changedBy, $note);
+                $this->recordAudit('outgoing_letter.signed', $letter, $changedBy, $oldValues, $this->auditValues($letter));
+
+                $letter = $this->repository->update($letter, ['status' => OutgoingLetterStatus::ISSUED]);
+                $this->recordHistory($letter, 'issued', $changedBy, $note);
+                $this->recordAudit('outgoing_letter.issued', $letter, $changedBy, $oldValues, $this->auditValues($letter));
+
+                return $letter;
+            });
+
+            return $letter;
+        } catch (\Throwable $e) {
+            if ($signedPdfPath !== null) Storage::disk('local')->delete($signedPdfPath);
+            throw $e;
+        }
     }
 
     public function reject(OutgoingLetter $letter, int $changedBy, string $reason): OutgoingLetter
@@ -175,6 +222,22 @@ class OutgoingLetterService
         $this->recordHistory($letter, 'withdrawal_rejected', $decidedBy, $note);
         $this->recordAudit('outgoing_letter.withdrawal_rejected', $letter, $decidedBy, null, ['status' => $letter->status?->value, 'withdrawal_request_id' => $request->id, 'decision_note' => $note]);
         return $request->refresh();
+    }
+
+    private function resolveSignerCertificate(OutgoingLetter $letter): SignerCertificate
+    {
+        $certificate = SignerCertificate::query()
+            ->where('position_id', $letter->signer_position_id)
+            ->where('user_id', $letter->signer_user_id)
+            ->where('is_active', true)
+            ->latest('created_at')
+            ->first();
+
+        if (! $certificate || ! $certificate->isUsable()) {
+            throw new \DomainException('Sertifikat TTE aktif penanda tangan belum tersedia atau sudah tidak berlaku.');
+        }
+
+        return $certificate;
     }
 
     private function ensureWithdrawalDecider(int $userId): void
@@ -239,6 +302,10 @@ class OutgoingLetterService
             'valid_until' => $letter->valid_until?->toDateTimeString(),
             'verification_note' => $letter->verification_note,
             'signing_note' => $letter->signing_note,
+            'signed_pdf_path' => $letter->signed_pdf_path,
+            'signature_certificate_id' => $letter->signature_certificate_id,
+            'signature_profile' => $letter->signature_profile,
+            'signed_at' => $letter->signed_at?->toDateTimeString(),
             'rejection_reason' => $letter->rejection_reason,
             'rejected_by' => $letter->rejected_by,
             'rejected_at' => $letter->rejected_at?->toDateTimeString(),
