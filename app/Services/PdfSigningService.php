@@ -70,7 +70,9 @@ class PdfSigningService
 
             $sourceId = $pdf->setImportSourceFile($sourceAbsolutePath);
             $pageCount = $pdf->getSourcePageCount($sourceId);
-            if ($pageCount < 1) throw new RuntimeException('PDF sumber tidak memiliki halaman.');
+            if ($pageCount < 1) {
+                throw new RuntimeException('PDF sumber tidak memiliki halaman.');
+            }
             $pdf->appendDocument($sourceId);
 
             $pdf->signature()->configure([
@@ -79,6 +81,10 @@ class PdfSigningService
                 'cert_type' => 2,
                 'signcert' => 'file://' . $certPath,
                 'privkey' => 'file://' . $keyPath,
+                // Self-signed development certificates have no issuer chain.
+                // Explicitly pass an empty value so tc-lib-pdf does not attempt
+                // to load a non-existent extra-certificate file.
+                'extracerts' => '',
                 'password' => '',
                 'info' => [
                     'Name' => $signerName,
@@ -87,8 +93,6 @@ class PdfSigningService
                 ],
             ]);
 
-            // Keep the cryptographic signature as a PDF signature widget.
-            // Positioning is intentionally conservative; UI/visual customization can follow after B-B validation.
             $pdf->signature()->appearance()->place(
                 posx: 15,
                 posy: 15,
@@ -99,7 +103,9 @@ class PdfSigningService
             );
 
             $rawPdf = $pdf->getOutPDFString();
-            if ($rawPdf === '') throw new RuntimeException('PDF bertanda tangan tidak menghasilkan data.');
+            if ($rawPdf === '') {
+                throw new RuntimeException('PDF bertanda tangan tidak menghasilkan data.');
+            }
 
             Storage::disk('local')->put($outputPath, $rawPdf);
 
@@ -113,10 +119,14 @@ class PdfSigningService
 
     private function resolveStoragePath(string $path): string
     {
-        if (is_file($path)) return $path;
+        if (is_file($path)) {
+            return $path;
+        }
 
         $disk = Storage::disk('local');
-        if (! $disk->exists($path)) throw new RuntimeException('File PDF tidak ditemukan pada storage.');
+        if (! $disk->exists($path)) {
+            throw new RuntimeException('File PDF tidak ditemukan pada storage.');
+        }
 
         return $disk->path($path);
     }
@@ -125,7 +135,9 @@ class PdfSigningService
     {
         if (! defined('K_PATH_FONTS')) {
             $fontPath = realpath(base_path('vendor/tecnickcom/tc-lib-pdf-font/target/fonts'));
-            if ($fontPath !== false) define('K_PATH_FONTS', $fontPath);
+            if ($fontPath !== false) {
+                define('K_PATH_FONTS', $fontPath);
+            }
         }
     }
 }
