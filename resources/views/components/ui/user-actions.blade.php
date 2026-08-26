@@ -45,6 +45,7 @@
     @click.outside="close()"
     @keydown.escape.window="close()"
     @resize.window="open && positionMenu()"
+    @scroll.window="open && positionMenu()"
     class="inline-block text-left">
     <button
         x-ref="trigger"
