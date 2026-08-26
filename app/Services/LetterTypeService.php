@@ -291,8 +291,13 @@ class LetterTypeService
 
     private function parseDatePreservingPrecision(mixed $value): Carbon
     {
-        return $value instanceof CarbonInterface
+        $date = $value instanceof CarbonInterface
             ? $value->copy()
             : Carbon::parse($value);
+
+        // letter_type_versions uses Laravel's standard second-precision datetime
+        // representation. Normalize the in-memory value to the same precision so
+        // comparisons with the persisted model remain exact across SQLite/MySQL.
+        return $date->setMicrosecond(0);
     }
 }
