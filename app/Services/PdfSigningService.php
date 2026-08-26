@@ -40,7 +40,9 @@ class PdfSigningService
 
         $privateKey = openssl_pkey_get_private($privateKeyPem);
         if ($privateKey === false || ! openssl_x509_check_private_key($certificatePem, $privateKey)) {
-            if ($privateKey !== false) openssl_free_key($privateKey);
+            if ($privateKey !== false) {
+                openssl_free_key($privateKey);
+            }
             throw new RuntimeException('Private key tidak cocok dengan sertifikat publik penanda tangan.');
         }
         openssl_free_key($privateKey);
@@ -55,13 +57,18 @@ class PdfSigningService
         $outputPath ??= 'outgoing-letters/signed/' . date('Y/m') . '/' . pathinfo($sourcePdfPath, PATHINFO_FILENAME) . '-signed.pdf';
 
         try {
-            if (file_put_contents($certPath, $certificatePem, LOCK_EX) === false || file_put_contents($keyPath, $privateKeyPem, LOCK_EX) === false) {
+            if (
+                file_put_contents($certPath, $certificatePem, LOCK_EX) === false
+                || file_put_contents($keyPath, $privateKeyPem, LOCK_EX) === false
+            ) {
                 throw new RuntimeException('Material sertifikat TTE sementara tidak dapat disiapkan.');
             }
+
             @chmod($certPath, 0600);
             @chmod($keyPath, 0600);
 
             $this->configureFonts();
+
             $pdf = new \Com\Tecnick\Pdf\Tcpdf();
             $pdf->setCreator('DANUM');
             $pdf->setAuthor($signerName);
@@ -70,21 +77,25 @@ class PdfSigningService
 
             $sourceId = $pdf->setImportSourceFile($sourceAbsolutePath);
             $pageCount = $pdf->getSourcePageCount($sourceId);
+
             if ($pageCount < 1) {
                 throw new RuntimeException('PDF sumber tidak memiliki halaman.');
             }
+
             $pdf->appendDocument($sourceId);
 
+            /*
+             * tc-lib-pdf 8.71.x accepts signcert/privkey as PEM strings or file://
+             * sources. For a self-signed development certificate there is no issuer
+             * chain, so omit the extracerts key entirely rather than passing an empty
+             * value. The library treats the option as optional.
+             */
             $pdf->signature()->configure([
-                'profile' => 'pades-b-b',
-                'digest_algorithm' => 'sha256',
+                'profile' => \Com\Tecnick\Pdf\Sign\Config::PROFILE_PADES_B_B,
+                'digest_algorithm' => \Com\Tecnick\Pdf\Sign\DigestAlgorithm::Sha256->value,
                 'cert_type' => 2,
                 'signcert' => 'file://' . $certPath,
                 'privkey' => 'file://' . $keyPath,
-                // Self-signed development certificates have no issuer chain.
-                // Explicitly pass an empty value so tc-lib-pdf does not attempt
-                // to load a non-existent extra-certificate file.
-                'extracerts' => '',
                 'password' => '',
                 'info' => [
                     'Name' => $signerName,
@@ -103,6 +114,7 @@ class PdfSigningService
             );
 
             $rawPdf = $pdf->getOutPDFString();
+
             if ($rawPdf === '') {
                 throw new RuntimeException('PDF bertanda tangan tidak menghasilkan data.');
             }
@@ -124,6 +136,7 @@ class PdfSigningService
         }
 
         $disk = Storage::disk('local');
+
         if (! $disk->exists($path)) {
             throw new RuntimeException('File PDF tidak ditemukan pada storage.');
         }
@@ -135,6 +148,7 @@ class PdfSigningService
     {
         if (! defined('K_PATH_FONTS')) {
             $fontPath = realpath(base_path('vendor/tecnickcom/tc-lib-pdf-font/target/fonts'));
+
             if ($fontPath !== false) {
                 define('K_PATH_FONTS', $fontPath);
             }
