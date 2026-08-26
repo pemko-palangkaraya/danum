@@ -27,7 +27,7 @@ class OutgoingLetter extends Model
         'tenant_id','created_by','letter_type_id','letter_type_version_id',
         'signer_position_id','signer_user_id','signer_name','signer_title',
         'validator_position_id','validator_user_id','validator_name','validator_title',
-        'number','recipient_name','recipient_address','subject','content','input_data','issued_at','valid_from','valid_until','letter_date','generated_docx_path','status','submitted_at','verification_token',
+        'number','recipient_name','recipient_address','subject','content','input_data','issued_at','valid_from','valid_until','letter_date','generated_docx_path','signed_pdf_path','signature_certificate_id','signature_profile','signed_at','status','submitted_at','verification_token',
         'rejection_reason','rejected_by','rejected_at','verification_note','signing_note',
     ];
 
@@ -51,6 +51,7 @@ class OutgoingLetter extends Model
             'letter_date' => 'date',
             'submitted_at' => 'datetime',
             'rejected_at' => 'datetime',
+            'signed_at' => 'datetime',
             'input_data' => 'array',
             'status' => OutgoingLetterStatus::class,
         ];
@@ -63,6 +64,7 @@ class OutgoingLetter extends Model
     public function letterTypeVersion(): BelongsTo { return $this->belongsTo(LetterTypeVersion::class); }
     public function signerPosition(): BelongsTo { return $this->belongsTo(Position::class, 'signer_position_id'); }
     public function signerUser(): BelongsTo { return $this->belongsTo(User::class, 'signer_user_id'); }
+    public function signerCertificate(): BelongsTo { return $this->belongsTo(SignerCertificate::class, 'signature_certificate_id'); }
     public function validatorPosition(): BelongsTo { return $this->belongsTo(Position::class, 'validator_position_id'); }
     public function validatorUser(): BelongsTo { return $this->belongsTo(User::class, 'validator_user_id'); }
     public function statusHistories(): HasMany { return $this->hasMany(OutgoingLetterStatusHistory::class)->orderBy('created_at'); }
