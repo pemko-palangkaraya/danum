@@ -82,10 +82,40 @@ class OutgoingLetterController extends Controller
 
     public function downloadPdf(Request $request, string $id): Response
     {
-        $outgoingLetter = $this->findForTenant($id, $request); if ($outgoingLetter === null) abort(404, 'Outgoing letter not found.'); $this->authorize('view', $outgoingLetter); $outgoingLetter->loadMissing(['tenant', 'letterType', 'letterTypeVersion', 'signerPosition', 'signerUser', 'validatorPosition', 'validatorUser']);
-        $sourceDocxPath = $outgoingLetter->generated_docx_path; if (! $sourceDocxPath || ! Storage::disk('local')->exists($sourceDocxPath)) abort(422, 'DOCX hasil surat belum tersedia. Buat ulang draft surat terlebih dahulu.'); $isIssued = $outgoingLetter->status === OutgoingLetterStatus::ISSUED; $temporaryDocx = null;
-        try { if ($isIssued) { if (blank($outgoingLetter->verification_token)) abort(422, 'Surat terbit belum memiliki token verifikasi. Terbitkan ulang surat tersebut.'); $temporaryDocx = $this->docxTteService->createIssuedCopy(Storage::disk('local')->path($sourceDocxPath), url('/verify/' . $outgoingLetter->verification_token)); $pdfPath = $this->docxPdfService->convert($temporaryDocx); } else { $temporaryDocx = $this->docxTteService->createPreviewCopy(Storage::disk('local')->path($sourceDocxPath)); $pdfPath = $this->docxPdfService->convert($temporaryDocx); } $absolutePath = Storage::disk('local')->path($pdfPath); if (! $isIssued) { $label = sprintf('%s | %s | PREVIEW', $request->user()->name, now()->format('d-m-Y')); $watermarked = $this->pdfPreviewWatermarkService->apply($absolutePath, $label); $filename = sprintf('preview-surat-%s.pdf', str($outgoingLetter->number)->slug()); return response()->file($watermarked, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="' . $filename . '"'])->deleteFileAfterSend(true); } } catch (\RuntimeException $exception) { abort(422, $exception->getMessage()); } finally { if ($temporaryDocx !== null) @unlink($temporaryDocx); }
-        $filename = sprintf('surat-%s.pdf', str($outgoingLetter->number)->slug()); $headers = ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="' . $filename . '"']; if ($request->boolean('download')) $headers['Content-Disposition'] = 'attachment; filename="' . $filename . '"'; return response()->file($absolutePath, $headers);
+        $outgoingLetter = $this->findForTenant($id, $request);
+        if ($outgoingLetter === null) abort(404, 'Outgoing letter not found.');
+        $this->authorize('view', $outgoingLetter);
+
+        $filename = sprintf('surat-%s.pdf', str($outgoingLetter->number)->slug());
+
+        if ($outgoingLetter->status === OutgoingLetterStatus::ISSUED) {
+            if (blank($outgoingLetter->signed_pdf_path) || ! Storage::disk('local')->exists($outgoingLetter->signed_pdf_path)) {
+                abort(422, 'PDF bertanda tangan elektronik belum tersedia.');
+            }
+            $headers = ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="' . $filename . '"'];
+            if ($request->boolean('download')) $headers['Content-Disposition'] = 'attachment; filename="' . $filename . '"';
+            return response()->file(Storage::disk('local')->path($outgoingLetter->signed_pdf_path), $headers);
+        }
+
+        $outgoingLetter->loadMissing(['tenant', 'letterType', 'letterTypeVersion', 'signerPosition', 'signerUser', 'validatorPosition', 'validatorUser']);
+        $sourceDocxPath = $outgoingLetter->generated_docx_path;
+        if (! $sourceDocxPath || ! Storage::disk('local')->exists($sourceDocxPath)) abort(422, 'DOCX hasil surat belum tersedia. Buat ulang draft surat terlebih dahulu.');
+        $temporaryDocx = null;
+        $pdfPath = null;
+        try {
+            $temporaryDocx = $this->docxTteService->createPreviewCopy(Storage::disk('local')->path($sourceDocxPath));
+            $pdfPath = $this->docxPdfService->convert($temporaryDocx);
+            $absolutePath = Storage::disk('local')->path($pdfPath);
+            $label = sprintf('%s | %s | PREVIEW', $request->user()->name, now()->format('d-m-Y'));
+            $watermarked = $this->pdfPreviewWatermarkService->apply($absolutePath, $label);
+            $previewFilename = sprintf('preview-surat-%s.pdf', str($outgoingLetter->number)->slug());
+            return response()->file($watermarked, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="' . $previewFilename . '"'])->deleteFileAfterSend(true);
+        } catch (\RuntimeException $exception) {
+            abort(422, $exception->getMessage());
+        } finally {
+            if ($temporaryDocx !== null) @unlink($temporaryDocx);
+            if ($pdfPath !== null) Storage::disk('local')->delete($pdfPath);
+        }
     }
 
     private function availablePosition(string $tenantId, string $positionId, string $capability): ?Position { return Position::query()->where('tenant_id', $tenantId)->where('status', PositionStatus::ACTIVE)->where($capability, true)->whereNull('deleted_at')->whereHas('holders', fn ($query) => $query->whereNull('ended_at')->where('started_at', '<=', now()))->with(['holders' => fn ($query) => $query->whereNull('ended_at')->where('started_at', '<=', now())->with('user')])->find($positionId); }
