@@ -117,6 +117,15 @@ class PdfSigningServiceTest extends TestCase
 
     private function minimalPdf(): string
     {
-        return "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> /Contents 4 0 R >>\nendobj\n4 0 obj\n<< /Length 0 >>\nstream\n\nendstream\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n";
+        if (! defined('K_PATH_FONTS')) {
+            $fontPath = realpath(base_path('vendor/tecnickcom/tc-lib-pdf-font/target/fonts'));
+            if ($fontPath !== false) define('K_PATH_FONTS', $fontPath);
+        }
+
+        $pdf = new \Com\Tecnick\Pdf\Tcpdf();
+        $pdf->setCreator('DANUM Test');
+        $pdf->setTitle('DANUM PDF signing test');
+        $pdf->addPage(['format' => 'A4']);
+        return $pdf->getOutPDFString();
     }
 }
