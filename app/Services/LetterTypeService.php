@@ -68,9 +68,17 @@ class LetterTypeService
         return DB::transaction(function () use ($letterType, $data): LetterType {
             $templateChanged = array_key_exists('body_template', $data) && $data['body_template'] !== $letterType->body_template;
             $pathChanged = array_key_exists('template_path', $data) && $data['template_path'] !== $letterType->template_path;
-            if ($templateChanged && $data['body_template'] !== null) $this->templateService->validate((string) $data['body_template']);
+
+            if ($templateChanged && $data['body_template'] !== null) {
+                $this->templateService->validate((string) $data['body_template']);
+            }
+
             $letterType = $this->repository->update($letterType, $data);
-            if ($templateChanged || $pathChanged) $this->ensureCurrentVersion($letterType);
+
+            if ($templateChanged || $pathChanged) {
+                $this->ensureCurrentVersion($letterType);
+            }
+
             return $letterType;
         });
     }
@@ -90,25 +98,41 @@ class LetterTypeService
 
     public function createVersion(LetterType $letterType, array $data, int $createdBy): LetterTypeVersion
     {
-        if (! $letterType->isGlobal()) throw new \DomainException('Template version hanya dapat dikelola untuk jenis surat global.');
+        if (! $letterType->isGlobal()) {
+            throw new \DomainException('Template version hanya dapat dikelola untuk jenis surat global.');
+        }
 
         return DB::transaction(function () use ($letterType, $data, $createdBy): LetterTypeVersion {
             $effectiveFrom = Carbon::parse($data['effective_from'] ?? now());
             $effectiveUntil = !empty($data['effective_until']) ? Carbon::parse($data['effective_until']) : null;
             $latest = LetterTypeVersion::query()->where('letter_type_id', $letterType->id)->orderByDesc('version')->first();
 
-            if ($latest?->effective_from && $effectiveFrom->lt($latest->effective_from)) throw new \DomainException('Tanggal mulai versi baru tidak boleh lebih awal dari versi sebelumnya.');
-            if ($latest !== null && $effectiveFrom->lte($latest->effective_from)) throw new \DomainException('Versi baru harus memiliki periode mulai setelah versi terakhir.');
-            if ($latest?->effective_until && $effectiveFrom->lt($latest->effective_until)) throw new \DomainException('Periode versi baru tidak boleh bertumpang tindih dengan versi sebelumnya.');
-            if ($effectiveUntil !== null && $effectiveUntil->lte($effectiveFrom)) throw new \DomainException('Tanggal selesai harus lebih besar dari tanggal mulai.');
+            if ($latest?->effective_from && $effectiveFrom->lte($latest->effective_from)) {
+                throw new \DomainException('Versi baru harus memiliki periode mulai setelah versi terakhir.');
+            }
+            if ($latest?->effective_until && $effectiveFrom->lt($latest->effective_until)) {
+                throw new \DomainException('Periode versi baru tidak boleh bertumpang tindih dengan versi sebelumnya.');
+            }
+            if ($effectiveUntil !== null && $effectiveUntil->lte($effectiveFrom)) {
+                throw new \DomainException('Tanggal selesai harus lebih besar dari tanggal mulai.');
+            }
 
-            $variables = array_values(array_unique(array_filter(array_map(static fn ($value) => trim((string) $value), $data['variables'] ?? []))));
-            $currentVariables = array_values(array_unique(array_filter(array_map(static fn ($value) => trim((string) $value), $letterType->variables ?? []))));
+            $variables = array_values(array_unique(array_filter(array_map(
+                static fn ($value) => trim((string) $value),
+                array_key_exists('variables', $data) ? ($data['variables'] ?? []) : ($letterType->variables ?? [])
+            ))));
+            $currentVariables = array_values(array_unique(array_filter(array_map(
+                static fn ($value) => trim((string) $value),
+                $letterType->variables ?? []
+            ))));
             $missingFromVersion = array_values(array_diff($currentVariables, $variables));
-            if ($missingFromVersion) throw new \DomainException('Versi baru tidak boleh menghapus variabel yang sudah tersedia pada jenis surat: '.implode(', ', $missingFromVersion).'.');
-            if ($variables === []) throw new \DomainException('Versi template wajib memiliki minimal satu variabel input.');
+            if ($missingFromVersion) {
+                throw new \DomainException('Versi baru tidak boleh menghapus variabel yang sudah tersedia pada jenis surat: '.implode(', ', $missingFromVersion).'.');
+            }
 
-            if ($latest !== null && $latest->effective_until === null) $latest->update(['effective_until' => $effectiveFrom]);
+            if ($latest !== null && $latest->effective_until === null) {
+                $latest->update(['effective_until' => $effectiveFrom]);
+            }
 
             $version = LetterTypeVersion::query()->create([
                 'letter_type_id' => $letterType->id,
@@ -123,10 +147,6 @@ class LetterTypeService
                 'created_by' => $createdBy,
             ]);
 
-            // Keep the master definition aligned with the newest version for future version creation,
-            // while the immutable snapshot above protects every historical version.
-            $letterType->forceFill(['variables' => $variables])->save();
-
             app(AuditLogService::class)->record(
                 'letter_type.version.created',
                 auth()->user(),
@@ -135,10 +155,10 @@ class LetterTypeService
                 [
                     'letter_type_id' => $letterType->id,
                     'version' => $version->version,
-                    'variables' => $variables,
                     'effective_from' => $version->effective_from?->toIso8601String(),
                     'effective_until' => $version->effective_until?->toIso8601String(),
                     'template_path' => $version->template_path,
+                    'variables' => $version->variables,
                     'change_note' => $version->change_note,
                 ],
             );
@@ -149,21 +169,39 @@ class LetterTypeService
 
     public function ensureCurrentVersion(LetterType $letterType): ?LetterTypeVersion
     {
-        if ($active = $this->activeVersion($letterType)) return $active;
-        $hasTemplate = $letterType->body_template !== null || $letterType->template_path !== null;
-        if (! $hasTemplate) return null;
         $latest = LetterTypeVersion::query()->where('letter_type_id', $letterType->id)->orderByDesc('version')->first();
         $bodyTemplate = (string) ($letterType->body_template ?? '');
         $templatePath = $letterType->template_path;
-        if ($latest !== null && $latest->body_template === $bodyTemplate && $latest->template_path === $templatePath) return $latest;
+        $variables = array_values(array_unique(array_filter(array_map(
+            static fn ($value) => trim((string) $value),
+            $letterType->variables ?? []
+        ))));
+
+        // A future scheduled version must not override the currently effective version.
+        $active = $this->activeVersion($letterType);
+        if ($active !== null && $active->body_template === $bodyTemplate && $active->template_path === $templatePath) {
+            return $active;
+        }
+
+        // If the latest version already represents the current master, do not create a duplicate.
+        if ($latest !== null && $latest->body_template === $bodyTemplate && $latest->template_path === $templatePath) {
+            return $active ?? $latest;
+        }
+
+        $hasTemplate = $letterType->body_template !== null || $letterType->template_path !== null;
+        if (! $hasTemplate) return null;
+
         $effectiveFrom = now();
-        if ($latest !== null && $latest->effective_until === null) $latest->update(['effective_until' => $effectiveFrom]);
+        if ($latest !== null && $latest->effective_until === null && $effectiveFrom->gte($latest->effective_from)) {
+            $latest->update(['effective_until' => $effectiveFrom]);
+        }
+
         return LetterTypeVersion::query()->create([
             'letter_type_id' => $letterType->id,
             'version' => ($latest?->version ?? 0) + 1,
             'body_template' => $bodyTemplate,
             'template_path' => $templatePath,
-            'variables' => array_values($letterType->variables ?? []),
+            'variables' => $variables,
             'effective_from' => $effectiveFrom,
             'is_active' => true,
         ]);
