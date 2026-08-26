@@ -3,13 +3,53 @@
 ])
 
 <div
-    x-data="{ open: false }"
-    @click.outside="open = false"
-    @keydown.escape.window="open = false"
-    class="relative inline-block text-left">
+    x-data="{
+        open: false,
+        top: 0,
+        left: 0,
+        menuWidth: 160,
+        gap: 8,
+        positionMenu() {
+            const trigger = this.$refs.trigger;
+            if (!trigger) return;
+
+            const rect = trigger.getBoundingClientRect();
+            const menuHeight = 96;
+            const viewportPadding = 8;
+
+            let nextLeft = rect.right - this.menuWidth;
+            let nextTop = rect.top - menuHeight - this.gap;
+
+            if (nextTop < viewportPadding) {
+                nextTop = rect.bottom + this.gap;
+            }
+
+            nextLeft = Math.max(
+                viewportPadding,
+                Math.min(nextLeft, window.innerWidth - this.menuWidth - viewportPadding)
+            );
+
+            this.left = nextLeft;
+            this.top = nextTop;
+        },
+        toggle() {
+            this.open = !this.open;
+            if (this.open) {
+                this.$nextTick(() => this.positionMenu());
+            }
+        },
+        close() {
+            this.open = false;
+        }
+    }"
+    @click.outside="close()"
+    @keydown.escape.window="close()"
+    @resize.window="open && positionMenu()"
+    class="inline-block text-left">
     <button
+        x-ref="trigger"
         type="button"
-        @click="open = !open"
+        @click="toggle()"
         :aria-expanded="open"
         aria-haspopup="true"
         aria-label="User actions"
@@ -21,27 +61,31 @@
         </svg>
     </button>
 
-    <div
-        x-show="open"
-        x-cloak
-        x-transition
-        class="absolute right-0 bottom-full z-50 mb-2 w-40 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-left shadow-lg">
-        <button
-            type="button"
-            @click="open = false"
-            wire:click="edit({{ $user->id }})"
-            wire:loading.attr="disabled"
-            class="block w-full px-4 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50 disabled:opacity-50">
-            Edit
-        </button>
+    <template x-teleport="body">
+        <div
+            x-show="open"
+            x-cloak
+            x-transition
+            @click.outside="close()"
+            class="fixed z-[9999] w-40 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-left shadow-lg"
+            :style="`top: ${top}px; left: ${left}px;`">
+            <button
+                type="button"
+                @click="close()"
+                wire:click="edit({{ $user->id }})"
+                wire:loading.attr="disabled"
+                class="block w-full px-4 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50 disabled:opacity-50">
+                Edit
+            </button>
 
-        <button
-            type="button"
-            @click="open = false"
-            wire:click="toggleStatus({{ $user->id }})"
-            wire:loading.attr="disabled"
-            class="block w-full px-4 py-2.5 text-left text-sm transition disabled:opacity-50 {{ $user->status === \App\Enums\UserStatus::ACTIVE ? 'text-red-600 hover:bg-red-50' : 'text-emerald-600 hover:bg-emerald-50' }}">
-            {{ $user->status === \App\Enums\UserStatus::ACTIVE ? 'Deactivate' : 'Activate' }}
-        </button>
-    </div>
+            <button
+                type="button"
+                @click="close()"
+                wire:click="toggleStatus({{ $user->id }})"
+                wire:loading.attr="disabled"
+                class="block w-full px-4 py-2.5 text-left text-sm transition disabled:opacity-50 {{ $user->status === \App\Enums\UserStatus::ACTIVE ? 'text-red-600 hover:bg-red-50' : 'text-emerald-600 hover:bg-emerald-50' }}">
+                {{ $user->status === \App\Enums\UserStatus::ACTIVE ? 'Deactivate' : 'Activate' }}
+            </button>
+        </div>
+    </template>
 </div>
