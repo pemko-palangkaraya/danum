@@ -18,14 +18,23 @@ class LetterTypeService
 {
     public function __construct(private LetterTypeRepositoryInterface $repository, private DocxTemplateService $templateService) {}
 
-    public function find(string $id, ?string $tenantId): ?LetterType { return $this->repository->find($id, $tenantId); }
-    public function findWithTrashed(string $id, ?string $tenantId): ?LetterType { return $this->repository->findWithTrashed($id, $tenantId); }
-    public function getAll(?string $tenantId): Collection { return $this->repository->getAll($tenantId); }
+    public function find(string $id, ?string $tenantId): ?LetterType
+    {
+        return $this->repository->find($id, $tenantId);
+    }
+    public function findWithTrashed(string $id, ?string $tenantId): ?LetterType
+    {
+        return $this->repository->findWithTrashed($id, $tenantId);
+    }
+    public function getAll(?string $tenantId): Collection
+    {
+        return $this->repository->getAll($tenantId);
+    }
 
     public function getAvailableForTenant(string $tenantId): Collection
     {
         return LetterType::query()->where('status', 'active')->where(function ($query) use ($tenantId): void {
-            $query->where('tenant_id', $tenantId)->orWhere(fn ($global) => $global->whereNull('tenant_id')->whereHas('permissions', fn ($permission) => $permission->where('tenant_id', $tenantId)->where('allowed', true)));
+            $query->where('tenant_id', $tenantId)->orWhere(fn($global) => $global->whereNull('tenant_id')->whereHas('permissions', fn($permission) => $permission->where('tenant_id', $tenantId)->where('allowed', true)));
         })->get();
     }
 
@@ -70,16 +79,25 @@ class LetterTypeService
         });
     }
 
-    public function delete(LetterType $letterType): bool { return $this->repository->delete($letterType); }
-    public function restore(LetterType $letterType): bool { return $this->repository->restore($letterType); }
-    public function currentVersion(LetterType $letterType): ?LetterTypeVersion { return $this->activeVersion($letterType); }
+    public function delete(LetterType $letterType): bool
+    {
+        return $this->repository->delete($letterType);
+    }
+    public function restore(LetterType $letterType): bool
+    {
+        return $this->repository->restore($letterType);
+    }
+    public function currentVersion(LetterType $letterType): ?LetterTypeVersion
+    {
+        return $this->activeVersion($letterType);
+    }
 
     public function activeVersion(LetterType $letterType, ?Carbon $at = null): ?LetterTypeVersion
     {
         $at ??= now();
         return LetterTypeVersion::query()->where('letter_type_id', $letterType->id)->where('is_active', true)
-            ->where(fn ($q) => $q->whereNull('effective_from')->orWhere('effective_from', '<=', $at))
-            ->where(fn ($q) => $q->whereNull('effective_until')->orWhere('effective_until', '>', $at))
+            ->where(fn($q) => $q->whereNull('effective_from')->orWhere('effective_from', '<=', $at))
+            ->where(fn($q) => $q->whereNull('effective_until')->orWhere('effective_until', '>', $at))
             ->orderByDesc('version')->first();
     }
 
@@ -96,19 +114,28 @@ class LetterTypeService
             $variables = $this->normalizeVariables($data['variables'] ?? $letterType->variables ?? []);
             $currentVariables = $this->normalizeVariables($letterType->variables ?? []);
             $missingFromVersion = array_values(array_diff($currentVariables, $variables));
-            if ($missingFromVersion) throw new \DomainException('Versi baru tidak boleh menghapus variabel yang sudah tersedia pada jenis surat: '.implode(', ', $missingFromVersion).'.');
+            if ($missingFromVersion) throw new \DomainException('Versi baru tidak boleh menghapus variabel yang sudah tersedia pada jenis surat: ' . implode(', ', $missingFromVersion) . '.');
             if ($latest !== null && $latest->effective_until === null) $latest->update(['effective_until' => $effectiveFrom]);
             $version = LetterTypeVersion::query()->create([
-                'letter_type_id' => $letterType->id, 'version' => ($latest?->version ?? 0) + 1,
+                'letter_type_id' => $letterType->id,
+                'version' => ($latest?->version ?? 0) + 1,
                 'body_template' => (string) ($data['body_template'] ?? $letterType->body_template ?? ''),
-                'template_path' => $data['template_path'] ?? $letterType->template_path, 'variables' => $variables,
-                'effective_from' => $effectiveFrom, 'effective_until' => $effectiveUntil, 'is_active' => true,
-                'change_note' => trim((string) ($data['change_note'] ?? '')) ?: null, 'created_by' => $createdBy,
+                'template_path' => $data['template_path'] ?? $letterType->template_path,
+                'variables' => $variables,
+                'effective_from' => $effectiveFrom,
+                'effective_until' => $effectiveUntil,
+                'is_active' => true,
+                'change_note' => trim((string) ($data['change_note'] ?? '')) ?: null,
+                'created_by' => $createdBy,
             ]);
             app(AuditLogService::class)->record('letter_type.version.created', User::query()->find($createdBy), $version, null, [
-                'letter_type_id' => $version->letter_type_id, 'version' => $version->version, 'template_path' => $version->template_path,
-                'variables' => $version->variables, 'effective_from' => $version->effective_from?->toIso8601String(),
-                'effective_until' => $version->effective_until?->toIso8601String(), 'change_note' => $version->change_note,
+                'letter_type_id' => $version->letter_type_id,
+                'version' => $version->version,
+                'template_path' => $version->template_path,
+                'variables' => $version->variables,
+                'effective_from' => $version->effective_from?->toIso8601String(),
+                'effective_until' => $version->effective_until?->toIso8601String(),
+                'change_note' => $version->change_note,
             ]);
             return $version;
         });
@@ -127,9 +154,13 @@ class LetterTypeService
         $effectiveFrom = $this->normalizeVersionDate(now());
         if ($latest !== null && $latest->effective_until === null && $latest->effective_from !== null && $effectiveFrom->gte($latest->effective_from)) $latest->update(['effective_until' => $effectiveFrom]);
         return LetterTypeVersion::query()->create([
-            'letter_type_id' => $letterType->id, 'version' => ($latest?->version ?? 0) + 1,
-            'body_template' => $bodyTemplate, 'template_path' => $templatePath, 'variables' => $variables,
-            'effective_from' => $effectiveFrom, 'is_active' => true,
+            'letter_type_id' => $letterType->id,
+            'version' => ($latest?->version ?? 0) + 1,
+            'body_template' => $bodyTemplate,
+            'template_path' => $templatePath,
+            'variables' => $variables,
+            'effective_from' => $effectiveFrom,
+            'is_active' => true,
         ]);
     }
 
@@ -137,11 +168,11 @@ class LetterTypeService
     {
         $date = $value instanceof CarbonInterface ? $value->copy() : Carbon::parse($value);
         // Database timestamps are timezone-aware; persist the same instant in UTC.
-        return $date->startOfSecond()->setTimezone('UTC');
+        return $date->startOfSecond();
     }
 
     private function normalizeVariables(array $variables): array
     {
-        return array_values(array_unique(array_filter(array_map(static fn ($value) => trim((string) $value), $variables))));
+        return array_values(array_unique(array_filter(array_map(static fn($value) => trim((string) $value), $variables))));
     }
 }
