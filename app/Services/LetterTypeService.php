@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\LetterType;
 use App\Models\LetterTypePermission;
 use App\Models\LetterTypeVersion;
+use App\Models\User;
 use App\Repositories\Contracts\LetterTypeRepositoryInterface;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -56,7 +57,6 @@ class LetterTypeService
         if ($letterType->tenant_id === $tenantId) {
             return true;
         }
-
         if (! $letterType->isGlobal()) {
             return false;
         }
@@ -182,11 +182,9 @@ class LetterTypeService
             if ($latest?->effective_from && $effectiveFrom->lte($latest->effective_from)) {
                 throw new \DomainException('Versi baru harus memiliki periode mulai setelah versi terakhir.');
             }
-
             if ($latest?->effective_until && $effectiveFrom->lt($latest->effective_until)) {
                 throw new \DomainException('Periode versi baru tidak boleh bertumpang tindih dengan versi sebelumnya.');
             }
-
             if ($effectiveUntil !== null && $effectiveUntil->lte($effectiveFrom)) {
                 throw new \DomainException('Tanggal selesai harus lebih besar dari tanggal mulai.');
             }
@@ -202,7 +200,6 @@ class LetterTypeService
                 $letterType->variables ?? [],
             ))));
             $missingFromVersion = array_values(array_diff($currentVariables, $variables));
-
             if ($missingFromVersion) {
                 throw new \DomainException(
                     'Versi baru tidak boleh menghapus variabel yang sudah tersedia pada jenis surat: '
