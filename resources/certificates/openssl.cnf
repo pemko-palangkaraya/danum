@@ -1,4 +1,17 @@
 # DANUM self-signed signer certificate profile
+# Keep this configuration self-contained so Windows OpenSSL does not fall back
+# to a machine-level configuration or an invalid random-state file.
+
+openssl_conf = openssl_init
+
+[openssl_init]
+providers = provider_sect
+
+[provider_sect]
+default = default_sect
+
+[default_sect]
+activate = 1
 
 [ req ]
 distinguished_name = req_distinguished_name
