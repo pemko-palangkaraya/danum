@@ -30,19 +30,17 @@ class SignerCertificateService
         $certificateConfig = base_path('resources/certificates/openssl.cnf');
         if (! is_file($certificateConfig)) throw new RuntimeException('Konfigurasi OpenSSL sertifikat tidak ditemukan.');
 
-        // OpenSSL reads its configuration during the first OpenSSL operation in
-        // the PHP process. Set the application-owned config before generating the
-        // key; changing OPENSSL_CONF after openssl_pkey_new() is too late.
         $previousOpenSslConf = getenv('OPENSSL_CONF');
         putenv('OPENSSL_CONF='.$certificateConfig);
 
         try {
-            $key = openssl_pkey_new([
+            $opensslOptions = [
                 'config' => $certificateConfig,
                 'private_key_type' => OPENSSL_KEYTYPE_RSA,
                 'private_key_bits' => 3072,
-                'digest_alg' => 'sha256',
-            ]);
+            ];
+
+            $key = openssl_pkey_new($opensslOptions);
             if ($key === false) throw new RuntimeException('Gagal membuat private key sertifikat: '.$this->opensslError());
 
             $dn = [
@@ -58,7 +56,6 @@ class SignerCertificateService
             $csr = openssl_csr_new($dn, $key, [
                 'config' => $certificateConfig,
                 'digest_alg' => 'sha256',
-                'req_extensions' => 'v3_req',
             ]);
             if ($csr === false) throw new RuntimeException('Gagal membuat CSR sertifikat: '.$this->opensslError());
 
@@ -70,11 +67,48 @@ class SignerCertificateService
             if ($cert === false) throw new RuntimeException('Gagal menerbitkan sertifikat publik: '.$this->opensslError());
 
             if (! openssl_x509_export($cert, $certificatePem)) throw new RuntimeException('Gagal mengekspor sertifikat publik: '.$this->opensslError());
-            if (! openssl_pkey_export($key, $privateKeyPem)) throw new RuntimeException('Gagal mengekspor private key: '.$this->opensslError());
+            if (! openssl_pkey_export($key, $privateKeyPem, null, ['config' => $certificateConfig])) throw new RuntimeException('Gagal mengekspor private key: '.$this->opensslError());
 
             $parsed = openssl_x509_parse($certificatePem);
             $fingerprint = openssl_x509_fingerprint($certificatePem, 'sha256');
             if (! $fingerprint) throw new RuntimeException('Gagal menghitung fingerprint sertifikat.');
+
+            return DB::transaction(function () use ($position, $holder, $generatedBy, $serial, $validFrom, $validUntil, $certificatePem, $privateKeyPem, $parsed, $fingerprint): SignerCertificate {
+                SignerCertificate::query()
+                    ->where('position_id', $position->id)
+                    ->where('user_id', $holder->user_id)
+                    ->where('is_active', true)
+                    ->update(['is_active' => false, 'revoked_at' => now()]);
+
+                $certificate = SignerCertificate::query()->create([
+                    'position_id' => $position->id,
+                    'user_id' => $holder->user_id,
+                    'serial_number' => $serial,
+                    'certificate_pem' => $certificatePem,
+                    'private_key_encrypted' => Crypt::encryptString($privateKeyPem),
+                    'fingerprint_sha256' => $fingerprint,
+                    'valid_from' => $validFrom,
+                    'valid_until' => $validUntil,
+                    'is_active' => true,
+                    'generated_by' => $generatedBy->id,
+                    'metadata' => [
+                        'subject' => $parsed['subject'] ?? [],
+                        'issuer' => $parsed['issuer'] ?? [],
+                        'signature_algorithm' => $parsed['signatureTypeSN'] ?? null,
+                    ],
+                ]);
+
+                app(AuditLogService::class)->record('signer_certificate.generated', $generatedBy, $certificate, null, [
+                    'position_id' => $position->id,
+                    'user_id' => $holder->user_id,
+                    'serial_number' => $serial,
+                    'fingerprint_sha256' => $fingerprint,
+                    'valid_from' => $validFrom->toIso8601String(),
+                    'valid_until' => $validUntil->toIso8601String(),
+                ]);
+
+                return $certificate;
+            });
         } finally {
             if ($previousOpenSslConf === false) {
                 putenv('OPENSSL_CONF');
@@ -82,58 +116,12 @@ class SignerCertificateService
                 putenv('OPENSSL_CONF='.$previousOpenSslConf);
             }
         }
-
-        return DB::transaction(function () use ($position, $holder, $generatedBy, $serial, $validFrom, $validUntil, $certificatePem, $privateKeyPem, $parsed, $fingerprint): SignerCertificate {
-            SignerCertificate::query()
-                ->where('position_id', $position->id)
-                ->where('user_id', $holder->user_id)
-                ->where('is_active', true)
-                ->update(['is_active' => false, 'revoked_at' => now()]);
-
-            $certificate = SignerCertificate::query()->create([
-                'position_id' => $position->id,
-                'user_id' => $holder->user_id,
-                'type' => 'self_signed',
-                'serial_number' => (string) ($parsed['serialNumberHex'] ?? $serial),
-                'fingerprint_sha256' => strtoupper($fingerprint),
-                'certificate_pem' => $certificatePem,
-                'private_key_encrypted' => Crypt::encryptString($privateKeyPem),
-                'valid_from' => $validFrom,
-                'valid_until' => $validUntil,
-                'is_active' => true,
-                'generated_by' => $generatedBy->id,
-            ]);
-
-            app(AuditLogService::class)->record(
-                'signer_certificate.generated',
-                $generatedBy,
-                $certificate,
-                null,
-                [
-                    'position_id' => $position->id,
-                    'user_id' => $holder->user_id,
-                    'type' => $certificate->type,
-                    'serial_number' => $certificate->serial_number,
-                    'fingerprint_sha256' => $certificate->fingerprint_sha256,
-                    'valid_from' => $certificate->valid_from->toIso8601String(),
-                    'valid_until' => $certificate->valid_until->toIso8601String(),
-                ]
-            );
-
-            return $certificate;
-        });
-    }
-
-    public function privateKey(SignerCertificate $certificate): string
-    {
-        return Crypt::decryptString($certificate->private_key_encrypted);
     }
 
     private function opensslError(): string
     {
         $errors = [];
         while (($error = openssl_error_string()) !== false) $errors[] = $error;
-
-        return implode(' | ', $errors) ?: 'unknown OpenSSL error';
+        return implode(' | ', $errors) ?: 'OpenSSL tidak memberikan detail error.';
     }
 }
