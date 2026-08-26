@@ -46,7 +46,7 @@ class LetterTypeVersionManagementTest extends TestCase
     {
         $admin = User::factory()->create(['role' => UserRole::SUPER_ADMIN, 'tenant_id' => null]);
         $letterType = LetterType::factory()->create(['tenant_id' => null, 'status' => 'active', 'body_template' => 'body-v1', 'template_path' => 'letter-templates/v1.docx']);
-        $start = now()->subDay();
+        $start = now()->subDay()->startOfSecond();
         $v1 = LetterTypeVersion::factory()->create([
             'letter_type_id' => $letterType->id,
             'version' => 1,
@@ -55,7 +55,7 @@ class LetterTypeVersionManagementTest extends TestCase
             'effective_from' => $start,
         ]);
 
-        $effectiveFrom = now()->addMinute();
+        $effectiveFrom = now()->addMinute()->startOfSecond();
         $v2 = app(LetterTypeService::class)->createVersion($letterType, [
             'body_template' => 'body-v2',
             'template_path' => 'letter-templates/v2.docx',
