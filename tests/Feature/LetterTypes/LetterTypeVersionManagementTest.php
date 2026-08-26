@@ -67,8 +67,9 @@ class LetterTypeVersionManagementTest extends TestCase
         $this->assertSame(2, $v2->version);
         $this->assertSame('body-v1', $v1->body_template);
         $this->assertSame('letter-templates/v1.docx', $v1->template_path);
-        $this->assertTrue($v1->effective_until->equalTo($effectiveFrom));
+        $this->assertSame($effectiveFrom->timestamp, $v1->effective_until->timestamp);
         $this->assertSame('body-v2', $v2->body_template);
+        $this->assertSame('letter-templates/v2.docx', $v2->body_template === 'body-v2' ? 'body-v2' : $v2->body_template);
         $this->assertSame('letter-templates/v2.docx', $v2->template_path);
         $this->assertSame('Penyesuaian format surat.', $v2->change_note);
     }
