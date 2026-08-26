@@ -27,36 +27,54 @@ class SignerCertificateService
         $validFrom = now()->startOfSecond();
         $validUntil = $validFrom->copy()->addYear();
 
-        $key = openssl_pkey_new([
-            'private_key_type' => OPENSSL_KEYTYPE_RSA,
-            'private_key_bits' => 3072,
-        ]);
-        if ($key === false) throw new RuntimeException('Gagal membuat private key sertifikat: '.$this->opensslError());
-
-        $dn = [
-            'countryName' => 'ID',
-            'stateOrProvinceName' => 'Kalimantan Tengah',
-            'localityName' => $tenantName,
-            'organizationName' => $tenantName,
-            'organizationalUnitName' => $position->name,
-            'commonName' => $commonName,
-            'emailAddress' => (string) $user->email,
-        ];
-
-        $csr = openssl_csr_new($dn, $key, ['digest_alg' => 'sha256']);
-        if ($csr === false) throw new RuntimeException('Gagal membuat CSR sertifikat: '.$this->opensslError());
-
         $certificateConfig = base_path('resources/certificates/openssl.cnf');
         if (! is_file($certificateConfig)) throw new RuntimeException('Konfigurasi OpenSSL sertifikat tidak ditemukan.');
 
+        // OpenSSL reads its configuration during the first OpenSSL operation in
+        // the PHP process. Set the application-owned config before generating the
+        // key; changing OPENSSL_CONF after openssl_pkey_new() is too late.
         $previousOpenSslConf = getenv('OPENSSL_CONF');
         putenv('OPENSSL_CONF='.$certificateConfig);
 
         try {
+            $key = openssl_pkey_new([
+                'config' => $certificateConfig,
+                'private_key_type' => OPENSSL_KEYTYPE_RSA,
+                'private_key_bits' => 3072,
+                'digest_alg' => 'sha256',
+            ]);
+            if ($key === false) throw new RuntimeException('Gagal membuat private key sertifikat: '.$this->opensslError());
+
+            $dn = [
+                'countryName' => 'ID',
+                'stateOrProvinceName' => 'Kalimantan Tengah',
+                'localityName' => $tenantName,
+                'organizationName' => $tenantName,
+                'organizationalUnitName' => $position->name,
+                'commonName' => $commonName,
+                'emailAddress' => (string) $user->email,
+            ];
+
+            $csr = openssl_csr_new($dn, $key, [
+                'config' => $certificateConfig,
+                'digest_alg' => 'sha256',
+                'req_extensions' => 'v3_req',
+            ]);
+            if ($csr === false) throw new RuntimeException('Gagal membuat CSR sertifikat: '.$this->opensslError());
+
             $cert = openssl_csr_sign($csr, null, $key, 365, [
+                'config' => $certificateConfig,
                 'digest_alg' => 'sha256',
                 'x509_extensions' => 'v3_req',
             ], 0);
+            if ($cert === false) throw new RuntimeException('Gagal menerbitkan sertifikat publik: '.$this->opensslError());
+
+            if (! openssl_x509_export($cert, $certificatePem)) throw new RuntimeException('Gagal mengekspor sertifikat publik: '.$this->opensslError());
+            if (! openssl_pkey_export($key, $privateKeyPem)) throw new RuntimeException('Gagal mengekspor private key: '.$this->opensslError());
+
+            $parsed = openssl_x509_parse($certificatePem);
+            $fingerprint = openssl_x509_fingerprint($certificatePem, 'sha256');
+            if (! $fingerprint) throw new RuntimeException('Gagal menghitung fingerprint sertifikat.');
         } finally {
             if ($previousOpenSslConf === false) {
                 putenv('OPENSSL_CONF');
@@ -64,15 +82,6 @@ class SignerCertificateService
                 putenv('OPENSSL_CONF='.$previousOpenSslConf);
             }
         }
-
-        if ($cert === false) throw new RuntimeException('Gagal menerbitkan sertifikat publik: '.$this->opensslError());
-
-        if (! openssl_x509_export($cert, $certificatePem)) throw new RuntimeException('Gagal mengekspor sertifikat publik: '.$this->opensslError());
-        if (! openssl_pkey_export($key, $privateKeyPem)) throw new RuntimeException('Gagal mengekspor private key: '.$this->opensslError());
-
-        $parsed = openssl_x509_parse($certificatePem);
-        $fingerprint = openssl_x509_fingerprint($certificatePem, 'sha256');
-        if (! $fingerprint) throw new RuntimeException('Gagal menghitung fingerprint sertifikat.');
 
         return DB::transaction(function () use ($position, $holder, $generatedBy, $serial, $validFrom, $validUntil, $certificatePem, $privateKeyPem, $parsed, $fingerprint): SignerCertificate {
             SignerCertificate::query()
@@ -123,10 +132,8 @@ class SignerCertificateService
     private function opensslError(): string
     {
         $errors = [];
-        while (($error = openssl_error_string()) !== false) {
-            $errors[] = $error;
-        }
+        while (($error = openssl_error_string()) !== false) $errors[] = $error;
 
-        return $errors !== [] ? implode(' | ', $errors) : 'unknown OpenSSL error';
+        return implode(' | ', $errors) ?: 'unknown OpenSSL error';
     }
 }
