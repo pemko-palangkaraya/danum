@@ -26,12 +26,16 @@ class SignerCertificateService
         $serial = strtoupper(bin2hex(random_bytes(16)));
         $validFrom = now()->startOfSecond();
         $validUntil = $validFrom->copy()->addYear();
+        $opensslConfig = $this->opensslConfigPath();
 
-        $key = openssl_pkey_new([
+        $keyOptions = [
             'private_key_type' => OPENSSL_KEYTYPE_RSA,
             'private_key_bits' => 3072,
-        ]);
-        if ($key === false) throw new RuntimeException('Gagal membuat private key sertifikat.');
+        ];
+        if ($opensslConfig !== null) $keyOptions['config'] = $opensslConfig;
+
+        $key = openssl_pkey_new($keyOptions);
+        if ($key === false) throw new RuntimeException('Gagal membuat private key sertifikat: '.$this->opensslError());
 
         $dn = [
             'countryName' => 'ID',
@@ -43,22 +47,26 @@ class SignerCertificateService
             'emailAddress' => (string) $user->email,
         ];
 
-        $csr = openssl_csr_new($dn, $key, ['digest_alg' => 'sha256']);
-        if ($csr === false) throw new RuntimeException('Gagal membuat CSR sertifikat.');
-
-        $cert = openssl_csr_sign($csr, null, $key, 365, ['digest_alg' => 'sha256', 'x509_extensions' => 'v3_req'], 0);
-        if ($cert === false) {
-            // The minimal self-signed profile intentionally avoids external CA dependencies.
-            $cert = openssl_csr_sign($csr, null, $key, 365, ['digest_alg' => 'sha256'], 0);
+        $csrOptions = ['digest_alg' => 'sha256'];
+        if ($opensslConfig !== null) {
+            $csrOptions['config'] = $opensslConfig;
+            $csrOptions['req_extensions'] = 'v3_req';
         }
-        if ($cert === false) throw new RuntimeException('Gagal menerbitkan sertifikat publik.');
 
-        if (! openssl_x509_export($cert, $certificatePem)) throw new RuntimeException('Gagal mengekspor sertifikat publik.');
-        if (! openssl_pkey_export($key, $privateKeyPem)) throw new RuntimeException('Gagal mengekspor private key.');
+        $csr = openssl_csr_new($dn, $key, $csrOptions);
+        if ($csr === false) throw new RuntimeException('Gagal membuat CSR sertifikat: '.$this->opensslError());
+
+        $signOptions = ['digest_alg' => 'sha256'];
+        if ($opensslConfig !== null) $signOptions['x509_extensions'] = 'v3_req';
+        $cert = openssl_csr_sign($csr, null, $key, 365, $signOptions, 0);
+        if ($cert === false) throw new RuntimeException('Gagal menerbitkan sertifikat publik: '.$this->opensslError());
+
+        if (! openssl_x509_export($cert, $certificatePem)) throw new RuntimeException('Gagal mengekspor sertifikat publik: '.$this->opensslError());
+        if (! openssl_pkey_export($key, $privateKeyPem)) throw new RuntimeException('Gagal mengekspor private key: '.$this->opensslError());
 
         $parsed = openssl_x509_parse($certificatePem);
         $fingerprint = openssl_x509_fingerprint($certificatePem, 'sha256');
-        if (! $fingerprint) throw new RuntimeException('Gagal menghitung fingerprint sertifikat.');
+        if (! $fingerprint) throw new RuntimeException('Gagal menghitung fingerprint sertifikat: '.$this->opensslError());
 
         return DB::transaction(function () use ($position, $holder, $generatedBy, $serial, $validFrom, $validUntil, $certificatePem, $privateKeyPem, $parsed, $fingerprint): SignerCertificate {
             SignerCertificate::query()
@@ -104,5 +112,18 @@ class SignerCertificateService
     public function privateKey(SignerCertificate $certificate): string
     {
         return Crypt::decryptString($certificate->private_key_encrypted);
+    }
+
+    private function opensslConfigPath(): ?string
+    {
+        $path = resource_path('certificates/openssl.cnf');
+        return is_file($path) ? $path : null;
+    }
+
+    private function opensslError(): string
+    {
+        $errors = [];
+        while (($error = openssl_error_string()) !== false) $errors[] = $error;
+        return $errors !== [] ? implode(' | ', $errors) : 'OpenSSL tidak memberikan detail error.';
     }
 }
