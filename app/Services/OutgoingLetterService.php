@@ -69,6 +69,35 @@ class OutgoingLetterService
         return $letter;
     }
 
+    public function reject(OutgoingLetter $letter, int $changedBy, string $reason): OutgoingLetter
+    {
+        $reason = trim($reason);
+        if ($reason === '') throw new \DomainException('Alasan penolakan wajib diisi.');
+        if ($letter->status !== OutgoingLetterStatus::VALIDATED) throw new \DomainException('Hanya surat yang sudah divalidasi yang dapat ditolak.');
+        $oldValues = $this->auditValues($letter);
+        $letter = $this->repository->update($letter, [
+            'status' => OutgoingLetterStatus::DRAFT,
+            'submitted_at' => null,
+            'rejection_reason' => $reason,
+            'rejected_by' => $changedBy,
+            'rejected_at' => now(),
+        ]);
+        $this->recordHistory($letter, 'rejected', $changedBy, $reason);
+        $this->recordAudit('outgoing_letter.rejected', $letter, $changedBy, $oldValues, $this->auditValues($letter));
+        return $letter;
+    }
+
+    public function cancel(OutgoingLetter $letter, int $changedBy, ?string $note = null): OutgoingLetter
+    {
+        if ($letter->status !== OutgoingLetterStatus::DRAFT) throw new \DomainException('Hanya draft yang dapat dibatalkan.');
+        if ($letter->submitted_at !== null) throw new \DomainException('Surat yang sudah dikirim untuk verifikasi tidak dapat dibatalkan.');
+        $oldValues = $this->auditValues($letter);
+        $letter = $this->repository->update($letter, ['status' => OutgoingLetterStatus::CANCELLED]);
+        $this->recordHistory($letter, 'cancelled', $changedBy, $note);
+        $this->recordAudit('outgoing_letter.cancelled', $letter, $changedBy, $oldValues, $this->auditValues($letter));
+        return $letter;
+    }
+
     public function delete(OutgoingLetter $letter): bool
     {
         $this->ensureMutable($letter);
@@ -81,7 +110,7 @@ class OutgoingLetterService
 
     public function restore(OutgoingLetter $letter): bool
     {
-        if ($letter->status === OutgoingLetterStatus::ISSUED) throw new \DomainException('Issued letters cannot be restored or modified.');
+        if ($letter->status === OutgoingLetterStatus::ISSUED || $letter->status === OutgoingLetterStatus::WITHDRAWN) throw new \DomainException('Issued or withdrawn letters cannot be restored or modified.');
         $restored = $this->repository->restore($letter);
         if ($restored) $this->recordAudit('outgoing_letter.restored', $letter->fresh(), null, null, $this->auditValues($letter->fresh()));
         return $restored;
@@ -104,20 +133,13 @@ class OutgoingLetterService
         $note = $this->requiredWorkflowNote($note, 'Catatan penandatanganan wajib diisi.');
         if ($letter->status !== OutgoingLetterStatus::VALIDATED) throw new \DomainException('Hanya surat yang sudah divalidasi yang dapat diterbitkan.');
         if ($letter->signer_user_id !== $changedBy) throw new \DomainException('Hanya penanda tangan yang ditentukan untuk surat ini yang dapat menerbitkan surat.');
-
         $signer = User::query()->findOrFail($changedBy);
         if (blank($pin)) throw new \DomainException('PIN penandatangan wajib diisi.');
         $this->signerPinService->verify($signer, $pin);
-
         $letterType = $letter->letterType()->first();
         $signerCertificate = $this->resolveSignerCertificate($letter);
         $issuedAt = now();
-        $attributes = [
-            'issued_at' => $issuedAt->toDateString(),
-            'valid_from' => $issuedAt,
-            'valid_until' => null,
-            'signing_note' => $note,
-        ];
+        $attributes = ['issued_at' => $issuedAt->toDateString(), 'valid_from' => $issuedAt, 'valid_until' => null, 'signing_note' => $note];
         $period = $letterType?->validity_period ?? 'none';
         if ($period !== 'none') {
             $attributes['valid_until'] = match ($period) {
@@ -126,9 +148,7 @@ class OutgoingLetterService
                 default => throw new \DomainException('Masa berlaku jenis surat tidak valid.'),
             };
         }
-
         if (blank($letter->generated_docx_path)) throw new \DomainException('Dokumen DOCX surat belum tersedia untuk ditandatangani.');
-
         $unsignedPdfPath = $this->docxPdfService->convert((string) $letter->generated_docx_path);
         $signedPdfPath = null;
         try {
@@ -161,33 +181,68 @@ class OutgoingLetterService
         }
     }
 
+    public function requestWithdrawal(OutgoingLetter $letter, int $requestedBy, string $reason, string $statementPath): OutgoingLetterWithdrawalRequest
+    {
+        $reason = trim($reason);
+        $statementPath = trim($statementPath);
+        if ($letter->status !== OutgoingLetterStatus::ISSUED) throw new \DomainException('Hanya surat yang sudah diterbitkan yang dapat ditarik.');
+        if ($reason === '') throw new \DomainException('Alasan penarikan wajib diisi.');
+        if ($statementPath === '') throw new \DomainException('Surat pernyataan penarikan wajib dilampirkan.');
+        $pending = OutgoingLetterWithdrawalRequest::query()->where('outgoing_letter_id', $letter->id)->where('status', OutgoingLetterWithdrawalStatus::PENDING)->exists();
+        if ($pending) throw new \DomainException('Pengajuan penarikan untuk surat ini masih menunggu keputusan.');
+        $request = DB::transaction(function () use ($letter, $requestedBy, $reason, $statementPath): OutgoingLetterWithdrawalRequest {
+            $withdrawal = OutgoingLetterWithdrawalRequest::query()->create([
+                'outgoing_letter_id' => $letter->id,
+                'requested_by' => $requestedBy,
+                'requested_at' => now(),
+                'reason' => $reason,
+                'statement_path' => $statementPath,
+                'status' => OutgoingLetterWithdrawalStatus::PENDING,
+            ]);
+            $this->recordAudit('outgoing_letter.withdrawal_requested', $letter, $requestedBy, null, ['status' => 'pending', 'reason' => $reason]);
+            return $withdrawal;
+        });
+        return $request;
+    }
+
+    public function approveWithdrawal(OutgoingLetterWithdrawalRequest $withdrawal, int $decidedBy, ?string $note = null): OutgoingLetter
+    {
+        $this->ensureWithdrawalDecider($decidedBy);
+        $note = trim((string) ($note ?? ''));
+        $letter = $withdrawal->outgoingLetter()->lockForUpdate()->firstOrFail();
+        if ($withdrawal->status !== OutgoingLetterWithdrawalStatus::PENDING) throw new \DomainException('Pengajuan penarikan sudah diputuskan.');
+        if ($letter->status !== OutgoingLetterStatus::ISSUED) throw new \DomainException('Hanya surat issued yang dapat ditarik.');
+        return DB::transaction(function () use ($withdrawal, $letter, $decidedBy, $note): OutgoingLetter {
+            $withdrawal->forceFill(['status' => OutgoingLetterWithdrawalStatus::APPROVED, 'decided_by' => $decidedBy, 'decided_at' => now(), 'decision_note' => $note])->save();
+            $oldValues = $this->auditValues($letter);
+            $letter = $this->repository->update($letter, ['status' => OutgoingLetterStatus::WITHDRAWN]);
+            $this->recordHistory($letter, 'withdrawn', $decidedBy, $note);
+            $this->recordAudit('outgoing_letter.withdrawn', $letter, $decidedBy, $oldValues, $this->auditValues($letter));
+            return $letter;
+        });
+    }
+
+    public function rejectWithdrawal(OutgoingLetterWithdrawalRequest $withdrawal, int $decidedBy, string $note): OutgoingLetterWithdrawalRequest
+    {
+        $this->ensureWithdrawalDecider($decidedBy);
+        $note = trim($note);
+        if ($note === '') throw new \DomainException('Catatan keputusan wajib diisi.');
+        if ($withdrawal->status !== OutgoingLetterWithdrawalStatus::PENDING) throw new \DomainException('Pengajuan penarikan sudah diputuskan.');
+        $letter = $withdrawal->outgoingLetter()->firstOrFail();
+        $withdrawal->forceFill(['status' => OutgoingLetterWithdrawalStatus::REJECTED, 'decided_by' => $decidedBy, 'decided_at' => now(), 'decision_note' => $note])->save();
+        return $withdrawal;
+    }
+
     private function resolveSignerCertificate(OutgoingLetter $letter): SignerCertificate
     {
         $certificate = null;
-
         if ($letter->signature_certificate_id !== null) {
             $certificate = SignerCertificate::query()->find($letter->signature_certificate_id);
-
-            if ($certificate && ($certificate->position_id !== $letter->signer_position_id || $certificate->user_id !== $letter->signer_user_id)) {
-                throw new \DomainException('Sertifikat TTE tidak sesuai dengan penanda tangan surat.');
-            }
+            if ($certificate && ($certificate->position_id !== $letter->signer_position_id || $certificate->user_id !== $letter->signer_user_id)) throw new \DomainException('Sertifikat TTE tidak sesuai dengan penanda tangan surat.');
         }
-
-        // Prefer the certificate explicitly attached to the letter, but if it is
-        // stale/expired/revoked, resolve the currently usable certificate for the
-        // assigned signer position and user instead of failing immediately.
         if ($certificate === null || ! $certificate->isUsable()) {
-            $certificate = SignerCertificate::query()
-                ->where('position_id', $letter->signer_position_id)
-                ->where('user_id', $letter->signer_user_id)
-                ->where('is_active', true)
-                ->whereNull('revoked_at')
-                ->where('valid_from', '<=', now())
-                ->where('valid_until', '>', now())
-                ->latest('created_at')
-                ->first();
+            $certificate = SignerCertificate::query()->where('position_id', $letter->signer_position_id)->where('user_id', $letter->signer_user_id)->where('is_active', true)->whereNull('revoked_at')->where('valid_from', '<=', now())->where('valid_until', '>', now())->latest('created_at')->first();
         }
-
         if (! $certificate || ! $certificate->isUsable()) throw new \DomainException('Sertifikat TTE aktif penanda tangan belum tersedia atau sudah tidak berlaku.');
         return $certificate;
     }
@@ -206,22 +261,18 @@ class OutgoingLetterService
 
     private function ensureMutable(OutgoingLetter $letter): void
     {
-        if ($letter->status === OutgoingLetterStatus::ISSUED) throw new \DomainException('Issued letters cannot be restored or modified.');
-    }
-
-    private function transition(OutgoingLetter $letter, OutgoingLetterStatus $from, OutgoingLetterStatus $to, int $changedBy, array $attributes, string $auditAction): OutgoingLetter
-    {
-        if ($letter->status !== $from) throw new \DomainException('Invalid letter status transition.');
-        $oldValues = $this->auditValues($letter);
-        $letter = $this->repository->update($letter, [...$attributes, 'status' => $to]);
-        $this->recordHistory($letter, $to->value, $changedBy);
-        $this->recordAudit($auditAction, $letter, $changedBy, $oldValues, $this->auditValues($letter));
-        return $letter;
+        if (in_array($letter->status, [OutgoingLetterStatus::ISSUED, OutgoingLetterStatus::WITHDRAWN], true)) throw new \DomainException('Issued or withdrawn letters cannot be restored or modified.');
     }
 
     private function recordHistory(OutgoingLetter $letter, string $action, int $changedBy, ?string $note = null): void
     {
-        $this->historyRepository->create($letter, $action, $changedBy, $note);
+        $this->historyRepository->create([
+            'outgoing_letter_id' => $letter->id,
+            'changed_by' => $changedBy,
+            'status' => $letter->status,
+            'action' => $action,
+            'note' => $note,
+        ]);
     }
 
     private function recordAudit(string $action, OutgoingLetter $letter, ?int $actorId, ?array $oldValues, ?array $newValues): void
