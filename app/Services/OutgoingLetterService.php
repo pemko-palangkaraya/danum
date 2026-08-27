@@ -26,6 +26,7 @@ class OutgoingLetterService
         private readonly AuditLogService $auditLogService,
         private readonly DocxPdfService $docxPdfService,
         private readonly PdfSigningService $pdfSigningService,
+        private readonly SignerPinService $signerPinService,
     ) {}
 
     public function getAll(string $tenantId): Collection { return $this->repository->getAll($tenantId); }
@@ -98,11 +99,15 @@ class OutgoingLetterService
         return $letter;
     }
 
-    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null): OutgoingLetter
+    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null, ?string $pin = null): OutgoingLetter
     {
         $note = $this->requiredWorkflowNote($note, 'Catatan penandatanganan wajib diisi.');
         if ($letter->status !== OutgoingLetterStatus::VALIDATED) throw new \DomainException('Hanya surat yang sudah divalidasi yang dapat diterbitkan.');
         if ($letter->signer_user_id !== $changedBy) throw new \DomainException('Hanya penanda tangan yang ditentukan untuk surat ini yang dapat menerbitkan surat.');
+
+        $signer = User::query()->findOrFail($changedBy);
+        if (blank($pin)) throw new \DomainException('PIN penandatangan wajib diisi.');
+        $this->signerPinService->verify($signer, $pin);
 
         $letterType = $letter->letterType()->first();
         $signerCertificate = $this->resolveSignerCertificate($letter);
