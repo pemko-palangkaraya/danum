@@ -31,6 +31,9 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'signing_pin_hash',
+        'signing_pin_failed_attempts',
+        'signing_pin_locked_until',
     ];
 
     protected function casts(): array
@@ -40,45 +43,33 @@ class User extends Authenticatable
             'password' => 'hashed',
             'role' => UserRole::class,
             'status' => UserStatus::class,
+            'signing_pin_set_at' => 'datetime',
+            'signing_pin_failed_attempts' => 'integer',
+            'signing_pin_locked_until' => 'datetime',
         ];
     }
 
-    /**
-     * Determine whether this user is a super administrator.
-     */
     public function isSuperAdmin(): bool
     {
         return $this->role === UserRole::SUPER_ADMIN;
     }
 
-    /**
-     * Determine whether this user is a tenant administrator.
-     */
     public function isTenantAdmin(): bool
     {
         return $this->role === UserRole::TENANT_ADMIN && $this->tenant_id !== null;
     }
 
-    /**
-     * Determine whether this user is a tenant-scoped user.
-     */
     public function isTenantUser(): bool
     {
         return in_array($this->role, [UserRole::TENANT_ADMIN, UserRole::TENANT_USER], true)
             && $this->tenant_id !== null;
     }
 
-    /**
-     * Determine whether this user may manage tenant positions/holders.
-     */
     public function canManagePositions(): bool
     {
         return $this->isSuperAdmin() || $this->isTenantAdmin();
     }
 
-    /**
-     * Get the tenant associated with the user.
-     */
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
