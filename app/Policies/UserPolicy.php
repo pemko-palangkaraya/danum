@@ -37,7 +37,10 @@ class UserPolicy
 
         return $user->isTenantAdmin()
             && $user->tenant_id === $targetUser->tenant_id
-            && $targetUser->role === UserRole::TENANT_USER;
+            && (
+                $targetUser->role === UserRole::TENANT_USER
+                || $targetUser->id === $user->id
+            );
     }
 
     public function delete(User $user, User $targetUser): bool
