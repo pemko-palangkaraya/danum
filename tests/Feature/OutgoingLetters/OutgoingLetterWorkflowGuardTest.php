@@ -8,11 +8,11 @@ use App\Enums\OutgoingLetterStatus;
 use App\Models\OutgoingLetter;
 use App\Models\Position;
 use App\Models\PositionHolder;
+use App\Models\SignerCertificate;
 use App\Models\User;
 use App\Services\DocxPdfService;
 use App\Services\OutgoingLetterService;
 use App\Services\PdfSigningService;
-use App\Services\SignerCertificateService;
 use App\Services\SignerPinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -55,6 +55,25 @@ class OutgoingLetterWorkflowGuardTest extends TestCase
 
     private function prepareSignerCredentials(OutgoingLetter $letter, User $signer): void
     {
-        $position = Position::factory()->signatory()->create(['tenant_id' => $letter->tenant_id]); $holder = PositionHolder::factory()->create(['position_id' => $position->id, 'user_id' => $signer->id, 'started_at' => now()->subDay(), 'ended_at' => null]); $letter->forceFill(['signer_position_id' => $position->id, 'generated_docx_path' => 'outgoing-letters/test/source.docx'])->save(); app(SignerPinService::class)->set($signer, '123456'); $certificate = app(SignerCertificateService::class)->generate($position, $holder->fresh(['user']), $signer); $this->assertTrue($certificate->fresh()->isUsable()); $letter->forceFill(['signature_certificate_id' => $certificate->id])->save();
+        $position = Position::factory()->signatory()->create(['tenant_id' => $letter->tenant_id]);
+        PositionHolder::factory()->create(['position_id' => $position->id, 'user_id' => $signer->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
+        $letter->forceFill(['signer_position_id' => $position->id, 'generated_docx_path' => 'outgoing-letters/test/source.docx'])->save();
+        app(SignerPinService::class)->set($signer, '123456');
+        $certificate = SignerCertificate::query()->create([
+            'position_id' => $position->id,
+            'user_id' => $signer->id,
+            'type' => 'self_signed',
+            'serial_number' => 'TEST-'.strtoupper(bin2hex(random_bytes(8))),
+            'fingerprint_sha256' => hash('sha256', $signer->id.'-'.$position->id.'-'.microtime(true)),
+            'certificate_pem' => 'TEST CERTIFICATE',
+            'private_key_encrypted' => 'TEST PRIVATE KEY',
+            'valid_from' => now()->subMinute(),
+            'valid_until' => now()->addYear(),
+            'revoked_at' => null,
+            'is_active' => true,
+            'generated_by' => $signer->id,
+        ]);
+        $this->assertTrue($certificate->fresh()->isUsable());
+        $letter->forceFill(['signature_certificate_id' => $certificate->id])->save();
     }
 }
