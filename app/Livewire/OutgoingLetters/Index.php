@@ -110,17 +110,27 @@ class Index extends Component
         try { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('validate', $letter); $service->validate($letter, auth()->id(), $note); $this->dispatch('toast', type: 'success', message: 'Surat berhasil diverifikasi.'); } catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal diverifikasi. Anda mungkin tidak memiliki kewenangan atau status surat sudah berubah.'); }
     }
 
-    public function issue(string $id, OutgoingLetterService $service, ?string $note = null): void
+    public function issue(string $id, OutgoingLetterService $service, ?string $note = null, ?string $pin = null): void
     {
         if (blank($note)) { $this->dispatch('workflow-note-required', action: 'issue', id: $id, title: 'Catatan Penandatanganan', description: 'Berikan catatan sebelum menandatangani dan menerbitkan surat ini.'); return; }
-        try { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('issue', $letter); $service->issue($letter, auth()->id(), $note); $this->dispatch('toast', type: 'success', message: 'Surat berhasil diterbitkan.'); } catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal diterbitkan. Anda mungkin tidak memiliki kewenangan atau status surat sudah berubah.'); }
+        if (blank($pin)) { $this->dispatch('signer-pin-required', action: 'issue', id: $id, note: $note, title: 'PIN Tanda Tangan', description: 'Masukkan PIN tanda tangan Anda untuk melanjutkan proses penandatanganan.'); return; }
+        try { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('issue', $letter); $service->issue($letter, auth()->id(), $note, $pin); $this->dispatch('toast', type: 'success', message: 'Surat berhasil diterbitkan.'); } catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal diterbitkan. Anda mungkin tidak memiliki kewenangan atau status surat sudah berubah.'); }
     }
 
     #[On('workflow-note-submitted')]
     public function handleWorkflowNote(string $action, string $id, string $note, OutgoingLetterService $service): void
     {
         $note = trim($note); if ($note === '') { $this->dispatch('workflow-note-required', action: $action, id: $id, title: $action === 'validate' ? 'Catatan Verifikasi' : 'Catatan Penandatanganan', description: $action === 'validate' ? 'Catatan wajib diisi.' : 'Catatan wajib diisi.'); return; }
-        if ($action === 'validate') $this->validateLetter($id, $service, $note); elseif ($action === 'issue') $this->issue($id, $service, $note);
+        if ($action === 'validate') $this->validateLetter($id, $service, $note); elseif ($action === 'issue') $this->dispatch('signer-pin-required', action: 'issue', id: $id, note: $note, title: 'PIN Tanda Tangan', description: 'Masukkan PIN tanda tangan Anda untuk melanjutkan proses penandatanganan.');
+    }
+
+    #[On('signer-pin-submitted')]
+    public function handleSignerPin(string $action, string $id, string $note, string $pin, OutgoingLetterService $service): void
+    {
+        if ($action !== 'issue') return;
+        $pin = trim($pin);
+        if (! preg_match('/^\d{6}$/', $pin)) { $this->dispatch('signer-pin-invalid'); return; }
+        $this->issue($id, $service, $note, $pin);
     }
 
     public function restoreLetter(string $id, OutgoingLetterService $service): void
