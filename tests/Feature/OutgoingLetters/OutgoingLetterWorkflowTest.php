@@ -29,12 +29,8 @@ class OutgoingLetterWorkflowTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->mock(DocxPdfService::class, function ($mock): void {
-            $mock->shouldReceive('convert')->andReturn('outgoing-letters/test/unsigned.pdf');
-        });
-        $this->mock(PdfSigningService::class, function ($mock): void {
-            $mock->shouldReceive('sign')->andReturn('outgoing-letters/test/signed.pdf');
-        });
+        $this->mock(DocxPdfService::class, function ($mock): void { $mock->shouldReceive('convert')->andReturn('outgoing-letters/test/unsigned.pdf'); });
+        $this->mock(PdfSigningService::class, function ($mock): void { $mock->shouldReceive('sign')->andReturn('outgoing-letters/test/signed.pdf'); });
     }
 
     public function test_create_records_draft_and_history(): void
@@ -48,13 +44,7 @@ class OutgoingLetterWorkflowTest extends TestCase
     public function test_submit_validate_issue_workflow_sets_active_letter_and_history(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-08-25 10:20:00', 'Asia/Pontianak')); $user = User::factory()->superAdmin()->create(); $validator = User::factory()->superAdmin()->create(); $type = LetterType::factory()->create(['status' => LetterTypeStatus::ACTIVE, 'validity_period' => '6_months', 'has_expiry' => true]); $letter = OutgoingLetter::factory()->create(['letter_type_id' => $type->id, 'validator_user_id' => $validator->id, 'signer_user_id' => $user->id]); $this->prepareSignerCredentials($letter, $user); $service = app(OutgoingLetterService::class);
-        try {
-            $service->submit($letter, $user->id); $letter->refresh(); $this->assertNotNull($letter->submitted_at);
-            $service->validate($letter, $validator->id, 'Saya telah memeriksa kelengkapan dan kesesuaian surat.'); $letter->refresh(); $this->assertSame(OutgoingLetterStatus::VALIDATED, $letter->status); $this->assertNull($letter->submitted_at); $this->assertSame('Saya telah memeriksa kelengkapan dan kesesuaian surat.', $letter->verification_note);
-            $service->issue($letter, $user->id, 'Saya menyetujui dan menandatangani surat ini untuk diterbitkan.', '123456'); $letter->refresh();
-            $this->assertSame(OutgoingLetterStatus::ISSUED, $letter->status); $this->assertSame('2026-08-25', $letter->issued_at->toDateString()); $this->assertSame('2026-08-25 10:20:00', $letter->valid_from->format('Y-m-d H:i:s')); $this->assertSame('2027-02-25 10:20:00', $letter->valid_until->format('Y-m-d H:i:s')); $this->assertTrue($letter->isActive()); $this->assertFalse($letter->isExpired()); $this->assertNotNull($letter->verification_token); $this->assertSame('Saya menyetujui dan menandatangani surat ini untuk diterbitkan.', $letter->signing_note);
-            $this->assertDatabaseHas('outgoing_letter_status_histories', ['outgoing_letter_id' => $letter->id, 'action' => 'issued', 'status' => OutgoingLetterStatus::ISSUED->value]);
-        } finally { Carbon::setTestNow(); }
+        try { $service->submit($letter, $user->id); $letter->refresh(); $this->assertNotNull($letter->submitted_at); $service->validate($letter, $validator->id, 'Saya telah memeriksa kelengkapan dan kesesuaian surat.'); $letter->refresh(); $this->assertSame(OutgoingLetterStatus::VALIDATED, $letter->status); $this->assertNull($letter->submitted_at); $this->assertSame('Saya telah memeriksa kelengkapan dan kesesuaian surat.', $letter->verification_note); $service->issue($letter, $user->id, 'Saya menyetujui dan menandatangani surat ini untuk diterbitkan.', '123456'); $letter->refresh(); $this->assertSame(OutgoingLetterStatus::ISSUED, $letter->status); $this->assertSame('2026-08-25', $letter->issued_at->toDateString()); $this->assertSame('2026-08-25 10:20:00', $letter->valid_from->format('Y-m-d H:i:s')); $this->assertSame('2027-02-25 10:20:00', $letter->valid_until->format('Y-m-d H:i:s')); $this->assertTrue($letter->isActive()); $this->assertFalse($letter->isExpired()); $this->assertNotNull($letter->verification_token); $this->assertSame('Saya menyetujui dan menandatangani surat ini untuk diterbitkan.', $letter->signing_note); $this->assertDatabaseHas('outgoing_letter_status_histories', ['outgoing_letter_id' => $letter->id, 'action' => 'issued', 'status' => OutgoingLetterStatus::ISSUED->value]); } finally { Carbon::setTestNow(); }
     }
 
     public function test_submit_validate_and_issue_require_notes(): void
@@ -111,11 +101,6 @@ class OutgoingLetterWorkflowTest extends TestCase
 
     private function prepareSignerCredentials(OutgoingLetter $letter, User $signer): void
     {
-        $position = Position::factory()->signatory()->create(['tenant_id' => $letter->tenant_id]);
-        $holder = PositionHolder::factory()->create(['position_id' => $position->id, 'user_id' => $signer->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
-        $letter->forceFill(['signer_position_id' => $position->id, 'generated_docx_path' => 'outgoing-letters/test/source.docx'])->save();
-        app(SignerPinService::class)->set($signer, '123456');
-        $certificate = app(SignerCertificateService::class)->generate($position, $holder->fresh(['user']), $signer);
-        $this->assertTrue($certificate->fresh()->isUsable());
+        $position = Position::factory()->signatory()->create(['tenant_id' => $letter->tenant_id]); $holder = PositionHolder::factory()->create(['position_id' => $position->id, 'user_id' => $signer->id, 'started_at' => now()->subDay(), 'ended_at' => null]); $letter->forceFill(['signer_position_id' => $position->id, 'generated_docx_path' => 'outgoing-letters/test/source.docx'])->save(); app(SignerPinService::class)->set($signer, '123456'); $certificate = app(SignerCertificateService::class)->generate($position, $holder->fresh(['user']), $signer); $this->assertTrue($certificate->fresh()->isUsable()); $letter->forceFill(['signature_certificate_id' => $certificate->id])->save();
     }
 }
