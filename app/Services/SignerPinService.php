@@ -31,10 +31,16 @@ class SignerPinService
     public function verify(User $user, string $pin): void
     {
         if ($user->signing_pin_locked_until?->isFuture()) {
-            throw new \DomainException('PIN penandatangan terkunci sementara. Silakan coba lagi nanti.');
+            throw new \DomainException(
+                'PIN penandatangan terkunci sementara. Silakan coba lagi nanti.'
+            );
         }
 
-        if (! preg_match('/^\d{6}$/', trim($pin)) || blank($user->signing_pin_hash) || ! Hash::check($pin, $user->signing_pin_hash)) {
+        if (
+            ! preg_match('/^\d{6}$/', trim($pin))
+            || blank($user->signing_pin_hash)
+            || ! Hash::check($pin, $user->signing_pin_hash)
+        ) {
             $attempts = (int) $user->signing_pin_failed_attempts + 1;
             $lockedUntil = null;
 

@@ -29,9 +29,9 @@ class User extends Authenticatable
     ];
 
     protected $hidden = [
-        'password',
-        'remember_token',
         'signing_pin_hash',
+        'signing_pin_failed_attempts',
+        'signing_pin_locked_until',
     ];
 
     protected function casts(): array
@@ -42,6 +42,7 @@ class User extends Authenticatable
             'role' => UserRole::class,
             'status' => UserStatus::class,
             'signing_pin_set_at' => 'datetime',
+            'signing_pin_failed_attempts' => 'integer',
             'signing_pin_locked_until' => 'datetime',
         ];
     }
