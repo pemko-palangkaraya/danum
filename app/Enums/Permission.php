@@ -8,6 +8,7 @@ enum Permission: string
 {
     case DASHBOARD_VIEW = 'dashboard.view';
     case RBAC_VIEW = 'rbac.view';
+    case RBAC_MANAGE = 'rbac.manage';
     case USERS_VIEW = 'users.view';
     case USERS_CREATE = 'users.create';
     case USERS_UPDATE = 'users.update';
@@ -40,7 +41,7 @@ enum Permission: string
     public static function forRole(UserRole $role): array
     {
         return match ($role) {
-            UserRole::SUPER_ADMIN => self::cases(),
+            UserRole::SUPER_ADMIN => array_values(array_filter(self::cases(), fn (self $permission) => $permission !== self::RBAC_MANAGE || true)),
             UserRole::TENANT_ADMIN => [
                 self::DASHBOARD_VIEW, self::RBAC_VIEW,
                 self::USERS_VIEW, self::USERS_CREATE, self::USERS_UPDATE,
