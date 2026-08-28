@@ -28,8 +28,10 @@ enum Permission: string
     case OUTGOING_LETTERS_VIEW = 'outgoing-letters.view';
     case OUTGOING_LETTERS_CREATE = 'outgoing-letters.create';
     case OUTGOING_LETTERS_UPDATE = 'outgoing-letters.update';
+    case OUTGOING_LETTERS_DELETE = 'outgoing-letters.delete';
     case OUTGOING_LETTERS_SUBMIT = 'outgoing-letters.submit';
     case OUTGOING_LETTERS_VALIDATE = 'outgoing-letters.validate';
+    case OUTGOING_LETTERS_REJECT = 'outgoing-letters.reject';
     case OUTGOING_LETTERS_ISSUE = 'outgoing-letters.issue';
     case OUTGOING_LETTERS_WITHDRAW = 'outgoing-letters.withdraw';
     case AUDIT_LOGS_VIEW = 'audit-logs.view';
@@ -45,15 +47,17 @@ enum Permission: string
                 self::TENANT_USERS_VIEW, self::TENANT_PROFILE_VIEW,
                 self::POSITIONS_VIEW, self::POSITIONS_MANAGE, self::LETTER_TYPES_VIEW,
                 self::OUTGOING_LETTERS_VIEW, self::OUTGOING_LETTERS_CREATE,
-                self::OUTGOING_LETTERS_UPDATE, self::OUTGOING_LETTERS_SUBMIT,
-                self::OUTGOING_LETTERS_VALIDATE, self::OUTGOING_LETTERS_ISSUE,
+                self::OUTGOING_LETTERS_UPDATE, self::OUTGOING_LETTERS_DELETE,
+                self::OUTGOING_LETTERS_SUBMIT, self::OUTGOING_LETTERS_VALIDATE,
+                self::OUTGOING_LETTERS_REJECT, self::OUTGOING_LETTERS_ISSUE,
                 self::OUTGOING_LETTERS_WITHDRAW,
             ],
             UserRole::TENANT_USER => [
                 self::DASHBOARD_VIEW, self::TENANT_PROFILE_VIEW, self::POSITIONS_VIEW,
                 self::OUTGOING_LETTERS_VIEW, self::OUTGOING_LETTERS_CREATE,
-                self::OUTGOING_LETTERS_UPDATE, self::OUTGOING_LETTERS_SUBMIT,
-                self::OUTGOING_LETTERS_VALIDATE, self::OUTGOING_LETTERS_ISSUE,
+                self::OUTGOING_LETTERS_UPDATE, self::OUTGOING_LETTERS_DELETE,
+                self::OUTGOING_LETTERS_SUBMIT, self::OUTGOING_LETTERS_VALIDATE,
+                self::OUTGOING_LETTERS_REJECT, self::OUTGOING_LETTERS_ISSUE,
                 self::OUTGOING_LETTERS_WITHDRAW,
             ],
         };
