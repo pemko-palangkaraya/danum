@@ -32,7 +32,7 @@ Route::middleware('auth')->group(function () {
         Volt::route('/dashboard', 'pages.dashboard')->name('dashboard');
     });
 
-    Route::middleware(['permission:rbac.view', 'tenant'])->group(function () {
+    Route::middleware('permission:rbac.view')->group(function () {
         Volt::route('/rbac', 'pages.rbac.index')->name('rbac.index');
     });
 
