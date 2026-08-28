@@ -1,7 +1,9 @@
 <div class="space-y-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div><h1 class="text-2xl font-semibold tracking-tight text-slate-900">Outgoing Letters</h1><p class="mt-1 text-sm text-slate-500">{{ $isSuperAdmin ? 'Arsip seluruh surat keluar tenant dan pemulihan surat yang dihapus.' : 'Buat, periksa, kirim untuk verifikasi, terbitkan, dan verifikasi publik surat keluar.' }}</p></div>
-        @unless($isSuperAdmin)<button wire:click="create" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">+ Create Letter</button>@endunless
+        @unless($isSuperAdmin)
+            @can('create', \App\Models\OutgoingLetter::class)<button wire:click="create" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">+ Create Letter</button>@endcan
+        @endunless
     </div>
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div class="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row"><input wire:model.live="search" type="search" placeholder="Cari nomor, penerima, perihal..." class="form-control sm:max-w-md"><select wire:model.live="filter" class="form-select sm:w-52"><option value="all">{{ $isSuperAdmin ? 'Active Letters' : 'All' }}</option><option value="draft">Draft</option><option value="validated">Validated</option><option value="issued">Issued</option><option value="withdrawn">Withdrawn</option><option value="cancelled">Cancelled</option>@if($isSuperAdmin)<option value="deleted">Deleted</option>@endif</select></div>
@@ -21,15 +23,24 @@
                     </div>
                     <div class="flex flex-wrap gap-2">
                         @if(! $letter->trashed())
-                            <a href="{{ route('outgoing-letters.show', $letter->id) }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Preview</a>
+                            @can('view', $letter)<a href="{{ route('outgoing-letters.show', $letter->id) }}" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Preview</a>@endcan
                             @unless($isSuperAdmin)
-                                @if($letter->status->value === 'draft' && ! $submitted && (int) $letter->created_by === (int) auth()->id())<button wire:click="edit('{{ $letter->id }}')" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Edit</button><button wire:click="submitLetter('{{ $letter->id }}')" class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Submit</button>@endif
-                                @if($submitted && $letter->status->value === 'draft' && (int) $letter->validator_user_id === (int) auth()->id())<button wire:click="validateLetter('{{ $letter->id }}')" class="rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50">Verifikasi</button><button wire:click="openReject('{{ $letter->id }}')" class="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">Tolak</button>@endif
-                                @if($letter->status->value === 'validated' && (int) $letter->signer_user_id === (int) auth()->id())<button wire:click="issue('{{ $letter->id }}')" class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Issue</button><button wire:click="openReject('{{ $letter->id }}')" class="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">Tolak</button>@endif
+                                @if($letter->status->value === 'draft' && ! $submitted && (int) $letter->created_by === (int) auth()->id())
+                                    @can('update', $letter)<button wire:click="edit('{{ $letter->id }}')" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Edit</button>@endcan
+                                    @can('submit', $letter)<button wire:click="submitLetter('{{ $letter->id }}')" class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Submit</button>@endcan
+                                @endif
+                                @if($submitted && $letter->status->value === 'draft' && (int) $letter->validator_user_id === (int) auth()->id())
+                                    @can('validate', $letter)<button wire:click="validateLetter('{{ $letter->id }}')" class="rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50">Verifikasi</button>@endcan
+                                    @can('reject', $letter)<button wire:click="openReject('{{ $letter->id }}')" class="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">Tolak</button>@endcan
+                                @endif
+                                @if($letter->status->value === 'validated' && (int) $letter->signer_user_id === (int) auth()->id())
+                                    @can('issue', $letter)<button wire:click="issue('{{ $letter->id }}')" class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Issue</button>@endcan
+                                    @can('reject', $letter)<button wire:click="openReject('{{ $letter->id }}')" class="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">Tolak</button>@endcan
+                                @endif
                             @endunless
                             @if($letter->status->value === 'issued')<a href="{{ route('verification.show', $letter->verification_token) }}" target="_blank" class="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50">Verify</a>@endif
                         @elseif($isSuperAdmin)
-                            <button wire:click="restoreLetter('{{ $letter->id }}')" wire:confirm="Restore surat ini?" class="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50">Restore</button>
+                            @can('restore', $letter)<button wire:click="restoreLetter('{{ $letter->id }}')" wire:confirm="Restore surat ini?" class="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50">Restore</button>@endcan
                         @endif
                     </div>
                 </div>
