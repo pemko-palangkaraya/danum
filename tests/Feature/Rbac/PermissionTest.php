@@ -25,6 +25,7 @@ class PermissionTest extends TestCase
 
         $this->assertTrue($tenantAdmin->hasPermission(Permission::TENANT_USERS_VIEW));
         $this->assertTrue($tenantAdmin->hasPermission(Permission::POSITIONS_MANAGE));
+        $this->assertFalse($tenantAdmin->hasPermission(Permission::TENANT_PROFILE_UPDATE));
         $this->assertFalse($tenantAdmin->hasPermission(Permission::AUDIT_LOGS_VIEW));
 
         $this->assertFalse($tenantUser->hasPermission(Permission::TENANT_USERS_VIEW));
