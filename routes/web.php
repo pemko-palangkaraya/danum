@@ -32,6 +32,10 @@ Route::middleware('auth')->group(function () {
         Volt::route('/dashboard', 'pages.dashboard')->name('dashboard');
     });
 
+    Route::middleware(['permission:rbac.view', 'tenant'])->group(function () {
+        Volt::route('/rbac', 'pages.rbac.index')->name('rbac.index');
+    });
+
     Route::middleware(['superadmin', 'permission:users.view'])->group(function () {
         Volt::route('/users', 'pages.users.index')->name('users.index');
     });
