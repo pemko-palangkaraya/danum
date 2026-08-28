@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Enums\Permission;
 use App\Enums\UserRole;
 use App\Models\User;
 
@@ -11,45 +12,42 @@ class UserPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->role === UserRole::SUPER_ADMIN || $user->isTenantAdmin();
+        return $user->hasPermission(Permission::USERS_VIEW);
     }
 
     public function view(User $user, User $targetUser): bool
     {
-        if ($user->role === UserRole::SUPER_ADMIN) {
-            return true;
-        }
-
-        return $user->isTenantAdmin()
-            && $user->tenant_id === $targetUser->tenant_id;
+        return $user->hasPermission(Permission::USERS_VIEW)
+            && ($user->isSuperAdmin() || $user->tenant_id === $targetUser->tenant_id);
     }
 
     public function create(User $user): bool
     {
-        return $user->role === UserRole::SUPER_ADMIN || $user->isTenantAdmin();
+        return $user->hasPermission(Permission::USERS_CREATE);
     }
 
     public function update(User $user, User $targetUser): bool
     {
-        if ($user->role === UserRole::SUPER_ADMIN) {
+        if (! $user->hasPermission(Permission::USERS_UPDATE)) {
+            return false;
+        }
+
+        if ($user->isSuperAdmin()) {
             return true;
         }
 
-        return $user->isTenantAdmin()
-            && $user->tenant_id === $targetUser->tenant_id
-            && (
-                $targetUser->role === UserRole::TENANT_USER
-                || $targetUser->id === $user->id
-            );
+        return $user->tenant_id === $targetUser->tenant_id
+            && ($targetUser->role === UserRole::TENANT_USER || $targetUser->id === $user->id);
     }
 
     public function delete(User $user, User $targetUser): bool
     {
-        return $user->role === UserRole::SUPER_ADMIN;
+        return $user->hasPermission(Permission::USERS_DELETE)
+            && ($user->isSuperAdmin() || $user->tenant_id === $targetUser->tenant_id);
     }
 
     public function forceDelete(User $user, User $targetUser): bool
     {
-        return $user->role === UserRole::SUPER_ADMIN;
+        return $this->delete($user, $targetUser);
     }
 }
