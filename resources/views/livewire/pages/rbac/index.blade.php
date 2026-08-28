@@ -86,7 +86,7 @@ new #[Layout('layouts.app')] class extends Component {
         <ul class="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-amber-800">
             <li>Akses global dapat melihat matriks semua role.</li>
             <li>Tenant Admin hanya dapat melihat konfigurasi role tenant dan tidak dapat memberi dirinya sendiri permission baru.</li>
-            <li>Tenant User tidak memiliki permission <code class="font-mono">rbac.view</code>, sehingga menu dan halaman ini tidak tersedia.</li>
+            <li>Pengguna tanpa akses RBAC tidak memiliki permission <code class="font-mono">rbac.view</code>, sehingga menu dan halaman ini tidak tersedia.</li>
             <li>Halaman ini belum mengubah permission secara dinamis; matriks role tetap dikendalikan oleh kode agar tidak ada privilege escalation melalui UI.</li>
         </ul>
     </div>
