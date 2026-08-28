@@ -14,6 +14,7 @@ use App\Services\DocxPdfService;
 use App\Services\OutgoingLetterService;
 use App\Services\PdfSigningService;
 use App\Services\SignerCertificateService;
+use App\Services\SignerPinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
@@ -29,6 +30,7 @@ class OutgoingLetterAuditLogTest extends TestCase
 
         $actor = User::factory()->superAdmin()->create();
         $validator = User::factory()->superAdmin()->create();
+        app(SignerPinService::class)->set($actor, '123456');
         $letter = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::DRAFT, 'validator_user_id' => $validator->id, 'signer_user_id' => $actor->id]);
         $position = Position::factory()->signatory()->create(['tenant_id' => $letter->tenant_id]);
         $holder = PositionHolder::factory()->create(['position_id' => $position->id, 'user_id' => $actor->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
@@ -45,7 +47,7 @@ class OutgoingLetterAuditLogTest extends TestCase
         $service = app(OutgoingLetterService::class);
         $this->actingAs($actor);
         $source = $letter->only(['tenant_id','created_by','letter_type_id','letter_type_version_id','validator_user_id','signer_user_id','number','recipient_name','recipient_address','subject','content','status']); $source['number'] = fake()->unique()->bothify('###/AUDIT/####');
-        $created = $service->create($source, $actor->id); $created->update(['signer_position_id' => $position->id, 'signer_user_id' => $actor->id, 'generated_docx_path' => 'outgoing-letters/test.docx']); $service->update($created, ['subject' => 'Subjek Audit Baru']); $created->refresh(); $service->submit($created, $actor->id); $created->refresh(); $service->validate($created, $validator->id, 'Saya telah memeriksa isi dan kelengkapan surat.'); $created->refresh(); $service->issue($created, $actor->id, 'Saya menyetujui dan menandatangani surat untuk diterbitkan.');
+        $created = $service->create($source, $actor->id); $created->update(['signer_position_id' => $position->id, 'signer_user_id' => $actor->id, 'generated_docx_path' => 'outgoing-letters/test.docx']); $service->update($created, ['subject' => 'Subjek Audit Baru']); $created->refresh(); $service->submit($created, $actor->id); $created->refresh(); $service->validate($created, $validator->id, 'Saya telah memeriksa isi dan kelengkapan surat.'); $created->refresh(); $service->issue($created, $actor->id, 'Saya menyetujui dan menandatangani surat untuk diterbitkan.', '123456');
         $this->assertSame(['outgoing_letter.created','outgoing_letter.updated','outgoing_letter.submitted','outgoing_letter.validated','outgoing_letter.signed','outgoing_letter.issued'], AuditLog::query()->where('auditable_type', OutgoingLetter::class)->where('auditable_id', $created->id)->orderBy('created_at')->pluck('action')->all());
         $created->refresh(); $this->assertSame('Saya telah memeriksa isi dan kelengkapan surat.', $created->verification_note); $this->assertSame('Saya menyetujui dan menandatangani surat untuk diterbitkan.', $created->signing_note); $this->assertSame('pades-b-b', $created->signature_profile); $this->assertSame('outgoing-letters/signed/test-signed.pdf', $created->signed_pdf_path);
     }
