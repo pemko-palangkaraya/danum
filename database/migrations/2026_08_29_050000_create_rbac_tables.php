@@ -67,41 +67,19 @@ return new class extends Migration
                 'slug' => $permission->value,
                 'module' => $module,
                 'action' => $action,
-                'scope' => $module === 'tenants' || $module === 'audit-logs' ? 'global' : 'tenant',
+                'scope' => in_array($module, ['tenants', 'audit-logs', 'rbac'], true) ? 'global' : 'tenant',
                 'is_system' => true,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
         }
 
-        $permissions[] = [
-            'name' => 'Manage RBAC',
-            'slug' => 'rbac.manage',
-            'module' => 'rbac',
-            'action' => 'manage',
-            'scope' => 'global',
-            'is_system' => true,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ];
-
         DB::table('permissions')->insert($permissions);
 
         $permissionIds = DB::table('permissions')->pluck('id', 'slug');
         $roleIds = DB::table('roles')->pluck('id', 'slug');
 
-        foreach (PermissionEnum::forRole(UserRole::SUPER_ADMIN) as $permission) {
-            DB::table('role_permissions')->insert([
-                'role_id' => $roleIds[UserRole::SUPER_ADMIN->value],
-                'permission_id' => $permissionIds[$permission->value],
-            ]);
-        }
-        DB::table('role_permissions')->insert([
-            'role_id' => $roleIds[UserRole::SUPER_ADMIN->value],
-            'permission_id' => $permissionIds['rbac.manage'],
-        ]);
-
-        foreach ([UserRole::TENANT_ADMIN, UserRole::TENANT_USER] as $role) {
+        foreach (UserRole::cases() as $role) {
             foreach (PermissionEnum::forRole($role) as $permission) {
                 DB::table('role_permissions')->insert([
                     'role_id' => $roleIds[$role->value],
