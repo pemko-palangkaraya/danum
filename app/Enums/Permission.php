@@ -40,7 +40,7 @@ enum Permission: string
             UserRole::SUPER_ADMIN => self::cases(),
             UserRole::TENANT_ADMIN => [
                 self::DASHBOARD_VIEW, self::USERS_VIEW, self::USERS_CREATE, self::USERS_UPDATE,
-                self::TENANT_USERS_VIEW, self::TENANT_PROFILE_VIEW, self::TENANT_PROFILE_UPDATE,
+                self::TENANT_USERS_VIEW, self::TENANT_PROFILE_VIEW,
                 self::POSITIONS_VIEW, self::POSITIONS_MANAGE, self::LETTER_TYPES_VIEW,
                 self::OUTGOING_LETTERS_VIEW, self::OUTGOING_LETTERS_CREATE,
                 self::OUTGOING_LETTERS_UPDATE, self::OUTGOING_LETTERS_SUBMIT,
