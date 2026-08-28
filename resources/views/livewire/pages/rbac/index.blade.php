@@ -34,11 +34,6 @@ new #[Layout('layouts.app')] class extends Component {
     {
         return $role === UserRole::SUPER_ADMIN ? 'Global / seluruh tenant' : 'Tenant sendiri';
     }
-
-    public function canManage(UserRole $role): bool
-    {
-        return auth()->user()?->isSuperAdmin() && $role !== UserRole::SUPER_ADMIN;
-    }
 };
 ?>
 
@@ -48,7 +43,7 @@ new #[Layout('layouts.app')] class extends Component {
         <div class="mt-1 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Role &amp; Access Control</h1>
-                <p class="mt-1 max-w-3xl text-sm text-slate-500">Lihat role dan permission efektif yang berlaku pada akun. Halaman ini bersifat terkontrol: Super Admin melihat seluruh matriks, sedangkan Tenant Admin hanya melihat batas akses role tenant-nya.</p>
+                <p class="mt-1 max-w-3xl text-sm text-slate-500">Lihat role dan permission efektif yang berlaku pada akun. Halaman ini bersifat terkontrol: akses global melihat seluruh matriks, sedangkan Tenant Admin hanya melihat batas akses role tenant-nya.</p>
             </div>
             <span class="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">Role: {{ auth()->user()->role->value }}</span>
         </div>
@@ -89,7 +84,7 @@ new #[Layout('layouts.app')] class extends Component {
     <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
         <p class="font-semibold">Batasan akses</p>
         <ul class="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-amber-800">
-            <li>Super Admin dapat melihat matriks semua role.</li>
+            <li>Akses global dapat melihat matriks semua role.</li>
             <li>Tenant Admin hanya dapat melihat konfigurasi role tenant dan tidak dapat memberi dirinya sendiri permission baru.</li>
             <li>Tenant User tidak memiliki permission <code class="font-mono">rbac.view</code>, sehingga menu dan halaman ini tidak tersedia.</li>
             <li>Halaman ini belum mengubah permission secara dinamis; matriks role tetap dikendalikan oleh kode agar tidak ada privilege escalation melalui UI.</li>
