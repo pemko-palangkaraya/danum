@@ -11,12 +11,13 @@ enum Permission: string
     case USERS_CREATE = 'users.create';
     case USERS_UPDATE = 'users.update';
     case USERS_DELETE = 'users.delete';
+    case TENANT_USERS_VIEW = 'tenant-users.view';
+    case TENANT_PROFILE_VIEW = 'tenant-profile.view';
+    case TENANT_PROFILE_UPDATE = 'tenant-profile.update';
     case TENANTS_VIEW = 'tenants.view';
     case TENANTS_CREATE = 'tenants.create';
     case TENANTS_UPDATE = 'tenants.update';
     case TENANTS_DELETE = 'tenants.delete';
-    case TENANT_PROFILE_VIEW = 'tenant-profile.view';
-    case TENANT_PROFILE_UPDATE = 'tenant-profile.update';
     case POSITIONS_VIEW = 'positions.view';
     case POSITIONS_MANAGE = 'positions.manage';
     case LETTER_TYPES_VIEW = 'letter-types.view';
@@ -39,9 +40,8 @@ enum Permission: string
             UserRole::SUPER_ADMIN => self::cases(),
             UserRole::TENANT_ADMIN => [
                 self::DASHBOARD_VIEW, self::USERS_VIEW, self::USERS_CREATE, self::USERS_UPDATE,
-                self::TENANT_PROFILE_VIEW, self::TENANT_PROFILE_UPDATE,
-                self::POSITIONS_VIEW, self::POSITIONS_MANAGE,
-                self::LETTER_TYPES_VIEW,
+                self::TENANT_USERS_VIEW, self::TENANT_PROFILE_VIEW, self::TENANT_PROFILE_UPDATE,
+                self::POSITIONS_VIEW, self::POSITIONS_MANAGE, self::LETTER_TYPES_VIEW,
                 self::OUTGOING_LETTERS_VIEW, self::OUTGOING_LETTERS_CREATE,
                 self::OUTGOING_LETTERS_UPDATE, self::OUTGOING_LETTERS_SUBMIT,
                 self::OUTGOING_LETTERS_VALIDATE, self::OUTGOING_LETTERS_ISSUE,
