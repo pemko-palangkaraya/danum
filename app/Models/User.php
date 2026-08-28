@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\Permission;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use Database\Factories\UserFactory;
@@ -19,19 +20,11 @@ class User extends Authenticatable
     use Notifiable;
 
     protected $fillable = [
-        'name',
-        'nip',
-        'email',
-        'password',
-        'role',
-        'status',
-        'tenant_id',
+        'name', 'nip', 'email', 'password', 'role', 'status', 'tenant_id',
     ];
 
     protected $hidden = [
-        'signing_pin_hash',
-        'signing_pin_failed_attempts',
-        'signing_pin_locked_until',
+        'signing_pin_hash', 'signing_pin_failed_attempts', 'signing_pin_locked_until',
     ];
 
     protected function casts(): array
@@ -63,9 +56,47 @@ class User extends Authenticatable
             && $this->tenant_id !== null;
     }
 
+    public function hasPermission(Permission|string $permission): bool
+    {
+        if ($this->status !== UserStatus::ACTIVE) {
+            return false;
+        }
+
+        $permission = $permission instanceof Permission
+            ? $permission
+            : Permission::tryFrom($permission);
+
+        return $permission !== null
+            && in_array($permission, Permission::forRole($this->role), true);
+    }
+
+    /** @param list<Permission|string> $permissions */
+    public function hasAnyPermission(array $permissions): bool
+    {
+        foreach ($permissions as $permission) {
+            if ($this->hasPermission($permission)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @param list<Permission|string> $permissions */
+    public function hasAllPermissions(array $permissions): bool
+    {
+        foreach ($permissions as $permission) {
+            if (! $this->hasPermission($permission)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public function canManagePositions(): bool
     {
-        return $this->isSuperAdmin() || $this->isTenantAdmin();
+        return $this->hasPermission(Permission::POSITIONS_MANAGE);
     }
 
     public function tenant(): BelongsTo
