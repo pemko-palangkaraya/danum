@@ -64,7 +64,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('permission:positions.view')->group(function () {
             Route::get('/tenant/positions', PositionIndex::class)->name('positions.index');
         });
-        Route::middleware('permission:users.view')->group(function () {
+        Route::middleware('permission:tenant-users.view')->group(function () {
             Volt::route('/tenant/users', 'pages.tenant-users')->name('tenant-users.index');
         });
         Route::middleware('permission:tenant-profile.view')->group(function () {
