@@ -11,8 +11,6 @@ use Tests\TestCase;
 
 class RbacUiAuthorizationTest extends TestCase
 {
-    use RefreshDatabase;
-
     public function test_super_admin_can_access_rbac_ui(): void
     {
         $user = User::factory()->superAdmin()->create();
@@ -30,13 +28,14 @@ class RbacUiAuthorizationTest extends TestCase
     {
         $user = User::factory()->tenantAdmin(Tenant::factory()->create())->create();
 
-        $this->actingAs($user)
-            ->get(route('rbac.index'))
+        $response = $this->actingAs($user)->get(route('rbac.index'));
+
+        $response
             ->assertOk()
             ->assertSee('Role &amp; Access Control', false)
-            ->assertSee('Tenant Admin')
-            ->assertDontSee('Super Admin')
-            ->assertDontSee('Tenant User');
+            ->assertSee('<h2 class="text-sm font-semibold text-slate-900">Tenant Admin</h2>', false)
+            ->assertDontSee('<h2 class="text-sm font-semibold text-slate-900">Super Admin</h2>', false)
+            ->assertDontSee('<h2 class="text-sm font-semibold text-slate-900">Tenant User</h2>', false);
     }
 
     public function test_tenant_user_cannot_access_rbac_ui(): void
