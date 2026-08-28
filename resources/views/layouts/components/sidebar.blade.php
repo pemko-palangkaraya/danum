@@ -23,15 +23,18 @@
         <a href="{{ route('outgoing-letter-withdrawals.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('outgoing-letter-withdrawals.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('outgoing-letter-withdrawals.*')])>Penarikan Surat</a>
         <a href="{{ route('tenant-profile') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('tenant-profile'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('tenant-profile')])>Profil Organisasi</a>
         @endif
+
+        @if (auth()->user()?->hasPermission('rbac.view'))
+        <div class="mt-6 border-t border-slate-100 pt-4">
+            <p class="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Administration</p>
+            <a href="{{ route('rbac.index') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm'=>request()->routeIs('rbac.*'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900'=>!request()->routeIs('rbac.*')])>Role &amp; Access Control</a>
+        </div>
+        @endif
     </nav>
     <div class="border-t border-slate-100 p-4">
         <div class="mb-3 rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-500">
             <div class="font-semibold text-slate-700">Waktu Server</div>
-            <div
-                class="mt-0.5 font-mono text-sm text-slate-900"
-                data-server-clock
-                data-server-timestamp="{{ now()->getTimestampMs() }}"
-                data-server-timezone="{{ config('app.timezone') }}">{{ now()->format('d M Y, H:i:s') }}</div>
+            <div class="mt-0.5 font-mono text-sm text-slate-900" data-server-clock data-server-timestamp="{{ now()->getTimestampMs() }}" data-server-timezone="{{ config('app.timezone') }}">{{ now()->format('d M Y, H:i:s') }}</div>
             <div class="mt-0.5 text-[11px] text-slate-400">{{ config('app.timezone') }}</div>
         </div>
         <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="flex w-full items-center rounded-xl px-3 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-900">Logout</button></form>
