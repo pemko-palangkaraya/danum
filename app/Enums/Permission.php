@@ -7,6 +7,7 @@ namespace App\Enums;
 enum Permission: string
 {
     case DASHBOARD_VIEW = 'dashboard.view';
+    case RBAC_VIEW = 'rbac.view';
     case USERS_VIEW = 'users.view';
     case USERS_CREATE = 'users.create';
     case USERS_UPDATE = 'users.update';
@@ -39,7 +40,8 @@ enum Permission: string
         return match ($role) {
             UserRole::SUPER_ADMIN => self::cases(),
             UserRole::TENANT_ADMIN => [
-                self::DASHBOARD_VIEW, self::USERS_VIEW, self::USERS_CREATE, self::USERS_UPDATE,
+                self::DASHBOARD_VIEW, self::RBAC_VIEW,
+                self::USERS_VIEW, self::USERS_CREATE, self::USERS_UPDATE,
                 self::TENANT_USERS_VIEW, self::TENANT_PROFILE_VIEW,
                 self::POSITIONS_VIEW, self::POSITIONS_MANAGE, self::LETTER_TYPES_VIEW,
                 self::OUTGOING_LETTERS_VIEW, self::OUTGOING_LETTERS_CREATE,
