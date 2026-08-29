@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use AppModelsTenantCategory;
-use AppServicesAuditLogService;
-use IlluminateSupportFacadesValidator;
-use IlluminateSupportStr;
-use LivewireAttributesLayout;
-use LivewireVoltComponent;
+use App\Models\TenantCategory;
+use App\Services\AuditLogService;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+use Livewire\Attributes\Layout;
+use Livewire\Volt\Component;
 
 new #[Layout('layouts.app')] class extends Component {
     public bool $showForm = false;
