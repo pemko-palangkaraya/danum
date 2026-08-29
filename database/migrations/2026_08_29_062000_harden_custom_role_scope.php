@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 return new class extends Migration
 {
     public function up(): void
     {
         // Repair custom roles created by older RBAC code as tenant-scoped roles
-        // without a tenant. The creator's tenant is recoverable from the audit log.
+        // without a tenant. Prefer the strongest source of ownership available:
+        // users already assigned to the role, then the creator recorded in audit logs.
         $orphanedRoles = DB::table('roles')
             ->where('is_system', false)
             ->where('scope', 'tenant')
@@ -18,18 +20,26 @@ return new class extends Migration
             ->get(['id', 'name']);
 
         foreach ($orphanedRoles as $role) {
-            $tenantIds = DB::table('audit_logs as logs')
-                ->join('users', 'users.id', '=', 'logs.user_id')
-                ->where('logs.auditable_type', 'App\\Models\\Role')
-                ->where('logs.auditable_id', (string) $role->id)
-                ->where('logs.action', 'rbac.role.created')
-                ->whereNotNull('users.tenant_id')
+            $tenantIds = DB::table('users')
+                ->where('custom_role_id', $role->id)
+                ->whereNotNull('tenant_id')
                 ->distinct()
-                ->pluck('users.tenant_id');
+                ->pluck('tenant_id');
+
+            if ($tenantIds->count() !== 1) {
+                $tenantIds = DB::table('audit_logs as logs')
+                    ->join('users', 'users.id', '=', 'logs.user_id')
+                    ->where('logs.auditable_type', 'App\\Models\\Role')
+                    ->where('logs.auditable_id', (string) $role->id)
+                    ->where('logs.action', 'rbac.role.created')
+                    ->whereNotNull('users.tenant_id')
+                    ->distinct()
+                    ->pluck('users.tenant_id');
+            }
 
             if ($tenantIds->count() !== 1) {
                 throw new RuntimeException(
-                    "Custom role [{$role->name}] (ID {$role->id}) has scope=tenant without tenant_id and its owning tenant could not be determined from audit logs. Resolve this role manually before migrating."
+                    "Custom role [{$role->name}] (ID {$role->id}) has scope=tenant without tenant_id and its owning tenant could not be determined. Assign the role to a user in its owning tenant or resolve the role manually before migrating."
                 );
             }
 
