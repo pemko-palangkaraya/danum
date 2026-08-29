@@ -113,6 +113,8 @@ class UserService
             'nip' => $user->nip,
             'email' => $user->email,
             'role' => $user->role?->value,
+            'custom_role_id' => $user->custom_role_id,
+            'custom_role' => $user->customRole?->name,
             'status' => $user->status?->value,
             'tenant_id' => $user->tenant_id,
         ];
