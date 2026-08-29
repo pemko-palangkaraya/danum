@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $superAdminEmail = env('DANUM_SUPER_ADMIN_EMAIL', 'superadmin@example.com');
+        $superAdminEmail = env('DANUM_SUPER_ADMIN_EMAIL', 'admin@danum.local');
         $superAdminPassword = env('DANUM_SUPER_ADMIN_PASSWORD', 'password');
 
         User::updateOrCreate(
@@ -59,7 +59,7 @@ class DatabaseSeeder extends Seeder
         );
 
         User::updateOrCreate(
-            ['email' => env('DANUM_TENANT_ADMIN_EMAIL', 'tenantadmin@example.com')],
+            ['email' => env('DANUM_TENANT_ADMIN_EMAIL', 'yudhistira@danum.local')],
             [
                 'name' => 'Tenant Admin',
                 'nip' => null,
@@ -73,7 +73,7 @@ class DatabaseSeeder extends Seeder
         );
 
         User::updateOrCreate(
-            ['email' => env('DANUM_TENANT_USER_EMAIL', 'tenantuser@example.com')],
+            ['email' => env('DANUM_TENANT_USER_EMAIL', 'ucok@danum.local')],
             [
                 'name' => 'Tenant User',
                 'nip' => null,
