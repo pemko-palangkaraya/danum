@@ -30,7 +30,7 @@ class Index extends Component
     use WithStandardTablePagination;
 
     public string $search = '';
-    public string $filter = 'all';
+    public $filter = 'all';
     public int $perPage = 5;
 
     public function mount(): void
