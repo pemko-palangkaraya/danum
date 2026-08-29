@@ -8,8 +8,18 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithPagination;
 
 new #[Layout('layouts.app')] class extends Component {
+    use WithPagination;
+
+    public int $perPage = 10;
+
+    public function updatedPerPage(): void
+    {
+        $this->perPage = max(5, min($this->perPage, 100));
+        $this->resetPage();
+    }
     public bool $showForm = false;
     public ?int $editingId = null;
     public string $name = '';
@@ -127,7 +137,10 @@ new #[Layout('layouts.app')] class extends Component {
 
     public function categories()
     {
-        return TenantCategory::query()->orderBy('sort_order')->orderBy('name')->get();
+        return TenantCategory::query()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->paginate($this->perPage);
     }
 };
 ?>
@@ -143,6 +156,22 @@ new #[Layout('layouts.app')] class extends Component {
     </div>
 
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h2 class="text-sm font-semibold text-slate-900">Daftar Kategori</h2>
+                <p class="mt-1 text-xs text-slate-500">Master kategori organisasi.</p>
+            </div>
+            <label class="flex items-center gap-2 text-sm text-slate-600">
+                <span class="whitespace-nowrap">Per halaman</span>
+                <select wire:model.live="perPage" class="form-select w-24">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </label>
+        </div>
         <div class="hidden overflow-x-auto lg:block">
             <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-50">
@@ -192,6 +221,11 @@ new #[Layout('layouts.app')] class extends Component {
                 </div>
             @endforeach
         </div>
+        @if ($categories->hasPages())
+            <div class="border-t border-slate-100 p-4">
+                {{ $categories->onEachSide(1)->links() }}
+            </div>
+        @endif
     </div>
 
     @if($showForm)
