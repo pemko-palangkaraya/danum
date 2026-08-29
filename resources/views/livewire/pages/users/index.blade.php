@@ -19,7 +19,7 @@ use Livewire\WithPagination;
 new #[Layout('layouts.app')] class extends Component {
     use WithPagination;
 
-    public int $perPage = 10;
+    public int $perPage = 5;
     
     public function updatedPerPage(): void { $this->resetPage(); }
     public bool $showForm = false;
@@ -328,9 +328,7 @@ new #[Layout('layouts.app')] class extends Component {
         @endforelse
     </div>
 
-    <div class="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        {{ $users->onEachSide(1)->links() }}
-    </div>
+    <x-ui.table-footer :paginator="$users" label="users" />
 
     @if($showSignerPin)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" wire:click.self="$set('showSignerPin', false)">
