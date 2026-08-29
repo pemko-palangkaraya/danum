@@ -13,7 +13,7 @@ return new class extends Migration {
     {
         Schema::create('roles', function (Blueprint $table): void {
             $table->id();
-            $table->foreignUuid('tenant_id')->constrained()->cascadeOnDelete();
+            $table->foreignUuid('tenant_id')->nullable()->constrained()->nullOnDelete();
             $table->string('name');
             $table->string('slug');
             $table->string('scope')->default('tenant');
@@ -56,6 +56,12 @@ return new class extends Migration {
             ];
         }
         DB::table('permissions')->insert($rows);
+
+        DB::table('roles')->insert([
+            ['tenant_id' => null, 'name' => 'Super Admin', 'slug' => 'super_admin', 'scope' => 'global', 'is_system' => true, 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
+            ['tenant_id' => null, 'name' => 'Tenant Admin', 'slug' => 'tenant_admin', 'scope' => 'tenant', 'is_system' => true, 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
+            ['tenant_id' => null, 'name' => 'Tenant User', 'slug' => 'tenant_user', 'scope' => 'tenant', 'is_system' => true, 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
+        ]);
     }
 
     public function down(): void
