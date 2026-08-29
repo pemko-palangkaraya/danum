@@ -75,6 +75,7 @@ new #[Layout('layouts.app')] class extends Component {
             'password' => $admin['admin_password'],
         ]);
 
+        $this->dispatch('toast', type: 'success', message: 'Tenant dan administrator berhasil dibuat.');
         $this->redirectRoute('tenants.index');
     }
 
