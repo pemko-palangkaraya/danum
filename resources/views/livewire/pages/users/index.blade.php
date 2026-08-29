@@ -91,14 +91,17 @@ new #[Layout('layouts.app')] class extends Component {
             return collect();
         }
 
-        return Role::query()
+        $query = Role::query()
             ->where('is_system', false)
-            ->where('is_active', true)
-            ->where(function ($query) {
-                $query->where('scope', 'global')
-                    ->orWhere(fn ($tenant) => $tenant->where('scope', 'tenant')->where('tenant_id', $this->tenantId));
-            })
-            ->orderBy('scope')
+            ->where('is_active', true);
+
+        if (auth()->user()?->isSuperAdmin()) {
+            return $query->orderBy('scope')->orderBy('name')->get();
+        }
+
+        return $query
+            ->where('scope', 'tenant')
+            ->where('tenant_id', $this->tenantId)
             ->orderBy('name')
             ->get();
     }
@@ -155,8 +158,12 @@ new #[Layout('layouts.app')] class extends Component {
                 ->where('is_system', false)
                 ->where('is_active', true)
                 ->where(function ($query) {
-                    $query->where('scope', 'global')
-                        ->orWhere(fn ($tenant) => $tenant->where('scope', 'tenant')->where('tenant_id', $this->tenantId));
+                    if (auth()->user()?->isSuperAdmin()) {
+                        $query->where('scope', 'global')
+                            ->orWhere(fn ($tenant) => $tenant->where('scope', 'tenant')->where('tenant_id', $this->tenantId));
+                    } else {
+                        $query->where('scope', 'tenant')->where('tenant_id', $this->tenantId);
+                    }
                 })
                 ->firstOrFail();
             $this->role = UserRole::TENANT_USER->value;
