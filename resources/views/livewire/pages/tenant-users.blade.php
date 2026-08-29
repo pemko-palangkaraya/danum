@@ -41,11 +41,8 @@ new #[Layout('layouts.app')] class extends Component {
         return Role::query()
             ->where('is_system', false)
             ->where('is_active', true)
-            ->where(function ($query) {
-                $query->where('scope', 'global')
-                    ->orWhere(fn ($tenant) => $tenant->where('scope', 'tenant')->where('tenant_id', auth()->user()->tenant_id));
-            })
-            ->orderBy('scope')
+            ->where('scope', 'tenant')
+            ->where('tenant_id', auth()->user()->tenant_id)
             ->orderBy('name')
             ->get();
     }
@@ -131,10 +128,8 @@ new #[Layout('layouts.app')] class extends Component {
                 ->whereKey((int) substr($this->roleSelection, 7))
                 ->where('is_system', false)
                 ->where('is_active', true)
-                ->where(function ($query) use ($tenantId) {
-                    $query->where('scope', 'global')
-                        ->orWhere(fn ($tenant) => $tenant->where('scope', 'tenant')->where('tenant_id', $tenantId));
-                })
+                ->where('scope', 'tenant')
+                ->where('tenant_id', $tenantId)
                 ->firstOrFail();
         }
 
