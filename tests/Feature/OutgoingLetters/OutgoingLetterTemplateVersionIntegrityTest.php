@@ -40,6 +40,37 @@ class OutgoingLetterTemplateVersionIntegrityTest extends TestCase
         ];
     }
 
+    public function test_active_version_template_path_is_used_when_master_template_path_is_empty(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'role' => UserRole::TENANT_ADMIN,
+        ]);
+        $type = $this->createLetterTypeFor($tenant);
+        $type->update([
+            'template_path' => null,
+            'body_template' => null,
+        ]);
+
+        $version = LetterTypeVersion::query()->create([
+            'letter_type_id' => $type->id,
+            'version' => 1,
+            'body_template' => 'v1',
+            'template_path' => 'letter-templates/sketm-v1.docx',
+            'is_active' => true,
+            'effective_from' => now()->subMinute(),
+        ]);
+
+        $service = app(\App\Services\LetterTypeService::class);
+
+        $active = $service->activeVersion($type->fresh());
+
+        $this->assertNotNull($active);
+        $this->assertSame($version->id, $active->id);
+        $this->assertSame('letter-templates/sketm-v1.docx', $active->template_path);
+    }
+
     public function test_new_letter_locks_the_active_template_version(): void
     {
         $tenant = Tenant::factory()->create();
