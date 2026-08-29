@@ -88,6 +88,19 @@ class LetterTypeService
         );
     }
 
+    public function revokeTenantPermission(LetterType $letterType, string $tenantId): bool
+    {
+        if (! $letterType->isGlobal()) {
+            return false;
+        }
+
+        return LetterTypePermission::query()
+            ->where('letter_type_id', $letterType->id)
+            ->where('tenant_id', $tenantId)
+            ->whereNull('tenant_category_id')
+            ->update(['allowed' => false]) > 0;
+    }
+
     public function grantCategoryPermission(LetterType $letterType, int $categoryId): LetterTypePermission
     {
         if (! $letterType->isGlobal()) {
