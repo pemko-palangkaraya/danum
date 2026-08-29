@@ -3,6 +3,7 @@
 use App\Enums\TenantStatus;
 use App\Enums\UserStatus;
 use App\Http\Requests\UpdateTenantRequest;
+use App\Models\TenantCategory;
 use App\Services\TenantService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
