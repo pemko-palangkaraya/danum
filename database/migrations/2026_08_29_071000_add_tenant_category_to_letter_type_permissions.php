@@ -17,6 +17,10 @@ return new class extends Migration
                 ->constrained('tenant_categories')
                 ->cascadeOnDelete();
 
+            $table->dropForeign(['tenant_id']);
+            $table->nullableForeignId('tenant_id')->change();
+            $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
+
             $table->dropUnique(['tenant_id', 'letter_type_id']);
             $table->unique(['tenant_category_id', 'letter_type_id']);
             $table->unique(['tenant_id', 'letter_type_id']);
