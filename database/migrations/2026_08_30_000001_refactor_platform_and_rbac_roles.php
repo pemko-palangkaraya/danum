@@ -19,7 +19,7 @@ return new class extends Migration
             'platform_role' => 'super_admin', 'tenant_id' => null, 'custom_role_id' => null,
         ]);
 
-        $legacyRoles = DB::table('roles')->whereIn('slug', ['tenant_admin', 'tenant_user'])->get();
+        $legacyRoles = DB::table('roles')->whereIn('slug', ['tenant_admin', 'tenant_user'])->where('scope', 'global')->get();
         foreach ($legacyRoles as $legacyRole) {
             $tenantIds = DB::table('users')->where('role', $legacyRole->slug)->whereNotNull('tenant_id')->distinct()->pluck('tenant_id');
             foreach ($tenantIds as $tenantId) {
@@ -38,7 +38,7 @@ return new class extends Migration
             }
         }
 
-        DB::table('roles')->whereIn('slug', ['super_admin', 'tenant_admin', 'tenant_user'])->whereNull('tenant_id')->delete();
+        DB::table('roles')->whereIn('slug', ['tenant_admin', 'tenant_user'])->where('scope', 'global')->delete();
     }
 
     public function down(): void
