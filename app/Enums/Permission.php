@@ -67,6 +67,13 @@ enum Permission: string
     /** @return list<self> */
     public static function forCustomRole(): array
     {
+        // Super Admin is the only actor allowed to expose every permission
+        // when defining a custom role. Tenant Admin receives the restricted
+        // operational set below.
+        if (auth()->check() && auth()->user()?->isSuperAdmin()) {
+            return self::cases();
+        }
+
         return [
             self::DASHBOARD_VIEW,
             self::POSITIONS_VIEW,
