@@ -41,7 +41,7 @@ enum Permission: string
     public static function forRole(UserRole $role): array
     {
         return match ($role) {
-            UserRole::SUPER_ADMIN => array_values(array_filter(self::cases(), fn (self $permission) => $permission !== self::RBAC_MANAGE || true)),
+            UserRole::SUPER_ADMIN => self::cases(),
             UserRole::TENANT_ADMIN => [
                 self::DASHBOARD_VIEW, self::RBAC_VIEW,
                 self::USERS_VIEW, self::USERS_CREATE, self::USERS_UPDATE,
@@ -62,5 +62,24 @@ enum Permission: string
                 self::OUTGOING_LETTERS_WITHDRAW,
             ],
         };
+    }
+
+    /** @return list<self> */
+    public static function forCustomRole(): array
+    {
+        return [
+            self::DASHBOARD_VIEW,
+            self::POSITIONS_VIEW,
+            self::LETTER_TYPES_VIEW,
+            self::OUTGOING_LETTERS_VIEW,
+            self::OUTGOING_LETTERS_CREATE,
+            self::OUTGOING_LETTERS_UPDATE,
+            self::OUTGOING_LETTERS_DELETE,
+            self::OUTGOING_LETTERS_SUBMIT,
+            self::OUTGOING_LETTERS_VALIDATE,
+            self::OUTGOING_LETTERS_REJECT,
+            self::OUTGOING_LETTERS_ISSUE,
+            self::OUTGOING_LETTERS_WITHDRAW,
+        ];
     }
 }
