@@ -12,16 +12,12 @@ use App\Services\SignerPinService;
 use App\Services\UserService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use App\Livewire\Concerns\WithStandardTablePagination;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
-use App\Livewire\Concerns\WithStandardTablePagination;
 
 new #[Layout('layouts.app')] class extends Component {
-    use WithPagination;
-
-    public int $perPage = 5;
-    
-    public function updatedPerPage(): void { $this->resetPage(); }
+    use WithStandardTablePagination;
     public bool $showForm = false;
     public bool $showSignerPin = false;
     public ?int $editingUserId = null;
