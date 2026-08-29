@@ -10,7 +10,6 @@ use App\Enums\UserStatus;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -63,7 +62,14 @@ class User extends Authenticatable
     public function roleModel(): ?Role
     {
         if ($this->custom_role_id !== null) {
-            return $this->customRole()->where('is_active', true)->first();
+            if ($this->tenant_id === null) return null;
+
+            return $this->customRole()
+                ->where('is_system', false)
+                ->where('scope', 'tenant')
+                ->where('tenant_id', $this->tenant_id)
+                ->where('is_active', true)
+                ->first();
         }
 
         return Role::query()
@@ -79,13 +85,8 @@ class User extends Authenticatable
 
     public function hasPermission(PermissionEnum|string $permission): bool
     {
-        if ($this->status !== UserStatus::ACTIVE) {
-            return false;
-        }
-
-        if ($this->isSuperAdmin()) {
-            return true;
-        }
+        if ($this->status !== UserStatus::ACTIVE) return false;
+        if ($this->isSuperAdmin()) return true;
 
         $slug = $permission instanceof PermissionEnum ? $permission->value : $permission;
         $role = $this->roleModel();
@@ -96,18 +97,14 @@ class User extends Authenticatable
     /** @param list<PermissionEnum|string> $permissions */
     public function hasAnyPermission(array $permissions): bool
     {
-        foreach ($permissions as $permission) {
-            if ($this->hasPermission($permission)) return true;
-        }
+        foreach ($permissions as $permission) if ($this->hasPermission($permission)) return true;
         return false;
     }
 
     /** @param list<PermissionEnum|string> $permissions */
     public function hasAllPermissions(array $permissions): bool
     {
-        foreach ($permissions as $permission) {
-            if (! $this->hasPermission($permission)) return false;
-        }
+        foreach ($permissions as $permission) if (! $this->hasPermission($permission)) return false;
         return true;
     }
 
