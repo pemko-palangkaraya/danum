@@ -21,6 +21,9 @@
                         <h3 class="mt-1 truncate text-sm font-semibold text-slate-900">
                             {{ $tenant->name }}
                         </h3>
+                        <p class="mt-0.5 truncate text-xs font-medium text-slate-500">
+                            {{ $tenant->category?->name ?? 'Tanpa kategori' }}
+                        </p>
 
                         <p class="mt-1 text-xs text-slate-500">
 
