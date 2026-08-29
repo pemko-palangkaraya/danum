@@ -13,7 +13,7 @@ class TenantRepository implements TenantRepositoryInterface
 {
     public function find(string $id): ?Tenant
     {
-        return Tenant::query()->find($id);
+        return Tenant::query()->with('category')->find($id);
     }
 
     public function findByCode(string $code): ?Tenant
@@ -25,8 +25,7 @@ class TenantRepository implements TenantRepositoryInterface
 
     public function getAll(): Collection
     {
-        return Tenant::query()
-            ->get();
+        return Tenant::query()->with('category')->get();
     }
 
     public function search(
@@ -35,9 +34,7 @@ class TenantRepository implements TenantRepositoryInterface
         int $perPage = 5,
         // ): Collection { ini sepertinya dipakai jika ingin tampil semua
     ): LengthAwarePaginator {
-        $query = $onlyDeleted
-            ? Tenant::onlyTrashed()
-            : Tenant::query();
+        $query = ($onlyDeleted ? Tenant::onlyTrashed() : Tenant::query())->with('category');
 
         $search = trim((string) $search);
 
@@ -95,7 +92,7 @@ class TenantRepository implements TenantRepositoryInterface
         bool $withTrashed = false,
         int $perPage = 10,
     ): LengthAwarePaginator {
-        $query = Tenant::query();
+        $query = Tenant::query()->with('category');
 
         if ($withTrashed) {
             $query->withTrashed();
