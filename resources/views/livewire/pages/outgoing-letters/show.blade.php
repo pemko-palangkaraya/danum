@@ -43,12 +43,25 @@
     @endif
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"><div class="mx-auto min-h-[297mm] max-w-[210mm] bg-white px-4 py-8 text-[14px] leading-7 text-slate-900">
-            @if ($letter->tenant?->letterheadUrl())<div class="mb-7 border-b border-slate-300 pb-3"><img src="{{ $letter->tenant->letterheadUrl() }}" alt="Kop surat {{ $letter->tenant->name }}" class="mx-auto max-h-32 w-full object-contain"></div>@endif
-            <section class="mb-7 text-center"><h2 class="text-base font-bold uppercase underline">{{ $letter->letterType?->name }}</h2><div class="text-sm">Nomor: {{ $letter->number }}</div></section>
-            <dl class="mb-7 ml-4 grid grid-cols-[75px_1fr] gap-y-1 text-sm"><dt>Tujuan</dt><dd>: {{ $letter->recipient_name }}</dd>@if ($letter->recipient_address)<dt>Alamat</dt><dd>: {{ $letter->recipient_address }}</dd>@endif<dt>Perihal</dt><dd>: {{ $letter->subject }}</dd></dl>
-            <div class="whitespace-pre-wrap font-serif">@foreach ($contentParts as $part)@if (preg_match('/^\{\{\s*tte\s*\}\}$/i', trim($part)))@if ($status === 'issued' && $verificationQrCode)<div class="my-4 flex flex-col items-center text-center font-sans text-xs text-slate-500"><img src="{{ $verificationQrCode }}" alt="QR TTE / verifikasi surat" class="h-28 w-28"><span class="mt-1">TTE / verifikasi dokumen</span></div>@endif @else{!! nl2br(e($part)) !!}@endif @endforeach</div>
-        </div></article>
+        <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-100 bg-slate-50 px-5 py-3 sm:px-6">
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-sm font-semibold text-slate-900">{{ $status === 'issued' ? 'Dokumen Resmi' : 'Preview Dokumen' }}</h2>
+                        <p class="mt-0.5 text-xs text-slate-500">Dirender dari template DOCX menggunakan LibreOffice.</p>
+                    </div>
+                    <a href="{{ route('outgoing-letters.pdf', $letter->id) }}" target="_blank" rel="noopener" class="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Buka PDF</a>
+                </div>
+            </div>
+            <div class="bg-slate-100 p-2 sm:p-4">
+                <iframe
+                    src="{{ route('outgoing-letters.pdf', $letter->id) }}"
+                    title="{{ $status === 'issued' ? 'Dokumen resmi' : 'Preview PDF surat' }}"
+                    class="h-[75vh] min-h-[620px] w-full rounded-xl bg-white shadow-sm"
+                    loading="lazy"
+                ></iframe>
+            </div>
+        </article>
 
         <aside class="h-fit space-y-4">
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 class="font-semibold text-slate-900">Letter Details</h2><dl class="mt-4 space-y-3 text-sm"><div><dt class="text-slate-400">Number</dt><dd class="font-medium text-slate-800">{{ $letter->number }}</dd></div><div><dt class="text-slate-400">Recipient</dt><dd class="font-medium text-slate-800">{{ $letter->recipient_name }}</dd></div><div><dt class="text-slate-400">Address</dt><dd class="text-slate-700">{{ $letter->recipient_address ?: '—' }}</dd></div><div><dt class="text-slate-400">Letter Date</dt><dd class="font-medium text-slate-800">{{ optional($letter->letter_date)->translatedFormat('d F Y') ?? '—' }}</dd></div>@if($letter->letterType?->has_expiry && $letter->valid_from)<div><dt class="text-slate-400">Berlaku Mulai</dt><dd class="font-medium text-slate-800">{{ $letter->valid_from->translatedFormat('d F Y H:i') }}</dd></div>@endif @if($letter->letterType?->has_expiry && $letter->valid_until)<div><dt class="text-slate-400">Berlaku Sampai</dt><dd class="font-medium text-slate-800">{{ $letter->valid_until->translatedFormat('d F Y H:i') }}</dd></div>@endif @if($status === 'withdrawn' && $withdrawalDecision?->decided_at)<div><dt class="text-slate-400">Tanggal Penarikan</dt><dd class="font-medium text-red-700">{{ $withdrawalDecision->decided_at->translatedFormat('d F Y H:i') }}</dd></div>@endif @if($letter->validator_name)<div><dt class="text-slate-400">Verifikator</dt><dd class="font-medium text-slate-800">{{ $letter->validator_name }}</dd><dd class="text-xs text-slate-500">{{ $letter->validator_title }}</dd></div>@endif @if($letter->signer_name)<div><dt class="text-slate-400">Penanda Tangan</dt><dd class="font-medium text-slate-800">{{ $letter->signer_name }}</dd><dd class="text-xs text-slate-500">{{ $letter->signer_title }}</dd></div>@endif</dl></div>
