@@ -74,7 +74,9 @@ class Index extends Component
             $this->letter_type_id = $letter->letter_type_id;
             $this->signer_position_id = $letter->signer_position_id;
             $this->validator_position_id = $letter->validator_position_id;
-            $version = $letter->letterType?->currentVersion();
+            $version = $letter->letterType
+                ? app(LetterTypeService::class)->activeVersion($letter->letterType)
+                : null;
             $this->variables = $version?->variables ?? $letter->letterType?->variables ?? [];
             $this->variableValues = $letter->input_data ?? [];
             foreach ($this->variables as $variable) $this->variableValues[$variable] ??= '';
