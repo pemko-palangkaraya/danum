@@ -180,72 +180,15 @@ class Index extends Component
         catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal disimpan. Silakan coba lagi.'); }
     }
 
-    public function submitLetter(string $id, OutgoingLetterService $service): void
-    {
-        try { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('submit', $letter); $service->submit($letter, auth()->id()); $this->dispatch('toast', type: 'success', message: 'Surat dikirim untuk verifikasi. Data sekarang terkunci.'); }
-        catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal dikirim untuk verifikasi.'); }
-    }
-
-    public function openReject(string $id): void
-    {
-        try { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('reject', $letter); $this->rejectId = $id; $this->rejectReason = ''; $this->resetValidation(); $this->showRejectForm = true; }
-        catch (\Throwable) { $this->toastError('Anda tidak memiliki kewenangan untuk menolak surat ini.'); }
-    }
-
-    public function rejectLetter(OutgoingLetterService $service): void
-    {
-        try { $this->validate(['rejectReason' => ['required', 'string', 'max:2000']]); $letter = $this->tenantQuery()->findOrFail($this->rejectId); $this->authorize('reject', $letter); $service->reject($letter, auth()->id(), $this->rejectReason); $this->showRejectForm = false; $this->rejectId = ''; $this->rejectReason = ''; $this->dispatch('toast', type: 'success', message: 'Surat ditolak dan dikembalikan kepada pembuat beserta alasan penolakan.'); }
-        catch (ValidationException $exception) { $this->setErrorBag($exception->validator->errors()); }
-        catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal ditolak.'); }
-    }
-
-    public function validateLetter(string $id, OutgoingLetterService $service, ?string $note = null): void
-    {
-        if (blank($note)) { $this->dispatch('workflow-note-required', action: 'validate', id: $id, title: 'Catatan Verifikasi', description: 'Berikan catatan pemeriksaan sebelum mengesahkan bahwa surat ini sudah diverifikasi.'); return; }
-        try { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('validate', $letter); $service->validate($letter, auth()->id(), $note); $this->dispatch('toast', type: 'success', message: 'Surat berhasil diverifikasi.'); }
-        catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal diverifikasi. Anda mungkin tidak memiliki kewenangan atau status surat sudah berubah.'); }
-    }
-
-    public function issue(string $id, OutgoingLetterService $service, ?string $note = null, ?string $pin = null): void
-    {
-        if (! app(\App\Services\SignerPinService::class)->hasPin(auth()->user())) { $this->dispatch('signing-pin-missing', url: route('settings.signing-pin')); return; }
-        if (blank($note)) { $this->dispatch('workflow-note-required', action: 'issue', id: $id, title: 'Catatan Penandatanganan', description: 'Berikan catatan sebelum menandatangani dan menerbitkan surat ini.'); return; }
-        if (blank($pin)) { $this->dispatch('signer-pin-required', action: 'issue', id: $id, note: $note, title: 'PIN Tanda Tangan', description: 'Masukkan PIN tanda tangan Anda untuk melanjutkan proses penandatanganan.'); return; }
-        try { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('issue', $letter); $service->issue($letter, auth()->id(), $note, $pin); $this->dispatch('toast', type: 'success', message: 'Surat berhasil diterbitkan.'); }
-        catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal diterbitkan. Anda mungkin tidak memiliki kewenangan atau status surat sudah berubah.'); }
-    }
-
-    #[On('workflow-note-submitted')]
-    public function handleWorkflowNote(string $action, string $id, string $note, OutgoingLetterService $service): void
-    {
-        $note = trim($note);
-        if ($note === '') { $this->dispatch('workflow-note-required', action: $action, id: $id, title: $action === 'validate' ? 'Catatan Verifikasi' : 'Catatan Penandatanganan', description: 'Catatan wajib diisi.'); return; }
-        if ($action === 'validate') $this->validateLetter($id, $service, $note);
-        elseif ($action === 'issue') $this->dispatch('signer-pin-required', action: 'issue', id: $id, note: $note, title: 'PIN Tanda Tangan', description: 'Masukkan PIN tanda tangan Anda untuk melanjutkan proses penandatanganan.');
-    }
-
-    #[On('signer-pin-submitted')]
-    public function handleSignerPin(string $action, string $id, string $note, string $pin, OutgoingLetterService $service): void
-    {
-        if ($action !== 'issue') return;
-        $pin = trim($pin);
-        if (! preg_match('/^\d{6}$/', $pin)) { $this->dispatch('signer-pin-invalid'); return; }
-        $this->issue($id, $service, $note, $pin);
-    }
-
-    public function restoreLetter(string $id, OutgoingLetterService $service): void
-    {
-        try { $letter = OutgoingLetter::withTrashed()->findOrFail($id); $this->authorize('restore', $letter); $service->restore($letter); $this->dispatch('toast', type: 'success', message: 'Surat berhasil direstore.'); $this->resetPage(); }
-        catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal direstore.'); }
-    }
-
-    private function applySystemValues(?PositionHolder $holder = null): void
-    {
-        $tenant = auth()->user()->tenant;
-        if (! $tenant) return;
-        $values = ['tenant_name' => $tenant->name, 'tenant_city' => $tenant->city, 'tenant_district' => $tenant->district, 'tenant_village' => $tenant->village, 'tenant_province' => $tenant->province, 'tenant_address' => $tenant->address, 'tenant_phone' => $tenant->phone, 'tenant_email' => $tenant->email, 'tenant_head_name' => $holder?->user?->name ?? $tenant->head_name, 'tenant_head_title' => $holder?->position?->name ?? $tenant->head_title];
-        foreach ($this->variables as $variable) if ($this->isSystemVariable($variable)) $this->variableValues[$variable] = (string) ($values[$variable] ?? '');
-    }
+    public function submitLetter(string $id, OutgoingLetterService $service): void { try { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('submit', $letter); $service->submit($letter, auth()->id()); $this->dispatch('toast', type: 'success', message: 'Surat dikirim untuk verifikasi. Data sekarang terkunci.'); } catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal dikirim untuk verifikasi.'); } }
+    public function openReject(string $id): void { try { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('reject', $letter); $this->rejectId = $id; $this->rejectReason = ''; $this->resetValidation(); $this->showRejectForm = true; } catch (\Throwable) { $this->toastError('Anda tidak memiliki kewenangan untuk menolak surat ini.'); } }
+    public function rejectLetter(OutgoingLetterService $service): void { try { $this->validate(['rejectReason' => ['required', 'string', 'max:2000']]); $letter = $this->tenantQuery()->findOrFail($this->rejectId); $this->authorize('reject', $letter); $service->reject($letter, auth()->id(), $this->rejectReason); $this->showRejectForm = false; $this->rejectId = ''; $this->rejectReason = ''; $this->dispatch('toast', type: 'success', message: 'Surat ditolak dan dikembalikan kepada pembuat beserta alasan penolakan.'); } catch (ValidationException $exception) { $this->setErrorBag($exception->validator->errors()); } catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal ditolak.'); } }
+    public function validateLetter(string $id, OutgoingLetterService $service, ?string $note = null): void { if (blank($note)) { $this->dispatch('workflow-note-required', action: 'validate', id: $id, title: 'Catatan Verifikasi', description: 'Berikan catatan pemeriksaan sebelum mengesahkan bahwa surat ini sudah diverifikasi.'); return; } try { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('validate', $letter); $service->validate($letter, auth()->id(), $note); $this->dispatch('toast', type: 'success', message: 'Surat berhasil diverifikasi.'); } catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal diverifikasi. Anda mungkin tidak memiliki kewenangan atau status surat sudah berubah.'); } }
+    public function issue(string $id, OutgoingLetterService $service, ?string $note = null, ?string $pin = null): void { if (! app(\App\Services\SignerPinService::class)->hasPin(auth()->user())) { $this->dispatch('signing-pin-missing', url: route('settings.signing-pin')); return; } if (blank($note)) { $this->dispatch('workflow-note-required', action: 'issue', id: $id, title: 'Catatan Penandatanganan', description: 'Berikan catatan sebelum menandatangani dan menerbitkan surat ini.'); return; } if (blank($pin)) { $this->dispatch('signer-pin-required', action: 'issue', id: $id, note: $note, title: 'PIN Tanda Tangan', description: 'Masukkan PIN tanda tangan Anda untuk melanjutkan proses penandatanganan.'); return; } try { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('issue', $letter); $service->issue($letter, auth()->id(), $note, $pin); $this->dispatch('toast', type: 'success', message: 'Surat berhasil diterbitkan.'); } catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal diterbitkan. Anda mungkin tidak memiliki kewenangan atau status surat sudah berubah.'); } }
+    #[On('workflow-note-submitted')] public function handleWorkflowNote(string $action, string $id, string $note, OutgoingLetterService $service): void { $note = trim($note); if ($note === '') { $this->dispatch('workflow-note-required', action: $action, id: $id, title: $action === 'validate' ? 'Catatan Verifikasi' : 'Catatan Penandatanganan', description: 'Catatan wajib diisi.'); return; } if ($action === 'validate') $this->validateLetter($id, $service, $note); elseif ($action === 'issue') $this->dispatch('signer-pin-required', action: 'issue', id: $id, note: $note, title: 'PIN Tanda Tangan', description: 'Masukkan PIN tanda tangan Anda untuk melanjutkan proses penandatanganan.'); }
+    #[On('signer-pin-submitted')] public function handleSignerPin(string $action, string $id, string $note, string $pin, OutgoingLetterService $service): void { if ($action !== 'issue') return; $pin = trim($pin); if (! preg_match('/^\d{6}$/', $pin)) { $this->dispatch('signer-pin-invalid'); return; } $this->issue($id, $service, $note, $pin); }
+    public function restoreLetter(string $id, OutgoingLetterService $service): void { try { $letter = OutgoingLetter::withTrashed()->findOrFail($id); $this->authorize('restore', $letter); $service->restore($letter); $this->dispatch('toast', type: 'success', message: 'Surat berhasil direstore.'); $this->resetPage(); } catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal direstore.'); } }
+    private function applySystemValues(?PositionHolder $holder = null): void { $tenant = auth()->user()->tenant; if (! $tenant) return; $values = ['tenant_name' => $tenant->name, 'tenant_city' => $tenant->city, 'tenant_district' => $tenant->district, 'tenant_village' => $tenant->village, 'tenant_province' => $tenant->province, 'tenant_address' => $tenant->address, 'tenant_phone' => $tenant->phone, 'tenant_email' => $tenant->email, 'tenant_head_name' => $holder?->user?->name ?? $tenant->head_name, 'tenant_head_title' => $holder?->position?->name ?? $tenant->head_title]; foreach ($this->variables as $variable) if ($this->isSystemVariable($variable)) $this->variableValues[$variable] = (string) ($values[$variable] ?? ''); }
     private function availableSignerPositions() { return $this->availablePositions('can_sign'); }
     private function availableValidatorPositions() { return $this->availablePositions('can_validate'); }
     private function availablePositions(string $capability) { $tenantId = auth()->user()->tenant_id; return Position::query()->where('tenant_id', $tenantId)->where('status', PositionStatus::ACTIVE)->where($capability, true)->whereHas('holders', fn($query) => $query->whereNull('ended_at')->where('started_at', '<=', now()))->with(['holders' => fn($query) => $query->whereNull('ended_at')->where('started_at', '<=', now())->with('user')]); }
@@ -260,6 +203,10 @@ class Index extends Component
 
     public function render()
     {
+        if (! isset($this->filter) || $this->filter === '') {
+            $this->filter = 'all';
+        }
+
         $this->authorize('viewAny', OutgoingLetter::class);
         $letters = $this->archiveQuery()->with(['tenant', 'letterType', 'letterTypeVersion', 'signerPosition', 'signerUser', 'validatorPosition', 'validatorUser', 'creator', 'rejectedBy'])->latest();
         if ($this->isSuperAdmin() && $this->filter === 'deleted') $letters->onlyTrashed();
