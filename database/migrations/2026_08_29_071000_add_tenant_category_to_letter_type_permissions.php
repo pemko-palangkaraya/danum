@@ -18,7 +18,7 @@ return new class extends Migration
                 ->cascadeOnDelete();
 
             $table->dropForeign(['tenant_id']);
-            $table->nullableForeignId('tenant_id')->change();
+            $table->foreignUuid('tenant_id')->nullable()->change();
             $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
 
             $table->dropUnique(['tenant_id', 'letter_type_id']);
