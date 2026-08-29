@@ -59,32 +59,18 @@ class UserFactory extends Factory
         $tenant ??= Tenant::factory()->create();
 
         return $this->state(function (array $attributes) use ($tenant): array {
-            $role = Role::query()->firstOrCreate(
-                ['tenant_id' => $tenant->id, 'slug' => 'tenant_admin'],
-                [
-                    'name' => 'Tenant Administrator',
-                    'scope' => 'tenant',
-                    'is_system' => true,
-                    'is_active' => true,
-                ],
-            );
-
-            $permissionSlugs = [
+            $role = $this->ensureTenantRole($tenant, 'tenant_admin', 'Tenant Administrator');
+            $this->syncPermissions($role, [
                 'dashboard.view',
                 'users.view', 'users.create', 'users.update', 'users.delete',
                 'tenant-users.view',
-                'tenant-profile.view', 'tenant-profile.update',
+                'tenant-profile.view',
                 'positions.view', 'positions.manage',
                 'letter-types.view',
                 'outgoing-letters.view', 'outgoing-letters.create', 'outgoing-letters.update',
                 'outgoing-letters.delete', 'outgoing-letters.submit', 'outgoing-letters.validate',
                 'outgoing-letters.reject', 'outgoing-letters.issue', 'outgoing-letters.withdraw',
-            ];
-
-            $permissions = Permission::query()->whereIn('slug', $permissionSlugs)->pluck('id');
-            if ($permissions->isNotEmpty()) {
-                $role->permissions()->syncWithoutDetaching($permissions);
-            }
+            ]);
 
             return [
                 'role' => UserRole::TENANT_ADMIN,
@@ -97,14 +83,48 @@ class UserFactory extends Factory
 
     public function tenantUser(?Tenant $tenant = null): static
     {
+        $tenant ??= Tenant::factory()->create();
+
         return $this->state(function (array $attributes) use ($tenant): array {
+            $role = $this->ensureTenantRole($tenant, 'tenant_user', 'Tenant User');
+            $this->syncPermissions($role, [
+                'dashboard.view',
+                'tenant-profile.view',
+                'positions.view',
+                'letter-types.view',
+                'outgoing-letters.view', 'outgoing-letters.create', 'outgoing-letters.update',
+                'outgoing-letters.delete', 'outgoing-letters.submit', 'outgoing-letters.validate',
+                'outgoing-letters.reject', 'outgoing-letters.issue', 'outgoing-letters.withdraw',
+            ]);
+
             return [
                 'role' => UserRole::TENANT_USER,
                 'platform_role' => null,
-                'custom_role_id' => null,
-                'tenant_id' => $tenant?->id ?? Tenant::factory(),
+                'custom_role_id' => $role->id,
+                'tenant_id' => $tenant->id,
             ];
         });
+    }
+
+    private function ensureTenantRole(Tenant $tenant, string $slug, string $name): Role
+    {
+        return Role::query()->firstOrCreate(
+            ['tenant_id' => $tenant->id, 'slug' => $slug],
+            [
+                'name' => $name,
+                'scope' => 'tenant',
+                'is_system' => true,
+                'is_active' => true,
+            ],
+        );
+    }
+
+    private function syncPermissions(Role $role, array $permissionSlugs): void
+    {
+        $permissionIds = Permission::query()->whereIn('slug', $permissionSlugs)->pluck('id');
+        if ($permissionIds->isNotEmpty()) {
+            $role->permissions()->syncWithoutDetaching($permissionIds);
+        }
     }
 
     public function inactive(): static
