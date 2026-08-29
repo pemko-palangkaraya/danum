@@ -10,12 +10,12 @@ use App\Models\User;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Component;
-use Livewire\WithPagination;
+use App\Livewire\Concerns\WithStandardTablePagination;
 
 #[Layout('layouts.app')]
 class Index extends Component
 {
-    use WithPagination;
+    use WithStandardTablePagination;
 
     public string $search = '';
     public string $actor = '';
