@@ -29,10 +29,16 @@ new #[Layout('layouts.app')] class extends Component {
     public function roles()
     {
         $query = Role::query()->with('permissions')->orderByDesc('is_system')->orderBy('name');
+
         if (! auth()->user()?->isSuperAdmin()) {
-            $query->where(fn ($q) => $q->where('is_system', true)->whereIn('slug', [UserRole::TENANT_ADMIN->value, UserRole::TENANT_USER->value])
-                ->orWhere(fn ($custom) => $custom->where('is_system', false)->where('tenant_id', auth()->user()?->tenant_id)));
+            $query->where(function ($q) {
+                $q->where('is_system', true)->where('slug', UserRole::TENANT_ADMIN->value)
+                    ->orWhere(function ($custom) {
+                        $custom->where('is_system', false)->where('tenant_id', auth()->user()?->tenant_id);
+                    });
+            });
         }
+
         return $query->get();
     }
 
@@ -88,6 +94,7 @@ new #[Layout('layouts.app')] class extends Component {
             $role->is_active = true;
             $role->slug = $this->uniqueSlug($this->name);
         }
+
         $role->name = $this->name;
         $role->save();
 
@@ -129,7 +136,9 @@ new #[Layout('layouts.app')] class extends Component {
     private function editableRole(int $id): Role
     {
         $query = Role::query()->whereKey($id)->where('is_system', false);
-        if (! auth()->user()?->isSuperAdmin()) $query->where('tenant_id', auth()->user()?->tenant_id);
+        if (! auth()->user()?->isSuperAdmin()) {
+            $query->where('tenant_id', auth()->user()?->tenant_id);
+        }
         return $query->firstOrFail();
     }
 
@@ -143,7 +152,8 @@ new #[Layout('layouts.app')] class extends Component {
     private function uniqueSlug(string $name): string
     {
         $base = Str::slug($name) ?: 'custom-role';
-        $slug = $base; $counter = 2;
+        $slug = $base;
+        $counter = 2;
         while (Role::query()->where('slug', $slug)->exists()) $slug = $base.'-'.$counter++;
         return $slug;
     }
