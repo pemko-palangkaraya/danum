@@ -150,7 +150,8 @@ new #[Layout('layouts.app')] class extends Component {
             if ($this->password === '') {
                 unset($data['password']);
             }
-            $rules = (new UpdateUserRequest())->rules();
+            $data['user_id'] = $user->getKey();
+            $rules = UpdateUserRequest::rulesFor($user);
             $rules['custom_role_id'] = ['nullable', 'integer', 'exists:roles,id'];
             $validated = Validator::make($data, $rules)->validate();
             if (isset($validated['password'])) {
