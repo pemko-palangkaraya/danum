@@ -45,7 +45,7 @@
                     </div>
                 </div>
             @empty<div class="p-12 text-center text-sm text-slate-500">{{ $isSuperAdmin && $filter === 'deleted' ? 'Tidak ada surat yang dihapus.' : 'Belum ada surat keluar.' }}</div>@endforelse
-        </div><div class="border-t border-slate-100 p-4">{{ $letters->links() }}</div>
+        </div><x-ui.table-footer :paginator="$letters" label="surat" />
     </div>
 
     @if($showForm)
