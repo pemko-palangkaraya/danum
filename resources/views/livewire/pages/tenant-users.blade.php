@@ -236,7 +236,7 @@ new #[Layout('layouts.app')] class extends Component {
                     <select wire:model.live="roleSelection" class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm">
                         @php($editingGlobalRole = $editingUserId ? User::query()->with('customRole')->find($editingUserId)?->customRole : null)
                         @if($editingGlobalRole?->scope === 'global')
-                            <option value="custom:{{ $editingGlobalRole->id }}" selected disabled>{{ $editingGlobalRole->name }} · Global (managed by Super Admin)</option>
+                            <option value="custom:{{ $editingGlobalRole->id }}" selected disabled>Special access · Managed by Super Admin</option>
                         @else
                             <option value="tenant_user">Tenant User</option>
                         @endif
@@ -249,7 +249,7 @@ new #[Layout('layouts.app')] class extends Component {
                             </optgroup>
                         @endif
                     </select>
-                    <p class="mt-1 text-xs text-slate-500">{{ $editingGlobalRole?->scope === 'global' ? 'Global custom role dikelola Super Admin dan tidak dapat diubah atau dicabut oleh Tenant Admin.' : 'Custom role adalah role tenant yang dikelola oleh Tenant Admin pada tenant ini.' }}</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ $editingGlobalRole?->scope === 'global' ? 'User ini memiliki special access yang dikelola Super Admin. Detail role tidak dapat dilihat, diubah, atau dicabut oleh Tenant Admin.' : 'Custom role adalah role tenant yang dikelola oleh Tenant Admin pada tenant ini.' }}</p>
                     @error('custom_role_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <div><label class="text-sm font-medium text-slate-700">Password {{ $editingUserId ? '(optional)' : '' }}</label><input wire:model="password" type="password" autocomplete="new-password" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">@error('password')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
