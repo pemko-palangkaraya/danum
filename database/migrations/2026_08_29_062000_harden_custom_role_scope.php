@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 return new class extends Migration
 {
@@ -49,7 +48,7 @@ return new class extends Migration
             }
 
             if ($tenantIds->count() !== 1) {
-                throw new RuntimeException(
+                throw new \RuntimeException(
                     "Custom role [{$role->name}] (ID {$role->id}) has scope=tenant without tenant_id and its owning tenant could not be determined. Assign the role to a user in its owning tenant or resolve the role manually before migrating."
                 );
             }
