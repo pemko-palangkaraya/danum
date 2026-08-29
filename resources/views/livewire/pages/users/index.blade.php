@@ -306,8 +306,8 @@ new #[Layout('layouts.app')] class extends Component {
         @empty
             <tr><td colspan="6" class="px-6 py-12 text-center text-sm text-slate-500">Belum ada user.</td></tr>
         @endforelse
-        </tbody></table></div><div class="border-t border-slate-100 p-4">{{ $users->onEachSide(1)->links() }}</div></div>
-
+        </tbody></table></div></div>
+    
     <div class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:hidden">
         @forelse ($users as $user)
             <div class="flex items-center justify-between gap-3 p-4">
@@ -326,6 +326,10 @@ new #[Layout('layouts.app')] class extends Component {
         @empty
             <div class="px-4 py-10 text-center text-sm text-slate-500">Belum ada user.</div>
         @endforelse
+    </div>
+
+    <div class="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        {{ $users->onEachSide(1)->links() }}
     </div>
 
     @if($showSignerPin)
