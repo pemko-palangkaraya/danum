@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use App\Enums\UserRole;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -14,7 +14,7 @@ class UpdateUserRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->role === UserRole::SUPER_ADMIN;
+        return $this->user()?->isSuperAdmin() === true;
     }
 
     public function rules(): array
@@ -22,25 +22,17 @@ class UpdateUserRequest extends FormRequest
         return self::rulesFor($this->currentUser());
     }
 
-    /**
-     * Validation rules for an update when the current user is already known.
-     * This is used by Livewire, where the FormRequest is not the actual HTTP request.
-     */
     public static function rulesFor(?User $user): array
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'nip' => ['sometimes', 'nullable', 'string', 'max:32'],
-            'email' => [
-                'sometimes',
-                'required',
-                'email',
-                'max:255',
-                Rule::unique('users', 'email')->ignore($user?->getKey()),
-            ],
+            'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user?->getKey())],
             'password' => ['sometimes', 'required', 'string', 'min:8'],
-            'role' => ['sometimes', 'required', Rule::enum(UserRole::class)],
+            'platform_role' => ['sometimes', 'nullable', 'string', Rule::in(['super_admin'])],
             'tenant_id' => ['sometimes', 'nullable', 'uuid', 'exists:tenants,id'],
+            'custom_role_id' => ['sometimes', 'nullable', 'integer', 'exists:roles,id'],
+            'status' => ['sometimes', 'nullable', 'string'],
         ];
     }
 
@@ -48,22 +40,33 @@ class UpdateUserRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $user = $this->currentUser();
+            if ($user === null) return;
 
-            if ($user === null) {
-                return;
+            $platformRole = $this->has('platform_role') ? $this->input('platform_role') : $user->platform_role?->value;
+            $tenantId = $this->has('tenant_id') ? $this->input('tenant_id') : $user->tenant_id;
+            $customRoleId = $this->has('custom_role_id') ? $this->input('custom_role_id') : $user->custom_role_id;
+
+            if ($platformRole === 'super_admin' && ($tenantId !== null || $customRoleId !== null)) {
+                $validator->errors()->add('platform_role', 'Super Admin tidak boleh memiliki tenant atau RBAC role.');
             }
 
-            $role = $this->input('role', $user->role->value);
-            $tenantId = $this->has('tenant_id')
-                ? $this->input('tenant_id')
-                : $user->tenant_id;
-
-            if (in_array($role, [UserRole::TENANT_USER->value, UserRole::TENANT_ADMIN->value], true) && $tenantId === null) {
-                $validator->errors()->add('tenant_id', 'Tenant user harus memiliki organisasi.');
+            if ($platformRole === null && $tenantId === null) {
+                $validator->errors()->add('tenant_id', 'Tenant member harus memiliki tenant.');
             }
 
-            if ($role === UserRole::SUPER_ADMIN->value && $tenantId !== null) {
-                $validator->errors()->add('tenant_id', 'Super Admin tidak boleh memiliki organisasi.');
+            if ($platformRole === null && $tenantId !== null && $customRoleId === null) {
+                $validator->errors()->add('custom_role_id', 'Tenant member harus memiliki RBAC role.');
+            }
+
+            if ($customRoleId !== null && $tenantId !== null) {
+                $valid = Role::query()->whereKey($customRoleId)->where('is_active', true)->where(function ($query) use ($tenantId) {
+                    $query->where(fn ($q) => $q->where('scope', 'global')->whereNull('tenant_id'))
+                        ->orWhere(fn ($q) => $q->where('scope', 'tenant')->where('tenant_id', $tenantId));
+                })->exists();
+
+                if (! $valid) {
+                    $validator->errors()->add('custom_role_id', 'RBAC role tidak berlaku untuk tenant yang dipilih.');
+                }
             }
         });
     }
@@ -71,13 +74,8 @@ class UpdateUserRequest extends FormRequest
     private function currentUser(): ?User
     {
         $routeUser = $this->route('user') ?? $this->route('id');
-
-        if ($routeUser instanceof User) {
-            return $routeUser;
-        }
-
+        if ($routeUser instanceof User) return $routeUser;
         $userId = $routeUser ?? $this->input('user_id');
-
         return $userId === null ? null : User::query()->find($userId);
     }
 }
