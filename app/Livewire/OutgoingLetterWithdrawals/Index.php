@@ -6,7 +6,6 @@ namespace App\Livewire\OutgoingLetterWithdrawals;
 
 use App\Enums\OutgoingLetterStatus;
 use App\Enums\OutgoingLetterWithdrawalStatus;
-use App\Enums\UserRole;
 use App\Livewire\Concerns\WithStandardTablePagination;
 use App\Models\OutgoingLetter;
 use App\Models\OutgoingLetterWithdrawalRequest;
@@ -132,7 +131,7 @@ class Index extends Component
     private function authorizePage(): void
     {
         abort_unless(auth()->check(), 403);
-        abort_unless(auth()->user()->role === UserRole::SUPER_ADMIN || auth()->user()->tenant_id !== null, 403);
+        abort_unless(auth()->user()->isSuperAdmin() || auth()->user()->tenant_id !== null, 403);
     }
 
     private function tenantIssuedLetters()
@@ -153,7 +152,7 @@ class Index extends Component
 
     public function render()
     {
-        $isSuperAdmin = auth()->user()->role === UserRole::SUPER_ADMIN;
+        $isSuperAdmin = auth()->user()->isSuperAdmin();
         return view('livewire.outgoing-letter-withdrawals.index', [
             'isSuperAdmin' => $isSuperAdmin,
             'issuedLetters' => $isSuperAdmin ? collect() : $this->tenantIssuedLetters()->latest('issued_at')->paginate($this->perPage, ['*'], 'issuedPage'),
