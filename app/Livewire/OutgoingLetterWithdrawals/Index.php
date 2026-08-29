@@ -7,6 +7,7 @@ namespace App\Livewire\OutgoingLetterWithdrawals;
 use App\Enums\OutgoingLetterStatus;
 use App\Enums\OutgoingLetterWithdrawalStatus;
 use App\Enums\UserRole;
+use App\Livewire\Concerns\WithStandardTablePagination;
 use App\Models\OutgoingLetter;
 use App\Models\OutgoingLetterWithdrawalRequest;
 use App\Services\OutgoingLetterService;
@@ -14,16 +15,16 @@ use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
 class Index extends Component
 {
     use WithFileUploads;
-    use WithPagination;
+    use WithStandardTablePagination;
 
+    public string $search = '';
+    public string $filter = 'active';
     public int $perPage = 5;
-    public int $pendingPerPage = 5;
 
     public function updatedPerPage(): void
     {

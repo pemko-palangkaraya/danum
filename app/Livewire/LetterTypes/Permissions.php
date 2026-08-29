@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\LetterTypes;
 
+use App\Livewire\Concerns\WithStandardTablePagination;
 use App\Models\LetterType;
 use App\Models\Tenant;
 use App\Models\TenantCategory;
@@ -11,17 +12,16 @@ use App\Services\AuditLogService;
 use App\Services\LetterTypeService;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
-use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
 class Permissions extends Component
 {
-    use WithPagination;
+    use WithStandardTablePagination;
 
-    public int $perPage = 10;
-
-    public string $letterTypeId;
     public string $search = '';
+    public string $filter = 'active';
+    public int $perPage = 5;
+    public string $letterTypeId;
     public ?string $selectedTenantId = null;
     public string $selectedTenantName = '';
     public ?int $selectedCategoryId = null;
@@ -53,7 +53,7 @@ class Permissions extends Component
             );
         }
 
-        $this->dispatch('toast', type: 'success', message: 'Akses jenis surat diberikan ke '.$tenant->name.'.');
+        $this->dispatch('toast', type: 'success', message: 'Akses jenis surat diberikan ke ' . $tenant->name . '.');
     }
 
     public function grantCategory(int $categoryId, LetterTypeService $service, AuditLogService $auditLog): void
@@ -79,7 +79,7 @@ class Permissions extends Component
             );
         }
 
-        $this->dispatch('toast', type: 'success', message: 'Akses jenis surat diberikan ke kategori '.$category->name.'.');
+        $this->dispatch('toast', type: 'success', message: 'Akses jenis surat diberikan ke kategori ' . $category->name . '.');
     }
 
     public function confirmRevokeCategory(int $categoryId): void
@@ -216,8 +216,8 @@ class Permissions extends Component
         $query = Tenant::query()->orderBy('name');
 
         if ($this->search !== '') {
-            $value = '%'.trim($this->search).'%';
-            $query->where(fn ($q) => $q
+            $value = '%' . trim($this->search) . '%';
+            $query->where(fn($q) => $q
                 ->where('name', 'like', $value)
                 ->orWhere('code', 'like', $value));
         }
@@ -233,7 +233,7 @@ class Permissions extends Component
             ->where('allowed', true)
             ->whereNotNull('tenant_category_id')
             ->pluck('tenant_category_id')
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->all();
 
         $categories = TenantCategory::query()

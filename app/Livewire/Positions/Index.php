@@ -19,13 +19,17 @@ use App\Livewire\Concerns\WithStandardTablePagination;
 #[Layout('layouts.app')]
 class Index extends Component
 {
-    use WithPagination;
+    use WithStandardTablePagination;
 
     public string $search = '';
     public string $filter = 'active';
     public int $perPage = 5;
 
-    public function updatedPerPage(): void { $this->perPage = max(5, min($this->perPage, 50)); $this->resetPage(); }
+    public function updatedPerPage(): void
+    {
+        $this->perPage = max(5, min($this->perPage, 50));
+        $this->resetPage();
+    }
     public bool $showForm = false;
     public ?string $editingId = null;
     public string $selectedTenantId = '';
@@ -54,9 +58,18 @@ class Index extends Component
         if ($user->isTenantUser()) $this->selectedTenantId = (string) $user->tenant_id;
     }
 
-    public function updatedSearch(): void { $this->resetPage(); }
-    public function updatedFilter(): void { $this->resetPage(); }
-    public function updatedSelectedTenantId(): void { $this->resetPage(); }
+    public function updatedSearch(): void
+    {
+        $this->resetPage();
+    }
+    public function updatedFilter(): void
+    {
+        $this->resetPage();
+    }
+    public function updatedSelectedTenantId(): void
+    {
+        $this->resetPage();
+    }
 
     public function create(): void
     {
@@ -91,7 +104,7 @@ class Index extends Component
 
         $this->validate([
             'selectedTenantId' => ['required', 'string', Rule::exists('tenants', 'id')],
-            'code' => ['required', 'string', 'max:50', Rule::unique('positions', 'code')->where(fn ($query) => $query->where('tenant_id', $tenantId))->ignore($this->editingId)->whereNull('deleted_at')],
+            'code' => ['required', 'string', 'max:50', Rule::unique('positions', 'code')->where(fn($query) => $query->where('tenant_id', $tenantId))->ignore($this->editingId)->whereNull('deleted_at')],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'status' => ['required', Rule::enum(PositionStatus::class)],
@@ -100,8 +113,13 @@ class Index extends Component
         ], ['code.unique' => 'Kode jabatan sudah digunakan pada organisasi ini.']);
 
         $data = ['tenant_id' => $tenantId, 'code' => trim($this->code), 'name' => trim($this->name), 'description' => $this->description ?: null, 'status' => $this->status, 'can_sign' => $this->can_sign, 'can_validate' => $this->can_validate];
-        if ($position) { $service->update($position, $data); $message = 'Jabatan berhasil diperbarui.'; }
-        else { $service->create($data); $message = 'Jabatan berhasil dibuat.'; }
+        if ($position) {
+            $service->update($position, $data);
+            $message = 'Jabatan berhasil diperbarui.';
+        } else {
+            $service->create($data);
+            $message = 'Jabatan berhasil dibuat.';
+        }
         $this->showForm = false;
         $this->resetForm();
         $this->dispatch('toast', type: 'success', message: $message);
@@ -109,8 +127,11 @@ class Index extends Component
 
     public function assignHolder(string $positionId): void
     {
-        $position = Position::query()->with(['holders' => fn ($query) => $query->whereNull('ended_at')->orderByDesc('started_at')])->findOrFail($positionId);
-        if (! auth()->user()->canManagePositions()) { $this->dispatch('toast', type: 'error', message: 'Anda tidak memiliki izin untuk mengatur pejabat.'); return; }
+        $position = Position::query()->with(['holders' => fn($query) => $query->whereNull('ended_at')->orderByDesc('started_at')])->findOrFail($positionId);
+        if (! auth()->user()->canManagePositions()) {
+            $this->dispatch('toast', type: 'error', message: 'Anda tidak memiliki izin untuk mengatur pejabat.');
+            return;
+        }
         $this->authorize('manageHolder', $position);
         $this->holderPositionId = $position->id;
         $currentHolder = $position->holders->first();
@@ -122,12 +143,20 @@ class Index extends Component
 
     public function saveHolder(PositionService $service): void
     {
-        if (! auth()->user()->canManagePositions()) { $this->dispatch('toast', type: 'error', message: 'Anda tidak memiliki izin untuk mengatur pejabat.'); return; }
+        if (! auth()->user()->canManagePositions()) {
+            $this->dispatch('toast', type: 'error', message: 'Anda tidak memiliki izin untuk mengatur pejabat.');
+            return;
+        }
         $this->validate(['holderUserId' => ['required', 'integer'], 'holderStartedAt' => ['required', 'date']], ['holderUserId.required' => 'Silakan pilih pejabat.', 'holderStartedAt.required' => 'Tanggal mulai wajib diisi.', 'holderStartedAt.date' => 'Tanggal mulai tidak valid.']);
         $position = Position::query()->findOrFail($this->holderPositionId);
         $this->authorize('manageHolder', $position);
-        try { $service->assignHolder($position, (int) $this->holderUserId, new \DateTimeImmutable($this->holderStartedAt)); }
-        catch (\Throwable $exception) { $field = str_contains(strtolower($exception->getMessage()), 'start date') ? 'holderStartedAt' : 'holderUserId'; $this->addError($field, $exception->getMessage()); return; }
+        try {
+            $service->assignHolder($position, (int) $this->holderUserId, new \DateTimeImmutable($this->holderStartedAt));
+        } catch (\Throwable $exception) {
+            $field = str_contains(strtolower($exception->getMessage()), 'start date') ? 'holderStartedAt' : 'holderUserId';
+            $this->addError($field, $exception->getMessage());
+            return;
+        }
         $this->showHolderForm = false;
         $this->resetHolderForm();
         $this->dispatch('toast', type: 'success', message: 'Pemegang jabatan berhasil ditetapkan.');
@@ -135,11 +164,17 @@ class Index extends Component
 
     public function manageCertificate(string $positionId): void
     {
-        $position = Position::query()->with(['holders.user', 'signerCertificates' => fn ($query) => $query->where('is_active', true)->latest('created_at')])->findOrFail($positionId);
+        $position = Position::query()->with(['holders.user', 'signerCertificates' => fn($query) => $query->where('is_active', true)->latest('created_at')])->findOrFail($positionId);
         $this->authorize('manageHolder', $position);
-        if (! $position->can_sign) { $this->dispatch('toast', type: 'error', message: 'Jabatan ini belum diizinkan untuk TTE.'); return; }
-        $holder = $position->holders->first(fn ($item) => $item->ended_at === null && $item->started_at?->lte(now()));
-        if (! $holder?->user) { $this->dispatch('toast', type: 'error', message: 'Tetapkan pejabat aktif terlebih dahulu.'); return; }
+        if (! $position->can_sign) {
+            $this->dispatch('toast', type: 'error', message: 'Jabatan ini belum diizinkan untuk TTE.');
+            return;
+        }
+        $holder = $position->holders->first(fn($item) => $item->ended_at === null && $item->started_at?->lte(now()));
+        if (! $holder?->user) {
+            $this->dispatch('toast', type: 'error', message: 'Tetapkan pejabat aktif terlebih dahulu.');
+            return;
+        }
         $this->certificatePositionId = $position->id;
         $this->certificatePositionName = $position->name;
         $this->certificateHolderName = $holder->user->name;
@@ -150,10 +185,17 @@ class Index extends Component
     {
         $position = Position::query()->with(['tenant', 'holders.user'])->findOrFail($this->certificatePositionId);
         $this->authorize('manageHolder', $position);
-        $holder = $position->holders->first(fn ($item) => $item->ended_at === null && $item->started_at?->lte(now()));
-        if (! $holder) { $this->addError('certificatePositionId', 'Tetapkan pejabat aktif terlebih dahulu.'); return; }
-        try { $certificate = $service->generate($position, $holder, auth()->user()); }
-        catch (\Throwable $exception) { $this->addError('certificatePositionId', $exception->getMessage()); return; }
+        $holder = $position->holders->first(fn($item) => $item->ended_at === null && $item->started_at?->lte(now()));
+        if (! $holder) {
+            $this->addError('certificatePositionId', 'Tetapkan pejabat aktif terlebih dahulu.');
+            return;
+        }
+        try {
+            $certificate = $service->generate($position, $holder, auth()->user());
+        } catch (\Throwable $exception) {
+            $this->addError('certificatePositionId', $exception->getMessage());
+            return;
+        }
         $this->dispatch('toast', type: 'success', message: 'Sertifikat publik berhasil dibuat.');
         $this->showCertificate = false;
         $this->resetCertificateForm();
@@ -166,7 +208,7 @@ class Index extends Component
         $certificate = $position->signerCertificates()->where('is_active', true)->latest('created_at')->first();
         if (! $certificate) abort(404);
         $filename = 'sertifikat-' . str($position->code)->slug() . '-' . str($certificate->fingerprint_sha256)->substr(0, 12) . '.pem';
-        return response()->streamDownload(fn () => print($certificate->certificate_pem), $filename, ['Content-Type' => 'application/x-pem-file']);
+        return response()->streamDownload(fn() => print($certificate->certificate_pem), $filename, ['Content-Type' => 'application/x-pem-file']);
     }
 
     public function showHistoryFor(string $positionId): void
@@ -204,17 +246,26 @@ class Index extends Component
         $this->resetValidation();
     }
 
-    private function resetHolderForm(): void { $this->reset(['holderPositionId', 'holderUserId', 'holderStartedAt']); }
-    private function resetCertificateForm(): void { $this->reset(['certificatePositionId', 'certificatePositionName', 'certificateHolderName']); $this->resetValidation(); }
+    private function resetHolderForm(): void
+    {
+        $this->reset(['holderPositionId', 'holderUserId', 'holderStartedAt']);
+    }
+    private function resetCertificateForm(): void
+    {
+        $this->reset(['certificatePositionId', 'certificatePositionName', 'certificateHolderName']);
+        $this->resetValidation();
+    }
 
     public function render()
     {
         $user = auth()->user();
         $tenantId = $user->isTenantUser() ? $user->tenant_id : ($this->selectedTenantId ?: null);
-        $query = Position::query()->with(['holders.user', 'signerCertificates' => fn ($q) => $q->where('is_active', true)->latest('created_at')])->orderBy('name');
-        if ($tenantId) $query->where('tenant_id', $tenantId); elseif ($user->role !== UserRole::SUPER_ADMIN) $query->whereRaw('1 = 0');
-        if ($this->search !== '') $query->where(fn ($q) => $q->where('code', 'like', "%{$this->search}%")->orWhere('name', 'like', "%{$this->search}%"));
-        if ($this->filter === 'deleted') $query->onlyTrashed(); elseif ($this->filter !== 'all') $query->where('status', $this->filter);
+        $query = Position::query()->with(['holders.user', 'signerCertificates' => fn($q) => $q->where('is_active', true)->latest('created_at')])->orderBy('name');
+        if ($tenantId) $query->where('tenant_id', $tenantId);
+        elseif ($user->role !== UserRole::SUPER_ADMIN) $query->whereRaw('1 = 0');
+        if ($this->search !== '') $query->where(fn($q) => $q->where('code', 'like', "%{$this->search}%")->orWhere('name', 'like', "%{$this->search}%"));
+        if ($this->filter === 'deleted') $query->onlyTrashed();
+        elseif ($this->filter !== 'all') $query->where('status', $this->filter);
         $users = $tenantId ? User::query()->where('tenant_id', $tenantId)->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email']) : collect();
         $history = $this->historyPositionId ? Position::withTrashed()->find($this->historyPositionId)?->holders()->with('user')->orderByDesc('started_at')->get() ?? collect() : collect();
         $tenants = $user->role === UserRole::SUPER_ADMIN ? Tenant::query()->orderBy('name')->get(['id', 'name']) : collect();

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\LetterTypes;
 
+use App\Livewire\Concerns\WithStandardTablePagination;
 use App\Models\LetterType;
 use App\Services\DocxTemplateService;
 use App\Services\LetterTypeService;
@@ -12,17 +13,21 @@ use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
 class Versions extends Component
 {
     use WithFileUploads;
-    use WithPagination;
+    use WithStandardTablePagination;
 
-    public int $perPage = 10;
+    public string $search = '';
+    public string $filter = 'active';
+    public int $perPage = 5;
 
-    public function updatedPerPage(): void { $this->resetPage(); }
+    public function updatedPerPage(): void
+    {
+        $this->resetPage();
+    }
 
     public string $letterTypeId = '';
     public bool $showForm = false;
@@ -55,8 +60,14 @@ class Versions extends Component
         $this->showForm = true;
     }
 
-    public function updatedTemplateFile(DocxTemplateService $docx): void { $this->validateTemplate($docx); }
-    public function checkTemplate(DocxTemplateService $docx): void { $this->validateTemplate($docx); }
+    public function updatedTemplateFile(DocxTemplateService $docx): void
+    {
+        $this->validateTemplate($docx);
+    }
+    public function checkTemplate(DocxTemplateService $docx): void
+    {
+        $this->validateTemplate($docx);
+    }
 
     public function addFoundVariables(DocxTemplateService $docx): void
     {
@@ -90,7 +101,7 @@ class Versions extends Component
             $this->templateCheckStatus = ($diff['unknown'] || $diff['missing']) ? 'failed' : 'passed';
             return $this->templateCheckStatus === 'passed';
         } catch (\Throwable $e) {
-            $this->addError('template_file', 'Template tidak dapat diperiksa: '.$e->getMessage());
+            $this->addError('template_file', 'Template tidak dapat diperiksa: ' . $e->getMessage());
             $this->templateCheckStatus = 'failed';
             return false;
         }
@@ -137,10 +148,13 @@ class Versions extends Component
 
     private function normalizedVariables(array $variables): array
     {
-        return array_values(array_unique(array_filter(array_map(static fn ($value) => trim((string) $value), $variables))));
+        return array_values(array_unique(array_filter(array_map(static fn($value) => trim((string) $value), $variables))));
     }
 
-    private function letterType(): LetterType { return LetterType::query()->findOrFail($this->letterTypeId); }
+    private function letterType(): LetterType
+    {
+        return LetterType::query()->findOrFail($this->letterTypeId);
+    }
 
     private function resetForm(): void
     {
