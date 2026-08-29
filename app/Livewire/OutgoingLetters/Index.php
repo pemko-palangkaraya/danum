@@ -99,20 +99,9 @@ class Index extends Component
     public function updatedLetterTypeId(): void
     {
         $tenantId = auth()->user()->tenant_id;
-        if ($tenantId === null) {
-            $this->letter_type_id = '';
-            $this->variables = [];
-            $this->variableValues = [];
-            return;
-        }
+        if ($tenantId === null) { $this->letter_type_id = ''; $this->variables = []; $this->variableValues = []; return; }
         $type = app(LetterTypeService::class)->getAvailableForTenant($tenantId)->firstWhere('id', $this->letter_type_id);
-        if (! $type) {
-            $this->letter_type_id = '';
-            $this->variables = [];
-            $this->variableValues = [];
-            $this->toastError('Jenis surat tersebut belum diberikan akses ke OPD Anda.');
-            return;
-        }
+        if (! $type) { $this->letter_type_id = ''; $this->variables = []; $this->variableValues = []; $this->toastError('Jenis surat tersebut belum diberikan akses ke OPD Anda.'); return; }
         $version = app(LetterTypeService::class)->activeVersion($type);
         $this->variables = $version?->variables ?? $type->variables ?? [];
         $this->variableValues = array_fill_keys($this->variables, '');
@@ -120,10 +109,7 @@ class Index extends Component
     }
 
     #[On('outgoing-letters-refresh')]
-    public function refreshForRealtime(): void
-    {
-        if ($this->showForm || $this->showRejectForm) $this->skipRender();
-    }
+    public function refreshForRealtime(): void { if ($this->showForm || $this->showRejectForm) $this->skipRender(); }
 
     public function save(OutgoingLetterService $service, DocxTemplateService $docx, DocxTteService $tte): void
     {
@@ -134,50 +120,23 @@ class Index extends Component
             $this->validate(['letter_type_id' => ['required', Rule::exists('letter_types', 'id')->where('status', LetterTypeStatus::ACTIVE->value)], 'signer_position_id' => ['required', 'uuid'], 'validator_position_id' => ['required', 'uuid'], 'variableValues' => ['array']]);
             $letterType = app(LetterTypeService::class)->getAvailableForTenant($tenantId)->firstWhere('id', $this->letter_type_id);
             if (! $letterType) throw new \DomainException('Jenis surat tidak tersedia atau belum diberikan akses ke OPD Anda.');
-            $position = $this->availableSignerPositions()->find($this->signer_position_id);
-            $holder = $position?->holders->first();
+            $position = $this->availableSignerPositions()->find($this->signer_position_id); $holder = $position?->holders->first();
             if (! $position || ! $holder?->user) throw new \DomainException('Jabatan penanda tangan tidak tersedia atau belum memiliki pejabat aktif.');
-            $validatorPosition = $this->availableValidatorPositions()->find($this->validator_position_id);
-            $validatorHolder = $validatorPosition?->holders->first();
+            $validatorPosition = $this->availableValidatorPositions()->find($this->validator_position_id); $validatorHolder = $validatorPosition?->holders->first();
             if (! $validatorPosition || ! $validatorHolder?->user) throw new \DomainException('Jabatan verifikator tidak tersedia atau belum memiliki pejabat aktif.');
             $this->applySystemValues($holder);
-            foreach ($this->variables as $variable) {
-                if ($this->isSystemVariable($variable)) continue;
-                if (blank($this->variableValues[$variable] ?? null)) $this->addError('variableValues.' . $variable, 'Field ini wajib diisi.');
-            }
-            foreach ($this->variables as $variable) {
-                if (! $this->isDateVariable($variable)) continue;
-                $value = $this->variableValues[$variable] ?? null;
-                if (blank($value)) { $this->addError('variableValues.' . $variable, 'Tanggal wajib diisi.'); continue; }
-                if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $value)) { $this->addError('variableValues.' . $variable, 'Format tanggal tidak valid.'); continue; }
-                if ($this->isBirthDateVariable($variable)) { if ($value > now()->toDateString()) $this->addError('variableValues.' . $variable, 'Tanggal lahir tidak boleh tanggal di masa depan.'); }
-                elseif ($value > now()->toDateString()) $this->addError('variableValues.' . $variable, 'Tanggal tidak boleh melewati hari ini.');
-            }
+            foreach ($this->variables as $variable) { if ($this->isSystemVariable($variable)) continue; if (blank($this->variableValues[$variable] ?? null)) $this->addError('variableValues.' . $variable, 'Field ini wajib diisi.'); }
+            foreach ($this->variables as $variable) { if (! $this->isDateVariable($variable)) continue; $value = $this->variableValues[$variable] ?? null; if (blank($value)) { $this->addError('variableValues.' . $variable, 'Tanggal wajib diisi.'); continue; } if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $value)) { $this->addError('variableValues.' . $variable, 'Format tanggal tidak valid.'); continue; } if ($this->isBirthDateVariable($variable)) { if ($value > now()->toDateString()) $this->addError('variableValues.' . $variable, 'Tanggal lahir tidak boleh tanggal di masa depan.'); } elseif ($value > now()->toDateString()) $this->addError('variableValues.' . $variable, 'Tanggal tidak boleh melewati hari ini.'); }
             if ($this->getErrorBag()->isNotEmpty()) return;
-            $data = $this->variableValues;
-            $data['number'] = (string) ($data['number'] ?? '');
-            $data['recipient_name'] = (string) ($data['recipient_name'] ?? '');
-            $data['recipient_address'] = (string) ($data['recipient_address'] ?? '');
-            $data['subject'] = (string) ($data['subject'] ?? '');
-            $letterTypeVersion = app(LetterTypeService::class)->activeVersion($letterType);
-            $templateRelativePath = $letterTypeVersion?->template_path ?: $letterType->template_path;
-            if (! $templateRelativePath) throw new \DomainException('Template DOCX surat belum tersedia.');
-            $templatePath = Storage::disk('local')->path($templateRelativePath);
-            if (! is_file($templatePath)) throw new \DomainException('File template DOCX tidak ditemukan di storage.');
-            $existing = $this->editingId ? $this->tenantQuery()->findOrFail($this->editingId) : null;
-            if ($existing) $this->authorize('update', $existing);
-            $verificationToken = $existing?->verification_token ?? Str::random(64);
-            $generatedPath = $docx->renderToStorage($templatePath, auth()->user()->tenant, $data);
-            $tte->embed(Storage::disk('local')->path($generatedPath), url('/verify/' . $verificationToken));
-            $content = $docx->extractText(Storage::disk('local')->path($generatedPath));
+            $data = $this->variableValues; $data['number'] = (string) ($data['number'] ?? ''); $data['recipient_name'] = (string) ($data['recipient_name'] ?? ''); $data['recipient_address'] = (string) ($data['recipient_address'] ?? ''); $data['subject'] = (string) ($data['subject'] ?? '');
+            $letterTypeVersion = app(LetterTypeService::class)->activeVersion($letterType); $templateRelativePath = $letterTypeVersion?->template_path ?: $letterType->template_path;
+            if (! $templateRelativePath) throw new \DomainException('Template DOCX surat belum tersedia.'); $templatePath = Storage::disk('local')->path($templateRelativePath); if (! is_file($templatePath)) throw new \DomainException('File template DOCX tidak ditemukan di storage.');
+            $existing = $this->editingId ? $this->tenantQuery()->findOrFail($this->editingId) : null; if ($existing) $this->authorize('update', $existing); $verificationToken = $existing?->verification_token ?? Str::random(64);
+            $generatedPath = $docx->renderToStorage($templatePath, auth()->user()->tenant, $data); $tte->embed(Storage::disk('local')->path($generatedPath), url('/verify/' . $verificationToken)); $content = $docx->extractText(Storage::disk('local')->path($generatedPath));
             $attributes = ['tenant_id' => $tenantId, 'letter_type_id' => $letterType->id, 'letter_type_version_id' => $letterTypeVersion?->id, 'signer_position_id' => $position->id, 'signer_user_id' => $holder->user_id, 'signer_name' => $holder->user->name, 'signer_title' => $position->name, 'validator_position_id' => $validatorPosition->id, 'validator_user_id' => $validatorHolder->user_id, 'validator_name' => $validatorHolder->user->name, 'validator_title' => $validatorPosition->name, 'number' => $data['number'], 'recipient_name' => $data['recipient_name'], 'recipient_address' => $data['recipient_address'], 'subject' => $data['subject'], 'letter_date' => $data['date'] ?? null, 'generated_docx_path' => $generatedPath, 'verification_token' => $verificationToken, 'content' => $content, 'input_data' => $data];
-            if ($existing) { $oldPath = $existing->generated_docx_path; $service->update($existing, $attributes); if ($oldPath && $oldPath !== $generatedPath) Storage::disk('local')->delete($oldPath); $message = 'Draft surat berhasil diperbarui.'; }
-            else { $attributes['created_by'] = auth()->id(); $attributes['status'] = OutgoingLetterStatus::DRAFT; $service->create($attributes, auth()->id()); $message = 'Draft surat berhasil dibuat.'; }
-            $this->showForm = false;
-            $this->resetForm();
-            $this->dispatch('toast', type: 'success', message: $message);
-        } catch (ValidationException $exception) { $this->setErrorBag($exception->validator->errors()); }
-        catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal disimpan. Silakan coba lagi.'); }
+            if ($existing) { $oldPath = $existing->generated_docx_path; $service->update($existing, $attributes); if ($oldPath && $oldPath !== $generatedPath) Storage::disk('local')->delete($oldPath); $message = 'Draft surat berhasil diperbarui.'; } else { $attributes['created_by'] = auth()->id(); $attributes['status'] = OutgoingLetterStatus::DRAFT; $service->create($attributes, auth()->id()); $message = 'Draft surat berhasil dibuat.'; }
+            $this->showForm = false; $this->resetForm(); $this->dispatch('toast', type: 'success', message: $message);
+        } catch (ValidationException $exception) { $this->setErrorBag($exception->validator->errors()); } catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal disimpan. Silakan coba lagi.'); }
     }
 
     public function submitLetter(string $id, OutgoingLetterService $service): void { try { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('submit', $letter); $service->submit($letter, auth()->id()); $this->dispatch('toast', type: 'success', message: 'Surat dikirim untuk verifikasi. Data sekarang terkunci.'); } catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal dikirim untuk verifikasi.'); } }
@@ -203,18 +162,14 @@ class Index extends Component
 
     public function render()
     {
-        if (! isset($this->filter) || $this->filter === '') {
+        if ($this->filter === null || $this->filter === '') {
             $this->filter = 'all';
         }
-
         $this->authorize('viewAny', OutgoingLetter::class);
         $letters = $this->archiveQuery()->with(['tenant', 'letterType', 'letterTypeVersion', 'signerPosition', 'signerUser', 'validatorPosition', 'validatorUser', 'creator', 'rejectedBy'])->latest();
-        if ($this->isSuperAdmin() && $this->filter === 'deleted') $letters->onlyTrashed();
-        elseif ($this->filter !== 'all') $letters->where('status', $this->filter);
+        if ($this->isSuperAdmin() && $this->filter === 'deleted') $letters->onlyTrashed(); elseif ($this->filter !== 'all') $letters->where('status', $this->filter);
         if ($this->search !== '') $letters->where(fn($q) => $q->where('number', 'like', "%{$this->search}%")->orWhere('recipient_name', 'like', "%{$this->search}%")->orWhere('subject', 'like', "%{$this->search}%"));
-        $tenantId = auth()->user()->tenant_id;
-        $letterTypeService = app(LetterTypeService::class);
-        $letterTypes = $this->isSuperAdmin() || $tenantId === null ? collect() : $letterTypeService->getAvailableForTenant($tenantId)->sortBy('name')->values();
+        $tenantId = auth()->user()->tenant_id; $letterTypeService = app(LetterTypeService::class); $letterTypes = $this->isSuperAdmin() || $tenantId === null ? collect() : $letterTypeService->getAvailableForTenant($tenantId)->sortBy('name')->values();
         return view('livewire.pages.outgoing-letters.index', ['letters' => $letters->paginate($this->perPage), 'letterTypes' => $letterTypes, 'signerPositions' => $this->availableSignerPositions()->orderBy('name')->get(), 'validatorPositions' => $this->availableValidatorPositions()->orderBy('name')->get(), 'variableLabels' => (new DocxTemplateService)->allowedVariables(), 'isSuperAdmin' => $this->isSuperAdmin()]);
     }
 }
