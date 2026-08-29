@@ -26,10 +26,31 @@ class AuditLogService
             'action' => $action,
             'auditable_type' => $auditable ? $auditable::class : null,
             'auditable_id' => $auditable?->getKey(),
-            'old_values' => $oldValues,
-            'new_values' => $newValues,
+            'old_values' => $this->sanitize($oldValues),
+            'new_values' => $this->sanitize($newValues),
             'ip_address' => $ipAddress ?? request()->ip(),
             'user_agent' => $userAgent ?? request()->userAgent(),
         ]);
+    }
+
+    private function sanitize(?array $values): ?array
+    {
+        if ($values === null) {
+            return null;
+        }
+
+        $sensitiveKeys = [
+            'password',
+            'password_confirmation',
+            'remember_token',
+            'verification_token',
+            'signing_pin_hash',
+        ];
+
+        foreach ($sensitiveKeys as $key) {
+            unset($values[$key]);
+        }
+
+        return $values;
     }
 }
