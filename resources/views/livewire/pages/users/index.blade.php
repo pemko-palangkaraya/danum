@@ -294,13 +294,33 @@ new #[Layout('layouts.app')] class extends Component {
         </div>
     @endif
 
-    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200"><thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">User</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">NIP</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Tenant</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Role</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Status</th><th class="px-6 py-3 text-right text-xs font-semibold uppercase text-slate-500">Action</th></tr></thead><tbody class="divide-y divide-slate-100">
+    <div class="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:block"><div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200"><thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">User</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">NIP</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Tenant</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Role</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Status</th><th class="px-6 py-3 text-right text-xs font-semibold uppercase text-slate-500">Action</th></tr></thead><tbody class="divide-y divide-slate-100">
         @forelse ($users as $user)
             <tr><td class="px-6 py-4"><div class="font-medium text-slate-900">{{ $user->name }}</div><div class="text-xs text-slate-500">{{ $user->email }}</div></td><td class="px-6 py-4 text-sm text-slate-700">{{ $user->nip ?: '-' }}</td><td class="px-6 py-4 text-sm text-slate-700">{{ $user->tenant?->name ?? 'System' }}</td><td class="px-6 py-4 text-sm text-slate-700">{{ $user->customRole?->name ?? $user->role->value }}</td><td class="px-6 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $user->status === UserStatus::ACTIVE ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">{{ $user->status->value }}</span></td><td class="px-6 py-4 text-right"><x-ui.user-actions :user="$user" /></td></tr>
         @empty
             <tr><td colspan="6" class="px-6 py-12 text-center text-sm text-slate-500">Belum ada user.</td></tr>
         @endforelse
         </tbody></table></div></div>
+
+    <div class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:hidden">
+        @forelse ($users as $user)
+            <div class="flex items-center justify-between gap-3 p-4">
+                <div class="min-w-0 flex-1">
+                    <div class="truncate text-sm font-semibold text-slate-900">{{ $user->name }}</div>
+                    <div class="mt-0.5 truncate text-xs text-slate-500">{{ $user->email }}</div>
+                </div>
+                <div class="min-w-0 max-w-[42%] text-right">
+                    <div class="truncate text-sm font-medium text-slate-800">{{ $user->customRole?->name ?? $user->role->value }}</div>
+                    <div class="mt-1">
+                        <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $user->status === UserStatus::ACTIVE ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">{{ $user->status->value }}</span>
+                    </div>
+                </div>
+                <div class="shrink-0"><x-ui.user-actions :user="$user" /></div>
+            </div>
+        @empty
+            <div class="px-4 py-10 text-center text-sm text-slate-500">Belum ada user.</div>
+        @endforelse
+    </div>
 
     @if($showSignerPin)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" wire:click.self="$set('showSignerPin', false)">
