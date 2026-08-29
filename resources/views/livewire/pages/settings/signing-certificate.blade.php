@@ -125,7 +125,7 @@ new #[Layout('layouts.app')] class extends Component {
                         </div>
                         <div class="mt-1 truncate font-mono text-[11px] text-slate-400">SHA-256 {{ $certificate->fingerprint_sha256 }}</div>
                     </div>
-                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $certificate->is_usable() ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">
+                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $certificate->isUsable() ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">
                         {{ $certificate->is_usable() ? 'Aktif' : 'Tidak aktif' }}
                     </span>
                 </div>
