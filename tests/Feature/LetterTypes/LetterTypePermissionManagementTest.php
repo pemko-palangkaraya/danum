@@ -7,6 +7,7 @@ namespace Tests\Feature\LetterTypes;
 use App\Livewire\LetterTypes\Permissions;
 use App\Models\LetterType;
 use App\Models\Tenant;
+use App\Models\TenantCategory;
 use App\Models\User;
 use App\Services\LetterTypeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -117,11 +118,11 @@ class LetterTypePermissionManagementTest extends TestCase
 
     public function test_category_permission_applies_to_all_tenants_in_that_category(): void
     {
-        $category = \App\Models\TenantCategory::query()->where('code', 'kelurahan')->firstOrFail();
+        $category = TenantCategory::query()->where('code', 'kelurahan')->firstOrFail();
         $kelurahanA = Tenant::factory()->create(['tenant_category_id' => $category->id]);
         $kelurahanB = Tenant::factory()->create(['tenant_category_id' => $category->id]);
         $dinas = Tenant::factory()->create([
-            'tenant_category_id' => \App\Models\TenantCategory::query()->where('code', 'dinas')->value('id'),
+            'tenant_category_id' => TenantCategory::query()->where('code', 'dinas')->value('id'),
         ]);
 
         $letterType = LetterType::factory()->create(['tenant_id' => null, 'status' => 'active']);
@@ -142,7 +143,7 @@ class LetterTypePermissionManagementTest extends TestCase
 
     public function test_category_permission_can_be_revoked(): void
     {
-        $category = \App\Models\TenantCategory::query()->where('code', 'kecamatan')->firstOrFail();
+        $category = TenantCategory::query()->where('code', 'kecamatan')->firstOrFail();
         $tenant = Tenant::factory()->create(['tenant_category_id' => $category->id]);
         $letterType = LetterType::factory()->create(['tenant_id' => null, 'status' => 'active']);
         $service = app(LetterTypeService::class);
