@@ -131,16 +131,14 @@
             aria-label="Tutup notifikasi">
             <svg
                 xmlns="http://www.w3.org/2000/svg"
-                class="h-5 w-5"
-                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
                 fill="none"
-                stroke="currentColor"
-                stroke-width="2.25"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true">
-                <path d="M6 6l12 12" />
-                <path d="M18 6L6 18" />
+                aria-hidden="true"
+                focusable="false">
+                <line x1="5" y1="5" x2="15" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <line x1="15" y1="5" x2="5" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
             </svg>
         </button>
 
