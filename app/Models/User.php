@@ -28,7 +28,6 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'platform_role' => PlatformRole::class,
-            // Legacy read-only compatibility for existing UI/tests during migration.
             'role' => UserRole::class,
             'status' => UserStatus::class,
             'signing_pin_set_at' => 'datetime',
@@ -37,7 +36,13 @@ class User extends Authenticatable
         ];
     }
 
-    public function isSuperAdmin(): bool { return $this->platform_role === PlatformRole::SUPER_ADMIN && $this->tenant_id === null && $this->custom_role_id === null; }
+    public function isSuperAdmin(): bool
+    {
+        return ($this->platform_role === PlatformRole::SUPER_ADMIN || $this->role === UserRole::SUPER_ADMIN)
+            && $this->tenant_id === null
+            && $this->custom_role_id === null;
+    }
+
     public function isTenantMember(): bool { return $this->tenant_id !== null && ! $this->isSuperAdmin(); }
     public function isTenantUser(): bool { return $this->isTenantMember(); }
     public function isTenantAdmin(): bool { return $this->isTenantMember() && $this->customRole?->slug === 'tenant_admin'; }
@@ -46,9 +51,11 @@ class User extends Authenticatable
     public function roleModel(): ?Role
     {
         if ($this->isSuperAdmin() || $this->custom_role_id === null || $this->tenant_id === null) return null;
+
         return $this->customRole()->where('is_active', true)->where(function ($query) {
             $query->where(fn ($q) => $q->where('scope', 'global')->whereNull('tenant_id'))
-                ->orWhere(fn ($q) => $q->where('scope', 'tenant')->where('tenant_id', $this->tenant_id));
+                ->orWhere(fn ($q) => $q->where('scope', 'tenant')->where('tenant_id', $this->tenant_id))
+                ->orWhere(fn ($q) => $q->where('scope', 'tenant')->whereNull('tenant_id)->where('is_system', true));
         })->first();
     }
 
