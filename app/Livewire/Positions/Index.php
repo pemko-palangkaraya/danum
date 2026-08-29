@@ -266,7 +266,15 @@ class Index extends Component
         if ($this->search !== '') $query->where(fn($q) => $q->where('code', 'like', "%{$this->search}%")->orWhere('name', 'like', "%{$this->search}%"));
         if ($this->filter === 'deleted') $query->onlyTrashed();
         elseif ($this->filter !== 'all') $query->where('status', $this->filter);
-        $users = $tenantId ? User::query()->where('tenant_id', $tenantId)->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email']) : collect();
+        $holderTenantId = null;
+        if ($this->holderPositionId) {
+            $holderTenantId = Position::query()->whereKey($this->holderPositionId)->value('tenant_id');
+        }
+
+        $usersTenantId = $holderTenantId ?: $tenantId;
+        $users = $usersTenantId
+            ? User::query()->where('tenant_id', $usersTenantId)->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email'])
+            : collect();
         $history = $this->historyPositionId ? Position::withTrashed()->find($this->historyPositionId)?->holders()->with('user')->orderByDesc('started_at')->get() ?? collect() : collect();
         $tenants = $user->role === UserRole::SUPER_ADMIN ? Tenant::query()->orderBy('name')->get(['id', 'name']) : collect();
         return view('livewire.pages.positions.index', ['positions' => $query->paginate($this->perPage), 'users' => $users, 'history' => $history, 'tenants' => $tenants, 'isSuperAdmin' => $user->role === UserRole::SUPER_ADMIN, 'canManageHolders' => $user->canManagePositions()]);
