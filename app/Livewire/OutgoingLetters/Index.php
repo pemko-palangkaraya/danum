@@ -256,6 +256,14 @@ class Index extends Component
 
     public function issue(string $id, OutgoingLetterService $service, ?string $note = null, ?string $pin = null): void
     {
+        if (! app(\App\Services\SignerPinService::class)->hasPin(auth()->user())) {
+            $this->dispatch(
+                'signing-pin-missing',
+                url: route('settings.signing-pin'),
+            );
+            return;
+        }
+
         if (blank($note)) {
             $this->dispatch('workflow-note-required', action: 'issue', id: $id, title: 'Catatan Penandatanganan', description: 'Berikan catatan sebelum menandatangani dan menerbitkan surat ini.');
             return;
