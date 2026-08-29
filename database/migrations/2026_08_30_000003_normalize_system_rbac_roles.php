@@ -15,27 +15,44 @@ return new class extends Migration
             $table->foreignUuid('tenant_id')->nullable()->change();
         });
 
+        // Canonical system roles are global records with tenant_id NULL, but
+        // tenant_admin and tenant_user remain tenant-scoped roles by contract.
         foreach ([
             'tenant_admin' => 'Tenant Admin',
             'tenant_user' => 'Tenant User',
         ] as $slug => $name) {
-            $globalRoleId = DB::table('roles')
+            DB::table('roles')
                 ->whereNull('tenant_id')
                 ->where('slug', $slug)
-                ->value('id');
+                ->update([
+                    'name' => $name,
+                    'scope' => 'tenant',
+                    'is_system' => true,
+                    'is_active' => true,
+                    'updated_at' => now(),
+                ]);
 
-            if ($globalRoleId === null) {
-                $globalRoleId = DB::table('roles')->insertGetId([
+            if (! DB::table('roles')->whereNull('tenant_id')->where('slug', $slug)->exists()) {
+                DB::table('roles')->insert([
                     'tenant_id' => null,
                     'name' => $name,
                     'slug' => $slug,
-                    'scope' => 'global',
+                    'scope' => 'tenant',
                     'is_system' => true,
                     'is_active' => true,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
             }
+        }
+
+        // Existing tenant-scoped system role copies are unnecessary once users
+        // have been reassigned to the canonical system role records.
+        foreach (['tenant_admin', 'tenant_user'] as $slug) {
+            $globalRoleId = DB::table('roles')
+                ->whereNull('tenant_id')
+                ->where('slug', $slug)
+                ->value('id');
 
             $sourceRoleIds = DB::table('roles')
                 ->where('slug', $slug)
@@ -52,22 +69,28 @@ return new class extends Migration
                 }
             }
 
-            DB::table('users')
-                ->whereIn('custom_role_id', $sourceRoleIds)
-                ->update(['custom_role_id' => $globalRoleId]);
-        }
+            if ($sourceRoleIds->isNotEmpty()) {
+                DB::table('users')
+                    ->whereIn('custom_role_id', $sourceRoleIds)
+                    ->update(['custom_role_id' => $globalRoleId]);
 
-        DB::table('roles')
-            ->whereIn('slug', ['tenant_admin', 'tenant_user'])
-            ->where('is_system', true)
-            ->whereNotNull('tenant_id')
-            ->delete();
+                DB::table('roles')
+                    ->whereIn('id', $sourceRoleIds)
+                    ->delete();
+            }
+        }
     }
 
     public function down(): void
     {
         DB::table('role_permissions')
-            ->whereIn('role_id', DB::table('roles')->whereIn('slug', ['tenant_admin', 'tenant_user'])->whereNull('tenant_id')->pluck('id'))
+            ->whereIn(
+                'role_id',
+                DB::table('roles')
+                    ->whereIn('slug', ['tenant_admin', 'tenant_user'])
+                    ->whereNull('tenant_id')
+                    ->pluck('id')
+            )
             ->delete();
 
         DB::table('roles')
