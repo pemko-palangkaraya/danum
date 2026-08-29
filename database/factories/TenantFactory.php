@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Enums\TenantStatus;
 use App\Models\Tenant;
+use App\Models\TenantCategory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -25,6 +26,7 @@ class TenantFactory extends Factory
         return [
             'code' => fake()->unique()->regexify('[A-Z]{3}[0-9]{3}'),
             'name' => fake()->company(),
+            'tenant_category_id' => TenantCategory::query()->where('code', 'lainnya')->value('id'),
 
             'province' => fake()->state(),
             'city' => fake()->city(),
