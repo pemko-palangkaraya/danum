@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
-use Livewire\WithPagination;
+use App\Livewire\Concerns\WithStandardTablePagination;
 
 new #[Layout('layouts.app')] class extends Component {
     use WithPagination;
