@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Livewire\Positions;
 
 use App\Enums\PositionStatus;
-use App\Enums\UserRole;
 use App\Models\Position;
 use App\Models\Tenant;
 use App\Models\User;
@@ -58,18 +57,9 @@ class Index extends Component
         if ($user->isTenantUser()) $this->selectedTenantId = (string) $user->tenant_id;
     }
 
-    public function updatedSearch(): void
-    {
-        $this->resetPage();
-    }
-    public function updatedFilter(): void
-    {
-        $this->resetPage();
-    }
-    public function updatedSelectedTenantId(): void
-    {
-        $this->resetPage();
-    }
+    public function updatedSearch(): void { $this->resetPage(); }
+    public function updatedFilter(): void { $this->resetPage(); }
+    public function updatedSelectedTenantId(): void { $this->resetPage(); }
 
     public function create(): void
     {
@@ -191,7 +181,7 @@ class Index extends Component
             return;
         }
         try {
-            $certificate = $service->generate($position, $holder, auth()->user());
+            $service->generate($position, $holder, auth()->user());
         } catch (\Throwable $exception) {
             $this->addError('certificatePositionId', $exception->getMessage());
             return;
@@ -245,11 +235,7 @@ class Index extends Component
         $this->status = PositionStatus::ACTIVE->value;
         $this->resetValidation();
     }
-
-    private function resetHolderForm(): void
-    {
-        $this->reset(['holderPositionId', 'holderUserId', 'holderStartedAt']);
-    }
+    private function resetHolderForm(): void { $this->reset(['holderPositionId', 'holderUserId', 'holderStartedAt']); }
     private function resetCertificateForm(): void
     {
         $this->reset(['certificatePositionId', 'certificatePositionName', 'certificateHolderName']);
@@ -262,21 +248,16 @@ class Index extends Component
         $tenantId = $user->isTenantUser() ? $user->tenant_id : ($this->selectedTenantId ?: null);
         $query = Position::query()->with(['tenant', 'holders.user', 'signerCertificates' => fn($q) => $q->where('is_active', true)->latest('created_at')])->orderBy('name');
         if ($tenantId) $query->where('tenant_id', $tenantId);
-        elseif ($user->role !== UserRole::SUPER_ADMIN) $query->whereRaw('1 = 0');
+        elseif (! $user->isSuperAdmin()) $query->whereRaw('1 = 0');
         if ($this->search !== '') $query->where(fn($q) => $q->where('code', 'like', "%{$this->search}%")->orWhere('name', 'like', "%{$this->search}%"));
         if ($this->filter === 'deleted') $query->onlyTrashed();
         elseif ($this->filter !== 'all') $query->where('status', $this->filter);
         $holderTenantId = null;
-        if ($this->holderPositionId) {
-            $holderTenantId = Position::query()->whereKey($this->holderPositionId)->value('tenant_id');
-        }
-
+        if ($this->holderPositionId) $holderTenantId = Position::query()->whereKey($this->holderPositionId)->value('tenant_id');
         $usersTenantId = $holderTenantId ?: $tenantId;
-        $users = $usersTenantId
-            ? User::query()->where('tenant_id', $usersTenantId)->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email'])
-            : collect();
+        $users = $usersTenantId ? User::query()->where('tenant_id', $usersTenantId)->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email']) : collect();
         $history = $this->historyPositionId ? Position::withTrashed()->find($this->historyPositionId)?->holders()->with('user')->orderByDesc('started_at')->get() ?? collect() : collect();
-        $tenants = $user->role === UserRole::SUPER_ADMIN ? Tenant::query()->orderBy('name')->get(['id', 'name']) : collect();
-        return view('livewire.pages.positions.index', ['positions' => $query->paginate($this->perPage), 'users' => $users, 'history' => $history, 'tenants' => $tenants, 'isSuperAdmin' => $user->role === UserRole::SUPER_ADMIN, 'canManageHolders' => $user->canManagePositions()]);
+        $tenants = $user->isSuperAdmin() ? Tenant::query()->orderBy('name')->get(['id', 'name']) : collect();
+        return view('livewire.pages.positions.index', ['positions' => $query->paginate($this->perPage), 'users' => $users, 'history' => $history, 'tenants' => $tenants, 'isSuperAdmin' => $user->isSuperAdmin(), 'canManageHolders' => $user->canManagePositions()]);
     }
 }
