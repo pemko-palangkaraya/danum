@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Rbac;
 
+use App\Enums\Permission as PermissionEnum;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -46,4 +49,36 @@ class RbacUiAuthorizationTest extends TestCase
             ->get(route('rbac.index'))
             ->assertForbidden();
     }
+    public function test_tenant_admin_sidebar_uses_tenant_routes_after_system_role_permissions_change(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->tenantAdmin($tenant)->create();
+        $role = Role::query()->where('slug', UserRole::TENANT_ADMIN->value)->firstOrFail();
+        $positionsView = Permission::query()->where('slug', PermissionEnum::POSITIONS_VIEW->value)->firstOrFail();
+
+        $role->permissions()->detach($positionsView);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertDontSee(route('positions.admin.index'), false)
+            ->assertDontSee('href="' . route('positions.admin.index') . '"', false);
+
+        $this->actingAs($user)
+            ->get(route('positions.index'))
+            ->assertForbidden();
+
+        $role->permissions()->attach($positionsView);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('href="' . route('positions.index') . '"', false)
+            ->assertDontSee('href="' . route('positions.admin.index') . '"', false);
+
+        $this->actingAs($user)
+            ->get(route('positions.index'))
+            ->assertOk();
+    }
+
 }
