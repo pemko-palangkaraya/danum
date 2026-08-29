@@ -143,6 +143,7 @@ new #[Layout('layouts.app')] class extends Component {
 
         $tenantService->update($tenant, $validated);
 
+        session()->flash('toast', ['type' => 'success', 'message' => 'Tenant berhasil diperbarui.']);
         $this->redirect(route('tenants.index'));
     }
 
