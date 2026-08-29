@@ -25,6 +25,7 @@ class Index extends Component
     public string $search = '';
     public string $filter = 'active';
     public int $perPage = 5;
+    public int $pendingPerPage = 5;
 
     public function updatedPerPage(): void
     {
