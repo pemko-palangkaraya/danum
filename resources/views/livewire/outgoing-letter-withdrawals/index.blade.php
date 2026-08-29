@@ -35,6 +35,7 @@
                     <div class="p-12 text-center text-sm text-slate-500">Tidak ada pengajuan penarikan yang menunggu.</div>
                 @endforelse
             </div>
+            <x-ui.table-footer :paginator="$pendingRequests" per-page-model="pendingPerPage" label="pengajuan" />
         </section>
     @else
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -47,6 +48,7 @@
                     <div class="p-12 text-center text-sm text-slate-500">Belum ada surat terbit yang dapat diajukan untuk penarikan.</div>
                 @endforelse
             </div>
+            <x-ui.table-footer :paginator="$issuedLetters" label="surat terbit" />
         </section>
 
         @if($showRequestForm)
