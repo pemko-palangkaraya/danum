@@ -33,22 +33,86 @@ class LetterTypeService
 
     public function getAvailableForTenant(string $tenantId): Collection
     {
-        return LetterType::query()->where('status', 'active')->where(function ($query) use ($tenantId): void {
-            $query->where('tenant_id', $tenantId)->orWhere(fn($global) => $global->whereNull('tenant_id')->whereHas('permissions', fn($permission) => $permission->where('tenant_id', $tenantId)->where('allowed', true)));
-        })->get();
+        return LetterType::query()
+            ->where('status', 'active')
+            ->where(function ($query) use ($tenantId): void {
+                $query
+                    ->where('tenant_id', $tenantId)
+                    ->orWhere(fn ($global) => $global
+                        ->whereNull('tenant_id')
+                        ->whereHas('permissions', function ($permission) use ($tenantId): void {
+                            $permission
+                                ->where('allowed', true)
+                                ->where(function ($scope) use ($tenantId): void {
+                                    $scope
+                                        ->where('tenant_id', $tenantId)
+                                        ->orWhereHas('tenant', fn ($tenant) => $tenant->where('id', $tenantId))
+                                        ->orWhereExists(function ($subquery) use ($tenantId): void {
+                                            $subquery
+                                                ->selectRaw('1')
+                                                ->from('tenant_categories as permission_categories')
+                                                ->join('tenants as scoped_tenants', 'scoped_tenants.tenant_category_id', '=', 'permission_categories.id')
+                                                ->whereColumn('permission_categories.id', 'letter_type_permissions.tenant_category_id')
+                                                ->where('scoped_tenants.id', $tenantId);
+                                        });
+                                });
+                        }));
+            })
+            ->get();
     }
 
     public function isAllowedForTenant(LetterType $letterType, string $tenantId): bool
     {
         if ($letterType->tenant_id === $tenantId) return true;
         if (! $letterType->isGlobal()) return false;
-        return LetterTypePermission::query()->where('letter_type_id', $letterType->id)->where('tenant_id', $tenantId)->where('allowed', true)->exists();
+        return LetterTypePermission::query()
+            ->where('letter_type_id', $letterType->id)
+            ->where('allowed', true)
+            ->where(function ($query) use ($tenantId): void {
+                $query
+                    ->where('tenant_id', $tenantId)
+                    ->orWhere(function ($category) use ($tenantId): void {
+                        $category->whereHas('tenant', fn ($tenant) => $tenant->where('id', $tenantId));
+                    });
+            })
+            ->exists();
     }
 
     public function grantTenantPermission(LetterType $letterType, string $tenantId): LetterTypePermission
     {
-        if (! $letterType->isGlobal()) throw new \InvalidArgumentException('Only global letter types can be assigned to tenants.');
-        return LetterTypePermission::query()->updateOrCreate(['letter_type_id' => $letterType->id, 'tenant_id' => $tenantId], ['allowed' => true]);
+        if (! $letterType->isGlobal()) {
+            throw new \InvalidArgumentException('Only global letter types can be assigned to tenants.');
+        }
+
+        return LetterTypePermission::query()->updateOrCreate(
+            ['letter_type_id' => $letterType->id, 'tenant_id' => $tenantId, 'tenant_category_id' => null],
+            ['allowed' => true],
+        );
+    }
+
+    public function grantCategoryPermission(LetterType $letterType, int $categoryId): LetterTypePermission
+    {
+        if (! $letterType->isGlobal()) {
+            throw new \InvalidArgumentException('Only global letter types can be assigned to tenant categories.');
+        }
+
+        return LetterTypePermission::query()->updateOrCreate(
+            ['letter_type_id' => $letterType->id, 'tenant_category_id' => $categoryId, 'tenant_id' => null],
+            ['allowed' => true],
+        );
+    }
+
+    public function revokeCategoryPermission(LetterType $letterType, int $categoryId): bool
+    {
+        if (! $letterType->isGlobal()) {
+            return false;
+        }
+
+        return LetterTypePermission::query()
+            ->where('letter_type_id', $letterType->id)
+            ->where('tenant_category_id', $categoryId)
+            ->whereNull('tenant_id')
+            ->update(['allowed' => false]) > 0;
     }
 
     public function revokeTenantPermission(LetterType $letterType, string $tenantId): bool
