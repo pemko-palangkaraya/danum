@@ -164,7 +164,7 @@ new #[Layout('layouts.app')] class extends Component {
                             <td class="px-5 py-4 text-right">
                                 <div class="inline-flex gap-2">
                                     <button type="button" wire:click="openEdit({{ $category->id }})" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">Edit</button>
-                                    <button type="button" wire:click="toggleActive({{ $category->id }})" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">{{ $category->is_active ? 'Nonaktifkan' : 'Aktifkan' }}</button>
+                                    <button type="button" wire:click="toggleActive({{ $category->id }})" wire:confirm="Ubah status kategori ini?" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">{{ $category->is_active ? 'Nonaktifkan' : 'Aktifkan' }}</button>
                                 </div>
                             </td>
                         </tr>
