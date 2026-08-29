@@ -69,6 +69,11 @@
                 <div class="p-12 text-center text-sm text-slate-500">Tidak ada OPD yang cocok.</div>
             @endforelse
         </div>
+        @if ($tenants->hasPages())
+            <div class="border-t border-slate-100 p-4">
+                {{ $tenants->onEachSide(1)->links() }}
+            </div>
+        @endif
     </details>
 
     <x-ui.confirmation-modal
