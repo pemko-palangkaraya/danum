@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace TestsFeatureOutgoingLetters;
 
 use App\Enums\OutgoingLetterStatus;
-use App\Enums\UserRole;
+use App\Enums\PlatformRole;
 use App\Models\OutgoingLetter;
 use App\Models\Tenant;
 use App\Models\User;
@@ -54,7 +54,12 @@ class OutgoingLetterListScopeTest extends TestCase
 
     public function test_super_admin_sees_letters_from_all_tenants_by_default(): void
     {
-        $superAdmin = User::factory()->create(['role' => UserRole::SUPER_ADMIN]);
+        $superAdmin = User::factory()->create([
+            'platform_role' => PlatformRole::SUPER_ADMIN,
+            'role' => null,
+            'tenant_id' => null,
+            'custom_role_id' => null,
+        ]);
 
         $tenantA = Tenant::factory()->create();
         $tenantB = Tenant::factory()->create();
