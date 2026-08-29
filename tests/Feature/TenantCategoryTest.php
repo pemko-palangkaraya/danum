@@ -2,14 +2,15 @@
 
 declare(strict_types=1);
 
-namespace TestsFeature;
+namespace Tests\Feature;
 
-use AppEnumsTenantStatus;
-use AppModelsTenant;
-use AppModelsTenantCategory;
-use AppModelsUser;
-use IlluminateFoundationTestingRefreshDatabase;
-use TestsTestCase;
+use App\Enums\TenantStatus;
+use App\Models\Tenant;
+use App\Models\TenantCategory;
+use App\Models\User;
+use App\Services\TenantService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class TenantCategoryTest extends TestCase
 {
@@ -56,7 +57,7 @@ class TenantCategoryTest extends TestCase
         $user = User::factory()->superAdmin()->create();
         $this->actingAs($user);
 
-        $tenant = app(AppServicesTenantService::class)->create([
+        $tenant = app(TenantService::class)->create([
             'code' => 'CAT001',
             'name' => 'Tenant Tanpa Kategori',
             'province' => 'Kalimantan Tengah',
