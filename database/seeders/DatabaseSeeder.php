@@ -2,10 +2,12 @@
 
 namespace Database\Seeders;
 
+use App\Enums\PlatformRole;
 use App\Enums\TenantStatus;
-use App\Enums\UserRole;
 use App\Enums\UserStatus;
+use App\Models\Role;
 use App\Models\Tenant;
+use App\Models\TenantCategory;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -15,13 +17,8 @@ class DatabaseSeeder extends Seeder
 {
     use WithoutModelEvents;
 
-    /**
-     * Seed the application's database.
-     *
-     * The RBAC tables are populated by their migration. This seeder adds
-     * deterministic local accounts so a fresh development database can be
-     * used immediately from the UI.
-     */
+    use WithoutModelEvents;
+
     public function run(): void
     {
         $superAdminEmail = env('DANUM_SUPER_ADMIN_EMAIL', 'admin@danum.local');
@@ -35,16 +32,24 @@ class DatabaseSeeder extends Seeder
                 'email_verified_at' => now(),
                 'password' => Hash::make($superAdminPassword),
                 'remember_token' => null,
-                'role' => UserRole::SUPER_ADMIN,
+                'platform_role' => PlatformRole::SUPER_ADMIN,
+                'custom_role_id' => null,
                 'status' => UserStatus::ACTIVE,
                 'tenant_id' => null,
             ],
         );
 
+        $tenantCategoryId = TenantCategory::query()->where('code', 'lainnya')->value('id');
+
+        if ($tenantCategoryId === null) {
+            throw new \RuntimeException('Master tenant category "lainnya" tidak ditemukan.');
+        }
+
         $tenant = Tenant::firstOrCreate(
             ['code' => env('DANUM_DEMO_TENANT_CODE', 'DEMO001')],
             [
                 'name' => env('DANUM_DEMO_TENANT_NAME', 'Demo Tenant'),
+                'tenant_category_id' => $tenantCategoryId,
                 'province' => 'Kalimantan Tengah',
                 'city' => 'Palangka Raya',
                 'district' => 'Demo',
@@ -59,6 +64,17 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
+        // Tenant Administrator is a tenant-scoped RBAC role.
+        $tenantAdminRole = Role::query()->updateOrCreate(
+            ['tenant_id' => $tenant->id, 'slug' => 'tenant_admin'],
+            [
+                'name' => 'Tenant Administrator',
+                'scope' => 'tenant',
+                'is_system' => true,
+                'is_active' => true,
+            ],
+        );
+
         User::updateOrCreate(
             ['email' => env('DANUM_TENANT_ADMIN_EMAIL', 'yudhistira@danum.local')],
             [
@@ -67,7 +83,8 @@ class DatabaseSeeder extends Seeder
                 'email_verified_at' => now(),
                 'password' => Hash::make(env('DANUM_TENANT_ADMIN_PASSWORD', 'password')),
                 'remember_token' => null,
-                'role' => UserRole::TENANT_ADMIN,
+                'platform_role' => null,
+                'custom_role_id' => $tenantAdminRole->id,
                 'status' => UserStatus::ACTIVE,
                 'tenant_id' => $tenant->id,
             ],
@@ -81,7 +98,8 @@ class DatabaseSeeder extends Seeder
                 'email_verified_at' => now(),
                 'password' => Hash::make(env('DANUM_TENANT_USER_PASSWORD', 'password')),
                 'remember_token' => null,
-                'role' => UserRole::TENANT_USER,
+                'platform_role' => null,
+                'custom_role_id' => null,
                 'status' => UserStatus::ACTIVE,
                 'tenant_id' => $tenant->id,
             ],
