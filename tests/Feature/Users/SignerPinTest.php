@@ -31,6 +31,8 @@ class SignerPinTest extends TestCase
     public function test_signing_pin_settings_requires_issue_permission(): void
     {
         $user = User::factory()->tenantUser()->create();
+        $permissionId = \App\Models\Permission::query()->where('slug', 'outgoing-letters.issue')->value('id');
+        $user->roleModel()->permissions()->detach($permissionId);
 
         $this->actingAs($user)
             ->get(route('settings.signing-pin'))
