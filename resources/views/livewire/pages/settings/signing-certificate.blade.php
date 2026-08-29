@@ -59,7 +59,7 @@ new #[Layout('layouts.app')] class extends Component {
                 ->where('user_id', $user->id)
                 ->whereNull('ended_at')
                 ->where('started_at', '<=', now()))
-            ->with(['activeSignerCertificate'])
+            ->with(['signerCertificates' => fn ($query) => $query->where('is_active', true)->latest('created_at')])
             ->orderBy('name')
             ->get();
 
@@ -94,7 +94,7 @@ new #[Layout('layouts.app')] class extends Component {
                 <select wire:model="positionId" class="form-select flex-1">
                     <option value="">Pilih jabatan penandatangan</option>
                     @foreach($positions as $position)
-                        <option value="{{ $position->id }}">{{ $position->name }}{{ $position->activeSignerCertificate ? ' · Sertifikat aktif' : ' · Belum ada sertifikat' }}</option>
+                        <option value="{{ $position->id }}">{{ $position->name }}{{ $position->signerCertificates->isNotEmpty() ? ' · Sertifikat aktif' : ' · Belum ada sertifikat' }}</option>
                     @endforeach
                 </select>
                 <button
