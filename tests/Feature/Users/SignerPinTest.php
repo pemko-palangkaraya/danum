@@ -27,6 +27,29 @@ class SignerPinTest extends TestCase
         $this->assertNotNull($user->signing_pin_set_at);
     }
 
+
+    public function test_signing_pin_settings_requires_issue_permission(): void
+    {
+        $user = User::factory()->tenantUser()->create();
+
+        $this->actingAs($user)
+            ->get(route('settings.signing-pin'))
+            ->assertForbidden();
+    }
+
+    public function test_signing_pin_settings_is_available_to_signing_users(): void
+    {
+        $user = User::factory()->tenantUser()->create();
+        $user->roleModel()->permissions()->syncWithoutDetaching([
+            \App\Models\Permission::query()->where('slug', 'outgoing-letters.issue')->value('id'),
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('settings.signing-pin'))
+            ->assertOk()
+            ->assertSee('PIN Tanda Tangan');
+    }
+
     public function test_invalid_pin_format_is_rejected(): void
     {
         $this->expectException(\DomainException::class);
