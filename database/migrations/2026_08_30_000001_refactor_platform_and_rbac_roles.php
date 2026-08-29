@@ -17,22 +17,35 @@ return new class extends Migration
 
         DB::table('users')->where('role', 'super_admin')->update(['platform_role' => 'super_admin']);
 
-        $legacyTenantAdmin = DB::table('roles')->where('slug', 'tenant_admin')->first();
+        // The legacy global tenant_admin role uses a globally unique slug.
+        // Rename it before creating tenant-scoped roles so PostgreSQL does not
+        // reject the first tenant role while the old unique index is still active.
+        DB::table('roles')
+            ->where('slug', 'tenant_admin')
+            ->whereNull('tenant_id')
+            ->update(['slug' => 'legacy_tenant_admin']);
+
+        $legacyTenantAdmin = DB::table('roles')->where('slug', 'legacy_tenant_admin')->first();
         if ($legacyTenantAdmin !== null) {
             $permissionIds = DB::table('role_permissions')->where('role_id', $legacyTenantAdmin->id)->pluck('permission_id');
             $tenantIds = DB::table('users')->where('role', 'tenant_admin')->whereNotNull('tenant_id')->distinct()->pluck('tenant_id');
 
             foreach ($tenantIds as $tenantId) {
-                $roleId = DB::table('roles')->insertGetId([
-                    'tenant_id' => $tenantId,
-                    'name' => 'Tenant Administrator',
-                    'slug' => 'tenant_admin',
-                    'scope' => 'tenant',
-                    'is_system' => true,
-                    'is_active' => true,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                $existing = DB::table('roles')->where('tenant_id', $tenantId)->where('slug', 'tenant_admin')->first();
+                $roleId = $existing?->id;
+
+                if ($roleId === null) {
+                    $roleId = DB::table('roles')->insertGetId([
+                        'tenant_id' => $tenantId,
+                        'name' => 'Tenant Administrator',
+                        'slug' => 'tenant_admin',
+                        'scope' => 'tenant',
+                        'is_system' => true,
+                        'is_active' => true,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
 
                 foreach ($permissionIds as $permissionId) {
                     DB::table('role_permissions')->insertOrIgnore(['role_id' => $roleId, 'permission_id' => $permissionId]);
@@ -50,6 +63,10 @@ return new class extends Migration
         });
 
         DB::table('roles')->where('is_system', true)->whereIn('slug', ['super_admin', 'tenant_admin', 'tenant_user'])->whereNull('tenant_id')->delete();
+
+        // Keep the old role's permissions reusable while preventing it from
+        // colliding with tenant-scoped role slugs.
+        DB::table('roles')->whereKey($legacyTenantAdmin?->id)->delete();
     }
 
     public function down(): void
@@ -59,6 +76,7 @@ return new class extends Migration
             $table->dropUnique(['tenant_id', 'slug']);
             $table->unique('slug');
         });
+        DB::table('roles')->where('slug', 'legacy_tenant_admin')->update(['slug' => 'tenant_admin']);
         Schema::table('users', function (Blueprint $table): void { $table->dropColumn('platform_role'); });
     }
 };
