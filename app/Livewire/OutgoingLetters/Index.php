@@ -33,6 +33,11 @@ class Index extends Component
     public string $filter = 'all';
     public int $perPage = 5;
 
+    public function mount(): void
+    {
+        $this->filter = 'all';
+    }
+
     public function updatedPerPage(): void
     {
         $this->perPage = max(5, min($this->perPage, 50));
@@ -248,7 +253,7 @@ class Index extends Component
     private function isDateVariable(string $variable): bool { return (bool) preg_match('/(^|_)date$/i', $variable); }
     private function isBirthDateVariable(string $variable): bool { return (bool) preg_match('/(^|_)birth_date$/i', $variable); }
     private function isSuperAdmin(): bool { return auth()->user()->isSuperAdmin(); }
-    private function tenantQuery() { return OutgoingLetter::query()->where('tenant_id', auth()->user()->tenant_id)->with(['letterType']); }
+    private function tenantQuery() { return $this->isSuperAdmin() ? OutgoingLetter::query()->with(['letterType']) : OutgoingLetter::query()->where('tenant_id', auth()->user()->tenant_id)->with(['letterType']); }
     private function archiveQuery() { return $this->isSuperAdmin() ? OutgoingLetter::withTrashed() : $this->tenantQuery(); }
     private function resetForm(): void { $this->reset(['editingId', 'letter_type_id', 'signer_position_id', 'validator_position_id', 'variables', 'variableValues']); }
     private function toastError(string $message): void { $this->dispatch('toast', type: 'error', message: $message); }
