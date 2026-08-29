@@ -115,6 +115,45 @@ class LetterTypePermissionManagementTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_category_permission_applies_to_all_tenants_in_that_category(): void
+    {
+        $category = \App\Models\TenantCategory::query()->where('code', 'kelurahan')->firstOrFail();
+        $kelurahanA = Tenant::factory()->create(['tenant_category_id' => $category->id]);
+        $kelurahanB = Tenant::factory()->create(['tenant_category_id' => $category->id]);
+        $dinas = Tenant::factory()->create([
+            'tenant_category_id' => \App\Models\TenantCategory::query()->where('code', 'dinas')->value('id'),
+        ]);
+
+        $letterType = LetterType::factory()->create(['tenant_id' => null, 'status' => 'active']);
+
+        app(LetterTypeService::class)->grantCategoryPermission($letterType, $category->id);
+
+        $service = app(LetterTypeService::class);
+
+        $this->assertTrue($service->isAllowedForTenant($letterType->fresh(), $kelurahanA->id));
+        $this->assertTrue($service->isAllowedForTenant($letterType->fresh(), $kelurahanB->id));
+        $this->assertFalse($service->isAllowedForTenant($letterType->fresh(), $dinas->id));
+
+        $this->assertContains(
+            $letterType->id,
+            $service->getAvailableForTenant($kelurahanA->id)->pluck('id')->all(),
+        );
+    }
+
+    public function test_category_permission_can_be_revoked(): void
+    {
+        $category = \App\Models\TenantCategory::query()->where('code', 'kecamatan')->firstOrFail();
+        $tenant = Tenant::factory()->create(['tenant_category_id' => $category->id]);
+        $letterType = LetterType::factory()->create(['tenant_id' => null, 'status' => 'active']);
+        $service = app(LetterTypeService::class);
+
+        $service->grantCategoryPermission($letterType, $category->id);
+        $this->assertTrue($service->isAllowedForTenant($letterType->fresh(), $tenant->id));
+
+        $service->revokeCategoryPermission($letterType, $category->id);
+        $this->assertFalse($service->isAllowedForTenant($letterType->fresh(), $tenant->id));
+    }
+
     public function test_permission_list_is_available_to_super_admin_only(): void
     {
         $tenant = Tenant::factory()->create();
