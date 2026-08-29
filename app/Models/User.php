@@ -10,17 +10,17 @@ use App\Enums\UserStatus;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
     use HasFactory;
     use Notifiable;
 
     protected $fillable = [
-        'name', 'nip', 'email', 'password', 'role', 'status', 'tenant_id',
+        'name', 'nip', 'email', 'password', 'role', 'custom_role_id', 'status', 'tenant_id',
     ];
 
     protected $hidden = [
@@ -42,26 +42,39 @@ class User extends Authenticatable
 
     public function isSuperAdmin(): bool
     {
-        return $this->role === UserRole::SUPER_ADMIN;
+        return $this->role === UserRole::SUPER_ADMIN && $this->custom_role_id === null;
     }
 
     public function isTenantAdmin(): bool
     {
-        return $this->role === UserRole::TENANT_ADMIN && $this->tenant_id !== null;
+        return $this->role === UserRole::TENANT_ADMIN && $this->custom_role_id === null && $this->tenant_id !== null;
     }
 
     public function isTenantUser(): bool
     {
-        return in_array($this->role, [UserRole::TENANT_ADMIN, UserRole::TENANT_USER], true)
-            && $this->tenant_id !== null;
+        return $this->tenant_id !== null && ! $this->isSuperAdmin();
+    }
+
+    public function customRole(): BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'custom_role_id');
     }
 
     public function roleModel(): ?Role
     {
+        if ($this->custom_role_id !== null) {
+            return $this->customRole()->where('is_active', true)->first();
+        }
+
         return Role::query()
             ->where('slug', $this->role->value)
             ->where('is_active', true)
             ->first();
+    }
+
+    public function effectiveRole(): ?Role
+    {
+        return $this->roleModel();
     }
 
     public function hasPermission(PermissionEnum|string $permission): bool
@@ -70,25 +83,22 @@ class User extends Authenticatable
             return false;
         }
 
-        $slug = $permission instanceof PermissionEnum ? $permission->value : $permission;
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
 
-        return Permission::query()
-            ->where('slug', $slug)
-            ->whereHas('roles', fn ($query) => $query
-                ->where('slug', $this->role->value)
-                ->where('is_active', true))
-            ->exists();
+        $slug = $permission instanceof PermissionEnum ? $permission->value : $permission;
+        $role = $this->roleModel();
+
+        return $role !== null && $role->permissions()->where('slug', $slug)->exists();
     }
 
     /** @param list<PermissionEnum|string> $permissions */
     public function hasAnyPermission(array $permissions): bool
     {
         foreach ($permissions as $permission) {
-            if ($this->hasPermission($permission)) {
-                return true;
-            }
+            if ($this->hasPermission($permission)) return true;
         }
-
         return false;
     }
 
@@ -96,11 +106,8 @@ class User extends Authenticatable
     public function hasAllPermissions(array $permissions): bool
     {
         foreach ($permissions as $permission) {
-            if (! $this->hasPermission($permission)) {
-                return false;
-            }
+            if (! $this->hasPermission($permission)) return false;
         }
-
         return true;
     }
 
