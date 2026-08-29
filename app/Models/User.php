@@ -55,7 +55,7 @@ class User extends Authenticatable
         return $this->customRole()->where('is_active', true)->where(function ($query) {
             $query->where(fn ($q) => $q->where('scope', 'global')->whereNull('tenant_id'))
                 ->orWhere(fn ($q) => $q->where('scope', 'tenant')->where('tenant_id', $this->tenant_id))
-                ->orWhere(fn ($q) => $q->where('scope', 'tenant')->whereNull('tenant_id)->where('is_system', true));
+                ->orWhere(fn ($q) => $q->where('scope', 'tenant')->whereNull('tenant_id')->where('is_system', true));
         })->first();
     }
 
