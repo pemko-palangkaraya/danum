@@ -14,11 +14,28 @@ use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
 class Index extends Component
 {
     use WithFileUploads;
+    use WithPagination;
+
+    public int $perPage = 5;
+    public int $pendingPerPage = 5;
+
+    public function updatedPerPage(): void
+    {
+        $this->perPage = max(5, min($this->perPage, 50));
+        $this->resetPage('issuedPage');
+    }
+
+    public function updatedPendingPerPage(): void
+    {
+        $this->pendingPerPage = max(5, min($this->pendingPerPage, 50));
+        $this->resetPage('pendingPage');
+    }
 
     public ?string $selectedLetterId = null;
     public string $reason = '';
@@ -137,8 +154,8 @@ class Index extends Component
         $isSuperAdmin = auth()->user()->role === UserRole::SUPER_ADMIN;
         return view('livewire.outgoing-letter-withdrawals.index', [
             'isSuperAdmin' => $isSuperAdmin,
-            'issuedLetters' => $isSuperAdmin ? collect() : $this->tenantIssuedLetters()->latest('issued_at')->get(),
-            'pendingRequests' => $isSuperAdmin ? $this->pendingRequests()->latest('requested_at')->get() : collect(),
+            'issuedLetters' => $isSuperAdmin ? collect() : $this->tenantIssuedLetters()->latest('issued_at')->paginate($this->perPage, ['*'], 'issuedPage'),
+            'pendingRequests' => $isSuperAdmin ? $this->pendingRequests()->latest('requested_at')->paginate($this->pendingPerPage, ['*'], 'pendingPage') : collect(),
             'selectedLetter' => $this->selectedLetterId && ! $isSuperAdmin ? $this->tenantIssuedLetters()->find($this->selectedLetterId) : null,
         ]);
     }
