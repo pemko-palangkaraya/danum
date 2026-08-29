@@ -10,7 +10,7 @@ use App\Services\DocxTemplateService;
 use App\Services\LetterTypeService;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
-use Livewire\WithPagination;
+use App\Livewire\Concerns\WithStandardTablePagination;
 
 #[Layout('layouts.app')]
 class Index extends Component
