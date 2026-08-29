@@ -41,6 +41,7 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('superadmin')->group(function () {
+        Volt::route('/tenant-categories', 'pages.tenant-categories.index')->name('tenant-categories.index');
         Route::middleware('permission:tenants.view')->group(function () {
             Route::get('/tenants', TenantIndex::class)->name('tenants.index');
             Volt::route('/tenants/create', 'pages.tenants.create')->name('tenants.create');
