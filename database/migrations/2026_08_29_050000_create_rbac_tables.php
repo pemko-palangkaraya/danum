@@ -49,7 +49,10 @@ return new class extends Migration {
                 'slug' => $permission->value,
                 'module' => $module,
                 'action' => $action,
-                'scope' => in_array($module, ['tenants', 'audit-logs'], true) ? 'global' : 'tenant',
+                'scope' => in_array($permission->value, [PermissionEnum::RBAC_MANAGE->value], true)
+                    || in_array($module, ['tenants', 'audit-logs'], true)
+                    ? 'global'
+                    : 'tenant',
                 'is_system' => true,
                 'created_at' => $now,
                 'updated_at' => $now,
