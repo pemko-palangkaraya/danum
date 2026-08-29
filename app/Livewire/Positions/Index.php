@@ -260,7 +260,7 @@ class Index extends Component
     {
         $user = auth()->user();
         $tenantId = $user->isTenantUser() ? $user->tenant_id : ($this->selectedTenantId ?: null);
-        $query = Position::query()->with(['holders.user', 'signerCertificates' => fn($q) => $q->where('is_active', true)->latest('created_at')])->orderBy('name');
+        $query = Position::query()->with(['tenant', 'holders.user', 'signerCertificates' => fn($q) => $q->where('is_active', true)->latest('created_at')])->orderBy('name');
         if ($tenantId) $query->where('tenant_id', $tenantId);
         elseif ($user->role !== UserRole::SUPER_ADMIN) $query->whereRaw('1 = 0');
         if ($this->search !== '') $query->where(fn($q) => $q->where('code', 'like', "%{$this->search}%")->orWhere('name', 'like', "%{$this->search}%"));
