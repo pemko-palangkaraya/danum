@@ -11,10 +11,15 @@ use App\Services\AuditLogService;
 use App\Services\LetterTypeService;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
 class Permissions extends Component
 {
+    use WithPagination;
+
+    public int $perPage = 10;
+
     public string $letterTypeId;
     public string $search = '';
     public ?string $selectedTenantId = null;
@@ -144,6 +149,17 @@ class Permissions extends Component
         $this->dispatch('open-confirmation-modal', id: 'letter-type-permission-revoke');
     }
 
+    public function updatedSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedPerPage(): void
+    {
+        $this->perPage = max(5, min($this->perPage, 100));
+        $this->resetPage();
+    }
+
     public function cancelRevoke(): void
     {
         $this->selectedTenantId = null;
@@ -206,7 +222,7 @@ class Permissions extends Component
                 ->orWhere('code', 'like', $value));
         }
 
-        $tenants = $query->get(['id', 'code', 'name', 'status']);
+        $tenants = $query->paginate($this->perPage);
         $allowedTenantIds = $letterType->permissions()
             ->where('allowed', true)
             ->whereNotNull('tenant_id')
