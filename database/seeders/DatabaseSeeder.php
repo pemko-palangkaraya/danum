@@ -17,8 +17,6 @@ class DatabaseSeeder extends Seeder
 {
     use WithoutModelEvents;
 
-    use WithoutModelEvents;
-
     public function run(): void
     {
         $superAdminEmail = env('DANUM_SUPER_ADMIN_EMAIL', 'admin@danum.local');
@@ -64,12 +62,11 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
-        // Tenant Administrator is a tenant-scoped RBAC role.
         $tenantAdminRole = Role::query()->updateOrCreate(
-            ['tenant_id' => $tenant->id, 'slug' => 'tenant_admin'],
+            ['tenant_id' => null, 'slug' => 'tenant_admin'],
             [
-                'name' => 'Tenant Administrator',
-                'scope' => 'tenant',
+                'name' => 'Tenant Admin',
+                'scope' => 'global',
                 'is_system' => true,
                 'is_active' => true,
             ],
@@ -90,6 +87,16 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
+        $tenantUserRole = Role::query()->updateOrCreate(
+            ['tenant_id' => null, 'slug' => 'tenant_user'],
+            [
+                'name' => 'Tenant User',
+                'scope' => 'global',
+                'is_system' => true,
+                'is_active' => true,
+            ],
+        );
+
         User::updateOrCreate(
             ['email' => env('DANUM_TENANT_USER_EMAIL', 'ucok@danum.local')],
             [
@@ -99,7 +106,7 @@ class DatabaseSeeder extends Seeder
                 'password' => Hash::make(env('DANUM_TENANT_USER_PASSWORD', 'password')),
                 'remember_token' => null,
                 'platform_role' => null,
-                'custom_role_id' => null,
+                'custom_role_id' => $tenantUserRole->id,
                 'status' => UserStatus::ACTIVE,
                 'tenant_id' => $tenant->id,
             ],
