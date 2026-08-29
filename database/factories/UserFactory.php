@@ -59,9 +59,10 @@ class UserFactory extends Factory
         $tenant ??= Tenant::factory()->create();
 
         return $this->state(function (array $attributes) use ($tenant): array {
-            $role = $this->ensureTenantRole($tenant, 'tenant_admin', 'Tenant Administrator');
+            $role = $this->ensureSystemRole('tenant_admin', 'Tenant Admin');
             $this->syncPermissions($role, [
                 'dashboard.view',
+                'rbac.view',
                 'users.view', 'users.create', 'users.update', 'users.delete',
                 'tenant-users.view',
                 'tenant-profile.view',
@@ -86,7 +87,7 @@ class UserFactory extends Factory
         $tenant ??= Tenant::factory()->create();
 
         return $this->state(function (array $attributes) use ($tenant): array {
-            $role = $this->ensureTenantRole($tenant, 'tenant_user', 'Tenant User');
+            $role = $this->ensureSystemRole('tenant_user', 'Tenant User');
             $this->syncPermissions($role, [
                 'dashboard.view',
                 'tenant-profile.view',
@@ -106,13 +107,13 @@ class UserFactory extends Factory
         });
     }
 
-    private function ensureTenantRole(Tenant $tenant, string $slug, string $name): Role
+    private function ensureSystemRole(string $slug, string $name): Role
     {
         return Role::query()->firstOrCreate(
-            ['tenant_id' => $tenant->id, 'slug' => $slug],
+            ['tenant_id' => null, 'slug' => $slug],
             [
                 'name' => $name,
-                'scope' => 'tenant',
+                'scope' => 'global',
                 'is_system' => true,
                 'is_active' => true,
             ],
