@@ -23,6 +23,8 @@ Route::middleware('auth')->as('api.')->group(function () {
     Route::get('letter-types/{id}/permissions', [LetterTypePermissionController::class, 'index'])->name('letter-types.permissions.index');
     Route::post('letter-types/{id}/permissions', [LetterTypePermissionController::class, 'store'])->name('letter-types.permissions.store');
     Route::delete('letter-types/{id}/permissions/{tenantId}', [LetterTypePermissionController::class, 'destroy'])->name('letter-types.permissions.destroy');
+    Route::post('letter-types/{id}/category-permissions', [LetterTypePermissionController::class, 'storeCategory'])->name('letter-types.category-permissions.store');
+    Route::delete('letter-types/{id}/category-permissions/{categoryId}', [LetterTypePermissionController::class, 'destroyCategory'])->name('letter-types.category-permissions.destroy');
     Route::apiResource('outgoing-letters', OutgoingLetterController::class)->except(['create', 'edit']);
     Route::post('outgoing-letters/preview', [OutgoingLetterController::class, 'preview'])->name('outgoing-letters.preview');
     Route::post('outgoing-letters/{id}/restore', [OutgoingLetterController::class, 'restore'])->name('outgoing-letters.restore');
