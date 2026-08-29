@@ -16,6 +16,7 @@ new #[Layout('layouts.app')] class extends Component {
 
     public string $code = '';
     public string $name = '';
+    public string $tenant_category_id = '';
     public string $province = '';
     public string $city = '';
     public string $district = '';
@@ -48,6 +49,7 @@ new #[Layout('layouts.app')] class extends Component {
 
         $this->code = $tenant->code ?? '';
         $this->name = $tenant->name ?? '';
+        $this->tenant_category_id = (string) ($tenant->tenant_category_id ?? '');
         $this->province = $tenant->province ?? '';
         $this->city = $tenant->city ?? '';
         $this->district = $tenant->district ?? '';
@@ -79,6 +81,7 @@ new #[Layout('layouts.app')] class extends Component {
         $data = [
             'code' => $this->code,
             'name' => $this->name,
+            'tenant_category_id' => $this->tenant_category_id,
             'province' => $this->province,
             'city' => $this->city,
             'district' => $this->district,
@@ -166,6 +169,7 @@ new #[Layout('layouts.app')] class extends Component {
             <div class="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
                 <div><label for="code" class="block text-sm font-medium text-slate-700">Code</label><input id="code" type="text" wire:model="code" maxlength="50" class="mt-2 block w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100">@error('code')<p class="mt-1.5 text-xs text-red-600">{{ $message }}</p>@enderror</div>
                 <div><label for="name" class="block text-sm font-medium text-slate-700">Name</label><input id="name" type="text" wire:model="name" maxlength="150" class="mt-2 block w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100">@error('name')<p class="mt-1.5 text-xs text-red-600">{{ $message }}</p>@enderror</div>
+                <div><label for="tenant_category_id" class="block text-sm font-medium text-slate-700">Kategori Organisasi</label><select id="tenant_category_id" wire:model="tenant_category_id" class="mt-2 block w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm"><option value="">Pilih kategori</option>@foreach (TenantCategory::query()->where('is_active', true)->orderBy('sort_order')->get() as $category)<option value="{{ $category->id }}">{{ $category->name }}</option>@endforeach</select>@error('tenant_category_id')<p class="mt-1.5 text-xs text-red-600">{{ $message }}</p>@enderror</div>
             </div>
         </div>
 
