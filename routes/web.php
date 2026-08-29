@@ -87,6 +87,7 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('permission:outgoing-letters.issue')->group(function () {
         Volt::route('/settings/signing-pin', 'pages.settings.signing-pin')->name('settings.signing-pin');
+        Volt::route('/settings/signing-certificate', 'pages.settings.signing-certificate')->name('settings.signing-certificate');
     });
 
     Route::post('/logout', function (Request $request) {
