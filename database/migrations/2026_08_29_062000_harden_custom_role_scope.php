@@ -13,6 +13,8 @@ return new class extends Migration
         // Repair custom roles created by older RBAC code as tenant-scoped roles
         // without a tenant. Prefer the strongest source of ownership available:
         // users already assigned to the role, then the creator recorded in audit logs.
+        // If the database has exactly one tenant, that tenant is also deterministic
+        // ownership for an otherwise unassigned orphan created in the initial setup.
         $orphanedRoles = DB::table('roles')
             ->where('is_system', false)
             ->where('scope', 'tenant')
@@ -35,6 +37,15 @@ return new class extends Migration
                     ->whereNotNull('users.tenant_id')
                     ->distinct()
                     ->pluck('users.tenant_id');
+            }
+
+            if ($tenantIds->count() !== 1 && $tenantIds->isEmpty()) {
+                $singleTenantId = DB::table('tenants')->value('id');
+                $tenantCount = DB::table('tenants')->count();
+
+                if ($tenantCount === 1 && $singleTenantId !== null) {
+                    $tenantIds = collect([$singleTenantId]);
+                }
             }
 
             if ($tenantIds->count() !== 1) {
