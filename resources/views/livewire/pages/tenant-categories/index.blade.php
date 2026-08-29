@@ -157,21 +157,8 @@ new #[Layout('layouts.app')] class extends Component {
 
     @php($categories = $this->categories())
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div class="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-                <h2 class="text-sm font-semibold text-slate-900">Daftar Kategori</h2>
-                <p class="mt-1 text-xs text-slate-500">Master kategori organisasi.</p>
-            </div>
-            <label class="flex items-center gap-2 text-sm text-slate-600">
-                <span class="whitespace-nowrap">Per halaman</span>
-                <select wire:model.live="perPage" class="form-select w-24">
-                    <option value="5">5</option>
-                    <option value="10">10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                </select>
-            </label>
+        <div class="border-b border-slate-100 px-4 py-3">
+            <h2 class="text-sm font-semibold text-slate-900">Daftar Kategori</h2>
         </div>
         <div class="hidden overflow-x-auto lg:block">
             <table class="min-w-full divide-y divide-slate-200">
@@ -204,7 +191,7 @@ new #[Layout('layouts.app')] class extends Component {
         </div>
 
         <div class="divide-y divide-slate-100 lg:hidden">
-            @foreach($this->categories() as $category)
+            @foreach($categories as $category)
                 <div class="flex items-center justify-between gap-3 p-4">
                     <div class="min-w-0 flex-1">
                         <div class="truncate text-sm font-semibold text-slate-900">{{ $category->name }}</div>
@@ -222,9 +209,25 @@ new #[Layout('layouts.app')] class extends Component {
                 </div>
             @endforeach
         </div>
-        @if ($categories->hasPages())
-            <div class="border-t border-slate-100 p-4">
-                {{ $categories->onEachSide(1)->links() }}
+        @if ($categories->count())
+            <div class="border-t border-slate-200 bg-slate-50 px-4 py-3 sm:px-6">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex items-center justify-between gap-4 sm:justify-start">
+                        <div class="flex items-center gap-2">
+                            <label for="tenant-category-per-page" class="text-xs text-slate-500">Show</label>
+                            <select id="tenant-category-per-page" wire:model.live="perPage" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100">
+                                <option value="5">5</option>
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                            </select>
+                        </div>
+                        <p class="text-xs text-slate-500">
+                            Showing {{ $categories->firstItem() }} – {{ $categories->lastItem() }} of {{ $categories->total() }} categories
+                        </p>
+                    </div>
+                    <x-ui.pagination :paginator="$categories" />
+                </div>
             </div>
         @endif
     </div>
