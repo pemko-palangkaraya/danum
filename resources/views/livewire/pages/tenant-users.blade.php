@@ -13,8 +13,14 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithPagination;
 
 new #[Layout('layouts.app')] class extends Component {
+    use WithPagination;
+
+    public int $perPage = 10;
+    
+    public function updatedPerPage(): void { $this->resetPage(); }
     public bool $showForm = false;
     public bool $showSignerPin = false;
     public ?int $editingUserId = null;
@@ -211,7 +217,7 @@ new #[Layout('layouts.app')] class extends Component {
     {
         $tenantId = auth()->user()->tenant_id;
         return [
-            'users' => User::query()->where('tenant_id', $tenantId)->with('customRole')->orderBy('name')->get(),
+            'users' => User::query()->where('tenant_id', $tenantId)->with('customRole')->orderBy('name')->paginate($this->perPage),
             'tenantName' => auth()->user()->tenant?->name ?? 'Organisasi',
         ];
     }
@@ -259,7 +265,7 @@ new #[Layout('layouts.app')] class extends Component {
         </div>
     @endif
 
-    <div class="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:block"><div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200"><thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">User</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">NIP</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Role</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Status</th><th class="px-6 py-3 text-right text-xs font-semibold uppercase text-slate-500">Action</th></tr></thead><tbody class="divide-y divide-slate-100">@forelse($users as $user)<tr><td class="px-6 py-4"><div class="font-medium text-slate-900">{{ $user->name }}</div><div class="text-xs text-slate-500">{{ $user->email }}</div></td><td class="px-6 py-4 text-sm text-slate-700">{{ $user->nip ?: '-' }}</td><td class="px-6 py-4 text-sm text-slate-700">{{ $user->customRole?->scope === 'global' ? 'Special access' : ($user->customRole?->name ?? 'Tenant User') }}</td><td class="px-6 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $user->status === UserStatus::ACTIVE ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">{{ $user->status->value }}</span></td><td class="px-6 py-4 text-right"><x-ui.user-actions :user="$user" /></td></tr>@empty<tr><td colspan="5" class="px-6 py-12 text-center text-sm text-slate-500">Belum ada user tenant.</td></tr>@endforelse</tbody></table></div></div>
+    <div class="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:block"><div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200"><thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">User</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">NIP</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Role</th><th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Status</th><th class="px-6 py-3 text-right text-xs font-semibold uppercase text-slate-500">Action</th></tr></thead><tbody class="divide-y divide-slate-100">@forelse($users as $user)<tr><td class="px-6 py-4"><div class="font-medium text-slate-900">{{ $user->name }}</div><div class="text-xs text-slate-500">{{ $user->email }}</div></td><td class="px-6 py-4 text-sm text-slate-700">{{ $user->nip ?: '-' }}</td><td class="px-6 py-4 text-sm text-slate-700">{{ $user->customRole?->scope === 'global' ? 'Special access' : ($user->customRole?->name ?? 'Tenant User') }}</td><td class="px-6 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $user->status === UserStatus::ACTIVE ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">{{ $user->status->value }}</span></td><td class="px-6 py-4 text-right"><x-ui.user-actions :user="$user" /></td></tr>@empty<tr><td colspan="5" class="px-6 py-12 text-center text-sm text-slate-500">Belum ada user tenant.</td></tr>@endforelse</tbody></table></div><div class="border-t border-slate-100 p-4">{{ $users->onEachSide(1)->links() }}</div></div>
 
     <div class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:hidden">
         @forelse ($users as $user)
