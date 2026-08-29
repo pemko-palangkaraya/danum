@@ -6,7 +6,7 @@
     {{-- Previous --}}
     <button
         type="button"
-        wire:click="previousPage"
+        wire:click="previousPage('{{ $pageName }}')
         wire:loading.attr="disabled"
         @disabled($paginator->onFirstPage())
         class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
@@ -31,7 +31,7 @@
 
         <button
             type="button"
-            wire:click="gotoPage({{ $page }})"
+            wire:click="gotoPage({{ $page }}, '{{ $pageName }}')"
             class="inline-flex h-8 min-w-8 shrink-0 items-center justify-center rounded-lg border px-2 text-xs font-medium transition
                     {{ $paginator->currentPage() === $page
                         ? 'border-slate-900 bg-slate-900 text-white'
@@ -46,7 +46,7 @@
         {{-- Next --}}
         <button
             type="button"
-            wire:click="nextPage"
+            wire:click="nextPage('{{ $pageName }}')
             wire:loading.attr="disabled"
             @disabled(!$paginator->hasMorePages())
             class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
