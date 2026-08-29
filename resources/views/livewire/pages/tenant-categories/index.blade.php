@@ -155,6 +155,7 @@ new #[Layout('layouts.app')] class extends Component {
         <button type="button" wire:click="openCreate" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">+ Tambah Kategori</button>
     </div>
 
+    @php($categories = $this->categories())
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div class="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -184,7 +185,7 @@ new #[Layout('layouts.app')] class extends Component {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
-                    @foreach($this->categories() as $category)
+                    @foreach($categories as $category)
                         <tr>
                             <td class="px-5 py-4 text-sm text-slate-600">{{ $category->sort_order }}</td>
                             <td class="px-5 py-4 font-mono text-xs text-slate-500">{{ $category->code }}</td>
