@@ -74,7 +74,8 @@ class Index extends Component
             $this->letter_type_id = $letter->letter_type_id;
             $this->signer_position_id = $letter->signer_position_id;
             $this->validator_position_id = $letter->validator_position_id;
-            $this->variables = $letter->letterType?->variables ?? [];
+            $version = $letter->letterType?->currentVersion();
+            $this->variables = $version?->variables ?? $letter->letterType?->variables ?? [];
             $this->variableValues = $letter->input_data ?? [];
             foreach ($this->variables as $variable) $this->variableValues[$variable] ??= '';
             $this->variableValues['number'] = $letter->number;
@@ -100,7 +101,8 @@ class Index extends Component
             $this->toastError('Jenis surat tersebut belum diberikan akses ke OPD Anda.');
             return;
         }
-        $this->variables = $type->variables ?? [];
+        $version = app(LetterTypeService::class)->activeVersion($type);
+        $this->variables = $version?->variables ?? $type->variables ?? [];
         $this->variableValues = array_fill_keys($this->variables, '');
         $this->applySystemValues();
     }
@@ -159,7 +161,7 @@ class Index extends Component
             $generatedPath = $docx->renderToStorage($templatePath, auth()->user()->tenant, $data);
             $tte->embed(Storage::disk('local')->path($generatedPath), url('/verify/' . $verificationToken));
             $content = $docx->extractText(Storage::disk('local')->path($generatedPath));
-            $attributes = ['tenant_id' => auth()->user()->tenant_id, 'letter_type_id' => $letterType->id, 'letter_type_version_id' => null, 'signer_position_id' => $position->id, 'signer_user_id' => $holder->user_id, 'signer_name' => $holder->user->name, 'signer_title' => $position->name, 'validator_position_id' => $validatorPosition->id, 'validator_user_id' => $validatorHolder->user_id, 'validator_name' => $validatorHolder->user->name, 'validator_title' => $validatorPosition->name, 'number' => $data['number'], 'recipient_name' => $data['recipient_name'], 'recipient_address' => $data['recipient_address'], 'subject' => $data['subject'], 'letter_date' => $data['date'] ?? null, 'generated_docx_path' => $generatedPath, 'verification_token' => $verificationToken, 'content' => $content, 'input_data' => $data];
+            $attributes = ['tenant_id' => auth()->user()->tenant_id, 'letter_type_id' => $letterType->id, 'letter_type_version_id' => $letterTypeVersion?->id, 'signer_position_id' => $position->id, 'signer_user_id' => $holder->user_id, 'signer_name' => $holder->user->name, 'signer_title' => $position->name, 'validator_position_id' => $validatorPosition->id, 'validator_user_id' => $validatorHolder->user_id, 'validator_name' => $validatorHolder->user->name, 'validator_title' => $validatorPosition->name, 'number' => $data['number'], 'recipient_name' => $data['recipient_name'], 'recipient_address' => $data['recipient_address'], 'subject' => $data['subject'], 'letter_date' => $data['date'] ?? null, 'generated_docx_path' => $generatedPath, 'verification_token' => $verificationToken, 'content' => $content, 'input_data' => $data];
             if ($existing) {
                 $oldPath = $existing->generated_docx_path;
                 $service->update($existing, $attributes);
