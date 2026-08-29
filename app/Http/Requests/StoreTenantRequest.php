@@ -21,6 +21,7 @@ class StoreTenantRequest extends FormRequest
         return [
             'code' => ['required', 'string', 'max:50', Rule::unique('tenants', 'code')],
             'name' => ['required', 'string', 'max:150'],
+            'tenant_category_id' => ['required', 'integer', 'exists:tenant_categories,id'],
             'province' => ['required', 'string', 'max:100'],
             'city' => ['required', 'string', 'max:100'],
             'district' => ['required', 'string', 'max:100'],
