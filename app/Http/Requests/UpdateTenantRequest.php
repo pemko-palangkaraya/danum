@@ -27,6 +27,7 @@ class UpdateTenantRequest extends FormRequest
                 Rule::unique('tenants', 'code')->ignore($this->route('tenant')),
             ],
             'name' => ['sometimes', 'required', 'string', 'max:150'],
+            'tenant_category_id' => ['sometimes', 'required', 'integer', 'exists:tenant_categories,id'],
             'province' => ['sometimes', 'required', 'string', 'max:100'],
             'city' => ['sometimes', 'required', 'string', 'max:100'],
             'district' => ['sometimes', 'required', 'string', 'max:100'],
