@@ -195,6 +195,8 @@ class TenantService
         return [
             'code' => $tenant->code,
             'name' => $tenant->name,
+            'tenant_category_id' => $tenant->tenant_category_id,
+            'tenant_category' => $tenant->category?->name,
             'province' => $tenant->province,
             'city' => $tenant->city,
             'district' => $tenant->district,
