@@ -55,7 +55,7 @@ new #[Layout('layouts.app')] class extends Component {
 
     public function edit(int $id): void
     {
-        $user = User::query()->where('tenant_id', auth()->user()->tenant_id)->findOrFail($id);
+        $user = User::query()->with('customRole')->where('tenant_id', auth()->user()->tenant_id)->findOrFail($id);
         $this->authorize('update', $user);
         $this->editingUserId = $user->id;
         $this->name = $user->name;
@@ -124,13 +124,27 @@ new #[Layout('layouts.app')] class extends Component {
         $customRole = null;
 
         if (str_starts_with($this->roleSelection, 'custom:')) {
-            $customRole = Role::query()
-                ->whereKey((int) substr($this->roleSelection, 7))
-                ->where('is_system', false)
-                ->where('is_active', true)
-                ->where('scope', 'tenant')
-                ->where('tenant_id', $tenantId)
-                ->firstOrFail();
+            $selectedRoleId = (int) substr($this->roleSelection, 7);
+            $currentGlobalRole = $this->editingUserId
+                ? User::query()->whereKey($this->editingUserId)->with('customRole')->first()?->customRole
+                : null;
+
+            if (
+                $currentGlobalRole?->id === $selectedRoleId
+                && $currentGlobalRole?->is_system === false
+                && $currentGlobalRole?->is_active === true
+                && $currentGlobalRole?->scope === 'global'
+            ) {
+                $customRole = $currentGlobalRole;
+            } else {
+                $customRole = Role::query()
+                    ->whereKey($selectedRoleId)
+                    ->where('is_system', false)
+                    ->where('is_active', true)
+                    ->where('scope', 'tenant')
+                    ->where('tenant_id', $tenantId)
+                    ->firstOrFail();
+            }
         }
 
         $data = [
@@ -220,7 +234,12 @@ new #[Layout('layouts.app')] class extends Component {
                 <div>
                     <label class="text-sm font-medium text-slate-700">Role</label>
                     <select wire:model.live="roleSelection" class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm">
-                        <option value="tenant_user">Tenant User</option>
+                        @php($editingGlobalRole = $editingUserId ? User::query()->with('customRole')->find($editingUserId)?->customRole : null)
+                        @if($editingGlobalRole?->scope === 'global')
+                            <option value="custom:{{ $editingGlobalRole->id }}" selected disabled>{{ $editingGlobalRole->name }} · Global (managed by Super Admin)</option>
+                        @else
+                            <option value="tenant_user">Tenant User</option>
+                        @endif
                         @php($customRoles = $this->availableCustomRoles())
                         @if($customRoles->isNotEmpty())
                             <optgroup label="Custom Roles">
@@ -230,7 +249,7 @@ new #[Layout('layouts.app')] class extends Component {
                             </optgroup>
                         @endif
                     </select>
-                    <p class="mt-1 text-xs text-slate-500">Custom role adalah role yang dibuat di RBAC dan berlaku untuk tenant ini.</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ $editingGlobalRole?->scope === 'global' ? 'Global custom role dikelola Super Admin dan tidak dapat diubah atau dicabut oleh Tenant Admin.' : 'Custom role adalah role tenant yang dikelola oleh Tenant Admin pada tenant ini.' }}</p>
                     @error('custom_role_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <div><label class="text-sm font-medium text-slate-700">Password {{ $editingUserId ? '(optional)' : '' }}</label><input wire:model="password" type="password" autocomplete="new-password" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">@error('password')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
