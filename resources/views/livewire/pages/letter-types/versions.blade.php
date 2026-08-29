@@ -11,6 +11,10 @@
     <div class="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900"><strong>Aturan versi:</strong> versi yang sudah dibuat tidak diedit atau dihapus. Template dan daftar variabel disimpan sebagai snapshot. Surat lama tetap menggunakan versi yang tercatat saat surat dibuat.</div>
 
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+            <div><h2 class="text-sm font-semibold text-slate-900">Riwayat Versi</h2><p class="mt-1 text-xs text-slate-500">Tampilkan versi template per halaman.</p></div>
+            <label class="flex items-center gap-2 text-sm text-slate-600"><span class="whitespace-nowrap">Per halaman</span><select wire:model.live="perPage" class="form-select w-24"><option value="5">5</option><option value="10">10</option><option value="25">25</option><option value="50">50</option></select></label>
+        </div>
         <div class="divide-y divide-slate-100">
             @forelse ($versions as $version)
                 @php $now = now(); $isCurrent = $version->is_active && ($version->effective_from === null || $version->effective_from->lte($now)) && ($version->effective_until === null || $version->effective_until->gt($now)); $isScheduled = $version->effective_from !== null && $version->effective_from->gt($now); @endphp
@@ -25,6 +29,9 @@
                 <div class="p-12 text-center text-sm text-slate-500">Belum ada versi template.</div>
             @endforelse
         </div>
+        @if ($versions->hasPages())
+            <div class="border-t border-slate-100 p-4">{{ $versions->onEachSide(1)->links() }}</div>
+        @endif
     </div>
 
     @if ($showForm)
