@@ -177,9 +177,7 @@
         </div>
 
         @if ($logs->hasPages())
-            <div class="border-t border-slate-200 px-4 py-4 sm:px-5">
-                {{ $logs->links() }}
-            </div>
+            <x-ui.table-footer :paginator="$logs" label="aktivitas" />
         @endif
     </div>
 
