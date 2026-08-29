@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use App\Models\Tenant;
+use App\Models\TenantCategory;
 use App\Models\User;
 use App\Repositories\Contracts\TenantRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -43,7 +44,7 @@ class TenantService
 
     public function create(array $data): Tenant
     {
-        $tenant = $this->tenantRepository->create($data);
+        $tenant = $this->tenantRepository->create($this->withDefaultCategory($data));
 
         $this->auditLogService->record(
             action: 'tenant.created',
@@ -59,7 +60,7 @@ class TenantService
     public function createWithInitialUser(array $tenantData, array $userData): Tenant
     {
         return DB::transaction(function () use ($tenantData, $userData): Tenant {
-            $tenant = $this->tenantRepository->create($tenantData);
+            $tenant = $this->tenantRepository->create($this->withDefaultCategory($tenantData));
 
             $administrator = User::query()->create([
                 'name' => $userData['name'],
@@ -181,6 +182,21 @@ class TenantService
     public function getAllWithTrashed(): Collection
     {
         return $this->tenantRepository->getAllWithTrashed();
+    }
+
+    private function withDefaultCategory(array $data): array
+    {
+        if (! empty($data['tenant_category_id'])) {
+            return $data;
+        }
+
+        $defaultCategoryId = TenantCategory::query()
+            ->where('code', 'lainnya')
+            ->value('id');
+
+        return $defaultCategoryId === null
+            ? $data
+            : [...$data, 'tenant_category_id' => $defaultCategoryId];
     }
 
     private function actor(): ?User
