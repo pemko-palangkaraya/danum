@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\Permission as PermissionEnum;
 use App\Enums\PlatformRole;
+use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -23,13 +24,23 @@ class User extends Authenticatable
 
     protected function casts(): array
     {
-        return ['email_verified_at' => 'datetime', 'password' => 'hashed', 'platform_role' => PlatformRole::class, 'status' => UserStatus::class, 'signing_pin_set_at' => 'datetime', 'signing_pin_failed_attempts' => 'integer', 'signing_pin_locked_until' => 'datetime'];
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'platform_role' => PlatformRole::class,
+            // Legacy read-only compatibility for existing UI/tests during migration.
+            'role' => UserRole::class,
+            'status' => UserStatus::class,
+            'signing_pin_set_at' => 'datetime',
+            'signing_pin_failed_attempts' => 'integer',
+            'signing_pin_locked_until' => 'datetime',
+        ];
     }
 
     public function isSuperAdmin(): bool { return $this->platform_role === PlatformRole::SUPER_ADMIN && $this->tenant_id === null && $this->custom_role_id === null; }
     public function isTenantMember(): bool { return $this->tenant_id !== null && ! $this->isSuperAdmin(); }
     public function isTenantUser(): bool { return $this->isTenantMember(); }
-    public function isTenantAdmin(): bool { return $this->isTenantMember() && $this->customRole()?->where('slug', 'tenant_admin')->exists(); }
+    public function isTenantAdmin(): bool { return $this->isTenantMember() && $this->customRole?->slug === 'tenant_admin'; }
     public function customRole(): BelongsTo { return $this->belongsTo(Role::class, 'custom_role_id'); }
 
     public function roleModel(): ?Role
