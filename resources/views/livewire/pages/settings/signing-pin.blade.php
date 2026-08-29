@@ -50,7 +50,7 @@ new #[Layout('layouts.app')] class extends Component {
         $this->dispatch('toast', type: 'success', message: 'PIN tanda tangan berhasil disimpan.');
     }
 
-    public function render()
+    public function render(): mixed
     {
         return view('livewire.pages.settings.signing-pin', [
             'configured' => app(SignerPinService::class)->hasPin(auth()->user()),
