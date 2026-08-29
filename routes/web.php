@@ -85,6 +85,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/outgoing-letters/{id}', OutgoingLetterShow::class)->name('outgoing-letters.show');
     });
 
+    Route::middleware('permission:outgoing-letters.issue')->group(function () {
+        Volt::route('/settings/signing-pin', 'pages.settings.signing-pin')->name('settings.signing-pin');
+    });
+
     Route::post('/logout', function (Request $request) {
         Auth::logout();
         $request->session()->invalidate();
