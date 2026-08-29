@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\TenantStatus;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use App\Models\Tenant;
@@ -17,9 +18,9 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      *
-     * The RBAC tables are populated by their migration. This seeder adds a
-     * deterministic local administrator so a fresh development database can
-     * be used immediately from the UI.
+     * The RBAC tables are populated by their migration. This seeder adds
+     * deterministic local accounts so a fresh development database can be
+     * used immediately from the UI.
      */
     public function run(): void
     {
@@ -54,7 +55,7 @@ class DatabaseSeeder extends Seeder
                 'logo' => null,
                 'head_name' => 'Demo Head',
                 'head_title' => 'Kepala Unit',
-                'status' => 'active',
+                'status' => TenantStatus::ACTIVE,
             ],
         );
 
