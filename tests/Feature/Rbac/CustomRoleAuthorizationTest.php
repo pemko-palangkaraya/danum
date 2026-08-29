@@ -71,4 +71,53 @@ class CustomRoleAuthorizationTest extends TestCase
         $this->assertTrue($user->hasPermission(PermissionEnum::RBAC_MANAGE));
         $this->assertTrue($user->hasPermission(PermissionEnum::TENANTS_DELETE));
     }
+
+    public function test_global_custom_role_is_effective_for_user_across_tenant(): void
+    {
+        $tenantA = Tenant::factory()->create();
+        $tenantB = Tenant::factory()->create();
+        $role = Role::query()->create([
+            'name' => 'Tester Internal',
+            'slug' => 'tester-internal',
+            'scope' => 'global',
+            'tenant_id' => null,
+            'is_system' => false,
+            'is_active' => true,
+        ]);
+        $permission = Permission::query()->where('slug', PermissionEnum::USERS_VIEW->value)->firstOrFail();
+        $role->permissions()->attach($permission);
+
+        $user = User::factory()->tenantUser($tenantA)->create(['custom_role_id' => $role->id]);
+
+        $this->assertTrue($user->hasPermission(PermissionEnum::USERS_VIEW));
+        $this->assertFalse($user->hasPermission(PermissionEnum::USERS_CREATE));
+        $this->assertSame($tenantA->id, $user->tenant_id);
+        $this->assertNotSame($tenantB->id, $user->tenant_id);
+    }
+
+    public function test_tenant_admin_cannot_reassign_or_remove_global_custom_role_via_tenant_user_form(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $role = Role::query()->create([
+            'name' => 'Super Admin Tester',
+            'slug' => 'super-admin-tester',
+            'scope' => 'global',
+            'tenant_id' => null,
+            'is_system' => false,
+            'is_active' => true,
+        ]);
+        $permission = Permission::query()->where('slug', PermissionEnum::OUTGOING_LETTERS_VALIDATE->value)->firstOrFail();
+        $role->permissions()->attach($permission);
+
+        $admin = User::factory()->tenantAdmin($tenant)->create();
+        $target = User::factory()->tenantUser($tenant)->create(['custom_role_id' => $role->id]);
+
+        $this->actingAs($admin)
+            ->get(route('tenant-users.index'))
+            ->assertOk()
+            ->assertSee($target->name)
+            ->assertDontSee('Super Admin Tester', false);
+
+        $this->assertTrue($target->fresh()->hasPermission(PermissionEnum::OUTGOING_LETTERS_VALIDATE));
+    }
 }
