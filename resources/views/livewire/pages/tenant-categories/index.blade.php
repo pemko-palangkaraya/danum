@@ -13,7 +13,7 @@ use Livewire\WithPagination;
 new #[Layout('layouts.app')] class extends Component {
     use WithPagination;
 
-    public int $perPage = 10;
+    public int $perPage = 5;
 
     public function updatedPerPage(): void
     {
