@@ -51,6 +51,20 @@
     <div class="border-t border-slate-100 p-4">
         @if (auth()->user()?->isTenantUser() && auth()->user()?->hasPermission('outgoing-letters.issue'))
             <a
+                href="{{ route('settings.signing-certificate') }}"
+                @class([
+                    'mb-3 flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition',
+                    'bg-slate-100 text-slate-900' => request()->routeIs('settings.signing-certificate'),
+                    'text-slate-600 hover:bg-slate-100 hover:text-slate-900' => !request()->routeIs('settings.signing-certificate'),
+                ])>
+                <svg class="mr-3 h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 3.5h10A1.5 1.5 0 0 1 18.5 5v14A1.5 1.5 0 0 1 17 20.5H7A1.5 1.5 0 0 1 5.5 19V5A1.5 1.5 0 0 1 7 3.5Z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.5 8h7M8.5 12h7M8.5 16h4" />
+                </svg>
+                Sertifikat TTE
+            </a>
+
+            <a
                 href="{{ route('settings.signing-pin') }}"
                 @class([
                     'mb-3 flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition',
