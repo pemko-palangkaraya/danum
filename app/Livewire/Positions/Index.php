@@ -14,7 +14,7 @@ use App\Services\SignerCertificateService;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
-use Livewire\WithPagination;
+use App\Livewire\Concerns\WithStandardTablePagination;
 
 #[Layout('layouts.app')]
 class Index extends Component
