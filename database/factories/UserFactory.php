@@ -37,12 +37,7 @@ class UserFactory extends Factory
         ];
     }
 
-    public function unverified(): static
-    {
-        return $this->state(fn(array $attributes) => [
-            'email_verified_at' => null,
-        ]);
-    }
+    public function unverified(): static { return $this->state(fn(array $attributes) => ['email_verified_at' => null]); }
 
     public function superAdmin(): static
     {
@@ -57,81 +52,36 @@ class UserFactory extends Factory
     public function tenantAdmin(?Tenant $tenant = null): static
     {
         $tenant ??= Tenant::factory()->create();
-
         return $this->state(function (array $attributes) use ($tenant): array {
             $role = $this->ensureSystemRole('tenant_admin', 'Tenant Admin');
-            $this->syncPermissions($role, [
-                'dashboard.view',
-                'rbac.view',
-                'users.view', 'users.create', 'users.update', 'users.delete',
-                'tenant-users.view',
-                'tenant-profile.view',
-                'positions.view', 'positions.manage',
-                'letter-types.view',
-                'outgoing-letters.view', 'outgoing-letters.create', 'outgoing-letters.update',
-                'outgoing-letters.delete', 'outgoing-letters.submit', 'outgoing-letters.validate',
-                'outgoing-letters.reject', 'outgoing-letters.issue', 'outgoing-letters.withdraw',
-            ]);
-
-            return [
-                'role' => UserRole::TENANT_ADMIN,
-                'platform_role' => null,
-                'custom_role_id' => $role->id,
-                'tenant_id' => $tenant->id,
-            ];
+            $this->syncPermissions($role, ['dashboard.view','rbac.view','users.view','users.create','users.update','users.delete','tenant-users.view','tenant-profile.view','positions.view','positions.manage','letter-types.view','outgoing-letters.view','outgoing-letters.create','outgoing-letters.update','outgoing-letters.delete','outgoing-letters.submit','outgoing-letters.validate','outgoing-letters.reject','outgoing-letters.issue','outgoing-letters.withdraw']);
+            return ['role' => UserRole::TENANT_ADMIN, 'platform_role' => null, 'custom_role_id' => $role->id, 'tenant_id' => $tenant->id];
         });
     }
 
     public function tenantUser(?Tenant $tenant = null): static
     {
         $tenant ??= Tenant::factory()->create();
-
         return $this->state(function (array $attributes) use ($tenant): array {
             $role = $this->ensureSystemRole('tenant_user', 'Tenant User');
-            $this->syncPermissions($role, [
-                'dashboard.view',
-                'tenant-profile.view',
-                'positions.view',
-                'letter-types.view',
-                'outgoing-letters.view', 'outgoing-letters.create', 'outgoing-letters.update',
-                'outgoing-letters.delete', 'outgoing-letters.submit', 'outgoing-letters.validate',
-                'outgoing-letters.reject', 'outgoing-letters.issue', 'outgoing-letters.withdraw',
-            ]);
-
-            return [
-                'role' => UserRole::TENANT_USER,
-                'platform_role' => null,
-                'custom_role_id' => $role->id,
-                'tenant_id' => $tenant->id,
-            ];
+            $this->syncPermissions($role, ['dashboard.view','tenant-profile.view','positions.view','letter-types.view','outgoing-letters.view','outgoing-letters.create','outgoing-letters.update','outgoing-letters.delete','outgoing-letters.submit','outgoing-letters.validate','outgoing-letters.reject','outgoing-letters.issue','outgoing-letters.withdraw']);
+            return ['role' => UserRole::TENANT_USER, 'platform_role' => null, 'custom_role_id' => $role->id, 'tenant_id' => $tenant->id];
         });
     }
 
     private function ensureSystemRole(string $slug, string $name): Role
     {
-        return Role::query()->firstOrCreate(
+        return Role::query()->updateOrCreate(
             ['tenant_id' => null, 'slug' => $slug],
-            [
-                'name' => $name,
-                'scope' => 'global',
-                'is_system' => true,
-                'is_active' => true,
-            ],
+            ['name' => $name, 'scope' => 'tenant', 'is_system' => true, 'is_active' => true],
         );
     }
 
     private function syncPermissions(Role $role, array $permissionSlugs): void
     {
         $permissionIds = Permission::query()->whereIn('slug', $permissionSlugs)->pluck('id');
-        if ($permissionIds->isNotEmpty()) {
-            $role->permissions()->syncWithoutDetaching($permissionIds);
-        }
+        if ($permissionIds->isNotEmpty()) $role->permissions()->syncWithoutDetaching($permissionIds);
     }
 
-    public function inactive(): static
-    {
-        return $this->state(fn(array $attributes) => [
-            'status' => UserStatus::INACTIVE,
-        ]);
-    }
+    public function inactive(): static { return $this->state(fn(array $attributes) => ['status' => UserStatus::INACTIVE]); }
 }
