@@ -33,7 +33,7 @@
                 <div class="p-12 text-center text-sm text-slate-500">Belum ada jenis surat.</div>
             @endforelse
         </div>
-        <div class="border-t border-slate-100 p-4">{{ $letterTypes->links() }}</div>
+        <x-ui.table-footer :paginator="$letterTypes" label="letter types" />
     </div>
 
     @if ($showForm)
