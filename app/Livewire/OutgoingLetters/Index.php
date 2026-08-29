@@ -31,7 +31,7 @@ class Index extends Component
     use WithStandardTablePagination;
 
     public string $search = '';
-    public string $filter = 'active';
+    public string $filter = 'all';
     public int $perPage = 5;
 
     public function updatedPerPage(): void
