@@ -6,7 +6,6 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use RuntimeException;
 
 return new class extends Migration
 {
@@ -23,7 +22,7 @@ return new class extends Migration
         $lainnyaId = DB::table('tenant_categories')->where('code', 'lainnya')->value('id');
 
         if ($lainnyaId === null) {
-            throw new RuntimeException('Master tenant category "lainnya" tidak ditemukan.');
+            throw new \RuntimeException('Master tenant category "lainnya" tidak ditemukan.');
         }
 
         DB::table('tenants')
