@@ -49,7 +49,7 @@
                     </tr>
                 @empty<tr><td colspan="7" class="px-5 py-12 text-center text-sm text-slate-500">Belum ada jabatan.</td></tr>@endforelse
             </tbody></table></div>
-        <div class="border-t border-slate-100 px-5 py-4">{{ $positions->links() }}</div>
+        <x-ui.table-footer :paginator="$positions" label="jabatan" />
     </div>
 
     <div class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:hidden">
