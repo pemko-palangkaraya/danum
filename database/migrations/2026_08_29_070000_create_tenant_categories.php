@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use IlluminateDatabaseMigrationsMigration;
-use IlluminateDatabaseSchemaBlueprint;
-use IlluminateSupportFacadesDB;
-use IlluminateSupportFacadesSchema;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -52,11 +52,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('tenants', function (Blueprint $table) {
-            $table->dropForeign(['tenant_category_id']);
-            $table->dropColumn('tenant_category_id');
-        });
-
         Schema::dropIfExists('tenant_categories');
     }
 };
