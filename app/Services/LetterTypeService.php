@@ -38,42 +38,40 @@ class LetterTypeService
             ->where(function ($query) use ($tenantId): void {
                 $query
                     ->where('tenant_id', $tenantId)
-                    ->orWhere(fn ($global) => $global
-                        ->whereNull('tenant_id')
-                        ->whereHas('permissions', function ($permission) use ($tenantId): void {
-                            $permission
-                                ->where('allowed', true)
-                                ->where(function ($scope) use ($tenantId): void {
-                                    $scope
-                                        ->where('tenant_id', $tenantId)
-                                        ->orWhereHas('tenant', fn ($tenant) => $tenant->where('id', $tenantId))
-                                        ->orWhereExists(function ($subquery) use ($tenantId): void {
-                                            $subquery
-                                                ->selectRaw('1')
-                                                ->from('tenant_categories as permission_categories')
-                                                ->join('tenants as scoped_tenants', 'scoped_tenants.tenant_category_id', '=', 'permission_categories.id')
-                                                ->whereColumn('permission_categories.id', 'letter_type_permissions.tenant_category_id')
-                                                ->where('scoped_tenants.id', $tenantId);
-                                        });
-                                });
-                        }));
+                    ->orWhere(function ($global) use ($tenantId): void {
+                        $global
+                            ->whereNull('tenant_id')
+                            ->whereHas('permissions', function ($permission) use ($tenantId): void {
+                                $permission
+                                    ->where('allowed', true)
+                                    ->where(function ($scope) use ($tenantId): void {
+                                        $scope
+                                            ->where('tenant_id', $tenantId)
+                                            ->orWhereHas('category.tenants', fn ($tenants) => $tenants->whereKey($tenantId));
+                                    });
+                            });
+                    });
             })
             ->get();
     }
 
     public function isAllowedForTenant(LetterType $letterType, string $tenantId): bool
     {
-        if ($letterType->tenant_id === $tenantId) return true;
-        if (! $letterType->isGlobal()) return false;
+        if ($letterType->tenant_id === $tenantId) {
+            return true;
+        }
+
+        if (! $letterType->isGlobal()) {
+            return false;
+        }
+
         return LetterTypePermission::query()
             ->where('letter_type_id', $letterType->id)
             ->where('allowed', true)
             ->where(function ($query) use ($tenantId): void {
                 $query
                     ->where('tenant_id', $tenantId)
-                    ->orWhere(function ($category) use ($tenantId): void {
-                        $category->whereHas('tenant', fn ($tenant) => $tenant->where('id', $tenantId));
-                    });
+                    ->orWhereHas('category.tenants', fn ($tenants) => $tenants->whereKey($tenantId));
             })
             ->exists();
     }
@@ -113,12 +111,6 @@ class LetterTypeService
             ->where('tenant_category_id', $categoryId)
             ->whereNull('tenant_id')
             ->update(['allowed' => false]) > 0;
-    }
-
-    public function revokeTenantPermission(LetterType $letterType, string $tenantId): bool
-    {
-        if (! $letterType->isGlobal()) return false;
-        return LetterTypePermission::query()->where('letter_type_id', $letterType->id)->where('tenant_id', $tenantId)->update(['allowed' => false]) > 0;
     }
 
     public function create(array $data): LetterType
