@@ -1,0 +1,36 @@
+<?php
+
+declare(strict_types=1);
+
+use IlluminateDatabaseMigrationsMigration;
+use IlluminateDatabaseSchemaBlueprint;
+use IlluminateSupportFacadesSchema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('letter_type_permissions', function (Blueprint $table): void {
+            $table->foreignId('tenant_category_id')
+                ->nullable()
+                ->after('tenant_id')
+                ->constrained('tenant_categories')
+                ->cascadeOnDelete();
+
+            $table->dropUnique(['tenant_id', 'letter_type_id']);
+            $table->unique(['tenant_category_id', 'letter_type_id']);
+            $table->unique(['tenant_id', 'letter_type_id']);
+            $table->index(['tenant_category_id', 'allowed']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('letter_type_permissions', function (Blueprint $table): void {
+            $table->dropUnique(['tenant_category_id', 'letter_type_id']);
+            $table->dropIndex(['tenant_category_id', 'allowed']);
+            $table->dropForeign(['tenant_category_id']);
+            $table->dropColumn('tenant_category_id');
+        });
+    }
+};
