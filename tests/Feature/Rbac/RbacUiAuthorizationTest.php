@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Rbac;
 
 use App\Enums\Permission as PermissionEnum;
+use App\Enums\UserRole;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Tenant;
