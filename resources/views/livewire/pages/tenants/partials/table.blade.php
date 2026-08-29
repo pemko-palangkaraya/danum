@@ -44,6 +44,9 @@
                     <div class="font-medium text-slate-900">
                         {{ $tenant->name }}
                     </div>
+                    <div class="mt-0.5 text-xs font-medium text-slate-500">
+                        {{ $tenant->category?->name ?? 'Tanpa kategori' }}
+                    </div>
 
                     @if ($tenant->email)
                     <div class="mt-0.5 text-xs text-slate-500">
