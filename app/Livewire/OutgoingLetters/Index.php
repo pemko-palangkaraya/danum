@@ -33,6 +33,8 @@ class Index extends Component
     public string $search = '';
     public string $filter = 'all';
     public int $perPage = 5;
+    public function updatedPerPage(): void { $this->perPage = max(5, min($this->perPage, 50)); $this->resetPage(); }
+
     public bool $showForm = false;
     public ?string $editingId = null;
     public bool $showRejectForm = false;
