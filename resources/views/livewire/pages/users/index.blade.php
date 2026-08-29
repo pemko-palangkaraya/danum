@@ -14,8 +14,14 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithPagination;
 
 new #[Layout('layouts.app')] class extends Component {
+    use WithPagination;
+
+    public int $perPage = 10;
+    
+    public function updatedPerPage(): void { $this->resetPage(); }
     public bool $showForm = false;
     public bool $showSignerPin = false;
     public ?int $editingUserId = null;
@@ -237,7 +243,7 @@ new #[Layout('layouts.app')] class extends Component {
     public function with(): array
     {
         return [
-            'users' => User::query()->with(['tenant', 'customRole'])->orderBy('name')->get(),
+            'users' => User::query()->with(['tenant', 'customRole'])->orderBy('name')->paginate($this->perPage),
             'tenants' => Tenant::query()->orderBy('name')->get(),
         ];
     }
@@ -300,7 +306,7 @@ new #[Layout('layouts.app')] class extends Component {
         @empty
             <tr><td colspan="6" class="px-6 py-12 text-center text-sm text-slate-500">Belum ada user.</td></tr>
         @endforelse
-        </tbody></table></div></div>
+        </tbody></table></div><div class="border-t border-slate-100 p-4">{{ $users->onEachSide(1)->links() }}</div></div>
 
     <div class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:hidden">
         @forelse ($users as $user)
