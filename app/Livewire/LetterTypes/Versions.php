@@ -12,11 +12,17 @@ use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
 class Versions extends Component
 {
     use WithFileUploads;
+    use WithPagination;
+
+    public int $perPage = 10;
+
+    public function updatedPerPage(): void { $this->resetPage(); }
 
     public string $letterTypeId = '';
     public bool $showForm = false;
@@ -155,7 +161,7 @@ class Versions extends Component
         return view('livewire.pages.letter-types.versions', [
             'letterType' => $letterType,
             'declaredVariables' => $this->versionVariables ?: $this->normalizedVariables($letterType->variables ?? []),
-            'versions' => $letterType->versions()->with('creator')->get(),
+            'versions' => $letterType->versions()->with('creator')->latest('version')->paginate($this->perPage),
         ]);
     }
 }
