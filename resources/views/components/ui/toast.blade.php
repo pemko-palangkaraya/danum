@@ -4,9 +4,9 @@
 
 <div
     x-data="{
-        show: false,
-        type: 'success',
-        message: '',
+        show: @js(session()->has('toast')),
+        type: @js(session('toast.type', 'success')),
+        message: @js(session('toast.message', '')),
         timer: null,
 
         open(event) {
@@ -34,6 +34,7 @@
             this.timer = null;
         }
     }"
+    x-init="if (show && message) { timer = setTimeout(() => close(), {{ $duration }}); }"
     x-on:toast.window="open($event)"
     x-show="show"
     x-cloak
