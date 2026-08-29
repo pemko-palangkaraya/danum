@@ -154,9 +154,18 @@ class Index extends Component
             $data['recipient_name'] = (string) ($data['recipient_name'] ?? '');
             $data['recipient_address'] = (string) ($data['recipient_address'] ?? '');
             $data['subject'] = (string) ($data['subject'] ?? '');
-            if (! $letterType->template_path) throw new \DomainException('Template DOCX surat belum tersedia.');
-            $templatePath = Storage::disk('local')->path($letterType->template_path);
-            if (! is_file($templatePath)) throw new \DomainException('File template DOCX tidak ditemukan di storage.');
+
+            $letterTypeVersion = app(LetterTypeService::class)->activeVersion($letterType);
+            $templateRelativePath = $letterTypeVersion?->template_path ?: $letterType->template_path;
+            if (! $templateRelativePath) {
+                throw new \DomainException('Template DOCX surat belum tersedia.');
+            }
+
+            $templatePath = Storage::disk('local')->path($templateRelativePath);
+            if (! is_file($templatePath)) {
+                throw new \DomainException('File template DOCX tidak ditemukan di storage.');
+            }
+
             $existing = $this->editingId ? $this->tenantQuery()->findOrFail($this->editingId) : null;
             if ($existing) $this->authorize('update', $existing);
             $verificationToken = $existing?->verification_token ?? Str::random(64);
