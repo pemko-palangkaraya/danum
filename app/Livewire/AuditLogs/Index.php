@@ -24,7 +24,7 @@ class Index extends Component
     public string $object = '';
     public string $dateFrom = '';
     public string $dateTo = '';
-    public int $perPage = 15;
+    public int $perPage = 5;
 
     #[On('outgoing-letters-refresh')]
     public function refreshForRealtime(): void
