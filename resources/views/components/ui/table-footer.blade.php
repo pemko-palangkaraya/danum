@@ -32,7 +32,7 @@
                 </p>
             </div>
 
-            <x-ui.pagination :paginator="$paginator" />
+            <x-ui.pagination :paginator="$paginator" :page-name="$paginator->getPageName()" />
         </div>
     </div>
 @endif
