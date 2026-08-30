@@ -20,6 +20,10 @@ return new class extends Migration
 
         Schema::table('positions', function (Blueprint $table): void {
             $table->foreign('tenant_category_id')->references('id')->on('tenant_categories')->restrictOnDelete();
+            $table->dropUnique('positions_tenant_id_code_unique');
+            $table->dropIndex('positions_tenant_id_status_index');
+            $table->dropForeign(['tenant_id']);
+            $table->dropColumn('tenant_id');
         });
 
         Schema::table('position_holders', function (Blueprint $table): void {
@@ -39,19 +43,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        DB::statement('DROP INDEX IF EXISTS position_holders_one_active_per_tenant_position');
-        DB::statement('CREATE UNIQUE INDEX position_holders_one_active_per_position ON position_holders (position_id) WHERE ended_at IS NULL');
-
-        Schema::table('position_holders', function (Blueprint $table): void {
-            $table->dropForeign(['tenant_id']);
-            $table->dropIndex(['tenant_id', 'position_id']);
-            $table->dropColumn('tenant_id');
-        });
-
-        Schema::table('positions', function (Blueprint $table): void {
-            $table->dropForeign(['tenant_category_id']);
-            $table->dropIndex(['tenant_category_id', 'status']);
-            $table->dropColumn('tenant_category_id');
-        });
+        throw new \LogicException('This development migration is intentionally irreversible. Use migrate:fresh.');
     }
 };
