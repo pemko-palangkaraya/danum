@@ -40,9 +40,10 @@ return [
     ],
 
     'tsa' => [
-        // Sectigo exposes an RFC 3161 TSA over HTTPS and supports SHA-256.
+        // Sectigo's RFC 3161 TSA endpoint. The /rfc3161 path is important:
+        // the bare host is not the RFC 3161 endpoint used for PAdES B-T.
         // Keep this configurable so production can use an institutional TSA.
-        'url' => env('DANUM_TSA_URL', 'https://timestamp.sectigo.com'),
+        'url' => env('DANUM_TSA_URL', 'https://timestamp.sectigo.com/rfc3161'),
         'username' => env('DANUM_TSA_USERNAME', ''),
         'password' => env('DANUM_TSA_PASSWORD', ''),
         'certificate' => env('DANUM_TSA_CERTIFICATE', ''),
