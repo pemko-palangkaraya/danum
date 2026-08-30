@@ -126,6 +126,8 @@ class Index extends Component
         if ($this->search !== '') $query->where(fn ($q) => $q->where('code', 'like', "%{$this->search}%")->orWhere('name', 'like', "%{$this->search}%")); if ($this->filter === 'deleted') $query->onlyTrashed(); elseif ($this->filter !== 'all') $query->where('status', $this->filter);
         $holderTenantId = $user->tenant_id ?: null; if ($this->holderPositionId && ! $holderTenantId) $holderTenantId = Position::query()->whereKey($this->holderPositionId)->value('tenant_id'); $users = $holderTenantId ? User::query()->where('tenant_id', $holderTenantId)->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email']) : collect();
         $history = $this->historyPositionId ? Position::withTrashed()->find($this->historyPositionId)?->holders()->with('user')->orderByDesc('started_at')->get() ?? collect() : collect(); $categories = TenantCategory::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'code', 'name']); $categoryTenants = $categoryId ? Tenant::query()->where('tenant_category_id', $categoryId)->orderBy('name')->get(['id', 'name']) : collect();
-        return view('livewire.pages.positions.index', ['positions' => $query->paginate($this->perPage), 'users' => $users, 'history' => $history, 'tenants' => $categories, 'categoryTenants' => $categoryTenants, 'isSuperAdmin' => $user->isSuperAdmin(), 'canManageHolders' => $user->canManagePositions()]);
+        $positions = $query->paginate($this->perPage);
+        foreach ($positions->getCollection() as $position) { $position->setRelation('tenant', $position->category); }
+        return view('livewire.pages.positions.index', ['positions' => $positions, 'users' => $users, 'history' => $history, 'tenants' => $categories, 'categoryTenants' => $categoryTenants, 'isSuperAdmin' => $user->isSuperAdmin(), 'canManageHolders' => $user->canManagePositions()]);
     }
 }
