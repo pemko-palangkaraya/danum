@@ -130,9 +130,16 @@ class Index extends Component
             : ($categoryId
                 ? User::query()->whereIn('tenant_id', Tenant::query()->where('tenant_category_id', $categoryId)->pluck('id'))->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email'])
                 : collect());
-        $history = $this->historyPositionId ? Position::withTrashed()->find($this->historyPositionId)?->holders()->with('user')->orderByDesc('started_at')->get() ?? collect() : collect(); $categories = TenantCategory::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'code', 'name']); $categoryTenants = $categoryId ? Tenant::query()->where('tenant_category_id', $categoryId)->orderBy('name')->get(['id', 'name']) : collect();
+        $historyQuery = $this->historyPositionId ? Position::withTrashed()->find($this->historyPositionId)?->holders()->with('user') : null;
+        $history = $historyQuery ? $historyQuery->when($user->tenant_id, fn ($q) => $q->where('tenant_id', $user->tenant_id))->orderByDesc('started_at')->get() : collect();
+        $categories = TenantCategory::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'code', 'name']); $categoryTenants = $categoryId ? Tenant::query()->where('tenant_category_id', $categoryId)->orderBy('name')->get(['id', 'name']) : collect();
         $positions = $query->paginate($this->perPage);
-        foreach ($positions->getCollection() as $position) { $position->setRelation('tenant', $position->category); }
+        foreach ($positions->getCollection() as $position) {
+            $position->setRelation('tenant', $position->category);
+            if ($user->tenant_id) {
+                $position->setRelation('holders', $position->holders->where('tenant_id', $user->tenant_id)->values());
+            }
+        }
         return view('livewire.pages.positions.index', ['positions' => $positions, 'users' => $users, 'history' => $history, 'tenants' => $categories, 'categoryTenants' => $categoryTenants, 'isSuperAdmin' => $user->isSuperAdmin(), 'canManageHolders' => $user->canManagePositions()]);
     }
 }
