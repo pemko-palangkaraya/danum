@@ -12,7 +12,7 @@ use RuntimeException;
 class PdfSigningService
 {
     /**
-     * Sign an existing PDF with the supplied signer certificate using PAdES B-B.
+     * Sign an existing PDF with a PAdES B-T signature and RFC 3161 TSA timestamp.
      */
     public function sign(
         string $sourcePdfPath,
@@ -70,22 +70,35 @@ class PdfSigningService
 
         $pdf->appendDocument($sourceId);
 
-        // tc-lib-pdf accepts PEM strings directly. No temporary private-key or
-        // certificate files are needed, and no extra issuer chain is supplied for
-        // the self-signed certificate used by DANUM's local TTE implementation.
-        $pdf->signature()->configure([
-            'profile' => \Com\Tecnick\Pdf\Sign\Config::PROFILE_PADES_B_B,
-            'digest_algorithm' => \Com\Tecnick\Pdf\Sign\DigestAlgorithm::Sha256->value,
-            'cert_type' => 2,
-            'signcert' => $certificatePem,
-            'privkey' => $privateKeyPem,
-            'password' => '',
-            'info' => [
-                'Name' => $signerName,
-                'Reason' => trim($reason) !== '' ? $reason : 'Dokumen disetujui dan ditandatangani secara elektronik.',
-                'Location' => $tenantName !== '' ? $tenantName : 'DANUM',
-            ],
-        ]);
+        // PAdES B-T = PAdES B-B plus an RFC 3161 signature timestamp.
+        // The TSA endpoint is configurable so production can use an institutional
+        // or other trusted TSA instead of the public demo endpoint.
+        $pdf->signature()
+            ->configure([
+                'profile' => \Com\Tecnick\Pdf\Sign\Config::PROFILE_PADES_B_T,
+                'digest_algorithm' => \Com\Tecnick\Pdf\Sign\DigestAlgorithm::Sha256->value,
+                'cert_type' => 2,
+                'signcert' => $certificatePem,
+                'privkey' => $privateKeyPem,
+                'password' => '',
+                'info' => [
+                    'Name' => $signerName,
+                    'Reason' => trim($reason) !== '' ? $reason : 'Dokumen disetujui dan ditandatangani secara elektronik.',
+                    'Location' => $tenantName !== '' ? $tenantName : 'DANUM',
+                ],
+            ])
+            ->timestamp([
+                'enabled' => true,
+                'host' => (string) config('services.tsa.url', 'https://freetsa.org/tsr'),
+                'username' => (string) config('services.tsa.username', ''),
+                'password' => (string) config('services.tsa.password', ''),
+                'cert' => (string) config('services.tsa.certificate', ''),
+                'hash_algorithm' => 'sha256',
+                'policy_oid' => (string) config('services.tsa.policy_oid', ''),
+                'nonce_enabled' => true,
+                'timeout' => (int) config('services.tsa.timeout', 30),
+                'verify_peer' => (bool) config('services.tsa.verify_peer', true),
+            ]);
 
         $pdf->signature()->appearance()->place(
             posx: 15,
