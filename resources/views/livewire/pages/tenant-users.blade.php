@@ -45,18 +45,7 @@ new #[Layout('layouts.app')] class extends Component {
 
     private function tenantUserQuery()
     {
-        $tenantId = auth()->user()->tenant_id;
-
-        return User::query()
-            ->where('tenant_id', $tenantId)
-            ->whereHas('customRole', function ($query) use ($tenantId) {
-                $query->where('slug', UserRole::TENANT_USER->value)
-                    ->where('is_active', true)
-                    ->where('scope', 'tenant')
-                    ->where(function ($scope) use ($tenantId) {
-                        $scope->whereNull('tenant_id')->orWhere('tenant_id', $tenantId);
-                    });
-            });
+        return User::query()->where('tenant_id', auth()->user()->tenant_id);
     }
 
     public function create(): void
