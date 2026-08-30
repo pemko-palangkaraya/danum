@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Policies;
 
 use App\Enums\Permission;
-use App\Enums\UserRole;
 use App\Models\User;
 
 class UserPolicy
@@ -37,7 +36,7 @@ class UserPolicy
         }
 
         return $user->tenant_id === $targetUser->tenant_id
-            && ($targetUser->role === UserRole::TENANT_USER || $targetUser->id === $user->id);
+            && ($targetUser->id === $user->id || $targetUser->effectiveRole()?->slug === 'tenant_user');
     }
 
     public function delete(User $user, User $targetUser): bool
