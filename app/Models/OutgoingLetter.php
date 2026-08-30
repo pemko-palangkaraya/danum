@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\OutgoingLetterStatus;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -36,12 +35,6 @@ class OutgoingLetter extends Model
 
     protected static function booted(): void
     {
-        static::addGlobalScope('super_admin_visibility', function (Builder $builder): void {
-            if (auth()->check() && auth()->user()->isSuperAdmin()) {
-                $builder->orWhereRaw('1 = 1');
-            }
-        });
-
         static::saving(function (self $letter): void {
             if ($letter->status === OutgoingLetterStatus::ISSUED && blank($letter->verification_token)) {
                 $letter->verification_token = Str::random(64);
