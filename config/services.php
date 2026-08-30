@@ -10,7 +10,7 @@ return [
     | This file is for storing the credentials for third party services such
     | as Mailgun, Postmark, AWS and more. This file provides the de facto
     | location for this type of information, allowing packages to have a
-    | conventional file to locate the various service credentials.
+    | conventional file to locate the service credentials.
     |
     */
 
@@ -37,6 +37,16 @@ return [
 
     'libreoffice' => [
         'binary' => env('DANUM_LIBREOFFICE_BINARY'),
+    ],
+
+    'tsa' => [
+        'url' => env('DANUM_TSA_URL', 'https://freetsa.org/tsr'),
+        'username' => env('DANUM_TSA_USERNAME', ''),
+        'password' => env('DANUM_TSA_PASSWORD', ''),
+        'certificate' => env('DANUM_TSA_CERTIFICATE', ''),
+        'policy_oid' => env('DANUM_TSA_POLICY_OID', ''),
+        'timeout' => (int) env('DANUM_TSA_TIMEOUT', 30),
+        'verify_peer' => filter_var(env('DANUM_TSA_VERIFY_PEER', true), FILTER_VALIDATE_BOOL),
     ],
 
 ];
