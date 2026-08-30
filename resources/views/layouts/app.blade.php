@@ -17,7 +17,7 @@
             <div class="lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:w-64">
                 @include('layouts.components.sidebar')
             </div>
-            <div class="min-w-0 flex-1 lg:ml-64 lg:h-screen lg:overflow-y-auto">
+            <div class="min-w-0 flex-1 lg:ml-64 lg:h-screen lg:overflow-y-auto lg:pt-20">
                 @include('layouts.components.topbar')
                 <main>
                     <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
