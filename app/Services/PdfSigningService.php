@@ -50,11 +50,16 @@ class PdfSigningService
 
         $this->configureFonts();
 
+        // Resolve the tenant from the certificate owner so the PDF signature
+        // metadata identifies the institution that owns the signing certificate.
+        $certificate->loadMissing('user.tenant');
+        $tenantName = trim((string) $certificate->user?->tenant?->name);
+
         $pdf = new \Com\Tecnick\Pdf\Tcpdf();
         $pdf->setCreator('DANUM');
         $pdf->setAuthor($signerName);
-        $pdf->setSubject('Dokumen bertanda tangan elektronik DANUM');
-        $pdf->setTitle('Dokumen TTE DANUM');
+        $pdf->setSubject('Surat Keluar - Tanda Tangan Elektronik');
+        $pdf->setTitle('Surat Keluar - Ditandatangani Secara Elektronik');
 
         $sourceId = $pdf->setImportSourceFile($sourceAbsolutePath);
         $pageCount = $pdf->getSourcePageCount($sourceId);
@@ -77,8 +82,8 @@ class PdfSigningService
             'password' => '',
             'info' => [
                 'Name' => $signerName,
-                'Reason' => $reason,
-                'Location' => 'DANUM',
+                'Reason' => trim($reason) !== '' ? $reason : 'Dokumen disetujui dan ditandatangani secara elektronik.',
+                'Location' => $tenantName !== '' ? $tenantName : 'DANUM',
             ],
         ]);
 
