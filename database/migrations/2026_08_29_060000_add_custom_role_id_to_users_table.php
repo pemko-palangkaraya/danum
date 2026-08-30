@@ -10,18 +10,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->foreignId('custom_role_id')->nullable()->after('role')->constrained('roles')->nullOnDelete();
+        Schema::table('users', function (Blueprint $table): void {
+            $table->string('platform_role')->nullable()->after('role');
+            $table->foreignId('custom_role_id')->nullable()->after('platform_role')->constrained('roles')->nullOnDelete();
             $table->index(['tenant_id', 'custom_role_id']);
         });
     }
 
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
+        Schema::table('users', function (Blueprint $table): void {
             $table->dropForeign(['custom_role_id']);
             $table->dropIndex(['tenant_id', 'custom_role_id']);
-            $table->dropColumn('custom_role_id');
+            $table->dropColumn(['platform_role', 'custom_role_id']);
         });
     }
 };
