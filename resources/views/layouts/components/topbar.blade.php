@@ -1,5 +1,5 @@
 @auth
-<header class="hidden h-20 items-center justify-end border-b border-slate-200 bg-white px-8 lg:flex">
+<header class="hidden h-20 items-center justify-end border-b border-slate-200 bg-white px-8 lg:fixed lg:inset-y-0 lg:left-64 lg:right-0 lg:z-30 lg:flex">
 
     <details class="relative">
 
