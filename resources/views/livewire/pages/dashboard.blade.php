@@ -105,22 +105,10 @@ new #[Layout('layouts.app')] class extends Component {
 
     <div class="overflow-hidden rounded-3xl bg-slate-900 shadow-xl">
         <div class="p-6 sm:p-8">
-            <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                <div class="max-w-2xl">
-                    <div class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>Data live</div>
-                    <h2 class="mt-4 text-2xl font-semibold tracking-tight text-white sm:text-3xl">{{ $isSuperAdmin ? 'Pusat kendali platform DANUM.' : 'Pusat kendali '.$tenantName.'.' }}</h2>
-                    <p class="mt-3 text-sm leading-6 text-slate-300">{{ $isSuperAdmin ? 'Pantau organisasi, pengguna, dan seluruh alur surat dari satu dashboard.' : 'Pantau surat, pekerjaan workflow, anggota, dan aktivitas organisasi Anda.' }}</p>
-                </div>
-                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:w-[420px]">
-                    @foreach ([
-                        [$isSuperAdmin ? 'Organisasi' : 'Surat', $isSuperAdmin ? $stats['tenants'] : $stats['letters']],
-                        [$isSuperAdmin ? 'Pengguna' : 'Draft', $isSuperAdmin ? $stats['users'] : $stats['drafts']],
-                        [$isSuperAdmin ? 'Surat Terbit' : 'Verifikasi', $isSuperAdmin ? $stats['issued'] : $stats['submitted']],
-                        ['Aktif', $stats['active']],
-                    ] as $item)
-                        <div class="rounded-2xl bg-white/10 p-4"><p class="text-2xl font-semibold text-white">{{ number_format($item[1]) }}</p><p class="mt-1 text-[11px] text-slate-400">{{ $item[0] }}</p></div>
-                    @endforeach
-                </div>
+            <div class="max-w-3xl">
+                <div class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>Data live</div>
+                <h2 class="mt-4 text-2xl font-semibold tracking-tight text-white sm:text-3xl">{{ $isSuperAdmin ? 'Pusat kendali platform DANUM.' : 'Pusat kendali '.$tenantName.'.' }}</h2>
+                <p class="mt-3 text-sm leading-6 text-slate-300">{{ $isSuperAdmin ? 'Pantau organisasi, pengguna, dan seluruh alur surat dari satu dashboard.' : 'Pantau surat, pekerjaan workflow, anggota, dan aktivitas organisasi Anda.' }}</p>
             </div>
         </div>
     </div>
@@ -134,9 +122,9 @@ new #[Layout('layouts.app')] class extends Component {
                 ['label'=>'Perlu Perhatian','value'=>$stats['submitted'] + $stats['validated'],'hint'=>$stats['submitted'].' verifikasi · '.$stats['validated'].' siap TTE'],
             ] : [
                 ['label'=>'Total Surat','value'=>$stats['letters'],'hint'=>$stats['my_letters'].' dibuat oleh Anda'],
-                ['label'=>'Perlu Verifikasi','value'=>$stats['submitted'],'hint'=>'Menunggu pemeriksaan'],
-                ['label'=>'Siap TTE','value'=>$stats['validated'],'hint'=>'Sudah tervalidasi'],
+                ['label'=>'Anggota','value'=>$stats['users'],'hint'=>'Pengguna dalam organisasi'],
                 ['label'=>'Surat Aktif','value'=>$stats['active'],'hint'=>$stats['issued'].' surat telah terbit'],
+                ['label'=>'Perlu Tindakan','value'=>$stats['submitted'] + $stats['validated'],'hint'=>$stats['submitted'].' verifikasi · '.$stats['validated'].' siap TTE'],
             ];
         @endphp
         @foreach($cards as $card)
@@ -159,21 +147,6 @@ new #[Layout('layouts.app')] class extends Component {
                     @endforeach
                 </div>
             @endif
-        </section>
-
-        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 class="font-semibold text-slate-900">Ringkasan akun</h2><p class="mt-1 text-xs text-slate-500">Konteks akses akun saat ini.</p>
-            <div class="mt-5 space-y-3">
-                @if($isSuperAdmin)
-                    <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"><span class="text-sm text-slate-600">Organisasi aktif</span><strong class="text-slate-900">{{ number_format($stats['active_tenants']) }}</strong></div>
-                    <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"><span class="text-sm text-slate-600">Total pengguna</span><strong class="text-slate-900">{{ number_format($stats['users']) }}</strong></div>
-                    <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"><span class="text-sm text-slate-600">Surat terbit</span><strong class="text-slate-900">{{ number_format($stats['issued']) }}</strong></div>
-                @else
-                    <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"><span class="text-sm text-slate-600">Anggota</span><strong class="text-slate-900">{{ number_format($stats['users']) }}</strong></div>
-                    <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"><span class="text-sm text-slate-600">Surat saya</span><strong class="text-slate-900">{{ number_format($stats['my_letters']) }}</strong></div>
-                    <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"><span class="text-sm text-slate-600">Tugas saya</span><strong class="text-slate-900">{{ number_format($stats['my_submitted'] + $stats['my_validated']) }}</strong></div>
-                @endif
-            </div>
         </section>
     </div>
 
