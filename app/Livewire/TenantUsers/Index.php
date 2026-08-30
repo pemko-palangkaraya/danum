@@ -5,13 +5,12 @@ namespace App\Livewire\TenantUsers;
 use App\Enums\PermissionEnum;
 use App\Models\Tenant;
 use App\Models\User;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class Index extends Component
 {
-    use AuthorizesRequests, WithPagination;
+    use WithPagination;
 
     public Tenant $tenant;
 
@@ -19,13 +18,9 @@ class Index extends Component
 
     public function mount(Tenant $tenant): void
     {
+        abort_unless(auth()->check(), 403);
+        abort_unless(auth()->user()->hasPermission(PermissionEnum::USERS_VIEW), 403);
         $this->tenant = $tenant;
-        $this->authorizeView();
-    }
-
-    public function authorizeView(): void
-    {
-        abort_unless(auth()->user()?->hasPermission(PermissionEnum::USERS_VIEW), 403);
     }
 
     public function render()
