@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Models\SignerCertificate;
 use App\Models\Position;
 use App\Services\SignerCertificateService;
-use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -26,16 +25,18 @@ new #[Layout('layouts.app')] class extends Component {
         $user = auth()->user();
 
         $position = Position::query()
-            ->where('tenant_id', $user->tenant_id)
+            ->whereHas('category.tenants', fn ($query) => $query->whereKey($user->tenant_id))
             ->whereKey($this->positionId)
             ->where('can_sign', true)
             ->whereHas('holders', fn ($query) => $query
+                ->where('tenant_id', $user->tenant_id)
                 ->where('user_id', $user->id)
                 ->whereNull('ended_at')
                 ->where('started_at', '<=', now()))
             ->firstOrFail();
 
         $holder = $position->holders()
+            ->where('tenant_id', $user->tenant_id)
             ->where('user_id', $user->id)
             ->whereNull('ended_at')
             ->where('started_at', '<=', now())
@@ -53,9 +54,10 @@ new #[Layout('layouts.app')] class extends Component {
         $user = auth()->user();
 
         $positions = Position::query()
-            ->where('tenant_id', $user->tenant_id)
+            ->whereHas('category.tenants', fn ($query) => $query->whereKey($user->tenant_id))
             ->where('can_sign', true)
             ->whereHas('holders', fn ($query) => $query
+                ->where('tenant_id', $user->tenant_id)
                 ->where('user_id', $user->id)
                 ->whereNull('ended_at')
                 ->where('started_at', '<=', now()))
