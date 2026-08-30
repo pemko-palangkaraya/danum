@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -22,29 +22,36 @@ return new class extends Migration
             $table->foreign('tenant_category_id')->references('id')->on('tenant_categories')->restrictOnDelete();
         });
 
-        // tenant_id remains temporarily as a legacy/source-tenant reference so existing
-        // integrations and historical data remain readable. New application reads use
-        // tenant_category_id to determine which tenants may use the master position.
-        Schema::table('positions', function (Blueprint $table): void {
-            $table->dropUnique('positions_tenant_id_code_unique');
+        Schema::table('position_holders', function (Blueprint $table): void {
+            $table->uuid('tenant_id')->nullable()->after('position_id');
+            $table->index(['tenant_id', 'position_id']);
         });
 
-        Schema::table('positions', function (Blueprint $table): void {
-            $table->unique(['tenant_category_id', 'code'], 'positions_category_code_unique');
+        DB::statement('UPDATE position_holders ph SET tenant_id = u.tenant_id FROM users u WHERE u.id = ph.user_id AND ph.tenant_id IS NULL');
+
+        Schema::table('position_holders', function (Blueprint $table): void {
+            $table->foreign('tenant_id')->references('id')->on('tenants')->restrictOnDelete();
         });
+
+        DB::statement('DROP INDEX IF EXISTS position_holders_one_active_per_position');
+        DB::statement('CREATE UNIQUE INDEX position_holders_one_active_per_tenant_position ON position_holders (tenant_id, position_id) WHERE ended_at IS NULL');
     }
 
     public function down(): void
     {
-        Schema::table('positions', function (Blueprint $table): void {
-            $table->dropUnique('positions_category_code_unique');
-            $table->dropForeign(['tenant_category_id']);
-            $table->dropIndex(['tenant_category_id', 'status']);
-            $table->dropColumn('tenant_category_id');
+        DB::statement('DROP INDEX IF EXISTS position_holders_one_active_per_tenant_position');
+        DB::statement('CREATE UNIQUE INDEX position_holders_one_active_per_position ON position_holders (position_id) WHERE ended_at IS NULL');
+
+        Schema::table('position_holders', function (Blueprint $table): void {
+            $table->dropForeign(['tenant_id']);
+            $table->dropIndex(['tenant_id', 'position_id']);
+            $table->dropColumn('tenant_id');
         });
 
         Schema::table('positions', function (Blueprint $table): void {
-            $table->unique(['tenant_id', 'code']);
+            $table->dropForeign(['tenant_category_id']);
+            $table->dropIndex(['tenant_category_id', 'status']);
+            $table->dropColumn('tenant_category_id');
         });
     }
 };
