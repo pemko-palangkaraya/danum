@@ -26,6 +26,12 @@ class Index extends Component
     public int $perPage = 5;
     public int $pendingPerPage = 5;
 
+    public function updatedSearch(): void
+    {
+        $this->resetPage('issuedPage');
+        $this->resetPage('pendingPage');
+    }
+
     public function updatedPerPage(): void
     {
         $this->perPage = max(5, min($this->perPage, 50));
@@ -136,23 +142,52 @@ class Index extends Component
 
     private function tenantIssuedLetters()
     {
-        return OutgoingLetter::query()
+        $query = OutgoingLetter::query()
             ->where('tenant_id', auth()->user()->tenant_id)
             ->where('created_by', auth()->id())
             ->where('status', OutgoingLetterStatus::ISSUED)
             ->with(['tenant', 'letterType', 'withdrawalRequests']);
+
+        $search = trim($this->search);
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('number', 'ilike', '%' . $search . '%')
+                    ->orWhere('subject', 'ilike', '%' . $search . '%')
+                    ->orWhere('recipient_name', 'ilike', '%' . $search . '%')
+                    ->orWhereHas('letterType', fn ($type) => $type->where('name', 'ilike', '%' . $search . '%'));
+            });
+        }
+
+        return $query;
     }
 
     private function pendingRequests()
     {
-        return OutgoingLetterWithdrawalRequest::query()
+        $query = OutgoingLetterWithdrawalRequest::query()
             ->where('status', OutgoingLetterWithdrawalStatus::PENDING)
             ->with(['outgoingLetter.tenant', 'outgoingLetter.letterType', 'requestedBy']);
+
+        $search = trim($this->search);
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('outgoingLetter', function ($letter) use ($search) {
+                    $letter->where('number', 'ilike', '%' . $search . '%')
+                        ->orWhere('subject', 'ilike', '%' . $search . '%')
+                        ->orWhere('recipient_name', 'ilike', '%' . $search . '%')
+                        ->orWhereHas('tenant', fn ($tenant) => $tenant->where('name', 'ilike', '%' . $search . '%'))
+                        ->orWhereHas('letterType', fn ($type) => $type->where('name', 'ilike', '%' . $search . '%'));
+                })
+                    ->orWhereHas('requestedBy', fn ($user) => $user->where('name', 'ilike', '%' . $search . '%'));
+            });
+        }
+
+        return $query;
     }
 
     public function render()
     {
         $isSuperAdmin = auth()->user()->isSuperAdmin();
+
         return view('livewire.outgoing-letter-withdrawals.index', [
             'isSuperAdmin' => $isSuperAdmin,
             'issuedLetters' => $isSuperAdmin ? collect() : $this->tenantIssuedLetters()->latest('issued_at')->paginate($this->perPage, ['*'], 'issuedPage'),
