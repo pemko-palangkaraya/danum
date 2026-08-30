@@ -22,7 +22,7 @@ class Position extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'tenant_id', 'tenant_category_id', 'code', 'name', 'description', 'status', 'can_sign', 'can_validate',
+        'tenant_category_id', 'code', 'name', 'description', 'status', 'can_sign', 'can_validate',
     ];
 
     protected function casts(): array
@@ -34,7 +34,6 @@ class Position extends Model
         ];
     }
 
-    public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
     public function category(): BelongsTo { return $this->belongsTo(TenantCategory::class, 'tenant_category_id'); }
     public function holders(): HasMany { return $this->hasMany(PositionHolder::class); }
     public function signerCertificates(): HasMany { return $this->hasMany(SignerCertificate::class); }
