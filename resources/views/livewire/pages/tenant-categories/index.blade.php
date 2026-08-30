@@ -96,7 +96,17 @@ new #[Layout('layouts.app')] class extends Component {
                             <td class="px-5 py-4"><div class="text-sm font-semibold text-slate-900">{{ $category->name }}</div><div class="mt-0.5 text-xs text-slate-400">Tenant category</div></td>
                             <td class="px-5 py-4 text-sm text-slate-600">{{ $category->sort_order }}</td>
                             <td class="px-5 py-4"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $category->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">{{ $category->is_active ? 'Active' : 'Inactive' }}</span></td>
-                            <td class="px-5 py-4 text-right"><div class="inline-flex items-center gap-2"><button type="button" wire:click="openEdit({{ $category->id }})" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Edit</button><button type="button" wire:click="toggleActive({{ $category->id }})" wire:confirm="Ubah status kategori ini?" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">{{ $category->is_active ? 'Disable' : 'Enable' }}</button></div></td>
+                            <td class="px-5 py-4 text-right">
+                                <div x-data="{ open: false, top: 0, left: 0, place() { this.$nextTick(() => { const trigger = this.$refs.trigger; const menu = this.$refs.menu; if (!trigger || !menu) return; const rect = trigger.getBoundingClientRect(); const gap = 8; const menuHeight = menu.offsetHeight; const menuWidth = menu.offsetWidth; let nextTop = rect.top - menuHeight - gap; if (nextTop < gap) nextTop = rect.bottom + gap; if (nextTop + menuHeight > window.innerHeight - gap) nextTop = Math.max(gap, window.innerHeight - menuHeight - gap); let nextLeft = rect.right - menuWidth; nextLeft = Math.max(gap, Math.min(nextLeft, window.innerWidth - menuWidth - gap)); this.top = nextTop; this.left = nextLeft; }); } }" x-on:click.outside="open = false" x-on:keydown.escape.window="open = false" x-on:resize.window="if (open) place()" class="relative inline-block text-left">
+                                    <button x-ref="trigger" type="button" x-on:click="open = !open; if (open) place()" x-bind:aria-expanded="open" aria-haspopup="menu" aria-label="Aksi kategori" class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-200">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5" aria-hidden="true"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg>
+                                    </button>
+                                    <div x-ref="menu" x-show="open" x-cloak x-transition x-bind:style="`top: ${top}px; left: ${left}px;`" class="fixed z-[100] w-44 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-left shadow-xl ring-1 ring-black/5" role="menu">
+                                        <button type="button" x-on:click="open = false" wire:click="openEdit({{ $category->id }})" wire:loading.attr="disabled" class="block w-full px-4 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50 disabled:opacity-50" role="menuitem">Edit</button>
+                                        <button type="button" x-on:click="open = false" wire:click="toggleActive({{ $category->id }})" wire:confirm="Ubah status kategori ini?" wire:loading.attr="disabled" class="block w-full px-4 py-2.5 text-left text-sm {{ $category->is_active ? 'text-red-600 hover:bg-red-50' : 'text-emerald-600 hover:bg-emerald-50' }} disabled:opacity-50" role="menuitem">{{ $category->is_active ? 'Disable' : 'Enable' }}</button>
+                                    </div>
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr><td colspan="5" class="px-5 py-12 text-center text-sm text-slate-400">No categories found.</td></tr>
@@ -107,7 +117,20 @@ new #[Layout('layouts.app')] class extends Component {
 
         <div class="divide-y divide-slate-100 lg:hidden">
             @forelse($categories as $category)
-                <div class="flex items-center justify-between gap-3 p-4"><div class="min-w-0"><div class="text-sm font-semibold text-slate-900">{{ $category->name }}</div><div class="mt-1 text-xs text-slate-500">{{ $category->code }} · {{ $category->sort_order }}</div></div><span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $category->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">{{ $category->is_active ? 'Active' : 'Inactive' }}</span></div>
+                <div class="flex items-center justify-between gap-3 p-4">
+                    <div class="min-w-0 flex-1"><div class="text-sm font-semibold text-slate-900">{{ $category->name }}</div><div class="mt-1 text-xs text-slate-500">{{ $category->code }} · {{ $category->sort_order }}</div></div>
+                    <div class="shrink-0">
+                        <div x-data="{ open: false, top: 0, left: 0, place() { this.$nextTick(() => { const trigger = this.$refs.trigger; const menu = this.$refs.menu; if (!trigger || !menu) return; const rect = trigger.getBoundingClientRect(); const gap = 8; const menuHeight = menu.offsetHeight; const menuWidth = menu.offsetWidth; let nextTop = rect.top - menuHeight - gap; if (nextTop < gap) nextTop = rect.bottom + gap; if (nextTop + menuHeight > window.innerHeight - gap) nextTop = Math.max(gap, window.innerHeight - menuHeight - gap); let nextLeft = rect.right - menuWidth; nextLeft = Math.max(gap, Math.min(nextLeft, window.innerWidth - menuWidth - gap)); this.top = nextTop; this.left = nextLeft; }); } }" x-on:click.outside="open = false" x-on:keydown.escape.window="open = false" class="relative inline-block text-left">
+                            <button x-ref="trigger" type="button" x-on:click="open = !open; if (open) place()" x-bind:aria-expanded="open" aria-haspopup="menu" aria-label="Aksi kategori" class="rounded-lg p-2 text-slate-400 hover:bg-slate-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5" aria-hidden="true"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg>
+                            </button>
+                            <div x-ref="menu" x-show="open" x-cloak x-transition x-bind:style="`top: ${top}px; left: ${left}px;`" class="fixed z-[100] w-44 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-left shadow-xl" role="menu">
+                                <button type="button" x-on:click="open=false" wire:click="openEdit({{ $category->id }})" class="block w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50" role="menuitem">Edit</button>
+                                <button type="button" x-on:click="open=false" wire:click="toggleActive({{ $category->id }})" wire:confirm="Ubah status kategori ini?" class="block w-full px-4 py-2.5 text-left text-sm {{ $category->is_active ? 'text-red-600 hover:bg-red-50' : 'text-emerald-600 hover:bg-emerald-50' }}" role="menuitem">{{ $category->is_active ? 'Disable' : 'Enable' }}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             @empty
                 <div class="p-8 text-center text-sm text-slate-400">No categories found.</div>
             @endforelse
