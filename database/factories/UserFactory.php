@@ -53,7 +53,7 @@ class UserFactory extends Factory
     {
         $tenant ??= Tenant::factory()->create();
         return $this->state(function (array $attributes) use ($tenant): array {
-            $role = $this->ensureSystemRole('tenant_admin', 'Tenant Admin', $tenant);
+            $role = $this->ensureSystemRole('tenant_admin');
             $this->syncPermissions($role, ['dashboard.view','rbac.view','users.view','users.create','users.update','users.delete','tenant-users.view','tenant-profile.view','positions.view','positions.manage','letter-types.view','outgoing-letters.view','outgoing-letters.create','outgoing-letters.update','outgoing-letters.delete','outgoing-letters.submit','outgoing-letters.validate','outgoing-letters.reject','outgoing-letters.issue','outgoing-letters.withdraw']);
             return ['role' => UserRole::TENANT_ADMIN, 'platform_role' => null, 'custom_role_id' => $role->id, 'tenant_id' => $tenant->id];
         });
@@ -63,18 +63,20 @@ class UserFactory extends Factory
     {
         $tenant ??= Tenant::factory()->create();
         return $this->state(function (array $attributes) use ($tenant): array {
-            $role = $this->ensureSystemRole('tenant_user', 'Tenant User', $tenant);
+            $role = $this->ensureSystemRole('tenant_user');
             $this->syncPermissions($role, ['dashboard.view','tenant-profile.view','positions.view','letter-types.view','outgoing-letters.view','outgoing-letters.create','outgoing-letters.update','outgoing-letters.delete','outgoing-letters.submit','outgoing-letters.validate','outgoing-letters.reject','outgoing-letters.issue','outgoing-letters.withdraw']);
             return ['role' => UserRole::TENANT_USER, 'platform_role' => null, 'custom_role_id' => $role->id, 'tenant_id' => $tenant->id];
         });
     }
 
-    private function ensureSystemRole(string $slug, string $name, Tenant $tenant): Role
+    private function ensureSystemRole(string $slug): Role
     {
-        return Role::query()->updateOrCreate(
-            ['tenant_id' => $tenant->id, 'slug' => $slug],
-            ['name' => $name, 'scope' => 'tenant', 'is_system' => true, 'is_active' => true],
-        );
+        return Role::query()
+            ->whereNull('tenant_id')
+            ->where('slug', $slug)
+            ->where('is_system', true)
+            ->where('is_active', true)
+            ->firstOrFail();
     }
 
     private function syncPermissions(Role $role, array $permissionSlugs): void
