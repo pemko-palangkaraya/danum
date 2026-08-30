@@ -28,8 +28,7 @@ class PositionService
 
     public function findByCode(string $tenantId, string $code): ?Position
     {
-        $position = Position::query()->where('code', $code)->whereHas('category.tenants', fn ($q) => $q->whereKey($tenantId))->first();
-        return $position;
+        return Position::query()->where('code', $code)->whereHas('category.tenants', fn ($q) => $q->whereKey($tenantId))->first();
     }
 
     public function getAll(string $tenantId): Collection
@@ -110,14 +109,16 @@ class PositionService
     public function getActiveHolder(Position $position): ?PositionHolder
     {
         $tenantId = auth()->user()?->tenant_id;
-        return $position->holders()->where('tenant_id', $tenantId)->whereNull('ended_at')->first();
+        $query = $position->holders()->whereNull('ended_at');
+        if ($tenantId) $query->where('tenant_id', $tenantId);
+        return $query->latest('started_at')->first();
     }
 
-    public function getHolderHistory(Position $position): Collection { return $position->holders()->with('user')->orderByDesc('started_at')->get(); }
+    public function getHolderHistory(Position $position): Collection { return $position->holders()->with('user', 'tenant')->orderByDesc('started_at')->get(); }
     public function findWithTrashed(string $id): ?Position { return $this->positionRepository->findWithTrashed($id); }
 
     public function getActiveSignatoryPositions(string $tenantId): Collection
     {
-        return Position::query()->whereHas('category.tenants', fn ($q) => $q->whereKey($tenantId))->where('status', PositionStatus::ACTIVE)->where('can_sign', true)->with(['holders.user'])->orderBy('name')->get();
+        return Position::query()->whereHas('category.tenants', fn ($q) => $q->whereKey($tenantId))->where('status', PositionStatus::ACTIVE)->where('can_sign', true)->with(['holders' => fn ($q) => $q->where('tenant_id', $tenantId)->whereNull('ended_at'), 'holders.user'])->orderBy('name')->get();
     }
 }
