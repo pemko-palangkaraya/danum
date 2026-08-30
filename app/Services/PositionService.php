@@ -41,6 +41,9 @@ class PositionService
         if (empty($data['tenant_category_id']) && !empty($data['tenant_id'])) {
             $data['tenant_category_id'] = DB::table('tenants')->where('id', $data['tenant_id'])->value('tenant_category_id');
         }
+
+        unset($data['tenant_id']);
+
         if (empty($data['tenant_category_id'])) throw new InvalidArgumentException('Tenant category is required for a position master.');
         return $this->positionRepository->create($data);
     }
