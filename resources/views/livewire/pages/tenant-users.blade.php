@@ -274,8 +274,8 @@ new #[Layout('layouts.app')] class extends Component {
             <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">User</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">NIP</th>
+                        <th class="hidden px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500 md:table-cell">User</th>
+                        <th class="hidden px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500 md:table-cell">NIP</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Role</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Status</th>
                         <th class="px-6 py-3 text-right text-xs font-semibold uppercase text-slate-500">Action</th>
@@ -284,11 +284,11 @@ new #[Layout('layouts.app')] class extends Component {
                 <tbody class="divide-y divide-slate-100">
                     @forelse($users as $user)
                         <tr>
-                            <td class="px-6 py-4">
+                            <td class="hidden px-6 py-4 md:table-cell">
                                 <div class="font-medium text-slate-900">{{ $user->name }}</div>
                                 <div class="text-xs text-slate-500">{{ $user->email }}</div>
                             </td>
-                            <td class="px-6 py-4 text-sm text-slate-700">{{ $user->nip ?: '-' }}</td>
+                            <td class="hidden px-6 py-4 text-sm text-slate-700 md:table-cell">{{ $user->nip ?: '-' }}</td>
                             <td class="px-6 py-4 text-sm font-medium text-slate-700">{{ $user->effectiveRole()?->name ?? 'Tenant User' }}</td>
                             <td class="px-6 py-4">
                                 <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $user->status === UserStatus::ACTIVE ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">{{ $user->status->value }}</span>
