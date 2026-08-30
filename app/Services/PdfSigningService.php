@@ -88,7 +88,7 @@ class PdfSigningService
             width: 70,
             height: 18,
             page: -1,
-            name: 'DANUMSignature',
+            name: 'TandaTanganElektronik',
         );
 
         $rawPdf = $pdf->getOutPDFString();
