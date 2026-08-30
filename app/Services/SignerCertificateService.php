@@ -21,7 +21,7 @@ class SignerCertificateService
         if (! $holder->user) throw new RuntimeException('User penanda tangan tidak ditemukan.');
 
         $user = $holder->user;
-        $tenantName = (string) ($position->tenant?->name ?? 'DANUM');
+        $tenantName = (string) ($holder->tenant?->name ?? 'DANUM');
         $commonName = trim($user->name) !== '' ? $user->name : (string) $user->email;
         $serial = strtoupper(bin2hex(random_bytes(16)));
         $validFrom = now()->startOfSecond();
