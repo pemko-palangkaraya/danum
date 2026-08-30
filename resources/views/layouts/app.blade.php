@@ -13,9 +13,11 @@
 <body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
     <div class="min-h-screen">
         @include('layouts.components.mobile-header')
-        <div class="flex min-h-screen">
-            @include('layouts.components.sidebar')
-            <div class="min-w-0 flex-1">
+        <div class="min-h-screen lg:flex">
+            <div class="lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:w-64">
+                @include('layouts.components.sidebar')
+            </div>
+            <div class="min-w-0 flex-1 lg:ml-64 lg:h-screen lg:overflow-y-auto">
                 @include('layouts.components.topbar')
                 <main>
                     <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
