@@ -105,50 +105,64 @@ new #[Layout('layouts.app')] class extends Component {
 
     <div class="overflow-hidden rounded-3xl bg-slate-900 shadow-xl">
         <div class="p-6 sm:p-8">
-            <div class="max-w-3xl">
-                <div class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>Data live</div>
-                <h2 class="mt-4 text-2xl font-semibold tracking-tight text-white sm:text-3xl">{{ $isSuperAdmin ? 'Pusat kendali platform DANUM.' : 'Pusat kendali '.$tenantName.'.' }}</h2>
-                <p class="mt-3 text-sm leading-6 text-slate-300">{{ $isSuperAdmin ? 'Pantau organisasi, pengguna, dan seluruh alur surat dari satu dashboard.' : 'Pantau surat, pekerjaan workflow, anggota, dan aktivitas organisasi Anda.' }}</p>
+            <div class="flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
+                <div class="max-w-2xl">
+                    <div class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>Data live</div>
+                    <h2 class="mt-4 text-2xl font-semibold tracking-tight text-white sm:text-3xl">{{ $isSuperAdmin ? 'Pusat kendali platform DANUM.' : 'Pusat kendali '.$tenantName.'.' }}</h2>
+                    <p class="mt-3 text-sm leading-6 text-slate-300">{{ $isSuperAdmin ? 'Pantau organisasi, pengguna, dan seluruh alur surat dari satu dashboard.' : 'Pantau surat, pekerjaan workflow, anggota, dan aktivitas organisasi Anda.' }}</p>
+                </div>
+
+                @php
+                    $controlCards = $isSuperAdmin ? [
+                        ['label'=>'Organisasi','value'=>$stats['tenants'],'hint'=>$stats['active_tenants'].' aktif'],
+                        ['label'=>'Pengguna','value'=>$stats['users'],'hint'=>'Seluruh platform'],
+                        ['label'=>'Surat Terbit','value'=>$stats['issued'],'hint'=>$stats['active'].' masih aktif'],
+                        ['label'=>'Perlu Perhatian','value'=>$stats['submitted'] + $stats['validated'],'hint'=>$stats['submitted'].' verifikasi · '.$stats['validated'].' siap TTE'],
+                    ] : [
+                        ['label'=>'Total Surat','value'=>$stats['letters'],'hint'=>$stats['my_letters'].' dibuat Anda'],
+                        ['label'=>'Anggota','value'=>$stats['users'],'hint'=>'Dalam organisasi'],
+                        ['label'=>'Surat Aktif','value'=>$stats['active'],'hint'=>$stats['issued'].' telah terbit'],
+                        ['label'=>'Perlu Tindakan','value'=>$stats['submitted'] + $stats['validated'],'hint'=>$stats['submitted'].' verifikasi · '.$stats['validated'].' siap TTE'],
+                    ];
+                @endphp
+
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:w-[500px] lg:shrink-0">
+                    @foreach($controlCards as $card)
+                        <div class="rounded-2xl bg-white/10 p-4 backdrop-blur-sm">
+                            <p class="text-2xl font-semibold text-white">{{ number_format($card['value']) }}</p>
+                            <p class="mt-1 text-[11px] font-medium text-slate-300">{{ $card['label'] }}</p>
+                            <p class="mt-2 text-[10px] leading-4 text-slate-500">{{ $card['hint'] }}</p>
+                        </div>
+                    @endforeach
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        @php
-            $cards = $isSuperAdmin ? [
-                ['label'=>'Organisasi','value'=>$stats['tenants'],'hint'=>$stats['active_tenants'].' organisasi aktif'],
-                ['label'=>'Pengguna','value'=>$stats['users'],'hint'=>'Seluruh platform'],
-                ['label'=>'Surat Terbit','value'=>$stats['issued'],'hint'=>$stats['active'].' surat masih aktif'],
-                ['label'=>'Perlu Perhatian','value'=>$stats['submitted'] + $stats['validated'],'hint'=>$stats['submitted'].' verifikasi · '.$stats['validated'].' siap TTE'],
-            ] : [
-                ['label'=>'Total Surat','value'=>$stats['letters'],'hint'=>$stats['my_letters'].' dibuat oleh Anda'],
-                ['label'=>'Anggota','value'=>$stats['users'],'hint'=>'Pengguna dalam organisasi'],
-                ['label'=>'Surat Aktif','value'=>$stats['active'],'hint'=>$stats['issued'].' surat telah terbit'],
-                ['label'=>'Perlu Tindakan','value'=>$stats['submitted'] + $stats['validated'],'hint'=>$stats['submitted'].' verifikasi · '.$stats['validated'].' siap TTE'],
-            ];
-        @endphp
-        @foreach($cards as $card)
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p class="text-sm font-medium text-slate-500">{{ $card['label'] }}</p><p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{{ number_format($card['value']) }}</p><p class="mt-3 text-xs text-slate-400">{{ $card['hint'] }}</p></div>
-        @endforeach
-    </div>
-
-    <div class="mt-6 grid gap-6 lg:grid-cols-3">
-        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-            <div class="flex items-center justify-between"><div><h2 class="font-semibold text-slate-900">Status workflow</h2><p class="mt-1 text-xs text-slate-500">Status surat bersifat berurutan: Draft → Verifikasi → Siap TTE → Terbit.</p></div><span class="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700">Live</span></div>
-            <div class="mt-6 grid gap-3 sm:grid-cols-4">
-                @foreach ([['label'=>'Draft','value'=>$stats['drafts']],['label'=>'Verifikasi','value'=>$stats['submitted']],['label'=>'Siap TTE','value'=>$stats['validated']],['label'=>'Terbit','value'=>$stats['issued']]] as $step)
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4"><p class="text-xs font-medium text-slate-500">{{ $step['label'] }}</p><p class="mt-2 text-2xl font-semibold text-slate-900">{{ number_format($step['value']) }}</p></div>
+    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="font-semibold text-slate-900">Status workflow</h2>
+                <p class="mt-1 text-xs text-slate-500">Status surat bersifat berurutan: Draft → Verifikasi → Siap TTE → Terbit.</p>
+            </div>
+            <span class="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700">Live</span>
+        </div>
+        <div class="mt-6 grid gap-3 sm:grid-cols-4">
+            @foreach ([['label'=>'Draft','value'=>$stats['drafts']],['label'=>'Verifikasi','value'=>$stats['submitted']],['label'=>'Siap TTE','value'=>$stats['validated']],['label'=>'Terbit','value'=>$stats['issued']]] as $step)
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p class="text-xs font-medium text-slate-500">{{ $step['label'] }}</p>
+                    <p class="mt-2 text-2xl font-semibold text-slate-900">{{ number_format($step['value']) }}</p>
+                </div>
+            @endforeach
+        </div>
+        @if($stats['letters'] > 0)
+            <div class="mt-5 flex h-2 overflow-hidden rounded-full bg-slate-100">
+                @foreach ([['value'=>$stats['drafts']],['value'=>$stats['submitted']],['value'=>$stats['validated']],['value'=>$stats['issued']]] as $segment)
+                    <span class="h-full bg-slate-900" style="width: {{ min(100, ($segment['value'] / $stats['letters']) * 100) }}%"></span>
                 @endforeach
             </div>
-            @if($stats['letters'] > 0)
-                <div class="mt-5 flex h-2 overflow-hidden rounded-full bg-slate-100">
-                    @foreach ([['value'=>$stats['drafts']],['value'=>$stats['submitted']],['value'=>$stats['validated']],['value'=>$stats['issued']]] as $segment)
-                        <span class="h-full bg-slate-900" style="width: {{ min(100, ($segment['value'] / $stats['letters']) * 100) }}%"></span>
-                    @endforeach
-                </div>
-            @endif
-        </section>
-    </div>
+        @endif
+    </section>
 
     @if($isSuperAdmin)
         <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
