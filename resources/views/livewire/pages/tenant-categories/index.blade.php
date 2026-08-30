@@ -13,13 +13,9 @@ use Livewire\WithPagination;
 new #[Layout('layouts.app')] class extends Component {
     use WithPagination;
 
+    public string $search = '';
+    public string $filter = 'active';
     public int $perPage = 5;
-
-    public function updatedPerPage(): void
-    {
-        $this->perPage = max(5, min($this->perPage, 100));
-        $this->resetPage();
-    }
     public bool $showForm = false;
     public ?int $editingId = null;
     public string $name = '';
@@ -27,120 +23,35 @@ new #[Layout('layouts.app')] class extends Component {
     public int $sort_order = 1;
     public bool $is_active = true;
 
-    public function mount(): void
-    {
+    public function mount(): void { abort_unless(auth()->user()?->isSuperAdmin(), 403); }
+    public function updatedSearch(): void { $this->resetPage(); }
+    public function updatedFilter(): void { $this->resetPage(); }
+    public function updatedPerPage(): void { $this->perPage = max(5, min($this->perPage, 100)); $this->resetPage(); }
+
+    public function openCreate(): void { $this->resetForm(); $this->sort_order = ((int) TenantCategory::query()->max('sort_order')) + 1; $this->showForm = true; }
+    public function openEdit(int $id): void { $category = TenantCategory::query()->findOrFail($id); $this->editingId=$category->id; $this->name=$category->name; $this->code=$category->code; $this->sort_order=$category->sort_order; $this->is_active=$category->is_active; $this->resetValidation(); $this->showForm=true; }
+
+    public function save(AuditLogService $auditLogService): void {
         abort_unless(auth()->user()?->isSuperAdmin(), 403);
-    }
-
-    public function openCreate(): void
-    {
-        $this->resetForm();
-        $this->sort_order = ((int) TenantCategory::query()->max('sort_order')) + 1;
-        $this->showForm = true;
-    }
-
-    public function openEdit(int $id): void
-    {
-        $category = TenantCategory::query()->findOrFail($id);
-        $this->editingId = $category->id;
-        $this->name = $category->name;
-        $this->code = $category->code;
-        $this->sort_order = $category->sort_order;
-        $this->is_active = $category->is_active;
-        $this->resetValidation();
-        $this->showForm = true;
-    }
-
-    public function save(AuditLogService $auditLogService): void
-    {
-        abort_unless(auth()->user()?->isSuperAdmin(), 403);
-
-        Validator::make(
-            [
-                'name' => $this->name,
-                'code' => $this->code,
-                'sort_order' => $this->sort_order,
-                'is_active' => $this->is_active,
-            ],
-            [
-                'name' => ['required', 'string', 'max:150'],
-                'code' => ['required', 'string', 'max:50', 'alpha_dash'],
-                'sort_order' => ['required', 'integer', 'min:1', 'max:65535'],
-                'is_active' => ['boolean'],
-            ],
-        )->validate();
-
-        $category = $this->editingId
-            ? TenantCategory::query()->findOrFail($this->editingId)
-            : new TenantCategory();
-
-        $old = $category->exists ? [
-            'code' => $category->code,
-            'name' => $category->name,
-            'sort_order' => $category->sort_order,
-            'is_active' => $category->is_active,
-        ] : null;
-
-        $category->fill([
-            'name' => trim($this->name),
-            'code' => Str::slug(trim($this->code)),
-            'sort_order' => $this->sort_order,
-            'is_active' => $this->is_active,
-        ]);
+        Validator::make(['name'=>$this->name,'code'=>$this->code,'sort_order'=>$this->sort_order,'is_active'=>$this->is_active], ['name'=>['required','string','max:150'],'code'=>['required','string','max:50','alpha_dash'],'sort_order'=>['required','integer','min:1','max:65535'],'is_active'=>['boolean']])->validate();
+        $category = $this->editingId ? TenantCategory::query()->findOrFail($this->editingId) : new TenantCategory();
+        $old = $category->exists ? ['code'=>$category->code,'name'=>$category->name,'sort_order'=>$category->sort_order,'is_active'=>$category->is_active] : null;
+        $category->fill(['name'=>trim($this->name),'code'=>Str::slug(trim($this->code)),'sort_order'=>$this->sort_order,'is_active'=>$this->is_active]);
         $category->save();
-
-        $auditLogService->record(
-            action: $category->wasRecentlyCreated ? 'tenant-category.created' : 'tenant-category.updated',
-            user: auth()->user(),
-            auditable: $category,
-            oldValues: $old,
-            newValues: [
-                'code' => $category->code,
-                'name' => $category->name,
-                'sort_order' => $category->sort_order,
-                'is_active' => $category->is_active,
-            ],
-        );
-
-        $this->resetForm();
-        $this->dispatch('toast', type: 'success', message: 'Kategori tenant berhasil disimpan.');
+        $auditLogService->record(action:$category->wasRecentlyCreated?'tenant-category.created':'tenant-category.updated',user:auth()->user(),auditable:$category,oldValues:$old,newValues:['code'=>$category->code,'name'=>$category->name,'sort_order'=>$category->sort_order,'is_active'=>$category->is_active]);
+        $this->resetForm(); $this->dispatch('toast',type:'success',message:'Kategori tenant berhasil disimpan.');
     }
 
-    public function toggleActive(int $id, AuditLogService $auditLogService): void
-    {
-        abort_unless(auth()->user()?->isSuperAdmin(), 403);
-        $category = TenantCategory::query()->findOrFail($id);
-        $old = $category->is_active;
-        $category->update(['is_active' => ! $old]);
-
-        $auditLogService->record(
-            action: 'tenant-category.status_updated',
-            user: auth()->user(),
-            auditable: $category,
-            oldValues: ['is_active' => $old],
-            newValues: ['is_active' => $category->is_active],
-        );
-
-        $this->dispatch('toast', type: 'success', message: 'Status kategori diperbarui.');
+    public function toggleActive(int $id, AuditLogService $auditLogService): void {
+        abort_unless(auth()->user()?->isSuperAdmin(), 403); $category=TenantCategory::query()->findOrFail($id); $old=$category->is_active; $category->update(['is_active'=>!$old]);
+        $auditLogService->record(action:'tenant-category.status_updated',user:auth()->user(),auditable:$category,oldValues:['is_active'=>$old],newValues:['is_active'=>$category->is_active]);
+        $this->dispatch('toast',type:'success',message:'Status kategori diperbarui.');
     }
 
-    public function resetForm(): void
-    {
-        $this->showForm = false;
-        $this->editingId = null;
-        $this->name = '';
-        $this->code = '';
-        $this->sort_order = 1;
-        $this->is_active = true;
-        $this->resetValidation();
-    }
+    public function resetForm(): void { $this->showForm=false; $this->editingId=null; $this->name=''; $this->code=''; $this->sort_order=1; $this->is_active=true; $this->resetValidation(); }
 
-    public function categories()
-    {
-        return TenantCategory::query()
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->paginate($this->perPage);
+    public function categories() {
+        return TenantCategory::query()->when($this->search !== '', fn($q)=>$q->where(fn($q)=>$q->where('name','ilike','%'.$this->search.'%')->orWhere('code','ilike','%'.$this->search.'%')))->when($this->filter==='active',fn($q)=>$q->where('is_active',true))->when($this->filter==='inactive',fn($q)=>$q->where('is_active',false))->orderBy('sort_order')->orderBy('name')->paginate($this->perPage);
     }
 };
 ?>
@@ -148,114 +59,66 @@ new #[Layout('layouts.app')] class extends Component {
 <div class="space-y-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-            <p class="text-sm text-slate-500">Master Data</p>
-            <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Tenant Categories</h1>
-            <p class="mt-1 max-w-3xl text-sm text-slate-500">Kelola kategori organisasi yang dapat digunakan seluruh tenant di DANUM.</p>
+            <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Tenant Categories</h1>
+            <p class="mt-1 text-sm text-slate-500">Kelola kategori organisasi yang menggunakan DANUM.</p>
         </div>
-        <button type="button" wire:click="openCreate" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">+ Tambah Kategori</button>
+        <button type="button" wire:click="openCreate" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800">＋ Add Category</button>
     </div>
 
-    @php($categories = $this->categories())
+    @php($categories=$this->categories())
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div class="border-b border-slate-100 px-4 py-3">
-            <h2 class="text-sm font-semibold text-slate-900">Daftar Kategori</h2>
+        <div class="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex rounded-xl bg-slate-100 p-1">
+                <button type="button" wire:click="$set('filter','active')" class="rounded-lg px-4 py-2 text-sm font-medium {{ $filter==='active' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500' }}">Active</button>
+                <button type="button" wire:click="$set('filter','inactive')" class="rounded-lg px-4 py-2 text-sm font-medium {{ $filter==='inactive' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500' }}">Inactive</button>
+            </div>
+            <div class="relative w-full sm:w-80">
+                <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">⌕</span>
+                <input wire:model.live.debounce.300ms="search" type="search" placeholder="Search category..." class="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-700 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100">
+            </div>
         </div>
+
         <div class="hidden overflow-x-auto lg:block">
-            <table class="min-w-full divide-y divide-slate-200">
+            <table class="min-w-full">
                 <thead class="bg-slate-50">
                     <tr>
-                        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Urutan</th>
-                        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Kode</th>
-                        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Kategori</th>
-                        <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
-                        <th class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Aksi</th>
+                        <th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Code</th>
+                        <th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Category</th>
+                        <th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Sort Order</th>
+                        <th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Status</th>
+                        <th class="px-5 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Action</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
-                    @foreach($categories as $category)
-                        <tr>
+                    @forelse($categories as $category)
+                        <tr class="hover:bg-slate-50/70">
+                            <td class="px-5 py-4 text-sm font-semibold text-slate-700">{{ $category->code }}</td>
+                            <td class="px-5 py-4"><div class="text-sm font-semibold text-slate-900">{{ $category->name }}</div><div class="mt-0.5 text-xs text-slate-400">Tenant category</div></td>
                             <td class="px-5 py-4 text-sm text-slate-600">{{ $category->sort_order }}</td>
-                            <td class="px-5 py-4 font-mono text-xs text-slate-500">{{ $category->code }}</td>
-                            <td class="px-5 py-4 text-sm font-medium text-slate-900">{{ $category->name }}</td>
-                            <td class="px-5 py-4 text-sm">{{ $category->is_active ? 'Aktif' : 'Nonaktif' }}</td>
-                            <td class="px-5 py-4 text-right">
-                                <div class="inline-flex gap-2">
-                                    <button type="button" wire:click="openEdit({{ $category->id }})" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">Edit</button>
-                                    <button type="button" wire:click="toggleActive({{ $category->id }})" wire:confirm="Ubah status kategori ini?" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">{{ $category->is_active ? 'Nonaktifkan' : 'Aktifkan' }}</button>
-                                </div>
-                            </td>
+                            <td class="px-5 py-4"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $category->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">{{ $category->is_active ? 'Active' : 'Inactive' }}</span></td>
+                            <td class="px-5 py-4 text-right"><div class="inline-flex items-center gap-2"><button type="button" wire:click="openEdit({{ $category->id }})" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Edit</button><button type="button" wire:click="toggleActive({{ $category->id }})" wire:confirm="Ubah status kategori ini?" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">{{ $category->is_active ? 'Disable' : 'Enable' }}</button></div></td>
                         </tr>
-                    @endforeach
+                    @empty
+                        <tr><td colspan="5" class="px-5 py-12 text-center text-sm text-slate-400">No categories found.</td></tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>
 
         <div class="divide-y divide-slate-100 lg:hidden">
-            @foreach($categories as $category)
-                <div class="flex items-center justify-between gap-3 p-4">
-                    <div class="min-w-0 flex-1">
-                        <div class="truncate text-sm font-semibold text-slate-900">{{ $category->name }}</div>
-                        <div class="mt-0.5 text-xs text-slate-500">{{ $category->code }} · Urutan {{ $category->sort_order }}</div>
-                    </div>
-                    <div class="shrink-0">
-                        <div x-data="{open:false}" class="relative">
-                            <button type="button" @click="open=!open" aria-label="Aksi kategori" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100">⋮</button>
-                            <div x-show="open" x-cloak @click.outside="open=false" class="absolute right-0 z-20 mt-2 w-40 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-                                <button type="button" @click="open=false" wire:click="openEdit({{ $category->id }})" class="block w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50">Edit</button>
-                                <button type="button" @click="open=false" wire:click="toggleActive({{ $category->id }})" class="block w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50">{{ $category->is_active ? 'Nonaktifkan' : 'Aktifkan' }}</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            @endforeach
+            @forelse($categories as $category)
+                <div class="flex items-center justify-between gap-3 p-4"><div class="min-w-0"><div class="text-sm font-semibold text-slate-900">{{ $category->name }}</div><div class="mt-1 text-xs text-slate-500">{{ $category->code }} · {{ $category->sort_order }}</div></div><span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $category->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">{{ $category->is_active ? 'Active' : 'Inactive' }}</span></div>
+            @empty
+                <div class="p-8 text-center text-sm text-slate-400">No categories found.</div>
+            @endforelse
         </div>
-        @if ($categories->count())
-            <div class="border-t border-slate-200 bg-slate-50 px-4 py-3 sm:px-6">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div class="flex items-center justify-between gap-4 sm:justify-start">
-                        <div class="flex items-center gap-2">
-                            <label for="tenant-category-per-page" class="text-xs text-slate-500">Show</label>
-                            <select id="tenant-category-per-page" wire:model.live="perPage" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100">
-                                <option value="5">5</option>
-                                <option value="10">10</option>
-                                <option value="25">25</option>
-                                <option value="50">50</option>
-                            </select>
-                        </div>
-                        <p class="text-xs text-slate-500">
-                            Showing {{ $categories->firstItem() }} – {{ $categories->lastItem() }} of {{ $categories->total() }} categories
-                        </p>
-                    </div>
-                    <x-ui.pagination :paginator="$categories" />
-                </div>
-            </div>
+
+        @if($categories->count())
+            <div class="border-t border-slate-200 bg-slate-50 px-4 py-3 sm:px-6"><div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div class="flex items-center gap-4"><div class="flex items-center gap-2"><label for="category-per-page" class="text-xs text-slate-500">Show</label><select id="category-per-page" wire:model.live="perPage" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700"><option value="5">5</option><option value="10">10</option><option value="25">25</option><option value="50">50</option></select></div><p class="text-xs text-slate-500">Showing {{ $categories->firstItem() }} – {{ $categories->lastItem() }} of {{ $categories->total() }} categories</p></div><x-ui.pagination :paginator="$categories" /></div></div>
         @endif
     </div>
 
     @if($showForm)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" wire:keydown.escape="resetForm">
-            <div class="absolute inset-0" wire:click="resetForm"></div>
-            <section class="relative z-10 w-full max-w-lg rounded-2xl bg-white shadow-2xl">
-                <div class="flex items-start justify-between border-b border-slate-100 px-5 py-4">
-                    <div>
-                        <h2 class="text-lg font-semibold text-slate-900">{{ $editingId ? 'Edit Kategori' : 'Tambah Kategori' }}</h2>
-                        <p class="mt-1 text-sm text-slate-500">Master kategori dapat dikembangkan tanpa mengubah struktur tenant.</p>
-                    </div>
-                    <button type="button" wire:click="resetForm" aria-label="Tutup" class="flex h-9 w-9 items-center justify-center rounded-lg text-2xl text-slate-400 hover:bg-slate-100 hover:text-slate-700">&times;</button>
-                </div>
-                <form wire:submit="save" class="space-y-4 p-5">
-                    <div><label class="text-sm font-medium text-slate-700">Nama</label><input wire:model="name" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm">@error('name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                    <div><label class="text-sm font-medium text-slate-700">Kode</label><input wire:model="code" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm">@error('code')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <div><label class="text-sm font-medium text-slate-700">Urutan</label><input wire:model="sort_order" type="number" min="1" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"></div>
-                        <label class="flex items-center gap-2 pt-7 text-sm text-slate-700"><input type="checkbox" wire:model="is_active" class="rounded border-slate-300"> Aktif</label>
-                    </div>
-                    <div class="flex justify-end gap-2 border-t border-slate-100 pt-4">
-                        <button type="button" wire:click="resetForm" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700">Batal</button>
-                        <button type="submit" wire:loading.attr="disabled" class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white"><span wire:loading.remove>Simpan</span><span wire:loading>Menyimpan...</span></button>
-                    </div>
-                </form>
-            </section>
-        </div>
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"><div class="absolute inset-0" wire:click="resetForm"></div><section class="relative z-10 w-full max-w-lg rounded-2xl bg-white shadow-2xl"><div class="flex items-start justify-between border-b border-slate-100 px-5 py-4"><div><h2 class="text-lg font-semibold text-slate-900">{{ $editingId ? 'Edit Kategori' : 'Tambah Kategori' }}</h2><p class="mt-1 text-sm text-slate-500">Master kategori tenant.</p></div><button type="button" wire:click="resetForm" class="text-2xl text-slate-400">&times;</button></div><form wire:submit="save" class="space-y-4 p-5"><div><label class="text-sm font-medium text-slate-700">Nama</label><input wire:model="name" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm">@error('name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div><div><label class="text-sm font-medium text-slate-700">Kode</label><input wire:model="code" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm">@error('code')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div><div class="grid gap-4 sm:grid-cols-2"><div><label class="text-sm font-medium text-slate-700">Urutan</label><input wire:model="sort_order" type="number" min="1" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"></div><label class="flex items-center gap-2 pt-7 text-sm text-slate-700"><input type="checkbox" wire:model="is_active" class="rounded border-slate-300"> Aktif</label></div><div class="flex justify-end gap-2 border-t border-slate-100 pt-4"><button type="button" wire:click="resetForm" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700">Batal</button><button type="submit" class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white">Simpan</button></div></form></section></div>
     @endif
 </div>
