@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\UserStatus;
 use App\Events\UserStatusChanged;
+use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
@@ -35,6 +36,7 @@ class UserService
 
     public function create(array $data): User
     {
+        $data = $this->normalizeSystemRole($data);
         $user = $this->userRepository->create($data);
 
         $this->auditLogService->record(
@@ -50,6 +52,7 @@ class UserService
 
     public function update(User $user, array $data): User
     {
+        $data = $this->normalizeSystemRole($data);
         $oldStatus = $user->status;
         $newStatus = $data['status'] ?? $oldStatus;
         $oldValues = $this->auditValues($user);
@@ -67,16 +70,8 @@ class UserService
             tenantId: $updatedUser->tenant_id,
         );
 
-        if (
-            $oldStatus === UserStatus::ACTIVE
-            && $newStatus === UserStatus::INACTIVE
-        ) {
-            UserStatusChanged::dispatch(
-                $updatedUser,
-                $oldStatus,
-                $newStatus,
-                $changedAt
-            );
+        if ($oldStatus === UserStatus::ACTIVE && $newStatus === UserStatus::INACTIVE) {
+            UserStatusChanged::dispatch($updatedUser, $oldStatus, $newStatus, $changedAt);
         }
 
         return $updatedUser;
@@ -97,6 +92,37 @@ class UserService
         }
 
         return $deleted;
+    }
+
+    private function normalizeSystemRole(array $data): array
+    {
+        $role = $data['role'] ?? null;
+        $tenantId = $data['tenant_id'] ?? null;
+
+        if ($tenantId !== null && in_array($role, ['tenant_admin', 'tenant_user'], true) && empty($data['custom_role_id'])) {
+            $systemRole = Role::query()
+                ->where('slug', $role)
+                ->where('is_system', true)
+                ->where('is_active', true)
+                ->where(function ($query) use ($tenantId) {
+                    $query->whereNull('tenant_id')->orWhere('tenant_id', $tenantId);
+                })
+                ->orderByRaw('CASE WHEN tenant_id = ? THEN 0 ELSE 1 END', [$tenantId])
+                ->first();
+
+            if ($systemRole !== null) {
+                $data['platform_role'] = null;
+                $data['custom_role_id'] = $systemRole->getKey();
+            }
+        }
+
+        if ($role === 'super_admin') {
+            $data['platform_role'] = 'super_admin';
+            $data['tenant_id'] = null;
+            $data['custom_role_id'] = null;
+        }
+
+        return $data;
     }
 
     private function actor(): ?User
