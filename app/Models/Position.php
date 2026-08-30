@@ -36,7 +36,18 @@ class Position extends Model
 
     public function category(): BelongsTo { return $this->belongsTo(TenantCategory::class, 'tenant_category_id'); }
     public function holders(): HasMany { return $this->hasMany(PositionHolder::class); }
-    public function signerCertificates(): HasMany { return $this->hasMany(SignerCertificate::class); }
+
+    public function signerCertificates(): HasMany
+    {
+        $relation = $this->hasMany(SignerCertificate::class);
+        $user = auth()->user();
+
+        if ($user && ! $user->isSuperAdmin() && $user->tenant_id) {
+            $relation->whereHas('user', fn ($query) => $query->where('tenant_id', $user->tenant_id));
+        }
+
+        return $relation;
+    }
 
     public function activeSignerCertificate(): ?SignerCertificate
     {
