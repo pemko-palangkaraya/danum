@@ -15,31 +15,18 @@ class PositionHolder extends Model
     use HasUuids;
 
     protected $keyType = 'string';
-
     public $incrementing = false;
 
     protected $fillable = [
-        'position_id',
-        'user_id',
-        'started_at',
-        'ended_at',
+        'position_id', 'tenant_id', 'user_id', 'started_at', 'ended_at',
     ];
 
     protected function casts(): array
     {
-        return [
-            'started_at' => 'datetime',
-            'ended_at' => 'datetime',
-        ];
+        return ['started_at' => 'datetime', 'ended_at' => 'datetime'];
     }
 
-    public function position(): BelongsTo
-    {
-        return $this->belongsTo(Position::class);
-    }
-
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
+    public function position(): BelongsTo { return $this->belongsTo(Position::class); }
+    public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
+    public function user(): BelongsTo { return $this->belongsTo(User::class); }
 }
