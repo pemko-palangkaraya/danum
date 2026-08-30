@@ -11,6 +11,7 @@ use App\Services\SignerPinService;
 use App\Services\UserService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
@@ -19,7 +20,6 @@ new #[Layout('layouts.app')] class extends Component {
     use WithPagination;
 
     public int $perPage = 10;
-    
     public function updatedPerPage(): void { $this->resetPage(); }
     public string $tenantId = '';
     public string $name = '';
@@ -72,7 +72,6 @@ new #[Layout('layouts.app')] class extends Component {
     {
         $user = User::query()->where('tenant_id', $this->tenantId)->findOrFail($this->signerPinUserId);
         $this->authorize('update', $user);
-
         $validated = Validator::make([
             'signerPin' => $this->signerPin,
             'signerPinConfirmation' => $this->signerPinConfirmation,
@@ -85,17 +84,8 @@ new #[Layout('layouts.app')] class extends Component {
             'signerPinConfirmation.required' => 'Konfirmasi PIN wajib diisi.',
             'signerPinConfirmation.same' => 'Konfirmasi PIN tidak sama.',
         ])->validate();
-
         $pinService->set($user, $validated['signerPin']);
-
-        $auditLogService->record(
-            action: 'signer_pin.updated',
-            user: auth()->user(),
-            auditable: $user,
-            newValues: ['configured' => true],
-            tenantId: $user->tenant_id,
-        );
-
+        $auditLogService->record(action: 'signer_pin.updated', user: auth()->user(), auditable: $user, newValues: ['configured' => true], tenantId: $user->tenant_id);
         $this->showSignerPin = false;
         $this->signerPin = '';
         $this->signerPinConfirmation = '';
@@ -110,7 +100,16 @@ new #[Layout('layouts.app')] class extends Component {
             $user = User::query()->where('tenant_id', $this->tenantId)->findOrFail($this->editingUserId);
             $this->authorize('update', $user);
             if ($this->password === '') unset($data['password']);
-            $validated = Validator::make($data, (new UpdateUserRequest())->rules())->validate();
+
+            $rules = (new UpdateUserRequest())->rules();
+            $rules['email'] = [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($user->getKey()),
+            ];
+
+            $validated = Validator::make($data, $rules)->validate();
             if (isset($validated['password'])) $validated['password'] = Hash::make($validated['password']);
             $userService->update($user, $validated);
         } else {
@@ -171,15 +170,9 @@ new #[Layout('layouts.app')] class extends Component {
     @if($showSignerPin)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" wire:click.self="$set('showSignerPin', false)">
             <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-                <div class="flex items-start justify-between gap-4">
-                    <div><h2 class="text-lg font-semibold text-slate-900">PIN Tanda Tangan</h2><p class="mt-1 text-sm text-slate-500">Credential signing untuk {{ $signerPinUserName }}.</p></div>
-                    <button type="button" wire:click="$set('showSignerPin', false)" class="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100">✕</button>
-                </div>
+                <div class="flex items-start justify-between gap-4"><div><h2 class="text-lg font-semibold text-slate-900">PIN Tanda Tangan</h2><p class="mt-1 text-sm text-slate-500">Credential signing untuk {{ $signerPinUserName }}.</p></div><button type="button" wire:click="$set('showSignerPin', false)" class="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100">✕</button></div>
                 <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">PIN ini berbeda dari password login. PIN hanya digunakan untuk mengotorisasi tindakan tanda tangan elektronik dan tidak dapat dilihat kembali setelah disimpan.</div>
-                <div class="mt-5 space-y-4">
-                    <div><label class="text-sm font-medium text-slate-700">PIN baru</label><input wire:model="signerPin" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm tracking-[0.4em]" placeholder="••••••">@error('signerPin')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                    <div><label class="text-sm font-medium text-slate-700">Konfirmasi PIN</label><input wire:model="signerPinConfirmation" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm tracking-[0.4em]" placeholder="••••••">@error('signerPinConfirmation')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                </div>
+                <div class="mt-5 space-y-4"><div><label class="text-sm font-medium text-slate-700">PIN baru</label><input wire:model="signerPin" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm tracking-[0.4em]" placeholder="••••••">@error('signerPin')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div><div><label class="text-sm font-medium text-slate-700">Konfirmasi PIN</label><input wire:model="signerPinConfirmation" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm tracking-[0.4em]" placeholder="••••••">@error('signerPinConfirmation')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div></div>
                 <div class="mt-6 flex justify-end gap-2"><button type="button" wire:click="$set('showSignerPin', false)" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700">Batal</button><button type="button" wire:click="saveSignerPin" wire:loading.attr="disabled" class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Simpan PIN</button></div>
             </div>
         </div>
