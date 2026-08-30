@@ -10,11 +10,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('positions', function (Blueprint $table): void {
-            $table->boolean('can_validate')->default(false)->after('can_sign');
-            $table->index(['tenant_id', 'status', 'can_validate']);
-        });
-
         Schema::table('outgoing_letters', function (Blueprint $table): void {
             $table->foreignUuid('validator_position_id')
                 ->nullable()
@@ -28,7 +23,6 @@ return new class extends Migration
                 ->nullOnDelete();
             $table->string('validator_name', 150)->nullable()->after('validator_user_id');
             $table->string('validator_title', 255)->nullable()->after('validator_name');
-
             $table->index(['tenant_id', 'validator_user_id']);
         });
     }
@@ -45,11 +39,6 @@ return new class extends Migration
                 'validator_name',
                 'validator_title',
             ]);
-        });
-
-        Schema::table('positions', function (Blueprint $table): void {
-            $table->dropIndex(['tenant_id', 'status', 'can_validate']);
-            $table->dropColumn('can_validate');
         });
     }
 };
