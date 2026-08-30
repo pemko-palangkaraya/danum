@@ -45,6 +45,8 @@ class PdfSigningServiceTest extends TestCase
             $signedPdf = Storage::disk('local')->get($signedPath);
             $this->assertStringStartsWith('%PDF-', $signedPdf);
             $this->assertStringContainsString('/ETSI.CAdES.detached', $signedPdf);
+            $this->assertStringContainsString('TandaTanganElektronik', $signedPdf);
+            $this->assertStringNotContainsString('DANUMSignature', $signedPdf);
             $this->assertNotSame(file_get_contents($sourcePath), $signedPdf);
         } finally {
             @unlink($sourcePath);
