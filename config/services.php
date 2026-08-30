@@ -40,7 +40,9 @@ return [
     ],
 
     'tsa' => [
-        'url' => env('DANUM_TSA_URL', 'https://freetsa.org/tsr'),
+        // Sectigo exposes an RFC 3161 TSA over HTTPS and supports SHA-256.
+        // Keep this configurable so production can use an institutional TSA.
+        'url' => env('DANUM_TSA_URL', 'https://timestamp.sectigo.com'),
         'username' => env('DANUM_TSA_USERNAME', ''),
         'password' => env('DANUM_TSA_PASSWORD', ''),
         'certificate' => env('DANUM_TSA_CERTIFICATE', ''),
