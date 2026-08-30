@@ -20,11 +20,12 @@ return new class extends Migration
 
         Schema::table('positions', function (Blueprint $table): void {
             $table->foreign('tenant_category_id')->references('id')->on('tenant_categories')->restrictOnDelete();
-            $table->dropUnique('positions_tenant_id_code_unique');
-            $table->dropIndex('positions_tenant_id_status_index');
-            $table->dropForeign(['tenant_id']);
-            $table->dropColumn('tenant_id');
         });
+
+        DB::statement('ALTER TABLE positions ALTER COLUMN tenant_id DROP NOT NULL');
+        DB::statement('ALTER TABLE positions DROP CONSTRAINT IF EXISTS positions_tenant_id_code_unique');
+        DB::statement('DROP INDEX IF EXISTS positions_tenant_id_status_index');
+        DB::statement('CREATE UNIQUE INDEX positions_category_code_unique ON positions (tenant_category_id, code) WHERE deleted_at IS NULL');
 
         Schema::table('position_holders', function (Blueprint $table): void {
             $table->uuid('tenant_id')->nullable()->after('position_id');
