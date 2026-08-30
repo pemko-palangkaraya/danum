@@ -6,7 +6,7 @@ namespace Database\Factories;
 
 use App\Enums\PositionStatus;
 use App\Models\Position;
-use App\Models\Tenant;
+use App\Models\TenantCategory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -19,7 +19,7 @@ class PositionFactory extends Factory
     public function definition(): array
     {
         return [
-            'tenant_id' => Tenant::factory(),
+            'tenant_category_id' => TenantCategory::query()->where('code', 'lainnya')->value('id'),
             'code' => fake()->unique()->bothify('POS-###'),
             'name' => fake()->jobTitle(),
             'description' => fake()->optional()->sentence(),
@@ -29,7 +29,12 @@ class PositionFactory extends Factory
         ];
     }
 
-    public function signatory(): static { return $this->state(fn(): array => ['can_sign' => true]); }
-    public function validator(): static { return $this->state(fn(): array => ['can_validate' => true]); }
-    public function inactive(): static { return $this->state(fn(): array => ['status' => PositionStatus::INACTIVE]); }
+    public function forCategory(TenantCategory $category): static
+    {
+        return $this->state(fn (): array => ['tenant_category_id' => $category->id]);
+    }
+
+    public function signatory(): static { return $this->state(fn (): array => ['can_sign' => true]); }
+    public function validator(): static { return $this->state(fn (): array => ['can_validate' => true]); }
+    public function inactive(): static { return $this->state(fn (): array => ['status' => PositionStatus::INACTIVE]); }
 }
