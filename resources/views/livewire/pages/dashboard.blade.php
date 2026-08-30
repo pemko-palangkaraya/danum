@@ -1,7 +1,98 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Enums\OutgoingLetterStatus;
+use App\Enums\TenantStatus;
+use App\Models\AuditLog;
+use App\Models\OutgoingLetter;
+use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
+use Livewire\Attributes\Layout;
+use Livewire\Volt\Component;
+
+new #[Layout('layouts.app')] class extends Component {
+    public function with(): array
+    {
+        $user = auth()->user();
+        $isSuperAdmin = $user->isSuperAdmin();
+
+        $letters = OutgoingLetter::query();
+
+        if (! $isSuperAdmin) {
+            $letters->where('tenant_id', $user->tenant_id);
+        }
+
+        $base = clone $letters;
+        $drafts = (clone $base)->where('status', OutgoingLetterStatus::DRAFT);
+        $submitted = (clone $base)->whereNotNull('submitted_at');
+        $validated = (clone $base)->where('status', OutgoingLetterStatus::VALIDATED);
+        $issued = (clone $base)->where('status', OutgoingLetterStatus::ISSUED);
+
+        $stats = [
+            'letters' => $base->count(),
+            'drafts' => $drafts->count(),
+            'submitted' => $submitted->count(),
+            'validated' => $validated->count(),
+            'issued' => $issued->count(),
+            'active' => (clone $issued)->where(function (Builder $query): void {
+                $query->whereNull('valid_from')->orWhere('valid_from', '<=', now());
+            })->where(function (Builder $query): void {
+                $query->whereNull('valid_until')->orWhere('valid_until', '>', now());
+            })->count(),
+        ];
+
+        if ($isSuperAdmin) {
+            $stats['tenants'] = Tenant::query()->count();
+            $stats['active_tenants'] = Tenant::query()->where('status', TenantStatus::ACTIVE)->count();
+            $stats['users'] = User::query()->count();
+        } else {
+            $stats['users'] = User::query()->where('tenant_id', $user->tenant_id)->count();
+            $stats['my_letters'] = (clone $base)->where('created_by', $user->id)->count();
+            $stats['my_submitted'] = (clone $base)->where('created_by', $user->id)->whereNotNull('submitted_at')->count();
+            $stats['my_validated'] = (clone $base)->where('created_by', $user->id)->where('status', OutgoingLetterStatus::VALIDATED)->count();
+        }
+
+        $recentLetters = (clone $base)
+            ->with(['creator', 'tenant'])
+            ->latest('updated_at')
+            ->limit(6)
+            ->get();
+
+        $activityQuery = AuditLog::query()->with(['user', 'tenant'])->latest('created_at');
+        if (! $isSuperAdmin) {
+            $activityQuery->where('tenant_id', $user->tenant_id);
+        }
+        $activities = $activityQuery->limit(6)->get();
+
+        $tenantBreakdown = collect();
+        if ($isSuperAdmin) {
+            $tenantBreakdown = Tenant::query()
+                ->withCount(['users'])
+                ->orderByDesc('created_at')
+                ->limit(6)
+                ->get()
+                ->map(function (Tenant $tenant): array {
+                    $letters = OutgoingLetter::query()->where('tenant_id', $tenant->id);
+                    return [
+                        'name' => $tenant->name,
+                        'status' => $tenant->status->label(),
+                        'users' => $tenant->users_count,
+                        'letters' => (clone $letters)->count(),
+                        'issued' => (clone $letters)->where('status', OutgoingLetterStatus::ISSUED)->count(),
+                    ];
+                });
+        }
+
+        return compact('isSuperAdmin', 'stats', 'recentLetters', 'activities', 'tenantBreakdown');
+    }
+};
+?>
+
 <div>
     @php
         $user = auth()->user();
-        $isSuperAdmin = $user->isSuperAdmin();
         $tenant = $user->tenant;
         $tenantName = $tenant?->name ?? 'Seluruh Tenant';
     @endphp
@@ -10,7 +101,9 @@
         <div>
             <p class="text-sm font-medium text-slate-400">{{ $isSuperAdmin ? 'Platform Administration' : 'Workspace' }}</p>
             <h1 class="mt-1 text-3xl font-semibold tracking-tight text-slate-900">Dashboard</h1>
-            <p class="mt-2 text-sm text-slate-500">Selamat datang, {{ $user->name }}. Berikut ringkasan aktivitas {{ $isSuperAdmin ? 'DANUM' : 'organisasi Anda' }}.</p>
+            <p class="mt-2 text-sm text-slate-500">
+                Selamat datang, {{ $user->name }}. Ringkasan ini diperbarui dari kondisi {{ $isSuperAdmin ? 'platform DANUM' : 'organisasi '.$tenantName }}.
+            </p>
         </div>
         <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{{ $isSuperAdmin ? 'Scope' : 'Organisasi' }}</p>
@@ -24,16 +117,27 @@
                 <div class="max-w-2xl">
                     <div class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">
                         <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-                        Sistem aktif
+                        Data live
                     </div>
-                    <h2 class="mt-4 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Pusat kendali administrasi surat digital.</h2>
-                    <p class="mt-3 text-sm leading-6 text-slate-300">Kelola alur surat, verifikasi, penandatanganan, jabatan, dan akses dari satu tempat.</p>
+                    <h2 class="mt-4 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                        {{ $isSuperAdmin ? 'Pusat kendali platform DANUM.' : 'Pusat kendali '.$tenantName.'.' }}
+                    </h2>
+                    <p class="mt-3 text-sm leading-6 text-slate-300">
+                        {{ $isSuperAdmin ? 'Pantau organisasi, pengguna, dan seluruh alur surat dari satu dashboard.' : 'Pantau surat, pekerjaan workflow, anggota, dan aktivitas organisasi Anda.' }}
+                    </p>
                 </div>
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:w-[420px]">
-                    <div class="rounded-2xl bg-white/10 p-4"><p class="text-2xl font-semibold text-white">—</p><p class="mt-1 text-[11px] text-slate-400">Surat</p></div>
-                    <div class="rounded-2xl bg-white/10 p-4"><p class="text-2xl font-semibold text-white">—</p><p class="mt-1 text-[11px] text-slate-400">Draft</p></div>
-                    <div class="rounded-2xl bg-white/10 p-4"><p class="text-2xl font-semibold text-white">—</p><p class="mt-1 text-[11px] text-slate-400">Terbit</p></div>
-                    <div class="rounded-2xl bg-white/10 p-4"><p class="text-2xl font-semibold text-white">—</p><p class="mt-1 text-[11px] text-slate-400">Aktif</p></div>
+                    @foreach ([
+                        [$isSuperAdmin ? 'Organisasi' : 'Surat', $isSuperAdmin ? $stats['tenants'] : $stats['letters']],
+                        [$isSuperAdmin ? 'Pengguna' : 'Draft', $isSuperAdmin ? $stats['users'] : $stats['drafts']],
+                        [$isSuperAdmin ? 'Surat Terbit' : 'Verifikasi', $isSuperAdmin ? $stats['issued'] : $stats['submitted']],
+                        ['Aktif', $stats['active']],
+                    ] as $item)
+                        <div class="rounded-2xl bg-white/10 p-4">
+                            <p class="text-2xl font-semibold text-white">{{ number_format($item[1]) }}</p>
+                            <p class="mt-1 text-[11px] text-slate-400">{{ $item[0] }}</p>
+                        </div>
+                    @endforeach
                 </div>
             </div>
         </div>
@@ -41,13 +145,22 @@
 
     <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         @php
-            $cards = $isSuperAdmin
-                ? [['label'=>'Organisasi','value'=>'—','hint'=>'Tenant terdaftar','icon'=>'building'],['label'=>'Pengguna','value'=>'—','hint'=>'Seluruh platform','icon'=>'users'],['label'=>'Surat Terbit','value'=>'—','hint'=>'Seluruh tenant','icon'=>'document'],['label'=>'Aktivitas','value'=>'—','hint'=>'Audit terbaru','icon'=>'activity']]
-                : [['label'=>'Surat Saya','value'=>'—','hint'=>'Dokumen yang dibuat','icon'=>'document'],['label'=>'Perlu Verifikasi','value'=>'—','hint'=>'Menunggu tindakan','icon'=>'check'],['label'=>'Sudah Terbit','value'=>'—','hint'=>'Dokumen resmi','icon'=>'archive'],['label'=>'Anggota','value'=>'—','hint'=>'Dalam organisasi','icon'=>'users']];
+            $cards = $isSuperAdmin ? [
+                ['label'=>'Organisasi','value'=>$stats['tenants'],'hint'=>$stats['active_tenants'].' organisasi aktif'],
+                ['label'=>'Pengguna','value'=>$stats['users'],'hint'=>'Seluruh platform'],
+                ['label'=>'Surat Terbit','value'=>$stats['issued'],'hint'=>$stats['active'].' surat masih aktif'],
+                ['label'=>'Perlu Perhatian','value'=>$stats['submitted'] + $stats['validated'],'hint'=>$stats['submitted'].' verifikasi · '.$stats['validated'].' siap TTE'],
+            ] : [
+                ['label'=>'Total Surat','value'=>$stats['letters'],'hint'=>$stats['my_letters'].' dibuat oleh Anda'],
+                ['label'=>'Perlu Verifikasi','value'=>$stats['submitted'],'hint'=>'Menunggu pemeriksaan'],
+                ['label'=>'Siap TTE','value'=>$stats['validated'],'hint'=>'Sudah tervalidasi'],
+                ['label'=>'Surat Aktif','value'=>$stats['active'],'hint'=>$stats['issued'].' surat telah terbit'],
+            ];
         @endphp
         @foreach($cards as $card)
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div class="flex items-start justify-between gap-3"><div><p class="text-sm font-medium text-slate-500">{{ $card['label'] }}</p><p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{{ $card['value'] }}</p></div><div class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500"><span class="text-xs font-bold">{{ strtoupper(substr($card['icon'],0,2)) }}</span></div></div>
+                <p class="text-sm font-medium text-slate-500">{{ $card['label'] }}</p>
+                <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{{ number_format($card['value']) }}</p>
                 <p class="mt-3 text-xs text-slate-400">{{ $card['hint'] }}</p>
             </div>
         @endforeach
@@ -55,26 +168,115 @@
 
     <div class="mt-6 grid gap-6 lg:grid-cols-3">
         <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-            <div class="flex items-center justify-between"><div><h2 class="font-semibold text-slate-900">Alur kerja</h2><p class="mt-1 text-xs text-slate-500">Gambaran proses surat di {{ $isSuperAdmin ? 'platform' : 'organisasi ini' }}.</p></div><span class="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-500">Live</span></div>
-            <div class="mt-6 grid gap-3 sm:grid-cols-5">
-                @foreach(['Draft','Verifikasi','Validasi','Tanda Tangan','Terbit'] as $index => $step)
-                    <div class="relative rounded-xl border border-slate-200 p-4"><div class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white">{{ $index+1 }}</div><p class="mt-3 text-sm font-semibold text-slate-800">{{ $step }}</p><p class="mt-1 text-[11px] text-slate-400">Pantau status</p></div>
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="font-semibold text-slate-900">Status workflow</h2>
+                    <p class="mt-1 text-xs text-slate-500">Jumlah surat pada setiap kondisi saat ini.</p>
+                </div>
+                <span class="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700">Live</span>
+            </div>
+            <div class="mt-6 grid gap-3 sm:grid-cols-4">
+                @foreach ([
+                    ['label'=>'Draft','value'=>$stats['drafts']],
+                    ['label'=>'Verifikasi','value'=>$stats['submitted']],
+                    ['label'=>'Siap TTE','value'=>$stats['validated']],
+                    ['label'=>'Terbit','value'=>$stats['issued']],
+                ] as $step)
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p class="text-xs font-medium text-slate-500">{{ $step['label'] }}</p>
+                        <p class="mt-2 text-2xl font-semibold text-slate-900">{{ number_format($step['value']) }}</p>
+                    </div>
                 @endforeach
             </div>
+            @if($stats['letters'] > 0)
+                <div class="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
+                    @foreach ([
+                        ['value'=>$stats['drafts']],
+                        ['value'=>$stats['submitted']],
+                        ['value'=>$stats['validated']],
+                        ['value'=>$stats['issued']],
+                    ] as $segment)
+                        <span class="inline-block h-full bg-slate-900" style="width: {{ min(100, ($segment['value'] / $stats['letters']) * 100) }}%"></span>
+                    @endforeach
+                </div>
+            @endif
         </section>
+
         <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 class="font-semibold text-slate-900">Akses cepat</h2><p class="mt-1 text-xs text-slate-500">Menu yang tersedia untuk akun Anda.</p>
-            <div class="mt-5 space-y-2">
-                @can('viewAny', App\Models\OutgoingLetter::class)<a href="{{ route('outgoing-letters.index') }}" class="flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"><span>Surat Keluar</span><span>→</span></a>@endcan
-                @if($isSuperAdmin && Route::has('tenants.index'))<a href="{{ route('tenants.index') }}" class="flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"><span>Kelola Organisasi</span><span>→</span></a>@endif
-                @if($user->hasPermission('positions.view'))<a href="{{ $isSuperAdmin ? route('positions.admin.index') : route('positions.index') }}" class="flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"><span>Jabatan</span><span>→</span></a>@endif
-                @if($user->hasPermission('rbac.view'))<a href="{{ route('rbac.index') }}" class="flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"><span>Role & Akses</span><span>→</span></a>@endif
+            <h2 class="font-semibold text-slate-900">Ringkasan akun</h2>
+            <p class="mt-1 text-xs text-slate-500">Konteks akses akun saat ini.</p>
+            <div class="mt-5 space-y-3">
+                @if($isSuperAdmin)
+                    <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"><span class="text-sm text-slate-600">Organisasi aktif</span><strong class="text-slate-900">{{ number_format($stats['active_tenants']) }}</strong></div>
+                    <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"><span class="text-sm text-slate-600">Total pengguna</span><strong class="text-slate-900">{{ number_format($stats['users']) }}</strong></div>
+                    <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"><span class="text-sm text-slate-600">Total surat</span><strong class="text-slate-900">{{ number_format($stats['letters']) }}</strong></div>
+                @else
+                    <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"><span class="text-sm text-slate-600">Anggota</span><strong class="text-slate-900">{{ number_format($stats['users']) }}</strong></div>
+                    <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"><span class="text-sm text-slate-600">Surat saya</span><strong class="text-slate-900">{{ number_format($stats['my_letters']) }}</strong></div>
+                    <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"><span class="text-sm text-slate-600">Tugas saya</span><strong class="text-slate-900">{{ number_format($stats['my_submitted'] + $stats['my_validated']) }}</strong></div>
+                @endif
             </div>
         </section>
     </div>
 
-    <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h2 class="font-semibold text-slate-900">Aktivitas terbaru</h2><p class="mt-1 text-xs text-slate-500">Ringkasan aktivitas akan tampil berdasarkan kewenangan akun.</p></div><span class="text-xs font-medium text-slate-400">Belum ada data ringkasan</span></div>
-        <div class="mt-5 rounded-xl border border-dashed border-slate-200 p-8 text-center"><p class="text-sm font-medium text-slate-600">Dashboard siap dihubungkan ke metrik real-time.</p><p class="mt-1 text-xs text-slate-400">Struktur UI sudah dipisahkan berdasarkan role dan tenant tanpa membocorkan data lintas organisasi.</p></div>
+    @if($isSuperAdmin)
+        <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="font-semibold text-slate-900">Kondisi organisasi</h2>
+                    <p class="mt-1 text-xs text-slate-500">Ringkasan tenant terbaru di platform.</p>
+                </div>
+                @if(Route::has('tenants.index'))
+                    <a href="{{ route('tenants.index') }}" class="text-xs font-semibold text-slate-700 hover:text-slate-900">Kelola →</a>
+                @endif
+            </div>
+            <div class="mt-5 overflow-x-auto">
+                <table class="min-w-full text-left text-sm">
+                    <thead class="border-b border-slate-200 text-xs text-slate-400">
+                        <tr><th class="pb-3 pr-4 font-medium">Organisasi</th><th class="pb-3 pr-4 font-medium">Status</th><th class="pb-3 pr-4 font-medium">Pengguna</th><th class="pb-3 font-medium">Surat</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @forelse($tenantBreakdown as $row)
+                            <tr><td class="py-3 pr-4 font-medium text-slate-800">{{ $row['name'] }}</td><td class="py-3 pr-4 text-slate-500">{{ $row['status'] }}</td><td class="py-3 pr-4 text-slate-600">{{ number_format($row['users']) }}</td><td class="py-3 text-slate-600">{{ number_format($row['letters']) }} <span class="text-xs text-slate-400">({{ number_format($row['issued']) }} terbit)</span></td></tr>
+                        @empty
+                            <tr><td colspan="4" class="py-8 text-center text-sm text-slate-400">Belum ada organisasi.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    @endif
+
+    <div class="mt-6 grid gap-6 lg:grid-cols-2">
+        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex items-center justify-between">
+                <div><h2 class="font-semibold text-slate-900">Surat terbaru</h2><p class="mt-1 text-xs text-slate-500">{{ $isSuperAdmin ? 'Aktivitas surat seluruh platform.' : 'Aktivitas surat dalam organisasi ini.' }}</p></div>
+                @can('viewAny', App\Models\OutgoingLetter::class)<a href="{{ route('outgoing-letters.index') }}" class="text-xs font-semibold text-slate-700">Lihat semua →</a>@endcan
+            </div>
+            <div class="mt-5 space-y-2">
+                @forelse($recentLetters as $letter)
+                    <a href="{{ route('outgoing-letters.show', $letter->id) }}" class="flex items-center justify-between gap-4 rounded-xl border border-slate-100 px-4 py-3 hover:bg-slate-50">
+                        <div class="min-w-0"><p class="truncate text-sm font-medium text-slate-800">{{ $letter->subject ?: 'Tanpa perihal' }}</p><p class="mt-1 truncate text-xs text-slate-400">{{ $letter->number ?: 'Nomor belum tersedia' }} · {{ $isSuperAdmin ? ($letter->tenant?->name ?? 'Tanpa organisasi') : ($letter->creator?->name ?? 'Pengguna') }}</p></div>
+                        <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase text-slate-600">{{ $letter->status->value }}</span>
+                    </a>
+                @empty
+                    <div class="rounded-xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">Belum ada surat.</div>
+                @endforelse
+            </div>
+        </section>
+
+        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div><h2 class="font-semibold text-slate-900">Aktivitas terbaru</h2><p class="mt-1 text-xs text-slate-500">Audit log sesuai scope akun.</p></div>
+            <div class="mt-5 space-y-2">
+                @forelse($activities as $activity)
+                    <div class="flex gap-3 rounded-xl border border-slate-100 px-4 py-3">
+                        <div class="mt-1 h-2 w-2 shrink-0 rounded-full bg-slate-400"></div>
+                        <div class="min-w-0"><p class="text-sm font-medium text-slate-700">{{ str_replace('_', ' ', ucfirst($activity->action)) }}</p><p class="mt-1 text-xs text-slate-400">{{ $activity->user?->name ?? 'Sistem' }} · {{ $activity->created_at?->diffForHumans() }}</p></div>
+                    </div>
+                @empty
+                    <div class="rounded-xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">Belum ada aktivitas.</div>
+                @endforelse
+            </div>
+        </section>
     </div>
 </div>
