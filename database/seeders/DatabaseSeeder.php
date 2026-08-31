@@ -49,7 +49,6 @@ class DatabaseSeeder extends Seeder
             'address' => 'Demo',
             'phone' => null,
             'email' => 'demo@example.com',
-            'logo' => null,
             'head_name' => 'Demo Head',
             'head_title' => 'Kepala Unit',
             'status' => TenantStatus::ACTIVE,
@@ -97,6 +96,7 @@ class DatabaseSeeder extends Seeder
             PopulationReferenceSeeder::class,
             PositionSeeder::class,
             TenantReferenceSeeder::class,
+            KalimantanTengahTenantSeeder::class,
         ]);
     }
 }
