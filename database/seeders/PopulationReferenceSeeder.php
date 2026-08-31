@@ -11,12 +11,12 @@ class PopulationReferenceSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->upsert('population_reference_data', 'gender', [
+        $this->upsert('gender', [
             ['code' => 'male', 'label' => 'Laki-laki', 'sort_order' => 1],
             ['code' => 'female', 'label' => 'Perempuan', 'sort_order' => 2],
         ]);
 
-        $this->upsert('population_reference_data', 'blood_type', [
+        $this->upsert('blood_type', [
             ['code' => 'A', 'label' => 'A', 'sort_order' => 1],
             ['code' => 'B', 'label' => 'B', 'sort_order' => 2],
             ['code' => 'AB', 'label' => 'AB', 'sort_order' => 3],
@@ -24,14 +24,14 @@ class PopulationReferenceSeeder extends Seeder
             ['code' => 'unknown', 'label' => 'Tidak diketahui', 'sort_order' => 5],
         ]);
 
-        $this->upsert('population_reference_data', 'marital_status', [
+        $this->upsert('marital_status', [
             ['code' => 'single', 'label' => 'Belum Kawin', 'sort_order' => 1],
             ['code' => 'married', 'label' => 'Kawin', 'sort_order' => 2],
             ['code' => 'divorced', 'label' => 'Cerai Hidup', 'sort_order' => 3],
             ['code' => 'widowed', 'label' => 'Cerai Mati', 'sort_order' => 4],
         ]);
 
-        $this->upsert('population_reference_data', 'religion', [
+        $this->upsert('religion', [
             ['code' => 'islam', 'label' => 'Islam', 'sort_order' => 1],
             ['code' => 'christian', 'label' => 'Kristen', 'sort_order' => 2],
             ['code' => 'catholic', 'label' => 'Katolik', 'sort_order' => 3],
@@ -41,7 +41,7 @@ class PopulationReferenceSeeder extends Seeder
             ['code' => 'other', 'label' => 'Kepercayaan/Lainnya', 'sort_order' => 7],
         ]);
 
-        $this->upsert('population_reference_data', 'family_relationship', [
+        $this->upsert('family_relationship', [
             ['code' => 'head', 'label' => 'Kepala Keluarga', 'sort_order' => 1],
             ['code' => 'spouse', 'label' => 'Istri/Suami', 'sort_order' => 2],
             ['code' => 'child', 'label' => 'Anak', 'sort_order' => 3],
@@ -54,7 +54,7 @@ class PopulationReferenceSeeder extends Seeder
             ['code' => 'other', 'label' => 'Lainnya', 'sort_order' => 10],
         ]);
 
-        $this->upsert('population_reference_data', 'citizenship', [
+        $this->upsert('citizenship', [
             ['code' => 'WNI', 'label' => 'WNI', 'sort_order' => 1],
             ['code' => 'WNA', 'label' => 'WNA', 'sort_order' => 2],
         ]);
@@ -63,9 +63,17 @@ class PopulationReferenceSeeder extends Seeder
     private function upsert(string $group, array $rows): void
     {
         foreach ($rows as $row) {
+            $now = now();
+
             DB::table('population_reference_data')->updateOrInsert(
                 ['group' => $group, 'code' => $row['code']],
-                ['label' => $row['label'], 'sort_order' => $row['sort_order'], 'updated_at' => now(), 'created_at' => now()],
+                [
+                    'label' => $row['label'],
+                    'sort_order' => $row['sort_order'],
+                    'is_active' => true,
+                    'updated_at' => $now,
+                    'created_at' => $now,
+                ],
             );
         }
     }
