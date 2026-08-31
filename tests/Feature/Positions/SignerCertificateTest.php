@@ -21,9 +21,9 @@ class SignerCertificateTest extends TestCase
         $generator = User::factory()->create();
         $signer = User::factory()->create(['name' => 'Budi Penandatangan']);
         $position = Position::factory()->create(['can_sign' => true]);
-        $holder = PositionHolder::factory()->create(['position_id' => $position->id, 'user_id' => $signer->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
+        $holder = PositionHolder::factory()->create(['position_id' => $position->id, 'tenant_id' => $signer->tenant_id, 'user_id' => $signer->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
 
-        $certificate = app(SignerCertificateService::class)->generate($position->load('tenant'), $holder->load('user'), $generator);
+        $certificate = app(SignerCertificateService::class)->generate($position, $holder->load('user', 'tenant'), $generator);
 
         $this->assertInstanceOf(SignerCertificate::class, $certificate);
         $this->assertTrue($certificate->is_active);
@@ -40,11 +40,11 @@ class SignerCertificateTest extends TestCase
         $generator = User::factory()->create();
         $signer = User::factory()->create();
         $position = Position::factory()->create(['can_sign' => true]);
-        $holder = PositionHolder::factory()->create(['position_id' => $position->id, 'user_id' => $signer->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
+        $holder = PositionHolder::factory()->create(['position_id' => $position->id, 'tenant_id' => $signer->tenant_id, 'user_id' => $signer->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
         $service = app(SignerCertificateService::class);
 
-        $first = $service->generate($position->load('tenant'), $holder->load('user'), $generator);
-        $second = $service->generate($position->load('tenant'), $holder->load('user'), $generator);
+        $first = $service->generate($position, $holder->load('user', 'tenant'), $generator);
+        $second = $service->generate($position, $holder->load('user', 'tenant'), $generator);
 
         $this->assertFalse($first->refresh()->is_active);
         $this->assertNotNull($first->revoked_at);
@@ -57,9 +57,9 @@ class SignerCertificateTest extends TestCase
         $generator = User::factory()->create();
         $signer = User::factory()->create();
         $position = Position::factory()->create(['can_sign' => false]);
-        $holder = PositionHolder::factory()->create(['position_id' => $position->id, 'user_id' => $signer->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
+        $holder = PositionHolder::factory()->create(['position_id' => $position->id, 'tenant_id' => $signer->tenant_id, 'user_id' => $signer->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
 
         $this->expectException(\RuntimeException::class);
-        app(SignerCertificateService::class)->generate($position->load('tenant'), $holder->load('user'), $generator);
+        app(SignerCertificateService::class)->generate($position, $holder->load('user', 'tenant'), $generator);
     }
 }
