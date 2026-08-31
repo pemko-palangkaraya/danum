@@ -24,8 +24,8 @@ return new class extends Migration
             $table->string('provinsi')->nullable();
             $table->string('kode_pos', 10)->nullable();
             $table->string('status', 30)->default('active');
-            $table->uuid('created_by')->nullable();
-            $table->uuid('updated_by')->nullable();
+            $table->foreignId('created_by')->nullable();
+            $table->foreignId('updated_by')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
