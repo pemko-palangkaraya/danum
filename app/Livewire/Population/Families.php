@@ -89,7 +89,6 @@ class Families extends Component
     {
         $this->authorizeManage();
         $tenantId = $this->tenantId();
-
         $data = Validator::make($this->only($this->formFields()), $this->rules($tenantId))->validate();
 
         if (!empty($data['head_citizen_id'])) {
@@ -195,7 +194,7 @@ class Families extends Component
         $memberCandidates = collect();
 
         if ($tenant && $this->headSearch !== '') {
-            $headCitizens = $this->citizenSearch($this->headSearch);
+            $headCitizens = $this->citizenSearch($this->headSearch)->get();
         }
 
         if ($tenant && $this->detailId && $this->memberSearch !== '') {
@@ -263,7 +262,7 @@ class Families extends Component
             ->select(['id', 'nik', 'nama_lengkap']);
     }
 
-    private function selectedHead(bool $tenant): ?Citizen
+    private function selectedHead(?string $tenant): ?Citizen
     {
         if (!$tenant || !$this->head_citizen_id) {
             return null;
