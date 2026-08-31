@@ -32,8 +32,8 @@ class OutgoingLetterAuditLogTest extends TestCase
         $validator = User::factory()->superAdmin()->create();
         app(SignerPinService::class)->set($actor, '123456');
         $letter = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::DRAFT, 'validator_user_id' => $validator->id, 'signer_user_id' => $actor->id]);
-        $position = Position::factory()->signatory()->create(['tenant_id' => $letter->tenant_id]);
-        $holder = PositionHolder::factory()->create(['position_id' => $position->id, 'user_id' => $actor->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
+        $position = Position::factory()->signatory()->create();
+        $holder = PositionHolder::factory()->create(['position_id' => $position->id, 'tenant_id' => $letter->tenant_id, 'user_id' => $actor->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
         $letter->update(['signer_position_id' => $position->id, 'signer_user_id' => $holder->user_id, 'generated_docx_path' => 'outgoing-letters/test.docx']);
         app(SignerCertificateService::class)->generate($position, $holder, $actor);
 
