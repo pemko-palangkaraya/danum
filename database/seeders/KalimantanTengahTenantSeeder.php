@@ -20,7 +20,18 @@ class KalimantanTengahTenantSeeder extends Seeder
     {
         $categories = $this->categories();
 
-        $this->seedTenant('wilayah-62', 'Pemerintah Provinsi Kalimantan Tengah', $categories['pemerintah-provinsi'], null, null, null, 'Gubernur Kalimantan Tengah', 'Gubernur');
+        // Tenant tingkat provinsi tetap harus memenuhi kolom wilayah wajib
+        // pada tabel tenants, sehingga menggunakan lokasi pusat pemerintahan.
+        $this->seedTenant(
+            'wilayah-62',
+            'Pemerintah Provinsi Kalimantan Tengah',
+            $categories['pemerintah-provinsi'],
+            'Palangka Raya',
+            'Jekan Raya',
+            'Menteng',
+            'Gubernur Kalimantan Tengah',
+            'Gubernur',
+        );
 
         $regencies = $this->get('/regencies/'.self::PROVINCE_CODE.'.json');
         $counts = ['regencies' => 0, 'districts' => 0, 'villages' => 0];
@@ -36,8 +47,8 @@ class KalimantanTengahTenantSeeder extends Seeder
                 $isCity ? "Pemerintah {$regencyName}" : "Pemerintah Kabupaten {$regencyName}",
                 $regencyCategory,
                 $regencyName,
-                null,
-                null,
+                'Pusat Pemerintahan',
+                'Pusat Pemerintahan',
                 $isCity ? "Wali Kota {$regencyName}" : "Bupati {$regencyName}",
                 $isCity ? 'Wali Kota' : 'Bupati',
             );
@@ -53,7 +64,7 @@ class KalimantanTengahTenantSeeder extends Seeder
                     $categories['kecamatan'],
                     $regencyName,
                     $districtName,
-                    null,
+                    'Pusat Pemerintahan',
                     "Camat {$districtName}",
                     'Camat',
                 );
@@ -134,9 +145,9 @@ class KalimantanTengahTenantSeeder extends Seeder
         string $code,
         string $name,
         int $categoryId,
-        ?string $city,
-        ?string $district,
-        ?string $village,
+        string $city,
+        string $district,
+        string $village,
         string $headName,
         string $headTitle,
     ): void {
