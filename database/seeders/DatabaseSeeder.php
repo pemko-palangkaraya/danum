@@ -64,5 +64,7 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make(env('DANUM_TENANT_USER_PASSWORD', 'password')), 'remember_token' => null,
             'platform_role' => null, 'custom_role_id' => $tenantUserRole->id, 'status' => UserStatus::ACTIVE, 'tenant_id' => $tenant->id,
         ]);
+
+        $this->call(PopulationReferenceSeeder::class);
     }
 }
