@@ -38,7 +38,7 @@ class PdfSigningServiceTest extends TestCase
         file_put_contents($sourcePath, $this->minimalPdf());
 
         try {
-            $this->expectException(\\DomainException::class);
+            $this->expectException(\DomainException::class);
             app(PdfSigningService::class)->sign($sourcePath, $certificate, 'Penguji DANUM', 'Test');
         } finally {
             @unlink($sourcePath);
@@ -52,7 +52,7 @@ class PdfSigningServiceTest extends TestCase
             if ($fontPath !== false) define('K_PATH_FONTS', $fontPath);
         }
 
-        $pdf = new \\Com\\Tecnick\\Pdf\\Tcpdf();
+        $pdf = new \Com\Tecnick\Pdf\Tcpdf();
         $pdf->setCreator('DANUM Test');
         $pdf->setTitle('DANUM PDF signing test');
         $pdf->addPage(['format' => 'A4']);
