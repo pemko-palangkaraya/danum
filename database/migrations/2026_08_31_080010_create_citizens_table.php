@@ -31,8 +31,8 @@ return new class extends Migration
             $table->string('nama_ibu')->nullable();
             $table->string('nik_ibu', 16)->nullable();
             $table->string('status_kependudukan', 30)->default('active');
-            $table->uuid('created_by')->nullable();
-            $table->uuid('updated_by')->nullable();
+            $table->foreignId('created_by')->nullable();
+            $table->foreignId('updated_by')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
