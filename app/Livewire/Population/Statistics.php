@@ -48,18 +48,54 @@ class Statistics extends Component
             ->pluck('total', 'status_perkawinan');
 
         $ageGroups = $this->buildAgeGroups($citizens);
+        $toddlers = $this->countAgeRange($citizens, 0, 5);
+        $children = $this->countAgeRange($citizens, 6, 12);
+        $productiveAge = $this->countAgeRange($citizens, 15, 64);
+        $elderly = $this->countAgeRange($citizens, 65, null);
 
         return view('livewire.population.statistics', [
             'totalCitizens' => (clone $citizens)->count(),
             'totalFamilies' => (clone $families)->count(),
             'activeCitizens' => (clone $citizens)->where('status_kependudukan', 'active')->count(),
             'inactiveCitizens' => (clone $citizens)->where('status_kependudukan', '!=', 'active')->count(),
-            'male' => $gender->get('L', $gender->get('laki-laki', 0)),
-            'female' => $gender->get('P', $gender->get('perempuan', 0)),
+            'male' => $this->genderCount($gender, 'male'),
+            'female' => $this->genderCount($gender, 'female'),
             'gender' => $gender,
             'marital' => $marital,
             'ageGroups' => $ageGroups,
+            'toddlers' => $toddlers,
+            'children' => $children,
+            'productiveAge' => $productiveAge,
+            'elderly' => $elderly,
         ]);
+    }
+
+    private function genderCount($gender, string $wanted): int
+    {
+        return $gender->sum(function ($total, $label) use ($wanted) {
+            $normalized = strtoupper(trim((string) $label));
+            $isWanted = $wanted === 'male'
+                ? in_array($normalized, ['L', 'LAKI-LAKI', 'LAKI LAKI'], true)
+                : in_array($normalized, ['P', 'PEREMPUAN'], true);
+
+            return $isWanted ? (int) $total : 0;
+        });
+    }
+
+    private function countAgeRange($citizens, int $min, ?int $max): int
+    {
+        $query = (clone $citizens)->whereNotNull('tanggal_lahir');
+
+        if ($max === null) {
+            $query->whereRaw("DATE_PART('year', AGE(CURRENT_DATE, tanggal_lahir)) >= ?", [$min]);
+        } else {
+            $query->whereRaw(
+                "DATE_PART('year', AGE(CURRENT_DATE, tanggal_lahir)) BETWEEN ? AND ?",
+                [$min, $max]
+            );
+        }
+
+        return $query->count();
     }
 
     private function buildAgeGroups($citizens)
