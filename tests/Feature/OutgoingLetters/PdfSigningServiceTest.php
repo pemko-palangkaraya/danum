@@ -9,14 +9,20 @@ use App\Services\PdfSigningService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class PdfSigningServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    #[Group('integration')]
     public function test_existing_pdf_can_be_signed_with_pades_b_b(): void
     {
+        if (! $this->tsaIntegrationConfigured()) {
+            $this->markTestSkipped('TSA integration test requires a configured, compatible TSA endpoint.');
+        }
+
         Storage::fake('local');
 
         [$certificatePem, $privateKeyPem] = $this->certificateMaterial();
@@ -43,7 +49,7 @@ class PdfSigningServiceTest extends TestCase
 
             $this->assertTrue(Storage::disk('local')->exists($signedPath));
             $signedPdf = Storage::disk('local')->get($signedPath);
-            $this->assertStringStartsWith('%PDF-', $signedPdf);
+            $this->assertTrue(str_starts_with($signedPdf, '%PDF-'));
             $this->assertStringContainsString('/ETSI.CAdES.detached', $signedPdf);
             $this->assertStringContainsString('TandaTanganElektronik', $signedPdf);
             $this->assertStringNotContainsString('DANUMSignature', $signedPdf);
@@ -76,6 +82,11 @@ class PdfSigningServiceTest extends TestCase
         } finally {
             @unlink($sourcePath);
         }
+    }
+
+    private function tsaIntegrationConfigured(): bool
+    {
+        return (bool) config('services.tsa.url');
     }
 
     private function certificateMaterial(): array
