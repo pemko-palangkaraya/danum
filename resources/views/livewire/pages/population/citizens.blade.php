@@ -22,7 +22,6 @@ new #[Layout('layouts.app')] class extends Component {
     public function mount(): void
     {
         abort_unless(auth()->user()?->hasPermission('population.view'), 403);
-
         if (! auth()->user()->isSuperAdmin()) {
             abort_unless(auth()->user()->tenant_id, 403);
             $this->selectedTenantId = auth()->user()->tenant_id;
@@ -30,21 +29,7 @@ new #[Layout('layouts.app')] class extends Component {
     }
 
     public function updatedSearch(): void { $this->resetPage(); }
-
-    public function updatedSelectedTenantId(): void
-    {
-        abort_unless(auth()->user()->isSuperAdmin(), 403);
-        $this->resetPage();
-        $this->resetForm();
-    }
-
-    public function create(): void
-    {
-        abort_unless(auth()->user()->hasPermission('population.manage'), 403);
-        $this->assertTenantSelected();
-        $this->resetForm();
-        $this->showForm = true;
-    }
+    public function updatedSelectedTenantId(): void { abort_unless(auth()->user()->isSuperAdmin(), 403); $this->resetPage(); $this->resetForm(); }
 
     private function tenantId(): string
     {
@@ -55,86 +40,59 @@ new #[Layout('layouts.app')] class extends Component {
 
     private function assertTenantSelected(): void
     {
-        if (auth()->user()->isSuperAdmin()) {
-            abort_unless($this->selectedTenantId && Tenant::whereKey($this->selectedTenantId)->exists(), 422);
-        }
+        if (auth()->user()->isSuperAdmin()) abort_unless($this->selectedTenantId && Tenant::whereKey($this->selectedTenantId)->exists(), 422);
     }
 
     private function query()
     {
-        return Citizen::query()
-            ->where('tenant_id', $this->tenantId())
+        return Citizen::query()->where('tenant_id', $this->tenantId())
             ->when($this->search !== '', fn ($q) => $q->where(fn ($q) => $q->where('nik', 'ilike', '%' . $this->search . '%')->orWhere('nama_lengkap', 'ilike', '%' . $this->search . '%')))
             ->orderBy('nama_lengkap');
     }
 
+    public function create(): void { abort_unless(auth()->user()->hasPermission('population.manage'), 403); $this->assertTenantSelected(); $this->resetForm(); $this->showForm = true; }
+
     public function edit(string $id): void
     {
         abort_unless(auth()->user()->hasPermission('population.manage'), 403);
-        $c = $this->query()->findOrFail($id);
-        $this->editingId = $c->id;
+        $c = $this->query()->findOrFail($id); $this->editingId = $c->id;
         foreach (['nik','nama_lengkap','tempat_lahir','jenis_kelamin','golongan_darah','agama','status_perkawinan','pendidikan','pekerjaan','kewarganegaraan','status_kependudukan'] as $f) $this->{$f} = (string) ($c->{$f} ?? '');
-        $this->tanggal_lahir = $c->tanggal_lahir?->format('Y-m-d') ?? '';
-        $this->showForm = true;
+        $this->tanggal_lahir = $c->tanggal_lahir?->format('Y-m-d') ?? ''; $this->showForm = true;
     }
 
     public function save(): void
     {
-        abort_unless(auth()->user()->hasPermission('population.manage'), 403);
-        $tenantId = $this->tenantId();
+        abort_unless(auth()->user()->hasPermission('population.manage'), 403); $tenantId = $this->tenantId();
         $data = Validator::make($this->only(['nik','nama_lengkap','tempat_lahir','tanggal_lahir','jenis_kelamin','golongan_darah','agama','status_perkawinan','pendidikan','pekerjaan','kewarganegaraan','status_kependudukan']), [
-            'nik' => ['required','digits:16','unique:citizens,nik,' . ($this->editingId ?? 'NULL') . ',id,tenant_id,' . $tenantId],
-            'nama_lengkap' => ['required','string','max:255'], 'tempat_lahir' => ['nullable','string','max:255'], 'tanggal_lahir' => ['nullable','date'],
-            'jenis_kelamin' => ['nullable','in:male,female'], 'golongan_darah' => ['nullable','in:A,B,AB,O,unknown'], 'agama' => ['nullable','string','max:40'],
-            'status_perkawinan' => ['nullable','string','max:30'], 'pendidikan' => ['nullable','string','max:100'], 'pekerjaan' => ['nullable','string','max:150'],
-            'kewarganegaraan' => ['required','string','max:50'], 'status_kependudukan' => ['required','string','max:30'],
+            'nik' => ['required','digits:16','unique:citizens,nik,' . ($this->editingId ?? 'NULL') . ',id,tenant_id,' . $tenantId], 'nama_lengkap' => ['required','string','max:255'], 'tempat_lahir' => ['nullable','string','max:255'], 'tanggal_lahir' => ['nullable','date'], 'jenis_kelamin' => ['nullable','in:male,female'], 'golongan_darah' => ['nullable','in:A,B,AB,O,unknown'], 'agama' => ['nullable','string','max:40'], 'status_perkawinan' => ['nullable','string','max:30'], 'pendidikan' => ['nullable','string','max:100'], 'pekerjaan' => ['nullable','string','max:150'], 'kewarganegaraan' => ['required','string','max:50'], 'status_kependudukan' => ['required','string','max:30'],
         ])->validate();
-        $data['tenant_id'] = $tenantId;
-        $data['updated_by'] = auth()->id();
-        if ($this->editingId) $this->query()->findOrFail($this->editingId)->update($data);
-        else { $data['created_by'] = auth()->id(); Citizen::create($data); }
-        $this->resetForm();
-        $this->dispatch('toast', type: 'success', message: 'Data warga berhasil disimpan.');
+        $data['tenant_id'] = $tenantId; $data['updated_by'] = auth()->id();
+        if ($this->editingId) $this->query()->findOrFail($this->editingId)->update($data); else { $data['created_by'] = auth()->id(); Citizen::create($data); }
+        $this->resetForm(); $this->dispatch('toast', type: 'success', message: 'Data warga berhasil disimpan.');
     }
 
-    public function resetForm(): void
-    {
-        foreach (['nik','nama_lengkap','tempat_lahir','tanggal_lahir','jenis_kelamin','golongan_darah','agama','status_perkawinan','pendidikan','pekerjaan'] as $f) $this->{$f} = '';
-        $this->kewarganegaraan = 'WNI'; $this->status_kependudukan = 'active'; $this->editingId = null; $this->showForm = false; $this->resetValidation();
-    }
+    public function resetForm(): void { foreach (['nik','nama_lengkap','tempat_lahir','tanggal_lahir','jenis_kelamin','golongan_darah','agama','status_perkawinan','pendidikan','pekerjaan'] as $f) $this->{$f} = ''; $this->kewarganegaraan = 'WNI'; $this->status_kependudukan = 'active'; $this->editingId = null; $this->showForm = false; $this->resetValidation(); }
 
-    public function with(): array
-    {
-        return [
-            'citizens' => $this->selectedTenantId || auth()->user()->tenant_id ? $this->query()->paginate($this->perPage) : collect(),
-            'tenants' => auth()->user()->isSuperAdmin() ? Tenant::query()->orderBy('name')->get(['id','name','code']) : collect(),
-        ];
-    }
+    public function with(): array { return ['citizens' => $this->selectedTenantId || auth()->user()->tenant_id ? $this->query()->paginate($this->perPage) : collect(), 'tenants' => auth()->user()->isSuperAdmin() ? Tenant::query()->orderBy('name')->get(['id','name','code']) : collect()]; }
 };
 ?>
 <div class="space-y-6">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div><p class="text-sm text-slate-500">Kependudukan</p><h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Data Warga</h1><p class="mt-1 text-sm text-slate-500">Master data penduduk.</p></div>
-        @if(auth()->user()->hasPermission('population.manage') && (!auth()->user()->isSuperAdmin() || $selectedTenantId))<button wire:click="create" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">+ Tambah Warga</button>@endif
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div><p class="text-sm font-medium text-slate-500">Kependudukan</p><h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Data Warga</h1><p class="mt-1 text-sm text-slate-500">Master data penduduk yang terdaftar dalam tenant.</p></div>
+        @if(auth()->user()->hasPermission('population.manage') && (!auth()->user()->isSuperAdmin() || $selectedTenantId))<button wire:click="create" class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"><span class="text-base leading-none">+</span> Tambah Warga</button>@endif
     </div>
 
-    @if(auth()->user()->isSuperAdmin())
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <label class="text-sm font-medium text-slate-700">Pilih Tenant</label>
-            <select wire:model.live="selectedTenantId" class="mt-2 w-full max-w-xl rounded-xl border border-slate-200 px-4 py-2.5 text-sm">
-                <option value="">Pilih tenant untuk melihat data kependudukan...</option>
-                @foreach($tenants as $tenant)<option value="{{ $tenant->id }}">{{ $tenant->name }}{{ $tenant->code ? ' ('.$tenant->code.')' : '' }}</option>@endforeach
-            </select>
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="flex flex-col gap-4 p-5 lg:flex-row lg:items-end lg:justify-between">
+            @if(auth()->user()->isSuperAdmin())<div class="w-full lg:max-w-md"><label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Tenant</label><select wire:model.live="selectedTenantId" class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm focus:border-slate-400 focus:ring-2 focus:ring-slate-200"><option value="">Pilih tenant...</option>@foreach($tenants as $tenant)<option value="{{$tenant->id}}">{{$tenant->name}}{{ $tenant->code ? ' ('.$tenant->code.')' : '' }}</option>@endforeach</select></div>@endif
+            <div class="flex w-full flex-col gap-3 sm:flex-row lg:justify-end"><div class="relative w-full sm:max-w-sm"><span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">⌕</span><input wire:model.live.debounce.300ms="search" placeholder="Cari NIK atau nama..." class="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-4 text-sm shadow-sm focus:border-slate-400 focus:ring-2 focus:ring-slate-200"></div><select wire:model.live="perPage" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 shadow-sm"><option value="10">10 / halaman</option><option value="25">25 / halaman</option><option value="50">50 / halaman</option></select></div>
         </div>
-    @endif
+    </div>
 
     @if($selectedTenantId || auth()->user()->tenant_id)
-        <div class="flex gap-3"><input wire:model.live.debounce.300ms="search" placeholder="Cari NIK atau nama..." class="w-full max-w-md rounded-xl border border-slate-200 px-4 py-2.5 text-sm"></div>
-        @if($showForm)<div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><h2 class="font-semibold">{{ $editingId?'Edit Data Warga':'Tambah Data Warga' }}</h2><div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            @foreach([['nik','NIK'],['nama_lengkap','Nama Lengkap'],['tempat_lahir','Tempat Lahir'],['tanggal_lahir','Tanggal Lahir'],['pendidikan','Pendidikan'],['pekerjaan','Pekerjaan'],['agama','Agama'],['status_perkawinan','Status Perkawinan']] as [$f,$l])<div><label class="text-sm font-medium text-slate-700">{{ $l }}</label><input wire:model="{{ $f }}" type="{{ $f==='tanggal_lahir'?'date':'text' }}" class="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm">@error($f)<p class="text-xs text-red-600">{{ $message }}</p>@enderror</div>@endforeach
-            <div><label class="text-sm font-medium">Jenis Kelamin</label><select wire:model="jenis_kelamin" class="mt-2 w-full rounded-xl border px-3 py-2.5"><option value="">Pilih</option><option value="male">Laki-laki</option><option value="female">Perempuan</option></select></div><div><label class="text-sm font-medium">Golongan Darah</label><select wire:model="golongan_darah" class="mt-2 w-full rounded-xl border px-3 py-2.5"><option value="">Pilih</option>@foreach(['A','B','AB','O','unknown'] as $v)<option value="{{$v}}">{{$v}}</option>@endforeach</select></div><div><label class="text-sm font-medium">Kewarganegaraan</label><input wire:model="kewarganegaraan" class="mt-2 w-full rounded-xl border px-3 py-2.5"></div><div><label class="text-sm font-medium">Status Kependudukan</label><select wire:model="status_kependudukan" class="mt-2 w-full rounded-xl border px-3 py-2.5"><option value="active">Aktif</option><option value="inactive">Tidak Aktif</option><option value="deceased">Meninggal</option><option value="moved">Pindah</option></select></div></div><div class="mt-5 flex justify-end gap-3"><button wire:click="resetForm" class="rounded-xl border px-4 py-2.5">Batal</button><button wire:click="save" class="rounded-xl bg-slate-900 px-5 py-2.5 font-semibold text-white">Simpan</button></div></div>@endif
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200"><thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs uppercase text-slate-500">Nama</th><th class="px-6 py-3 text-left text-xs uppercase text-slate-500">NIK</th><th class="hidden px-6 py-3 text-left text-xs uppercase text-slate-500 md:table-cell">TTL</th><th class="px-6 py-3 text-left text-xs uppercase text-slate-500">Status</th><th class="px-6 py-3 text-right text-xs uppercase text-slate-500">Aksi</th></tr></thead><tbody class="divide-y divide-slate-100">@forelse($citizens as $c)<tr><td class="px-6 py-4 font-medium">{{$c->nama_lengkap}}</td><td class="px-6 py-4 text-sm">{{$c->nik}}</td><td class="hidden px-6 py-4 text-sm md:table-cell">{{$c->tempat_lahir?:'-'}}, {{$c->tanggal_lahir?->format('d/m/Y')?:'-'}}</td><td class="px-6 py-4 text-sm">{{ucfirst($c->status_kependudukan)}}</td><td class="px-6 py-4 text-right">@if(auth()->user()->hasPermission('population.manage'))<button wire:click="edit('{{$c->id}}')" class="text-sm font-semibold">Edit</button>@endif</td></tr>@empty<tr><td colspan="5" class="px-6 py-12 text-center text-sm text-slate-500">Belum ada data warga.</td></tr>@endforelse</tbody></table></div><div class="border-t px-6 py-3">{{$citizens->links()}}</div></div>
-    @elseif(auth()->user()->isSuperAdmin())
-        <div class="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-500">Pilih tenant terlebih dahulu untuk melihat data warga.</div>
-    @endif
+        @if($showForm)<div class="rounded-2xl border border-slate-200 bg-white shadow-sm"><div class="border-b border-slate-100 px-6 py-5"><h2 class="text-base font-semibold text-slate-900">{{$editingId ? 'Edit Data Warga' : 'Tambah Data Warga'}}</h2><p class="mt-1 text-sm text-slate-500">Lengkapi informasi dasar penduduk.</p></div><div class="p-6"><div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            @foreach([['nik','NIK'],['nama_lengkap','Nama Lengkap'],['tempat_lahir','Tempat Lahir'],['tanggal_lahir','Tanggal Lahir'],['pendidikan','Pendidikan'],['pekerjaan','Pekerjaan'],['agama','Agama'],['status_perkawinan','Status Perkawinan']] as [$f,$l])<div><label class="text-sm font-medium text-slate-700">{{$l}}</label><input wire:model="{{$f}}" type="{{$f==='tanggal_lahir'?'date':'text'}}" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm shadow-sm focus:border-slate-400 focus:ring-2 focus:ring-slate-200">@error($f)<p class="mt-1 text-xs text-red-600">{{$message}}</p>@enderror</div>@endforeach
+            <div><label class="text-sm font-medium text-slate-700">Jenis Kelamin</label><select wire:model="jenis_kelamin" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"><option value="">Pilih</option><option value="male">Laki-laki</option><option value="female">Perempuan</option></select></div><div><label class="text-sm font-medium text-slate-700">Golongan Darah</label><select wire:model="golongan_darah" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"><option value="">Pilih</option>@foreach(['A','B','AB','O','unknown'] as $v)<option value="{{$v}}">{{$v}}</option>@endforeach</select></div><div><label class="text-sm font-medium text-slate-700">Kewarganegaraan</label><input wire:model="kewarganegaraan" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"></div><div><label class="text-sm font-medium text-slate-700">Status Kependudukan</label><select wire:model="status_kependudukan" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"><option value="active">Aktif</option><option value="inactive">Tidak Aktif</option><option value="deceased">Meninggal</option><option value="moved">Pindah</option></select></div></div></div><div class="flex justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4"><button wire:click="resetForm" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Batal</button><button wire:click="save" class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Simpan</button></div></div>@endif
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200"><thead class="bg-slate-50"><tr><th class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Nama</th><th class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">NIK</th><th class="hidden px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 md:table-cell">Tempat, Tanggal Lahir</th><th class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th><th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Aksi</th></tr></thead><tbody class="divide-y divide-slate-100">@forelse($citizens as $c)<tr class="transition hover:bg-slate-50/70"><td class="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-900">{{$c->nama_lengkap}}</td><td class="whitespace-nowrap px-6 py-4 font-mono text-sm text-slate-600">{{$c->nik}}</td><td class="hidden px-6 py-4 text-sm text-slate-600 md:table-cell">{{$c->tempat_lahir ?: '-'}}, {{$c->tanggal_lahir?->format('d/m/Y') ?: '-'}}</td><td class="px-6 py-4"><span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{{ucfirst($c->status_kependudukan)}}</span></td><td class="px-6 py-4 text-right">@if(auth()->user()->hasPermission('population.manage'))<button wire:click="edit('{{$c->id}}')" class="text-sm font-semibold text-slate-700 hover:text-slate-950">Edit</button>@endif</td></tr>@empty<tr><td colspan="5" class="px-6 py-14 text-center"><p class="text-sm font-medium text-slate-700">Belum ada data warga</p><p class="mt-1 text-sm text-slate-500">Data warga akan muncul di sini setelah ditambahkan.</p></td></tr>@endforelse</tbody></table></div><div class="flex flex-col gap-3 border-t border-slate-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"><p class="text-sm text-slate-500">Menampilkan {{$citizens->firstItem() ?: 0}}–{{$citizens->lastItem() ?: 0}} dari {{$citizens->total()}} warga</p>{{$citizens->links()}}</div></div>
+    @elseif(auth()->user()->isSuperAdmin())<div class="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center shadow-sm"><p class="text-sm font-medium text-slate-700">Pilih tenant terlebih dahulu</p><p class="mt-1 text-sm text-slate-500">Pilih tenant pada filter di atas untuk melihat data warga.</p></div>@endif
 </div>
