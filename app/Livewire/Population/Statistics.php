@@ -58,7 +58,8 @@ class Statistics extends Component
 
         $ageGroups = $this->buildAgeGroups($citizens);
         $toddlers = $this->countAgeRange($citizens, 0, 5);
-        $children = $this->countAgeRange($citizens, 6, 12);
+        // 6–14 intentionally closes the gap between children and productive age.
+        $children = $this->countAgeRange($citizens, 6, 14);
         $productiveAge = $this->countAgeRange($citizens, 15, 64);
         $elderly = $this->countAgeRange($citizens, 65, null);
 
