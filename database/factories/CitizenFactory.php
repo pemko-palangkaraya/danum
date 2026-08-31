@@ -37,4 +37,26 @@ class CitizenFactory extends Factory
             'status_kependudukan' => 'active',
         ];
     }
+
+    public function forTenant(Tenant|string $tenant): static
+    {
+        return $this->state([
+            'tenant_id' => $tenant instanceof Tenant ? $tenant->getKey() : $tenant,
+        ]);
+    }
+
+    public function male(): static
+    {
+        return $this->state(['jenis_kelamin' => 'male']);
+    }
+
+    public function female(): static
+    {
+        return $this->state(['jenis_kelamin' => 'female']);
+    }
+
+    public function inactive(): static
+    {
+        return $this->state(['status_kependudukan' => 'inactive']);
+    }
 }
