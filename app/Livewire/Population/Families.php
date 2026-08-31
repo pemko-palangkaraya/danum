@@ -189,7 +189,10 @@ class Families extends Component
 
     public function render(): View
     {
-        $tenant = $this->selectedTenantId || auth()->user()->tenant_id;
+        $tenant = auth()->user()->isSuperAdmin()
+            ? $this->selectedTenantId
+            : auth()->user()->tenant_id;
+
         $headCitizens = collect();
         $memberCandidates = collect();
 
