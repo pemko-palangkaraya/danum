@@ -72,14 +72,20 @@ class Statistics extends Component
 
     private function genderCount($gender, string $wanted): int
     {
-        return $gender->sum(function ($total, $label) use ($wanted) {
+        $total = 0;
+
+        foreach ($gender as $label => $count) {
             $normalized = strtoupper(trim((string) $label));
             $isWanted = $wanted === 'male'
-                ? in_array($normalized, ['L', 'LAKI-LAKI', 'LAKI LAKI'], true)
-                : in_array($normalized, ['P', 'PEREMPUAN'], true);
+                ? in_array($normalized, ['L', 'LAKI-LAKI', 'LAKI LAKI', 'MALE'], true)
+                : in_array($normalized, ['P', 'PEREMPUAN', 'FEMALE'], true);
 
-            return $isWanted ? (int) $total : 0;
-        });
+            if ($isWanted) {
+                $total += (int) $count;
+            }
+        }
+
+        return $total;
     }
 
     private function countAgeRange($citizens, int $min, ?int $max): int
@@ -127,8 +133,8 @@ class Statistics extends Component
         END";
 
         $genderSql = "CASE
-            WHEN UPPER(TRIM(jenis_kelamin)) IN ('L', 'LAKI-LAKI', 'LAKI LAKI') THEN 'male'
-            WHEN UPPER(TRIM(jenis_kelamin)) IN ('P', 'PEREMPUAN') THEN 'female'
+            WHEN UPPER(TRIM(jenis_kelamin)) IN ('L', 'LAKI-LAKI', 'LAKI LAKI', 'MALE') THEN 'male'
+            WHEN UPPER(TRIM(jenis_kelamin)) IN ('P', 'PEREMPUAN', 'FEMALE') THEN 'female'
             ELSE 'other'
         END";
 
