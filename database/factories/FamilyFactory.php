@@ -30,4 +30,16 @@ class FamilyFactory extends Factory
             'status' => 'active',
         ];
     }
+
+    public function forTenant(Tenant|string $tenant): static
+    {
+        return $this->state([
+            'tenant_id' => $tenant instanceof Tenant ? $tenant->getKey() : $tenant,
+        ]);
+    }
+
+    public function inactive(): static
+    {
+        return $this->state(['status' => 'inactive']);
+    }
 }
