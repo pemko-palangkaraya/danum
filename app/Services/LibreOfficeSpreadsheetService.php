@@ -19,12 +19,12 @@ class LibreOfficeSpreadsheetService
             throw new RuntimeException('Direktori output spreadsheet tidak dapat dibuat.');
         }
 
-        $binary = config('services.libreoffice.binary') ?: 'soffice';
+        $binary = (string) (config('services.libreoffice.binary') ?: 'soffice');
         $process = new Process([
             $binary,
             '--headless',
             '--convert-to',
-            'xlsx:"Calc MS Excel 2007 XML"',
+            'xlsx:Calc MS Excel 2007 XML',
             '--outdir',
             $outputDirectory,
             $csvPath,
@@ -33,17 +33,18 @@ class LibreOfficeSpreadsheetService
         $process->run();
 
         if (! $process->isSuccessful()) {
-            throw new RuntimeException('LibreOffice gagal mengonversi spreadsheet: ' . trim($process->getErrorOutput() ?: $process->getOutput()));
+            $detail = trim($process->getErrorOutput() ?: $process->getOutput());
+            throw new RuntimeException('LibreOffice gagal mengonversi spreadsheet: ' . ($detail !== '' ? $detail : 'proses berhenti tanpa pesan error.'));
         }
 
         $sourceName = pathinfo($csvPath, PATHINFO_FILENAME);
         $generated = rtrim($outputDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $sourceName . '.xlsx';
 
         if (! is_file($generated)) {
-            throw new RuntimeException('LibreOffice tidak menghasilkan file XLSX.');
+            throw new RuntimeException('LibreOffice tidak menghasilkan file XLSX. Output: ' . trim($process->getOutput()));
         }
 
-        if ($outputFilename === null || basename($generated) === $outputFilename) {
+        if ($outputFilename === null || basename($generated) === basename($outputFilename)) {
             return $generated;
         }
 
