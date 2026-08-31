@@ -26,4 +26,31 @@ class FamilyMemberFactory extends Factory
             'status' => 'active',
         ];
     }
+
+    public function forFamily(Family|string $family): static
+    {
+        return $this->state([
+            'family_id' => $family instanceof Family ? $family->getKey() : $family,
+        ]);
+    }
+
+    public function forCitizen(Citizen|string $citizen): static
+    {
+        return $this->state([
+            'citizen_id' => $citizen instanceof Citizen ? $citizen->getKey() : $citizen,
+        ]);
+    }
+
+    public function relation(string $relation): static
+    {
+        return $this->state(['hubungan_dalam_keluarga' => $relation]);
+    }
+
+    public function inactive(): static
+    {
+        return $this->state([
+            'status' => 'inactive',
+            'tanggal_selesai' => now()->toDateString(),
+        ]);
+    }
 }
