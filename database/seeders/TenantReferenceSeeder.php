@@ -53,7 +53,6 @@ class TenantReferenceSeeder extends Seeder
             );
         }
 
-        $category = fn (string $code): int => (int) TenantCategory::where('code', $code)->value('id');
         $tenants = [];
 
         // Seluruh 49 kementerian berdasarkan Perpres 90 Tahun 2025.
@@ -109,11 +108,10 @@ class TenantReferenceSeeder extends Seeder
             ['kemenpora', 'Kementerian Pemuda dan Olahraga', 'kementerian'],
         ];
 
-        foreach ($ministries as [$code, $name, $category]) {
-            $tenants[] = [$code, $name, $category, 'DKI Jakarta', 'Jakarta Pusat', 'Gambir', 'Gambir', 'Pimpinan Instansi', 'Menteri / Kepala Instansi'];
+        foreach ($ministries as [$code, $name, $categoryCode]) {
+            $tenants[] = [$code, $name, $categoryCode, 'DKI Jakarta', 'Jakarta Pusat', 'Gambir', 'Gambir', 'Pimpinan Instansi', 'Menteri / Kepala Instansi'];
         }
 
-        // Lembaga negara, aparat, LPNK, dan lembaga publik pusat.
         $centralInstitutions = [
             ['dpr-ri', 'Dewan Perwakilan Rakyat Republik Indonesia', 'lembaga-negara'],
             ['dpd-ri', 'Dewan Perwakilan Daerah Republik Indonesia', 'lembaga-negara'],
@@ -149,11 +147,10 @@ class TenantReferenceSeeder extends Seeder
             ['lpsk', 'Lembaga Perlindungan Saksi dan Korban', 'lembaga-non-struktural'],
         ];
 
-        foreach ($centralInstitutions as [$code, $name, $category]) {
-            $tenants[] = [$code, $name, $category, 'DKI Jakarta', 'Jakarta Pusat', 'Gambir', 'Gambir', 'Pimpinan Instansi', 'Ketua / Kepala'];
+        foreach ($centralInstitutions as [$code, $name, $categoryCode]) {
+            $tenants[] = [$code, $name, $categoryCode, 'DKI Jakarta', 'Jakarta Pusat', 'Gambir', 'Gambir', 'Pimpinan Instansi', 'Ketua / Kepala'];
         }
 
-        // Seluruh level pemerintah daerah + perangkat dan unit layanan.
         $regional = [
             ['pemprov-kalteng', 'Pemerintah Provinsi Kalimantan Tengah', 'pemerintah-provinsi', 'Kalimantan Tengah', 'Palangka Raya', 'Jekan Raya', 'Menteng', 'Gubernur Kalimantan Tengah', 'Gubernur'],
             ['pemprov-dki', 'Pemerintah Provinsi DKI Jakarta', 'pemerintah-provinsi', 'DKI Jakarta', 'Jakarta Pusat', 'Gambir', 'Gambir', 'Gubernur DKI Jakarta', 'Gubernur'],
@@ -195,7 +192,7 @@ class TenantReferenceSeeder extends Seeder
                 ['code' => $code],
                 [
                     'name' => $name,
-                    'tenant_category_id' => $category($categoryCode),
+                    'tenant_category_id' => TenantCategory::where('code', $categoryCode)->value('id'),
                     'province' => $province,
                     'city' => $city,
                     'district' => $district,
