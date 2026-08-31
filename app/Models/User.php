@@ -59,7 +59,21 @@ class User extends Authenticatable
         })->first();
     }
 
-    public function effectiveRole(): ?Role { return $this->roleModel(); }
+    /**
+     * Returns the role that may be displayed in tenant-facing UI.
+     * Global custom roles remain effective for authorization via roleModel(),
+     * but their names must not be exposed to tenant administrators.
+     */
+    public function effectiveRole(): ?Role
+    {
+        $role = $this->roleModel();
+
+        if ($role?->scope !== 'tenant') {
+            return null;
+        }
+
+        return $role;
+    }
 
     public function hasPermission(PermissionEnum|string $permission): bool
     {
