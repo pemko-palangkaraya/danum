@@ -111,8 +111,8 @@ class OutgoingLetterWorkflowTest extends TestCase
 
     private function prepareSignerCredentials(OutgoingLetter $letter, User $signer): void
     {
-        $position = Position::factory()->signatory()->create(['tenant_id' => $letter->tenant_id]);
-        PositionHolder::factory()->create(['position_id' => $position->id, 'user_id' => $signer->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
+        $position = Position::factory()->signatory()->create();
+        PositionHolder::factory()->create(['position_id' => $position->id, 'tenant_id' => $letter->tenant_id, 'user_id' => $signer->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
         $letter->forceFill(['signer_position_id' => $position->id, 'generated_docx_path' => 'outgoing-letters/test/source.docx'])->save();
         app(SignerPinService::class)->set($signer, '123456');
         $certificate = SignerCertificate::query()->create([
