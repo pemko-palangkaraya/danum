@@ -20,16 +20,7 @@ class KalimantanTengahTenantSeeder extends Seeder
     {
         $categories = $this->categories();
 
-        $this->seedTenant(
-            'wilayah-62',
-            'Pemerintah Provinsi Kalimantan Tengah',
-            $categories['pemerintah-provinsi'],
-            null,
-            null,
-            null,
-            'Gubernur Kalimantan Tengah',
-            'Gubernur',
-        );
+        $this->seedTenant('wilayah-62', 'Pemerintah Provinsi Kalimantan Tengah', $categories['pemerintah-provinsi'], null, null, null, 'Gubernur Kalimantan Tengah', 'Gubernur');
 
         $regencies = $this->get('/regencies/'.self::PROVINCE_CODE.'.json');
         $counts = ['regencies' => 0, 'districts' => 0, 'villages' => 0];
@@ -37,20 +28,18 @@ class KalimantanTengahTenantSeeder extends Seeder
         foreach ($regencies as $regency) {
             $regencyCode = (string) $regency['code'];
             $regencyName = (string) $regency['name'];
-            $isCity = str_starts_with($regencyCode, self::PROVINCE_CODE.'.71');
+            $isCity = str_ends_with($regencyCode, '.71');
             $regencyCategory = $isCity ? $categories['pemerintah-kota'] : $categories['pemerintah-kabupaten'];
-            $headTitle = $isCity ? 'Wali Kota' : 'Bupati';
-            $headName = $isCity ? "Wali Kota {$regencyName}" : "Bupati {$regencyName}";
 
             $this->seedTenant(
                 $this->tenantCode($regencyCode),
-                $this->governmentName($regencyName, $isCity),
+                $isCity ? "Pemerintah {$regencyName}" : "Pemerintah Kabupaten {$regencyName}",
                 $regencyCategory,
                 $regencyName,
                 null,
                 null,
-                $headName,
-                $headTitle,
+                $isCity ? "Wali Kota {$regencyName}" : "Bupati {$regencyName}",
+                $isCity ? 'Wali Kota' : 'Bupati',
             );
             $counts['regencies']++;
 
@@ -73,21 +62,19 @@ class KalimantanTengahTenantSeeder extends Seeder
                 foreach ($this->get('/villages/'.$districtCode.'.json') as $village) {
                     $villageCode = (string) $village['code'];
                     $villageName = (string) $village['name'];
-                    $isKelurahan = str_contains($villageCode, '.1');
+                    $suffix = substr(strrchr($villageCode, '.'), 1);
+                    $isKelurahan = str_starts_with($suffix, '1');
                     $category = $isKelurahan ? $categories['kelurahan'] : $categories['desa'];
-                    $headTitle = $isKelurahan ? 'Lurah' : 'Kepala Desa';
-                    $headName = $isKelurahan ? "Lurah {$villageName}" : "Kepala Desa {$villageName}";
-                    $label = $isKelurahan ? 'Kelurahan' : 'Desa';
 
                     $this->seedTenant(
                         $this->tenantCode($villageCode),
-                        "{$label} {$villageName}",
+                        ($isKelurahan ? 'Kelurahan ' : 'Desa ').$villageName,
                         $category,
                         $regencyName,
                         $districtName,
                         $villageName,
-                        $headName,
-                        $headTitle,
+                        ($isKelurahan ? 'Lurah ' : 'Kepala Desa ').$villageName,
+                        $isKelurahan ? 'Lurah' : 'Kepala Desa',
                     );
                     $counts['villages']++;
                 }
@@ -177,10 +164,5 @@ class KalimantanTengahTenantSeeder extends Seeder
     private function tenantCode(string $regionCode): string
     {
         return 'wilayah-'.str_replace('.', '-', $regionCode);
-    }
-
-    private function governmentName(string $name, bool $isCity): string
-    {
-        return $isCity ? "Pemerintah {$name}" : "Pemerintah Kabupaten {$name}";
     }
 }
