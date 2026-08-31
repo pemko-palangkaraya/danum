@@ -36,6 +36,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('permission:tenants.view')->group(function () { Route::get('/tenants', TenantIndex::class)->name('tenants.index'); Volt::route('/tenants/create', 'pages.tenants.create')->name('tenants.create'); Volt::route('/tenants/{tenant}/edit', 'pages.tenants.edit')->name('tenants.edit'); Volt::route('/tenants/{tenant}/users', 'pages.tenants.users')->name('tenants.users'); Volt::route('/tenants/{tenant}', 'pages.tenants.show')->name('tenants.show'); });
         Route::middleware('permission:letter-types.view')->group(function () { Route::get('/letter-types', LetterTypeIndex::class)->name('letter-types.index'); Route::get('/letter-types/{letterType}/permissions', LetterTypePermissions::class)->name('letter-types.permissions'); Route::get('/letter-types/{letterType}/versions', LetterTypeVersions::class)->name('letter-types.versions'); });
         Route::middleware('permission:positions.view')->group(function () { Route::get('/positions', PositionIndex::class)->name('positions.admin.index'); });
+        Route::middleware('permission:population.view')->group(function () { Volt::route('/population/citizens', 'pages.population.citizens')->name('population.admin.citizens.index'); });
         Route::middleware('permission:audit-logs.view')->group(function () { Route::get('/audit-logs', AuditLogIndex::class)->name('audit-logs.index'); });
     });
     Route::middleware('tenant')->group(function () {
