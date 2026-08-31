@@ -22,7 +22,7 @@ return new class extends Migration
             $table->jsonb('new_data')->nullable();
             $table->string('document_number', 100)->nullable();
             $table->text('notes')->nullable();
-            $table->uuid('created_by')->nullable();
+            $table->foreignId('created_by')->nullable();
             $table->timestamps();
 
             $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnDelete();
