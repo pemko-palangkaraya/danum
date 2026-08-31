@@ -17,6 +17,7 @@ use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\OutgoingLetterController;
 use App\Http\Controllers\OutgoingLetterWithdrawalController;
 use App\Http\Controllers\PopulationExportController;
+use App\Models\Citizen;
 
 Route::view('/', 'welcome')->name('home');
 Route::get('/verify/{token}', [VerificationController::class, 'page'])->name('verification.show');
@@ -37,13 +38,13 @@ Route::middleware('auth')->group(function () {
         Route::middleware('permission:tenants.view')->group(function () { Route::get('/tenants', TenantIndex::class)->name('tenants.index'); Volt::route('/tenants/create', 'pages.tenants.create')->name('tenants.create'); Volt::route('/tenants/{tenant}/edit', 'pages.tenants.edit')->name('tenants.edit'); Volt::route('/tenants/{tenant}/users', 'pages.tenants.users')->name('tenants.users'); Volt::route('/tenants/{tenant}', 'pages.tenants.show')->name('tenants.show'); });
         Route::middleware('permission:letter-types.view')->group(function () { Route::get('/letter-types', LetterTypeIndex::class)->name('letter-types.index'); Route::get('/letter-types/{letterType}/permissions', LetterTypePermissions::class)->name('letter-types.permissions'); Route::get('/letter-types/{letterType}/versions', LetterTypeVersions::class)->name('letter-types.versions'); });
         Route::middleware('permission:positions.view')->group(function () { Route::get('/positions', PositionIndex::class)->name('positions.admin.index'); });
-        Route::middleware('permission:population.view')->group(function () { Volt::route('/population/citizens', 'pages.population.citizens')->name('population.admin.citizens.index'); Volt::route('/population/families', 'pages.population.families')->name('population.admin.families.index'); });
+        Route::middleware('permission:population.view')->group(function () { Volt::route('/population/citizens', 'pages.population.citizens')->name('population.admin.citizens.index'); Volt::route('/population/citizens/{citizen}', 'pages.population.citizen-show')->name('population.admin.citizens.show'); Volt::route('/population/families', 'pages.population.families')->name('population.admin.families.index'); });
         Route::middleware('permission:audit-logs.view')->group(function () { Route::get('/audit-logs', AuditLogIndex::class)->name('audit-logs.index'); });
     });
     Route::middleware('tenant')->group(function () {
         Route::middleware('permission:positions.view')->group(function () { Route::get('/tenant/positions', PositionIndex::class)->name('positions.index'); });
         Route::middleware('permission:tenant-users.view')->group(function () { Volt::route('/tenant/users', 'pages.tenant-users')->name('tenant-users.index'); });
-        Route::middleware('permission:population.view')->group(function () { Volt::route('/tenant/population/citizens', 'pages.population.citizens')->name('population.citizens.index'); Volt::route('/tenant/population/families', 'pages.population.families')->name('population.families.index'); });
+        Route::middleware('permission:population.view')->group(function () { Volt::route('/tenant/population/citizens', 'pages.population.citizens')->name('population.citizens.index'); Volt::route('/tenant/population/citizens/{citizen}', 'pages.population.citizen-show')->name('population.citizens.show'); Volt::route('/tenant/population/families', 'pages.population.families')->name('population.families.index'); });
         Route::middleware('permission:tenant-profile.view')->group(function () { Volt::route('/tenant-profile', 'pages.tenant-profile')->name('tenant-profile'); });
     });
     Route::middleware('permission:population.view')->group(function () {
