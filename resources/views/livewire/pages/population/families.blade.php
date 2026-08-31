@@ -265,11 +265,11 @@ new #[Layout('layouts.app')] class extends Component {
             @endif
             <div class="flex w-full flex-col gap-3 sm:flex-row lg:justify-end">
                 <div class="relative w-full sm:max-w-sm">
-                    <svg class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <svg class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                         <circle cx="11" cy="11" r="7"></circle>
                         <path d="m20 20-3.5-3.5"></path>
                     </svg>
-                    <input wire:model.live.debounce.300ms="search" placeholder="Cari No. KK atau kepala keluarga..." class="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-4 text-sm shadow-sm focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
+                    <input wire:model.live.debounce.300ms="search" placeholder="Cari No. KK atau kepala keluarga..." class="w-full rounded-xl border border-slate-200 py-2.5 pl-11 pr-4 text-sm shadow-sm focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
                 </div>
                 <select wire:model.live="perPage" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 shadow-sm">
                     <option value="10">10 / halaman</option>
