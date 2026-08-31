@@ -116,10 +116,14 @@ class Statistics extends Component
                 continue;
             }
 
-            $gender = $row->gender;
+            $gender = in_array($row->gender, ['male', 'female', 'other'], true)
+                ? $row->gender
+                : 'other';
             $total = (int) $row->total;
-            $groups[$row->age_group][$gender] += $total;
-            $groups[$row->age_group]['total'] += $total;
+            $group = $groups->get($row->age_group);
+            $group[$gender] += $total;
+            $group['total'] += $total;
+            $groups->put($row->age_group, $group);
         }
 
         $max = max(1, (int) $groups->max('total'));
