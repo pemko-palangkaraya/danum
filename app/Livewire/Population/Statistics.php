@@ -47,6 +47,15 @@ class Statistics extends Component
             ->groupBy('status_perkawinan')
             ->pluck('total', 'status_perkawinan');
 
+        $occupations = (clone $citizens)
+            ->select('pekerjaan', DB::raw('count(*) as total'))
+            ->whereNotNull('pekerjaan')
+            ->whereRaw("TRIM(pekerjaan) <> ''")
+            ->groupBy('pekerjaan')
+            ->orderByDesc('total')
+            ->limit(8)
+            ->pluck('total', 'pekerjaan');
+
         $ageGroups = $this->buildAgeGroups($citizens);
         $toddlers = $this->countAgeRange($citizens, 0, 5);
         $children = $this->countAgeRange($citizens, 6, 12);
@@ -62,6 +71,7 @@ class Statistics extends Component
             'female' => $this->genderCount($gender, 'female'),
             'gender' => $gender,
             'marital' => $marital,
+            'occupations' => $occupations,
             'ageGroups' => $ageGroups,
             'toddlers' => $toddlers,
             'children' => $children,
