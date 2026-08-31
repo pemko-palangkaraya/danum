@@ -15,7 +15,7 @@ class Statistics extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()?->can('population.view'), 403);
+        abort_unless(auth()->user()?->hasPermission('population.view'), 403);
 
         if (! auth()->user()->isSuperAdmin()) {
             $this->selectedTenantId = auth()->user()->tenant_id;
@@ -24,12 +24,22 @@ class Statistics extends Component
 
     public function render()
     {
-        $tenantId = $this->selectedTenantId ?: auth()->user()->tenant_id;
-        $citizens = Citizen::query()->where('tenant_id', $tenantId);
-        $families = Family::query()->where('tenant_id', $tenantId);
+        $tenantId = auth()->user()->isSuperAdmin()
+            ? $this->selectedTenantId
+            : auth()->user()->tenant_id;
 
-        $gender = (clone $citizens)->select('jenis_kelamin', DB::raw('count(*) as total'))->groupBy('jenis_kelamin')->pluck('total', 'jenis_kelamin');
-        $marital = (clone $citizens)->select('status_perkawinan', DB::raw('count(*) as total'))->groupBy('status_perkawinan')->pluck('total', 'status_perkawinan');
+        $citizens = Citizen::query()->when($tenantId, fn ($query) => $query->where('tenant_id', $tenantId));
+        $families = Family::query()->when($tenantId, fn ($query) => $query->where('tenant_id', $tenantId));
+
+        $gender = (clone $citizens)
+            ->select('jenis_kelamin', DB::raw('count(*) as total'))
+            ->groupBy('jenis_kelamin')
+            ->pluck('total', 'jenis_kelamin');
+
+        $marital = (clone $citizens)
+            ->select('status_perkawinan', DB::raw('count(*) as total'))
+            ->groupBy('status_perkawinan')
+            ->pluck('total', 'status_perkawinan');
 
         $ageGroups = collect([
             '0–5' => [0, 5], '6–12' => [6, 12], '13–17' => [13, 17],
@@ -38,6 +48,7 @@ class Statistics extends Component
         ])->mapWithKeys(function (array $range, string $label) use ($citizens) {
             $from = now()->subYears($range[1])->startOfDay();
             $to = now()->subYears($range[0])->endOfDay();
+
             return [$label => (clone $citizens)->whereBetween('tanggal_lahir', [$from, $to])->count()];
         });
 
