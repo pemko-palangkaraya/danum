@@ -7,6 +7,7 @@
 
     <main>
         @include('landing.partials.hero')
+        <livewire:landing.public-population-statistics />
         @include('landing.partials.features')
     </main>
 
