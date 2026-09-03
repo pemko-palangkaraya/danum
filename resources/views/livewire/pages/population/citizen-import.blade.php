@@ -26,8 +26,6 @@ new #[Layout('layouts.app')] class extends Component {
 
     public function mount(): void
     {
-        abort_unless(auth()->user()?->hasPermission('population.manage'), 403);
-
         if (! auth()->user()->isSuperAdmin()) {
             abort_unless(auth()->user()->tenant_id, 403);
             $this->selectedTenantId = auth()->user()->tenant_id;
@@ -82,6 +80,8 @@ new #[Layout('layouts.app')] class extends Component {
 
     public function preview(): void
     {
+        abort_unless(auth()->user()?->hasPermission('population.manage'), 403);
+
         $this->resetPreview(false);
 
         if (! $this->file) {
