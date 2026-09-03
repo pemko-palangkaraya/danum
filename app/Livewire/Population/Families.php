@@ -153,18 +153,25 @@ class Families extends Component
         $this->dispatch('toast', type: 'success', message: 'Data KK berhasil disimpan.');
     }
 
-    public function addMember(string $familyId, string $citizenId, string $status = 'active'): void
+    public function addMember(string $familyId, string $citizenId, string $hubunganDalamKeluarga, string $status = 'active'): void
     {
         $this->authorizeManage();
         $tenantId = $this->tenantId();
         $family = $this->familiesQuery()->findOrFail($familyId);
         $citizen = Citizen::query()->whereKey($citizenId)->where('tenant_id', $tenantId)->firstOrFail();
 
+        $data = Validator::make([
+            'hubungan_dalam_keluarga' => $hubunganDalamKeluarga,
+        ], [
+            'hubungan_dalam_keluarga' => ['required', 'string', 'max:40'],
+        ])->validate();
+
         FamilyMember::updateOrCreate(
             ['family_id' => $family->id, 'citizen_id' => $citizen->id],
-            ['status' => $status]
+            ['hubungan_dalam_keluarga' => $data['hubungan_dalam_keluarga'], 'status' => $status]
         );
 
+        $this->memberSearch = '';
         $this->dispatch('toast', type: 'success', message: 'Anggota keluarga berhasil ditambahkan.');
     }
 
