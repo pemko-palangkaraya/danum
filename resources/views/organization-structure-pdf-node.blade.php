@@ -1,4 +1,6 @@
 @php
+    use App\Enums\PositionAssignmentStatus;
+
     $nodePosition = $node['position'];
     $nodeStructure = $node['structure'];
     $children = $nodes
@@ -15,8 +17,11 @@
         @forelse($nodePosition->holders as $holder)
             <div class="holder">
                 <strong>{{ $holder->user?->name ?? '—' }}</strong>
-                <span>({{ strtoupper($holder->assignment_status ?? 'definitif') }})</span>
+                <span>({{ PositionAssignmentStatus::tryFrom($holder->assignment_status)?->label() ?? strtoupper($holder->assignment_status ?? 'definitif') }})</span>
             </div>
+            @if($holder->appointment_number)
+                <div class="meta">SK: {{ $holder->appointment_number }}</div>
+            @endif
             @if($holder->user?->nip)
                 <div class="meta">NIP. {{ $holder->user->nip }}</div>
             @endif
