@@ -23,20 +23,25 @@
                 @endif
             </div>
 
-            <select wire:model.live="memberRelationship" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
-                <option value="">Pilih hubungan</option>
-                <option value="Kepala Keluarga">Kepala Keluarga</option>
-                <option value="Istri">Istri</option>
-                <option value="Suami">Suami</option>
-                <option value="Anak">Anak</option>
-                <option value="Menantu">Menantu</option>
-                <option value="Cucu">Cucu</option>
-                <option value="Orang Tua">Orang Tua</option>
-                <option value="Mertua">Mertua</option>
-                <option value="Famili Lain">Famili Lain</option>
-                <option value="Pembantu">Pembantu</option>
-                <option value="Lainnya">Lainnya</option>
-            </select>
+            <div>
+                <select wire:model.live="memberRelationship" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
+                    <option value="">Pilih hubungan</option>
+                    <option value="Kepala Keluarga">Kepala Keluarga</option>
+                    <option value="Istri">Istri</option>
+                    <option value="Suami">Suami</option>
+                    <option value="Anak">Anak</option>
+                    <option value="Menantu">Menantu</option>
+                    <option value="Cucu">Cucu</option>
+                    <option value="Orang Tua">Orang Tua</option>
+                    <option value="Mertua">Mertua</option>
+                    <option value="Famili Lain">Famili Lain</option>
+                    <option value="Pembantu">Pembantu</option>
+                    <option value="Lainnya">Lainnya</option>
+                </select>
+                @error('hubungan_dalam_keluarga')
+                    <p class="mt-1.5 text-xs font-medium text-red-600">{{ $message }}</p>
+                @enderror
+            </div>
         </div>
 
         @if($memberSearch !== '')
@@ -47,7 +52,7 @@
                             <div class="truncate text-sm font-semibold text-slate-800">{{ $citizen->nama_lengkap }}</div>
                             <div class="mt-0.5 font-mono text-xs text-slate-500">{{ $citizen->nik }}</div>
                         </div>
-                        <button type="button" wire:click="addMember('{{ $detail->id }}', '{{ $citizen->id }}', '{{ $memberRelationship }}')" @disabled($memberRelationship === '') class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50">
+                        <button type="button" wire:click="addMember('{{ $detail->id }}', '{{ $citizen->id }}', '{{ $memberRelationship }}')" class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900">
                             <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
                             Tambahkan
                         </button>
