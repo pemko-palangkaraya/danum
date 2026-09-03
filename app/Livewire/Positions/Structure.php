@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Positions;
 
+use App\Enums\PositionAssignmentStatus;
 use App\Enums\PositionType;
 use App\Models\Position;
 use App\Models\Tenant;
@@ -11,13 +12,17 @@ use App\Models\TenantPositionStructure;
 use App\Models\User;
 use App\Services\PositionService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 class Structure extends Component
 {
+    use WithFileUploads;
+
     public string $selectedTenantId = '';
     public ?string $editingPositionId = null;
     public string $parentPositionId = '';
@@ -29,7 +34,9 @@ class Structure extends Component
     public ?string $holderPositionId = null;
     public string $holderUserId = '';
     public string $holderStartedAt = '';
-    public string $holderAssignmentStatus = 'definitif';
+    public string $holderAssignmentStatus = PositionAssignmentStatus::DEFINITIF->value;
+    public string $holderAppointmentNumber = '';
+    public $holderAppointmentDocument = null;
 
     public function mount(?string $tenant = null): void
     {
@@ -97,7 +104,9 @@ class Structure extends Component
         $this->holderPositionId = $position->id;
         $this->holderUserId = (string) ($current?->user_id ?? '');
         $this->holderStartedAt = $current?->started_at?->toDateString() ?? now()->toDateString();
-        $this->holderAssignmentStatus = $current?->assignment_status ?? 'definitif';
+        $this->holderAssignmentStatus = $current?->assignment_status ?? PositionAssignmentStatus::DEFINITIF->value;
+        $this->holderAppointmentNumber = $current?->appointment_number ?? '';
+        $this->holderAppointmentDocument = null;
         $this->showHolderForm = true;
         $this->resetValidation();
     }
@@ -108,18 +117,40 @@ class Structure extends Component
         $this->validate([
             'holderUserId' => ['required', 'integer'],
             'holderStartedAt' => ['required', 'date'],
-            'holderAssignmentStatus' => ['required', Rule::in(['definitif', 'plt'])],
+            'holderAssignmentStatus' => ['required', Rule::enum(PositionAssignmentStatus::class)],
+            'holderAppointmentNumber' => ['required', 'string', 'max:255'],
+            'holderAppointmentDocument' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
+        ], [
+            'holderAppointmentNumber.required' => 'Nomor SK wajib diisi.',
+            'holderAppointmentDocument.mimes' => 'Dokumen SK harus berupa PDF.',
+            'holderAppointmentDocument.max' => 'Ukuran dokumen SK maksimal 10 MB.',
         ]);
+
         $position = $this->positionForSelectedTenant((string) $this->holderPositionId);
+        $documentPath = null;
         try {
-            $service->assignHolder($position, (int) $this->holderUserId, new \DateTimeImmutable($this->holderStartedAt), $this->holderAssignmentStatus);
+            if ($this->holderAppointmentDocument) {
+                $documentPath = $this->holderAppointmentDocument->store(
+                    'position-appointments/' . $this->selectedTenantId . '/' . $position->id,
+                    'local'
+                );
+            }
+            $service->assignHolder(
+                $position,
+                (int) $this->holderUserId,
+                new \DateTimeImmutable($this->holderStartedAt),
+                PositionAssignmentStatus::from($this->holderAssignmentStatus),
+                $this->holderAppointmentNumber,
+                $documentPath,
+            );
         } catch (\Throwable $exception) {
+            if ($documentPath) Storage::disk('local')->delete($documentPath);
             $this->addError('holderUserId', $exception->getMessage());
             return;
         }
         $this->showHolderForm = false;
         $this->resetHolderForm();
-        $this->dispatch('toast', type: 'success', message: 'Pemangku jabatan berhasil ditetapkan.');
+        $this->dispatch('toast', type: 'success', message: 'Pemangku jabatan dan SK berhasil ditetapkan.');
     }
 
     public function setRoot(string $positionId): void
@@ -172,8 +203,8 @@ class Structure extends Component
 
     private function resetHolderForm(): void
     {
-        $this->reset(['holderPositionId', 'holderUserId', 'holderStartedAt', 'holderAssignmentStatus', 'showHolderForm']);
-        $this->holderAssignmentStatus = 'definitif';
+        $this->reset(['holderPositionId', 'holderUserId', 'holderStartedAt', 'holderAssignmentStatus', 'holderAppointmentNumber', 'holderAppointmentDocument', 'showHolderForm']);
+        $this->holderAssignmentStatus = PositionAssignmentStatus::DEFINITIF->value;
     }
 
     public function render()
@@ -187,6 +218,6 @@ class Structure extends Component
         $roots = $nodes->filter(fn ($node) => $node['structure']?->is_root || $node['structure']?->parent_position_id === null)->values();
         if ($roots->count() > 1) { $explicitRoot = $nodes->first(fn ($node) => $node['structure']?->is_root); if ($explicitRoot) $roots = collect([$explicitRoot]); }
         $users = $this->selectedTenantId ? User::query()->where('tenant_id', $this->selectedTenantId)->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email']) : collect();
-        return view('livewire.positions.structure', compact('tenants', 'positions', 'structures', 'nodes', 'roots', 'users') + ['canManage' => $user->canManagePositions(), 'positionTypes' => PositionType::cases()]);
+        return view('livewire.positions.structure', compact('tenants', 'positions', 'structures', 'nodes', 'roots', 'users') + ['canManage' => $user->canManagePositions(), 'positionTypes' => PositionType::cases(), 'assignmentStatuses' => PositionAssignmentStatus::cases()]);
     }
 }
