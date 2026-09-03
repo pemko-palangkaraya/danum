@@ -49,6 +49,11 @@ class Tenant extends Model
         return $this->belongsTo(User::class, 'administrator_user_id');
     }
 
+    public function positionStructures(): HasMany
+    {
+        return $this->hasMany(TenantPositionStructure::class);
+    }
+
     public function letterheadUrl(): ?string
     {
         return $this->letterhead_path
