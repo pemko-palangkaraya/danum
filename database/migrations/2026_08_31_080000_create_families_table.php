@@ -16,8 +16,8 @@ return new class extends Migration
             $table->string('no_kk', 16);
             $table->uuid('head_citizen_id')->nullable();
             $table->text('alamat')->nullable();
-            $table->string('rt', 3)->nullable();
-            $table->string('rw', 3)->nullable();
+            $table->string('rt', 10)->nullable();
+            $table->string('rw', 10)->nullable();
             $table->string('kelurahan')->nullable();
             $table->string('kecamatan')->nullable();
             $table->string('kabupaten_kota')->nullable();
