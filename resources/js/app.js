@@ -74,4 +74,25 @@ window.addEventListener('livewire:init', () => {
             dispatchErrorToast('Tidak dapat terhubung ke server. Periksa koneksi Anda lalu coba lagi.');
         });
     });
+
+    window.setInterval(() => {
+        if (document.visibilityState !== 'visible') {
+            return;
+        }
+
+        const path = window.location.pathname.replace(/\/+$/, '');
+
+        if (path === '/dashboard') {
+            Livewire.all().forEach((component) => {
+                component.$wire.$refresh();
+            });
+            return;
+        }
+
+        const isOutgoingLetterDetail = /^\/outgoing-letters\/[^/]+$/.test(path);
+
+        if (isOutgoingLetterDetail) {
+            Livewire.dispatch('outgoing-letters-refresh');
+        }
+    }, 15000);
 });
