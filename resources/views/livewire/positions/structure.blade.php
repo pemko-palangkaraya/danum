@@ -5,7 +5,11 @@
             <p class="mt-1 text-sm text-slate-500">Susun hubungan atasan dan bawahan, kepala organisasi, serta pemangku jabatan.</p>
         </div>
         @if($selectedTenantId !== '')
-            <a href="{{ route('positions.structure.pdf', ['tenant' => $selectedTenantId]) }}" target="_blank" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800">Cetak Struktur PDF</a>
+            @if(auth()->user()?->isSuperAdmin())
+                <a href="{{ route('positions.structure.pdf', ['tenant' => $selectedTenantId]) }}" target="_blank" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800">Cetak Struktur PDF</a>
+            @else
+                <a href="{{ route('positions.structure.pdf.tenant') }}" target="_blank" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800">Cetak Struktur PDF</a>
+            @endif
         @endif
     </div>
 
@@ -18,7 +22,7 @@
         </ul>
     </div>
 
-    @if($isSuperAdmin = auth()->user()?->isSuperAdmin())
+    @if(auth()->user()?->isSuperAdmin())
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <label class="text-sm font-semibold text-slate-700">Pilih organisasi</label>
             <select wire:model.live="selectedTenantId" class="form-select mt-2 w-full sm:max-w-md">
@@ -42,7 +46,6 @@
                     </div>
                     <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">{{ $positions->count() }} jabatan</span>
                 </div>
-
                 @forelse($roots as $root)
                     @include('livewire.positions._tree', ['node' => $root, 'nodes' => $nodes, 'depth' => 0, 'canManage' => $canManage])
                 @empty
@@ -72,11 +75,10 @@
                         @endforeach
                     </div>
                 </div>
-
                 <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <h2 class="text-base font-semibold text-slate-900">Jenis Jabatan</h2>
                     <div class="mt-3 space-y-3 text-xs text-slate-600">
-                        <div><div class="font-semibold text-slate-800">Manajerial</div><div>Contoh: Lurah, Sekretaris Kelurahan, Kasi.</div></div>
+                        <div><div class="font-semibold text-slate-800">Manajerial</div><div>Lurah, Sekretaris Kelurahan, Kasi; satu pemangku aktif.</div></div>
                         <div><div class="font-semibold text-slate-800">JFU</div><div>Jabatan Fungsional Umum; dapat diisi beberapa orang.</div></div>
                         <div><div class="font-semibold text-slate-800">JFT</div><div>Jabatan Fungsional Tertentu; dapat diisi beberapa orang.</div></div>
                     </div>
@@ -95,6 +97,15 @@
                 </div>
                 <form wire:submit="saveStructure" class="mt-6 space-y-4">
                     <div>
+                        <label class="text-sm font-medium text-slate-700">Jenis Jabatan</label>
+                        <select wire:model="positionType" class="form-select mt-1 w-full">
+                            @foreach($positionTypes as $type)
+                                <option value="{{ $type->value }}">{{ $type->label() }}</option>
+                            @endforeach
+                        </select>
+                        @error('positionType')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
                         <label class="text-sm font-medium text-slate-700">Berada di bawah</label>
                         <select wire:model="parentPositionId" class="form-select mt-1 w-full">
                             <option value="">— Tidak ada atasan —</option>
@@ -107,7 +118,7 @@
                         @error('parentPositionId')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                     </div>
                     <div>
-                        <label class="text-sm font-medium text-slate-700">Urutan</label>
+                        <label class="text-sm font-medium text-slate-700">Urutan dalam kelompok</label>
                         <input type="number" min="0" wire:model="sortOrder" class="form-control mt-1 w-full">
                         @error('sortOrder')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                     </div>
