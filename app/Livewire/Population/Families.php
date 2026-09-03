@@ -23,6 +23,7 @@ class Families extends Component
     public string $search = '';
     public string $headSearch = '';
     public string $memberSearch = '';
+    public string $memberRelationship = '';
     public int $perPage = 10;
     public ?string $selectedTenantId = null;
     public ?string $editingId = null;
@@ -172,6 +173,7 @@ class Families extends Component
         );
 
         $this->memberSearch = '';
+        $this->memberRelationship = '';
         $this->dispatch('toast', type: 'success', message: 'Anggota keluarga berhasil ditambahkan.');
     }
 
@@ -188,11 +190,15 @@ class Families extends Component
         abort_unless(auth()->user()?->hasPermission('population.view'), 403);
         $this->familiesQuery()->findOrFail($id);
         $this->detailId = $id;
+        $this->memberSearch = '';
+        $this->memberRelationship = '';
     }
 
     public function closeDetail(): void
     {
         $this->detailId = null;
+        $this->memberSearch = '';
+        $this->memberRelationship = '';
     }
 
     public function render(): View
@@ -345,5 +351,6 @@ class Families extends Component
         $this->kode_pos = '';
         $this->status = 'active';
         $this->headSearch = '';
+        $this->memberRelationship = '';
     }
 }
