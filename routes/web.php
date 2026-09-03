@@ -33,6 +33,12 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
+    // Keep the static import route before /population/citizens/{citizen}.
+    // Otherwise "import" is captured as a citizen parameter by the
+    // super-admin-only citizen detail route.
+    Volt::route('/population/citizens/import', 'pages.population.citizen-import')
+        ->name('population.citizens.import');
+
     Route::middleware('permission:dashboard.view')->group(function () { Volt::route('/dashboard', 'pages.dashboard')->name('dashboard'); });
     Route::middleware('permission:rbac.view')->group(function () { Volt::route('/rbac', 'pages.rbac.index')->name('rbac.index'); });
     Route::middleware(['superadmin', 'permission:users.view'])->group(function () { Volt::route('/users', 'pages.users.index')->name('users.index'); });
@@ -55,11 +61,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/population/families/{id}/pdf', [FamilyCardController::class, 'pdf'])->name('population.families.pdf');
     });
 
-    // The import page performs its own permission check in mount() so custom
-    // tenant roles are authorized by the same persisted RBAC path as actions.
-    // Keeping this route under auth avoids exposing the Livewire upload surface
-    // while allowing the component to own the population.manage decision.
-    Volt::route('/population/citizens/import', 'pages.population.citizen-import')->name('population.citizens.import');
     Route::get('/population/citizens/template', [PopulationExportController::class, 'template'])
         ->middleware('permission:population.manage')
         ->name('population.citizens.template');
