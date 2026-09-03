@@ -90,9 +90,11 @@ class Families extends Component
     {
         $this->authorizeManage();
         $tenantId = $this->tenantId();
+        $input = $this->only($this->formFields());
+        $input['head_citizen_id'] = $input['head_citizen_id'] ?: null;
 
         $data = Validator::make(
-            $this->only($this->formFields()),
+            $input,
             $this->rules($tenantId)
         )->validate();
 
@@ -120,121 +122,70 @@ class Families extends Component
         $this->dispatch('toast', type: 'success', message: 'Data KK berhasil disimpan.');
     }
 
-    public function show(string $id): void
-    {
-        $this->detailId = $this->familiesQuery()->findOrFail($id)->id;
-        $this->showForm = false;
-        $this->memberSearch = '';
-    }
-
-    public function addMember(string $citizenId): void
+    public function addMember(string $familyId, string $citizenId, string $status = 'active'): void
     {
         $this->authorizeManage();
-        $family = $this->familiesQuery()->findOrFail($this->detailId);
-        $citizen = Citizen::query()
-            ->where('tenant_id', $this->tenantId())
-            ->findOrFail($citizenId);
+        $tenantId = $this->tenantId();
 
-        abort_if(
-            FamilyMember::query()
-                ->where('citizen_id', $citizen->id)
-                ->where('status', 'active')
-                ->exists(),
-            422,
-            'Warga sudah memiliki KK aktif.'
+        $family = $this->familiesQuery()->findOrFail($familyId);
+        $citizen = Citizen::query()->whereKey($citizenId)->where('tenant_id', $tenantId)->firstOrFail();
+
+        FamilyMember::updateOrCreate(
+            ['family_id' => $family->id, 'citizen_id' => $citizen->id],
+            ['status' => $status]
         );
 
-        FamilyMember::create([
-            'family_id' => $family->id,
-            'citizen_id' => $citizen->id,
-            'hubungan_dalam_keluarga' => 'family_member',
-            'urutan' => $family->activeMembers()->count() + 1,
-            'tanggal_mulai' => now()->toDateString(),
-            'status' => 'active',
-        ]);
-
-        $this->memberSearch = '';
+        $this->dispatch('toast', type: 'success', message: 'Anggota keluarga berhasil ditambahkan.');
     }
 
-    public function removeMember(string $memberId): void
+    public function removeMember(string $familyId, string $citizenId): void
     {
         $this->authorizeManage();
-
-        $member = FamilyMember::query()
-            ->whereHas('family', fn ($query) => $query->where('tenant_id', $this->tenantId()))
-            ->findOrFail($memberId);
-
-        $member->update([
-            'status' => 'inactive',
-            'tanggal_selesai' => now()->toDateString(),
-        ]);
+        $family = $this->familiesQuery()->findOrFail($familyId);
+        FamilyMember::query()->where('family_id', $family->id)->where('citizen_id', $citizenId)->delete();
+        $this->dispatch('toast', type: 'success', message: 'Anggota keluarga berhasil dihapus.');
     }
 
-    public function selectHead(string $citizenId): void
+    public function showDetail(string $id): void
     {
-        $this->authorizeManage();
-        $citizen = Citizen::query()
-            ->where('tenant_id', $this->tenantId())
-            ->findOrFail($citizenId);
-
-        $this->head_citizen_id = $citizen->id;
-        $this->headSearch = $citizen->nama_lengkap;
+        abort_unless(auth()->user()?->hasPermission('population.view'), 403);
+        $this->familiesQuery()->findOrFail($id);
+        $this->detailId = $id;
     }
 
-    public function resetHead(): void
+    public function closeDetail(): void
     {
-        $this->head_citizen_id = '';
-        $this->headSearch = '';
-    }
-
-    public function resetForm(): void
-    {
-        foreach ($this->formFields() as $field) {
-            $this->{$field} = '';
-        }
-
-        $this->status = 'active';
-        $this->editingId = null;
-        $this->showForm = false;
-        $this->headSearch = '';
-        $this->memberSearch = '';
-        $this->resetValidation();
+        $this->detailId = null;
     }
 
     public function render(): View
     {
-        $tenant = auth()->user()->isSuperAdmin()
-            ? $this->selectedTenantId
-            : auth()->user()->tenant_id;
+        $families = $this->familiesQuery()
+            ->with('headCitizen')
+            ->withCount('members')
+            ->when($this->search !== '', function ($query) {
+                $query->where(function ($q) {
+                    $q->where('no_kk', 'like', '%'.$this->search.'%')
+                        ->orWhere('alamat', 'like', '%'.$this->search.'%')
+                        ->orWhere('kelurahan', 'like', '%'.$this->search.'%')
+                        ->orWhere('kecamatan', 'like', '%'.$this->search.'%');
+                });
+            })
+            ->latest()
+            ->paginate($this->perPage);
 
-        $headCitizens = collect();
-        $memberCandidates = collect();
+        $tenants = auth()->user()?->isSuperAdmin()
+            ? Tenant::query()->orderBy('name')->get(['id', 'name'])
+            : collect();
 
-        if ($tenant && $this->headSearch !== '') {
-            $headCitizens = $this->citizenSearch($this->headSearch)->get();
-        }
+        $detail = $this->detailId
+            ? $this->familiesQuery()->with(['headCitizen', 'members.citizen'])->find($this->detailId)
+            : null;
 
-        if ($tenant && $this->detailId && $this->memberSearch !== '') {
-            $activeMemberIds = FamilyMember::query()
-                ->where('family_id', $this->detailId)
-                ->where('status', 'active')
-                ->pluck('citizen_id');
+        $headCandidates = $this->headCandidates();
+        $memberCandidates = $this->memberCandidates();
 
-            $memberCandidates = $this->citizenSearch($this->memberSearch)
-                ->whereNotIn('id', $activeMemberIds)
-                ->get();
-        }
-
-        return view('livewire.population.families', [
-            'families' => $tenant ? $this->familiesQuery()->paginate($this->perPage) : collect(),
-            'tenants' => auth()->user()->isSuperAdmin()
-                ? Tenant::query()->orderBy('name')->get(['id', 'name', 'code'])
-                : collect(),
-            'headCitizens' => $headCitizens,
-            'memberCandidates' => $memberCandidates,
-            'selectedHead' => $this->selectedHead($tenant),
-            'detail' => $this->detailId ? $this->familiesQuery()->find($this->detailId) : null,
-        ]);
+        return view('livewire.population.families', compact('families', 'tenants', 'detail', 'headCandidates', 'memberCandidates'));
     }
 
     private function authorizeManage(): void
@@ -244,95 +195,115 @@ class Families extends Component
 
     private function tenantId(): string
     {
-        $id = auth()->user()->isSuperAdmin()
-            ? $this->selectedTenantId
-            : auth()->user()->tenant_id;
+        if (auth()->user()?->isSuperAdmin()) {
+            abort_unless($this->selectedTenantId, 422);
+            return $this->selectedTenantId;
+        }
 
-        abort_unless($id, 422);
-        return (string) $id;
+        return (string) auth()->user()->tenant_id;
     }
 
     private function familiesQuery()
     {
-        return Family::query()
-            ->where('tenant_id', $this->tenantId())
-            ->with(['headCitizen', 'activeMembers.citizen'])
-            ->when($this->search !== '', fn ($query) => $query->where(
-                fn ($query) => $query
-                    ->where('no_kk', 'ilike', '%' . $this->search . '%')
-                    ->orWhereHas('headCitizen', fn ($query) =>
-                        $query->where('nama_lengkap', 'ilike', '%' . $this->search . '%')
-                    )
-            ))
-            ->orderBy('no_kk');
+        return Family::query()->where('tenant_id', $this->tenantIdForQuery());
     }
 
-    private function citizenSearch(string $search)
+    private function tenantIdForQuery(): string
     {
-        return Citizen::query()
-            ->where('tenant_id', $this->tenantId())
-            ->where(fn ($query) => $query
-                ->where('nama_lengkap', 'ilike', '%' . $search . '%')
-                ->orWhere('nik', 'ilike', '%' . $search . '%')
-            )
-            ->orderBy('nama_lengkap')
-            ->limit(15)
-            ->select(['id', 'nik', 'nama_lengkap']);
+        return auth()->user()?->isSuperAdmin()
+            ? (string) ($this->selectedTenantId ?? '')
+            : (string) auth()->user()->tenant_id;
     }
 
-    private function selectedHead(?string $tenant): ?Citizen
+    private function headCandidates()
     {
-        if (! $tenant || ! $this->head_citizen_id) {
-            return null;
+        $tenantId = $this->tenantIdForQuery();
+        if ($tenantId === '') {
+            return collect();
         }
 
         return Citizen::query()
-            ->where('tenant_id', $this->tenantId())
-            ->find($this->head_citizen_id);
+            ->where('tenant_id', $tenantId)
+            ->when($this->headSearch !== '', fn ($q) => $q->where(function ($query) {
+                $query->where('nik', 'like', '%'.$this->headSearch.'%')
+                    ->orWhere('nama_lengkap', 'like', '%'.$this->headSearch.'%');
+            }))
+            ->orderBy('nama_lengkap')
+            ->limit(10)
+            ->get(['id', 'nik', 'nama_lengkap']);
+    }
+
+    private function memberCandidates()
+    {
+        $tenantId = $this->tenantIdForQuery();
+        if ($tenantId === '') {
+            return collect();
+        }
+
+        return Citizen::query()
+            ->where('tenant_id', $tenantId)
+            ->when($this->memberSearch !== '', fn ($q) => $q->where(function ($query) {
+                $query->where('nik', 'like', '%'.$this->memberSearch.'%')
+                    ->orWhere('nama_lengkap', 'like', '%'.$this->memberSearch.'%');
+            }))
+            ->orderBy('nama_lengkap')
+            ->limit(10)
+            ->get(['id', 'nik', 'nama_lengkap']);
     }
 
     private function formFields(): array
     {
         return [
-            'no_kk', 'head_citizen_id', 'alamat', 'rt', 'rw',
-            'kelurahan', 'kecamatan', 'kabupaten_kota', 'provinsi', 'kode_pos',
-            'status',
+            'no_kk', 'head_citizen_id', 'alamat', 'rt', 'rw', 'kelurahan',
+            'kecamatan', 'kabupaten_kota', 'provinsi', 'kode_pos', 'status',
         ];
     }
 
     private function addressFields(): array
     {
-        return [
-            'alamat', 'rt', 'rw', 'kelurahan', 'kecamatan',
-            'kabupaten_kota', 'provinsi', 'kode_pos',
-        ];
+        return ['alamat', 'rt', 'rw', 'kelurahan', 'kecamatan', 'kabupaten_kota', 'provinsi', 'kode_pos'];
     }
 
     private function rules(string $tenantId): array
     {
         return [
             'no_kk' => [
-                'required',
-                'digits:16',
+                'required', 'string', 'size:16',
                 Rule::unique('families', 'no_kk')
                     ->where(fn ($query) => $query->where('tenant_id', $tenantId))
                     ->ignore($this->editingId),
             ],
             'head_citizen_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('citizens', 'id')
-                    ->where(fn ($query) => $query->where('tenant_id', $tenantId)),
+                'nullable', 'uuid',
+                Rule::exists('citizens', 'id')->where(fn ($query) => $query->where('tenant_id', $tenantId)),
             ],
-            'alamat' => ['required', 'string', 'max:500'],
-            'rt' => ['nullable', 'string', 'max:10'],
-            'rw' => ['nullable', 'string', 'max:10'],
-            'kelurahan' => ['nullable', 'string', 'max:100'],
-            'kecamatan' => ['nullable', 'string', 'max:100'],
-            'kabupaten_kota' => ['nullable', 'string', 'max:100'],
-            'provinsi' => ['nullable', 'string', 'max:100'],
+            'alamat' => ['required', 'string', 'max:255'],
+            'rt' => ['required', 'string', 'max:10'],
+            'rw' => ['required', 'string', 'max:10'],
+            'kelurahan' => ['required', 'string', 'max:100'],
+            'kecamatan' => ['required', 'string', 'max:100'],
+            'kabupaten_kota' => ['required', 'string', 'max:100'],
+            'provinsi' => ['required', 'string', 'max:100'],
             'kode_pos' => ['nullable', 'string', 'max:10'],
             'status' => ['required', 'string', 'max:30'],
         ];
+    }
+
+    private function resetForm(): void
+    {
+        $this->editingId = null;
+        $this->showForm = false;
+        $this->no_kk = '';
+        $this->head_citizen_id = '';
+        $this->alamat = '';
+        $this->rt = '';
+        $this->rw = '';
+        $this->kelurahan = '';
+        $this->kecamatan = '';
+        $this->kabupaten_kota = '';
+        $this->provinsi = '';
+        $this->kode_pos = '';
+        $this->status = 'active';
+        $this->headSearch = '';
     }
 }
