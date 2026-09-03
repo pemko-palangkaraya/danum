@@ -8,7 +8,6 @@ use App\Enums\PositionType;
 use App\Models\Position;
 use App\Models\Tenant;
 use App\Models\TenantPositionStructure;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
@@ -21,6 +20,7 @@ class Structure extends Component
     public ?string $editingPositionId = null;
     public string $parentPositionId = '';
     public string $sortOrder = '0';
+    public string $positionType = 'managerial';
     public bool $isRoot = false;
     public bool $showForm = false;
 
@@ -42,13 +42,12 @@ class Structure extends Component
 
     public function editStructure(string $positionId): void
     {
-        $this->authorize('viewAny', Position::class);
         $position = $this->positionForSelectedTenant($positionId);
-        $this->authorize('view', $position);
         $structure = TenantPositionStructure::query()->where('tenant_id', $this->selectedTenantId)->where('position_id', $position->id)->firstOrFail();
         $this->editingPositionId = $position->id;
         $this->parentPositionId = (string) ($structure->parent_position_id ?? '');
         $this->sortOrder = (string) $structure->sort_order;
+        $this->positionType = $position->position_type?->value ?? PositionType::MANAGERIAL->value;
         $this->isRoot = (bool) $structure->is_root;
         $this->showForm = true;
         $this->resetValidation();
@@ -62,6 +61,7 @@ class Structure extends Component
             'selectedTenantId' => ['required', 'uuid', Rule::exists('tenants', 'id')],
             'parentPositionId' => ['nullable', 'string'],
             'sortOrder' => ['required', 'integer', 'min:0', 'max:9999'],
+            'positionType' => ['required', Rule::enum(PositionType::class)],
             'isRoot' => ['boolean'],
         ]);
 
@@ -93,6 +93,7 @@ class Structure extends Component
                     ->where('position_id', '!=', $position->id)
                     ->update(['is_root' => false]);
             }
+            $position->update(['position_type' => $this->positionType]);
             $structure->update([
                 'parent_position_id' => $parentId,
                 'sort_order' => (int) $this->sortOrder,
@@ -102,7 +103,7 @@ class Structure extends Component
 
         $this->showForm = false;
         $this->resetForm();
-        $this->dispatch('toast', type: 'success', message: 'Struktur organisasi berhasil diperbarui.');
+        $this->dispatch('toast', type: 'success', message: 'Struktur dan jenis jabatan berhasil diperbarui.');
     }
 
     public function setRoot(string $positionId): void
@@ -160,8 +161,9 @@ class Structure extends Component
 
     private function resetForm(): void
     {
-        $this->reset(['editingPositionId', 'parentPositionId', 'sortOrder', 'isRoot', 'showForm']);
+        $this->reset(['editingPositionId', 'parentPositionId', 'sortOrder', 'positionType', 'isRoot', 'showForm']);
         $this->sortOrder = '0';
+        $this->positionType = PositionType::MANAGERIAL->value;
         $this->resetValidation();
     }
 
@@ -169,7 +171,7 @@ class Structure extends Component
     {
         $user = auth()->user();
         $tenants = $user->isSuperAdmin()
-            ? Tenant::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'tenant_category_id'])
+            ? Tenant::query()->where('status', 'active')->orderBy('name')->get(['id', 'name', 'tenant_category_id'])
             : Tenant::query()->whereKey($user->tenant_id)->get(['id', 'name', 'tenant_category_id']);
 
         $categoryId = $this->selectedTenantId ? Tenant::query()->whereKey($this->selectedTenantId)->value('tenant_category_id') : null;
@@ -180,10 +182,7 @@ class Structure extends Component
             ? TenantPositionStructure::query()->where('tenant_id', $this->selectedTenantId)->get()->keyBy('position_id')
             : collect();
 
-        $nodes = $positions->map(fn (Position $position) => [
-            'position' => $position,
-            'structure' => $structures->get($position->id),
-        ]);
+        $nodes = $positions->map(fn (Position $position) => ['position' => $position, 'structure' => $structures->get($position->id)]);
         $roots = $nodes->filter(fn ($node) => $node['structure']?->is_root || $node['structure']?->parent_position_id === null)->values();
         if ($roots->count() > 1) {
             $explicitRoot = $nodes->first(fn ($node) => $node['structure']?->is_root);
