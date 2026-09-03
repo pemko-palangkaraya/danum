@@ -19,6 +19,7 @@ use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\OutgoingLetterController;
 use App\Http\Controllers\OutgoingLetterWithdrawalController;
 use App\Http\Controllers\PopulationExportController;
+use App\Http\Controllers\FamilyCardController;
 use App\Models\Citizen;
 
 Route::view('/', 'welcome')->name('home');
@@ -49,7 +50,10 @@ Route::middleware('auth')->group(function () {
         Route::middleware('permission:population.view')->group(function () { Volt::route('/tenant/population/citizens', 'pages.population.citizens')->name('population.citizens.index'); Volt::route('/tenant/population/citizens/{citizen}', 'pages.population.citizen-show')->name('population.citizens.show'); Route::get('/tenant/population/families', PopulationFamilies::class)->name('population.families.index'); Route::get('/tenant/population/statistics', PopulationStatistics::class)->name('population.statistics'); });
         Route::middleware('permission:tenant-profile.view')->group(function () { Volt::route('/tenant-profile', 'pages.tenant-profile')->name('tenant-profile'); });
     });
-    Route::middleware('permission:population.view')->group(function () { Route::get('/population/citizens/export', [PopulationExportController::class, 'citizens'])->name('population.citizens.export'); });
+    Route::middleware('permission:population.view')->group(function () {
+        Route::get('/population/citizens/export', [PopulationExportController::class, 'citizens'])->name('population.citizens.export');
+        Route::get('/population/families/{id}/pdf', [FamilyCardController::class, 'pdf'])->name('population.families.pdf');
+    });
     Route::middleware('permission:population.manage')->group(function () { Volt::route('/population/citizens/import', 'pages.population.citizen-import')->name('population.citizens.import'); Route::get('/population/citizens/template', [PopulationExportController::class, 'template'])->name('population.citizens.template'); });
     Route::middleware('permission:outgoing-letters.view')->group(function () { Route::get('/outgoing-letters', OutgoingLetterIndex::class)->name('outgoing-letters.index'); Route::get('/outgoing-letter-withdrawals/{letter?}', OutgoingLetterWithdrawalIndex::class)->name('outgoing-letter-withdrawals.index'); Route::get('/outgoing-letter-withdrawals/{id}/statement', [OutgoingLetterWithdrawalController::class, 'statement'])->name('outgoing-letter-withdrawals.statement'); Route::get('/outgoing-letters/{id}/pdf', [OutgoingLetterController::class, 'downloadPdf'])->name('outgoing-letters.pdf'); Route::get('/outgoing-letters/{id}', OutgoingLetterShow::class)->name('outgoing-letters.show'); });
     Route::middleware('permission:outgoing-letters.issue')->group(function () { Volt::route('/settings/signing-pin', 'pages.settings.signing-pin')->name('settings.signing-pin'); Volt::route('/settings/signing-certificate', 'pages.settings.signing-certificate')->name('settings.signing-certificate'); });
