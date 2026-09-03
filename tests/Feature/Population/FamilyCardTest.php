@@ -44,7 +44,7 @@ class FamilyCardTest extends TestCase
         $user = User::factory()->tenantUser($tenant)->create();
         $family = Family::factory()->forTenant($tenant)->create();
 
-        $role = $user->role;
+        $role = $user->customRole;
         $this->assertNotNull($role);
         $role->permissions()->detach();
 
