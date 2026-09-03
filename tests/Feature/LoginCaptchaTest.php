@@ -37,12 +37,13 @@ class LoginCaptchaTest extends TestCase
             'password' => 'password',
         ]);
 
-        Livewire::test('pages.auth.login')
+        $component = Livewire::test('pages.auth.login');
+        $captchaAnswer = (string) Session::get('login_captcha_answer');
+
+        $component
             ->set('email', $user->email)
             ->set('password', 'password')
-            ->set('captchaAnswer', function () {
-                return (string) Session::get('login_captcha_answer');
-            })
+            ->set('captchaAnswer', $captchaAnswer)
             ->call('login');
 
         $this->assertAuthenticatedAs($user);
