@@ -23,7 +23,7 @@
                 @endif
             </div>
 
-            <select wire:model="memberRelationship" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
+            <select wire:model.live="memberRelationship" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
                 <option value="">Pilih hubungan</option>
                 <option value="Kepala Keluarga">Kepala Keluarga</option>
                 <option value="Istri">Istri</option>
