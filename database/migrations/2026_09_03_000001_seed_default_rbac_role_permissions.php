@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
@@ -18,7 +16,6 @@ return new class extends Migration
         'tenant_admin' => [
             'dashboard.view',
             'rbac.view',
-            'rbac.manage',
             'tenant-users.view',
             'tenant-profile.view',
             'positions.view',
