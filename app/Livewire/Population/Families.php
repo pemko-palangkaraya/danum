@@ -86,6 +86,40 @@ class Families extends Component
         $this->showForm = true;
     }
 
+    public function selectHead(string $citizenId): void
+    {
+        $citizen = Citizen::query()
+            ->whereKey($citizenId)
+            ->where('tenant_id', $this->tenantId())
+            ->firstOrFail();
+
+        $this->head_citizen_id = $citizen->id;
+        $this->headSearch = $citizen->nama_lengkap;
+    }
+
+    public function resetHead(): void
+    {
+        $this->head_citizen_id = '';
+        $this->headSearch = '';
+    }
+
+    public function getSelectedHeadProperty(): ?Citizen
+    {
+        if ($this->head_citizen_id === '') {
+            return null;
+        }
+
+        return Citizen::query()
+            ->whereKey($this->head_citizen_id)
+            ->where('tenant_id', $this->tenantIdForQuery())
+            ->first();
+    }
+
+    public function getHeadCitizensProperty()
+    {
+        return $this->headCandidates();
+    }
+
     public function save(): void
     {
         $this->authorizeManage();
@@ -93,10 +127,7 @@ class Families extends Component
         $input = $this->only($this->formFields());
         $input['head_citizen_id'] = $input['head_citizen_id'] ?: null;
 
-        $data = Validator::make(
-            $input,
-            $this->rules($tenantId)
-        )->validate();
+        $data = Validator::make($input, $this->rules($tenantId))->validate();
 
         if (! empty($data['head_citizen_id'])) {
             abort_unless(
@@ -126,7 +157,6 @@ class Families extends Component
     {
         $this->authorizeManage();
         $tenantId = $this->tenantId();
-
         $family = $this->familiesQuery()->findOrFail($familyId);
         $citizen = Citizen::query()->whereKey($citizenId)->where('tenant_id', $tenantId)->firstOrFail();
 
@@ -269,9 +299,7 @@ class Families extends Component
         return [
             'no_kk' => [
                 'required', 'string', 'size:16',
-                Rule::unique('families', 'no_kk')
-                    ->where(fn ($query) => $query->where('tenant_id', $tenantId))
-                    ->ignore($this->editingId),
+                Rule::unique('families', 'no_kk')->where(fn ($query) => $query->where('tenant_id', $tenantId))->ignore($this->editingId),
             ],
             'head_citizen_id' => [
                 'nullable', 'uuid',
