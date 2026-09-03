@@ -46,6 +46,18 @@ new #[Layout('layouts.app')] class extends Component {
             abort_unless(auth()->user()->tenant_id, 403);
             $this->selectedTenantId = auth()->user()->tenant_id;
         }
+
+        $editId = request()->query('edit');
+        if ($editId !== null && $editId !== '') {
+            $this->authorizeManage();
+
+            if (auth()->user()->isSuperAdmin()) {
+                $citizen = Citizen::query()->findOrFail((string) $editId);
+                $this->selectedTenantId = $citizen->tenant_id;
+            }
+
+            $this->edit((string) $editId);
+        }
     }
 
     public function updatedSearch(): void
