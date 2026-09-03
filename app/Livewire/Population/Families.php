@@ -10,6 +10,7 @@ use App\Models\FamilyMember;
 use App\Models\Tenant;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -43,7 +44,7 @@ class Families extends Component
     {
         abort_unless(auth()->user()?->hasPermission('population.view'), 403);
 
-        if (!auth()->user()->isSuperAdmin()) {
+        if (! auth()->user()->isSuperAdmin()) {
             abort_unless(auth()->user()->tenant_id, 403);
             $this->selectedTenantId = auth()->user()->tenant_id;
         }
@@ -89,11 +90,18 @@ class Families extends Component
     {
         $this->authorizeManage();
         $tenantId = $this->tenantId();
-        $data = Validator::make($this->only($this->formFields()), $this->rules($tenantId))->validate();
 
-        if (!empty($data['head_citizen_id'])) {
+        $data = Validator::make(
+            $this->only($this->formFields()),
+            $this->rules($tenantId)
+        )->validate();
+
+        if (! empty($data['head_citizen_id'])) {
             abort_unless(
-                Citizen::whereKey($data['head_citizen_id'])->where('tenant_id', $tenantId)->exists(),
+                Citizen::query()
+                    ->whereKey($data['head_citizen_id'])
+                    ->where('tenant_id', $tenantId)
+                    ->exists(),
                 422
             );
         }
@@ -123,10 +131,15 @@ class Families extends Component
     {
         $this->authorizeManage();
         $family = $this->familiesQuery()->findOrFail($this->detailId);
-        $citizen = Citizen::where('tenant_id', $this->tenantId())->findOrFail($citizenId);
+        $citizen = Citizen::query()
+            ->where('tenant_id', $this->tenantId())
+            ->findOrFail($citizenId);
 
         abort_if(
-            FamilyMember::where('citizen_id', $citizen->id)->where('status', 'active')->exists(),
+            FamilyMember::query()
+                ->where('citizen_id', $citizen->id)
+                ->where('status', 'active')
+                ->exists(),
             422,
             'Warga sudah memiliki KK aktif.'
         );
@@ -147,10 +160,9 @@ class Families extends Component
     {
         $this->authorizeManage();
 
-        $member = FamilyMember::whereHas(
-            'family',
-            fn ($query) => $query->where('tenant_id', $this->tenantId())
-        )->findOrFail($memberId);
+        $member = FamilyMember::query()
+            ->whereHas('family', fn ($query) => $query->where('tenant_id', $this->tenantId()))
+            ->findOrFail($memberId);
 
         $member->update([
             'status' => 'inactive',
@@ -161,7 +173,9 @@ class Families extends Component
     public function selectHead(string $citizenId): void
     {
         $this->authorizeManage();
-        $citizen = Citizen::where('tenant_id', $this->tenantId())->findOrFail($citizenId);
+        $citizen = Citizen::query()
+            ->where('tenant_id', $this->tenantId())
+            ->findOrFail($citizenId);
 
         $this->head_citizen_id = $citizen->id;
         $this->headSearch = $citizen->nama_lengkap;
@@ -201,7 +215,8 @@ class Families extends Component
         }
 
         if ($tenant && $this->detailId && $this->memberSearch !== '') {
-            $activeMemberIds = FamilyMember::where('family_id', $this->detailId)
+            $activeMemberIds = FamilyMember::query()
+                ->where('family_id', $this->detailId)
                 ->where('status', 'active')
                 ->pluck('citizen_id');
 
@@ -213,7 +228,7 @@ class Families extends Component
         return view('livewire.population.families', [
             'families' => $tenant ? $this->familiesQuery()->paginate($this->perPage) : collect(),
             'tenants' => auth()->user()->isSuperAdmin()
-                ? Tenant::orderBy('name')->get(['id', 'name', 'code'])
+                ? Tenant::query()->orderBy('name')->get(['id', 'name', 'code'])
                 : collect(),
             'headCitizens' => $headCitizens,
             'memberCandidates' => $memberCandidates,
@@ -224,7 +239,7 @@ class Families extends Component
 
     private function authorizeManage(): void
     {
-        abort_unless(auth()->user()->hasPermission('population.manage'), 403);
+        abort_unless(auth()->user()?->hasPermission('population.manage'), 403);
     }
 
     private function tenantId(): string
@@ -267,11 +282,13 @@ class Families extends Component
 
     private function selectedHead(?string $tenant): ?Citizen
     {
-        if (!$tenant || !$this->head_citizen_id) {
+        if (! $tenant || ! $this->head_citizen_id) {
             return null;
         }
 
-        return Citizen::where('tenant_id', $this->tenantId())->find($this->head_citizen_id);
+        return Citizen::query()
+            ->where('tenant_id', $this->tenantId())
+            ->find($this->head_citizen_id);
     }
 
     private function formFields(): array
@@ -279,6 +296,7 @@ class Families extends Component
         return [
             'no_kk', 'head_citizen_id', 'alamat', 'rt', 'rw',
             'kelurahan', 'kecamatan', 'kabupaten_kota', 'provinsi', 'kode_pos',
+            'status',
         ];
     }
 
@@ -293,8 +311,19 @@ class Families extends Component
     private function rules(string $tenantId): array
     {
         return [
-            'no_kk' => ['required', 'digits:16', 'unique:families,no_kk,' . ($this->editingId ?? 'NULL') . ',id,tenant_id,' . $tenantId],
-            'head_citizen_id' => ['nullable', 'uuid', 'exists:citizens,id'],
+            'no_kk' => [
+                'required',
+                'digits:16',
+                Rule::unique('families', 'no_kk')
+                    ->where(fn ($query) => $query->where('tenant_id', $tenantId))
+                    ->ignore($this->editingId),
+            ],
+            'head_citizen_id' => [
+                'nullable',
+                'uuid',
+                Rule::exists('citizens', 'id')
+                    ->where(fn ($query) => $query->where('tenant_id', $tenantId)),
+            ],
             'alamat' => ['required', 'string', 'max:500'],
             'rt' => ['nullable', 'string', 'max:10'],
             'rw' => ['nullable', 'string', 'max:10'],
