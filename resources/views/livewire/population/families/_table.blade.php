@@ -18,7 +18,7 @@
                         <td class="max-w-md px-6 py-4 text-sm text-slate-600">{{ $family->alamat }}</td>
                         <td class="px-6 py-4 text-center"><span class="inline-flex min-w-8 justify-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ $family->activeMembers->count() }}</span></td>
                         <td class="px-6 py-4 text-right">
-                            <button wire:click="show('{{ $family->id }}')" class="mr-3 text-sm font-semibold text-slate-700 hover:text-slate-950">Detail</button>
+                            <button wire:click="showDetail('{{ $family->id }}')" class="mr-3 text-sm font-semibold text-slate-700 hover:text-slate-950">Detail</button>
                             <a href="{{ route('population.families.pdf', ['id' => $family->id]) }}" target="_blank" rel="noopener" class="mr-3 text-sm font-semibold text-indigo-700 hover:text-indigo-800">Cetak KK</a>
                             @if(auth()->user()->hasPermission('population.manage'))
                                 <button wire:click="edit('{{ $family->id }}')" class="text-sm font-semibold text-slate-700 hover:text-slate-950">Edit</button>
