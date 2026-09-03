@@ -179,7 +179,7 @@ class Structure extends Component
     public function render()
     {
         $user = auth()->user();
-        $tenants = $user->isSuperAdmin() ? Tenant::query()->where('status', 'active')->orderBy('name')->get(['id', 'name', 'tenant_category_id']) : Tenant::query()->whereKey($user->tenant_id)->get(['id', 'name', 'tenant_category_id']);
+        $tenants = $user->isSuperAdmin() ? Tenant::query()->where('status', true)->orderBy('name')->get(['id', 'name', 'tenant_category_id']) : Tenant::query()->whereKey($user->tenant_id)->get(['id', 'name', 'tenant_category_id']);
         $categoryId = $this->selectedTenantId ? Tenant::query()->whereKey($this->selectedTenantId)->value('tenant_category_id') : null;
         $positions = $categoryId ? Position::query()->with(['holders' => fn ($q) => $q->where('tenant_id', $this->selectedTenantId)->whereNull('ended_at')->where('started_at', '<=', now())->with('user')])->where('tenant_category_id', $categoryId)->where('status', 'active')->orderBy('sort_order')->orderBy('name')->get() : collect();
         $structures = $this->selectedTenantId ? TenantPositionStructure::query()->where('tenant_id', $this->selectedTenantId)->get()->keyBy('position_id') : collect();
