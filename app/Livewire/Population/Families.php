@@ -214,8 +214,13 @@ class Families extends Component
 
         $headCandidates = $this->headCandidates();
         $memberCandidates = $this->memberCandidates();
+        $selectedHead = $this->getSelectedHeadProperty();
+        $headCitizens = $headCandidates;
 
-        return view('livewire.population.families', compact('families', 'tenants', 'detail', 'headCandidates', 'memberCandidates'));
+        return view('livewire.population.families', compact(
+            'families', 'tenants', 'detail', 'headCandidates', 'memberCandidates',
+            'selectedHead', 'headCitizens'
+        ));
     }
 
     private function authorizeManage(): void
