@@ -74,28 +74,4 @@ window.addEventListener('livewire:init', () => {
             dispatchErrorToast('Tidak dapat terhubung ke server. Periksa koneksi Anda lalu coba lagi.');
         });
     });
-
-    window.setInterval(() => {
-        if (document.visibilityState !== 'visible') {
-            return;
-        }
-
-        const path = window.location.pathname.replace(/\/+$/, '');
-        const isOutgoingLetterDetail = /^\/outgoing-letters\/[^/]+$/.test(path);
-
-        if (isOutgoingLetterDetail) {
-            // Detail pages keep server-loaded history in a component property,
-            // so a plain $refresh() would only re-render stale data. Use the
-            // component listener that reloads the letter and its history.
-            Livewire.dispatch('outgoing-letters-refresh');
-            return;
-        }
-
-        // Refresh every mounted Livewire/Volt component on list/admin pages.
-        // This keeps Users, Tenants, Positions, Letter Types, Outgoing Letters,
-        // Audit Logs, etc. synchronized across browser tabs/windows.
-        Livewire.all().forEach((component) => {
-            component.$wire.$refresh();
-        });
-    }, 3000);
 });
