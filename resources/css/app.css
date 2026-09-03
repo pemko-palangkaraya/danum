@@ -120,3 +120,145 @@ nav button[aria-expanded="true"]::after {
     content: '−';
     color: #475569;
 }
+
+/* Dashboard workflow: clear visual progression from Draft to Terbit. */
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] {
+    gap: 0.75rem;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div {
+    position: relative;
+    min-height: 6.25rem;
+    overflow: visible;
+    border-radius: 1rem;
+    transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgb(15 23 42 / 0.06);
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div:nth-child(1) {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+    box-shadow: inset 0 -3px 0 #2563eb;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div:nth-child(2) {
+    border-color: #fde68a;
+    background: #fffbeb;
+    box-shadow: inset 0 -3px 0 #d97706;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div:nth-child(3) {
+    border-color: #ddd6fe;
+    background: #f5f3ff;
+    box-shadow: inset 0 -3px 0 #7c3aed;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div:nth-child(4) {
+    border-color: #a7f3d0;
+    background: #ecfdf5;
+    box-shadow: inset 0 -3px 0 #059669;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div::before {
+    position: absolute;
+    right: 1rem;
+    bottom: 0.75rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1;
+    opacity: 0.18;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div:nth-child(1)::before {
+    content: '01';
+    color: #2563eb;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div:nth-child(2)::before {
+    content: '02';
+    color: #d97706;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div:nth-child(3)::before {
+    content: '03';
+    color: #7c3aed;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div:nth-child(4)::before {
+    content: '04';
+    color: #059669;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div:nth-child(-n+3)::after {
+    content: '→';
+    position: absolute;
+    z-index: 2;
+    top: 50%;
+    right: -1.25rem;
+    width: 1.75rem;
+    height: 1.75rem;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    font-size: 1.35rem;
+    font-weight: 500;
+    line-height: 1;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div:nth-child(1) p:first-child {
+    color: #2563eb;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div:nth-child(2) p:first-child {
+    color: #d97706;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div:nth-child(3) p:first-child {
+    color: #7c3aed;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div:nth-child(4) p:first-child {
+    color: #059669;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] + div.mt-5.flex.h-2 span:nth-child(1) {
+    background: #2563eb !important;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] + div.mt-5.flex.h-2 span:nth-child(2) {
+    background: #d97706 !important;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] + div.mt-5.flex.h-2 span:nth-child(3) {
+    background: #7c3aed !important;
+}
+
+section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] + div.mt-5.flex.h-2 span:nth-child(4) {
+    background: #059669 !important;
+}
+
+@media (max-width: 639px) {
+    section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] {
+        gap: 0.75rem;
+    }
+
+    section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] > div:nth-child(-n+3)::after {
+        content: '↓';
+        top: auto;
+        right: 50%;
+        bottom: -1.15rem;
+        transform: translateX(50%);
+    }
+}
+
+@media (min-width: 640px) {
+    section > div.mt-6.grid.gap-3[class~="sm:grid-cols-4"] {
+        gap: 1.75rem;
+    }
+}
