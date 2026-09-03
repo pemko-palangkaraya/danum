@@ -96,3 +96,27 @@ textarea:focus {
     color: #0f172a;
     background: #ffffff;
 }
+
+/* Simple, font-based accordion indicator. No inline SVG is needed for the dropdown state. */
+nav button[aria-expanded] > svg {
+    display: none;
+}
+
+nav button[aria-expanded]::after {
+    content: '+';
+    display: inline-flex;
+    width: 1.25rem;
+    height: 1.25rem;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 1.25rem;
+    color: #94a3b8;
+    font-size: 1.25rem;
+    font-weight: 400;
+    line-height: 1;
+}
+
+nav button[aria-expanded="true"]::after {
+    content: '−';
+    color: #475569;
+}
