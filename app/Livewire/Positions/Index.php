@@ -36,6 +36,7 @@ class Index extends Component
     public ?string $holderPositionId = null;
     public string $holderUserId = '';
     public string $holderStartedAt = '';
+    public string $holderAssignmentStatus = 'definitif';
     public bool $showHistory = false;
     public ?string $historyPositionId = null;
     public string $historyPositionName = '';
@@ -82,14 +83,14 @@ class Index extends Component
         $user = auth()->user(); $position = Position::query()->with(['holders' => function ($query) use ($user) { $query->whereNull('ended_at')->when($user->tenant_id, fn ($q) => $q->where('tenant_id', $user->tenant_id))->orderByDesc('started_at'); }])->findOrFail($positionId);
         if (! $user->canManagePositions()) { $this->dispatch('toast', type: 'error', message: 'Anda tidak memiliki izin untuk mengatur pejabat.'); return; }
         $this->authorize('manageHolder', $position); $this->holderPositionId = $position->id; $currentHolder = $position->holders->first();
-        $this->holderUserId = $currentHolder?->user_id !== null ? (string) $currentHolder->user_id : ''; $this->holderStartedAt = $currentHolder?->started_at ? $currentHolder->started_at->toDateString() : now()->toDateString(); $this->resetValidation(['holderUserId', 'holderStartedAt']); $this->showHolderForm = true;
+        $this->holderUserId = $currentHolder?->user_id !== null ? (string) $currentHolder->user_id : ''; $this->holderStartedAt = $currentHolder?->started_at ? $currentHolder->started_at->toDateString() : now()->toDateString(); $this->holderAssignmentStatus = $currentHolder?->assignment_status ?? 'definitif'; $this->resetValidation(['holderUserId', 'holderStartedAt', 'holderAssignmentStatus']); $this->showHolderForm = true;
     }
     public function saveHolder(PositionService $service): void
     {
         if (! auth()->user()->canManagePositions()) { $this->dispatch('toast', type: 'error', message: 'Anda tidak memiliki izin untuk mengatur pejabat.'); return; }
-        $this->validate(['holderUserId' => ['required', 'integer'], 'holderStartedAt' => ['required', 'date']], ['holderUserId.required' => 'Silakan pilih pejabat.', 'holderStartedAt.required' => 'Tanggal mulai wajib diisi.', 'holderStartedAt.date' => 'Tanggal mulai tidak valid.']);
+        $this->validate(['holderUserId' => ['required', 'integer'], 'holderStartedAt' => ['required', 'date'], 'holderAssignmentStatus' => ['required', Rule::in(['definitif', 'plt'])]], ['holderUserId.required' => 'Silakan pilih pejabat.', 'holderStartedAt.required' => 'Tanggal mulai wajib diisi.', 'holderStartedAt.date' => 'Tanggal mulai tidak valid.']);
         $position = Position::query()->findOrFail($this->holderPositionId); $this->authorize('manageHolder', $position);
-        try { $service->assignHolder($position, (int) $this->holderUserId, new \DateTimeImmutable($this->holderStartedAt)); } catch (\Throwable $exception) { $field = str_contains(strtolower($exception->getMessage()), 'start date') ? 'holderStartedAt' : 'holderUserId'; $this->addError($field, $exception->getMessage()); return; }
+        try { $service->assignHolder($position, (int) $this->holderUserId, new \DateTimeImmutable($this->holderStartedAt), $this->holderAssignmentStatus); } catch (\Throwable $exception) { $field = str_contains(strtolower($exception->getMessage()), 'start date') ? 'holderStartedAt' : 'holderUserId'; $this->addError($field, $exception->getMessage()); return; }
         $this->showHolderForm = false; $this->resetHolderForm(); $this->dispatch('toast', type: 'success', message: 'Pemegang jabatan berhasil ditetapkan.');
     }
     public function manageCertificate(string $positionId): void
@@ -117,7 +118,7 @@ class Index extends Component
     public function endHolder(string $positionId, PositionService $service): void { $position = Position::query()->findOrFail($positionId); $this->authorize('manageHolder', $position); $holder = $service->getActiveHolder($position); if ($holder) $service->endHolder($holder, now()); $this->dispatch('toast', type: 'success', message: 'Pemegang jabatan berhasil diakhiri.'); }
     public function toggleStatus(string $id, PositionService $service): void { $position = Position::query()->findOrFail($id); $this->authorize('update', $position); $next = $position->status === PositionStatus::ACTIVE ? PositionStatus::INACTIVE : PositionStatus::ACTIVE; $service->update($position, ['status' => $next->value]); $this->dispatch('toast', type: 'success', message: 'Status jabatan diperbarui.'); }
     private function resetForm(): void { $this->reset(['editingId', 'code', 'name', 'description', 'can_sign', 'can_validate']); if (auth()->user()->tenant_id) $this->selectedTenantId = (string) Tenant::query()->whereKey(auth()->user()->tenant_id)->value('tenant_category_id'); else $this->selectedTenantId = ''; $this->status = PositionStatus::ACTIVE->value; $this->resetValidation(); }
-    private function resetHolderForm(): void { $this->reset(['holderPositionId', 'holderUserId', 'holderStartedAt']); }
+    private function resetHolderForm(): void { $this->reset(['holderPositionId', 'holderUserId', 'holderStartedAt', 'holderAssignmentStatus']); $this->holderAssignmentStatus = 'definitif'; }
     private function resetCertificateForm(): void { $this->reset(['certificatePositionId', 'certificatePositionName', 'certificateHolderName']); $this->resetValidation(); }
     public function render()
     {
@@ -125,21 +126,12 @@ class Index extends Component
         $query = Position::query()->with(['category', 'holders.user', 'signerCertificates' => fn ($q) => $q->where('is_active', true)->latest('created_at')])->orderBy('name'); if ($categoryId) $query->where('tenant_category_id', $categoryId); elseif (! $user->isSuperAdmin()) $query->whereRaw('1 = 0');
         if ($this->search !== '') $query->where(fn ($q) => $q->where('code', 'like', "%{$this->search}%")->orWhere('name', 'like', "%{$this->search}%")); if ($this->filter === 'deleted') $query->onlyTrashed(); elseif ($this->filter !== 'all') $query->where('status', $this->filter);
         $holderTenantId = $user->tenant_id ?: null;
-        $users = $holderTenantId
-            ? User::query()->where('tenant_id', $holderTenantId)->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email'])
-            : ($categoryId
-                ? User::query()->whereIn('tenant_id', Tenant::query()->where('tenant_category_id', $categoryId)->pluck('id'))->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email'])
-                : collect());
+        $users = $holderTenantId ? User::query()->where('tenant_id', $holderTenantId)->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email']) : ($categoryId ? User::query()->whereIn('tenant_id', Tenant::query()->where('tenant_category_id', $categoryId)->pluck('id'))->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email']) : collect());
         $historyQuery = $this->historyPositionId ? Position::withTrashed()->find($this->historyPositionId)?->holders()->with('user') : null;
         $history = $historyQuery ? $historyQuery->when($user->tenant_id, fn ($q) => $q->where('tenant_id', $user->tenant_id))->orderByDesc('started_at')->get() : collect();
         $categories = TenantCategory::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'code', 'name']); $categoryTenants = $categoryId ? Tenant::query()->where('tenant_category_id', $categoryId)->orderBy('name')->get(['id', 'name']) : collect();
         $positions = $query->paginate($this->perPage);
-        foreach ($positions->getCollection() as $position) {
-            $position->setRelation('tenant', $position->category);
-            if ($user->tenant_id) {
-                $position->setRelation('holders', $position->holders->where('tenant_id', $user->tenant_id)->values());
-            }
-        }
+        foreach ($positions->getCollection() as $position) { $position->setRelation('tenant', $position->category); if ($user->tenant_id) $position->setRelation('holders', $position->holders->where('tenant_id', $user->tenant_id)->values()); }
         return view('livewire.pages.positions.index', ['positions' => $positions, 'users' => $users, 'history' => $history, 'tenants' => $categories, 'categoryTenants' => $categoryTenants, 'isSuperAdmin' => $user->isSuperAdmin(), 'canManageHolders' => $user->canManagePositions()]);
     }
 }
