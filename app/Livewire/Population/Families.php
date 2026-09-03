@@ -253,7 +253,13 @@ class Families extends Component
 
     private function familiesQuery()
     {
-        return Family::query()->where('tenant_id', $this->tenantIdForQuery());
+        $tenantId = $this->tenantIdForQuery();
+
+        if ($tenantId === '') {
+            return Family::query()->whereRaw('1 = 0');
+        }
+
+        return Family::query()->where('tenant_id', $tenantId);
     }
 
     private function tenantIdForQuery(): string
