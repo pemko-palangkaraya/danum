@@ -95,7 +95,6 @@ class DatabaseSeeder extends Seeder
         $this->call([
             PopulationReferenceSeeder::class,
             PositionSeeder::class,
-            TenantReferenceSeeder::class,
             KalimantanTengahTenantSeeder::class,
         ]);
     }
