@@ -145,9 +145,11 @@ $login = function (): void {
         <button
             type="submit"
             wire:loading.attr="disabled"
+            wire:loading.attr="aria-busy"
+            wire:target="login"
             class="flex h-11 w-full items-center justify-center rounded-xl bg-yellow-400 px-4 text-sm font-semibold text-gray-950 shadow-sm transition hover:bg-yellow-300 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus:ring-offset-gray-900">
-            <span wire:loading.remove>Masuk</span>
-            <span wire:loading>Memproses...</span>
+            <span wire:loading.remove wire:target="login">Masuk</span>
+            <span wire:loading wire:target="login">Memproses...</span>
         </button>
     </form>
 
