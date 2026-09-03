@@ -12,6 +12,7 @@ use Livewire\Component;
 class Statistics extends Component
 {
     public ?string $selectedTenantId = null;
+    public bool $showAgePyramid = false;
 
     public function mount(): void
     {
@@ -20,6 +21,17 @@ class Statistics extends Component
         if (! auth()->user()->isSuperAdmin()) {
             $this->selectedTenantId = auth()->user()->tenant_id;
         }
+    }
+
+    public function openAgePyramid(): void
+    {
+        abort_unless(auth()->user()?->hasPermission('population.view'), 403);
+        $this->showAgePyramid = true;
+    }
+
+    public function closeAgePyramid(): void
+    {
+        $this->showAgePyramid = false;
     }
 
     public function render()
@@ -62,6 +74,8 @@ class Statistics extends Component
         $children = $this->countAgeRange($citizens, 6, 14);
         $productiveAge = $this->countAgeRange($citizens, 15, 64);
         $elderly = $this->countAgeRange($citizens, 65, null);
+        $classifiedAge = (int) $ageGroups->sum('total');
+        $unclassifiedAge = max(0, (int) ((clone $citizens)->count() - $classifiedAge));
 
         return view('livewire.population.statistics', [
             'totalCitizens' => (clone $citizens)->count(),
@@ -78,6 +92,8 @@ class Statistics extends Component
             'children' => $children,
             'productiveAge' => $productiveAge,
             'elderly' => $elderly,
+            'classifiedAge' => $classifiedAge,
+            'unclassifiedAge' => $unclassifiedAge,
         ]);
     }
 
