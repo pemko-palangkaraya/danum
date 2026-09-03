@@ -24,7 +24,7 @@ new #[Layout('layouts.app')] class extends Component {
 
     public function canManage(): bool
     {
-        return auth()->user()?->isSuperAdmin() || auth()->user()?->isTenantAdmin();
+        return auth()->user()?->hasPermission(PermissionEnum::RBAC_MANAGE) === true;
     }
 
     public function roles()
