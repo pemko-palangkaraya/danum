@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature\Population;
 
 use App\Livewire\Population\Families;
+use App\Models\Citizen;
 use App\Models\Family;
+use App\Models\FamilyMember;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -42,6 +44,27 @@ class FamiliesCrudTest extends TestCase
             'alamat' => 'Jl. Contoh No. 1',
             'status' => 'active',
             'created_by' => $user->id,
+        ]);
+    }
+
+    public function test_tenant_user_with_population_manage_can_add_family_member(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->tenantAdmin($tenant)->create();
+        $family = Family::factory()->forTenant($tenant)->create();
+        $citizen = Citizen::factory()->forTenant($tenant)->create();
+
+        Livewire::actingAs($user)
+            ->test(Families::class)
+            ->call('showDetail', $family->id)
+            ->call('addMember', $family->id, $citizen->id, 'Anak')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('family_members', [
+            'family_id' => $family->id,
+            'citizen_id' => $citizen->id,
+            'hubungan_dalam_keluarga' => 'Anak',
+            'status' => 'active',
         ]);
     }
 
