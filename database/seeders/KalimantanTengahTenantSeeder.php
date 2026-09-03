@@ -14,87 +14,87 @@ use RuntimeException;
 class KalimantanTengahTenantSeeder extends Seeder
 {
     private const PROVINCE_CODE = '62';
+    private const PALANGKA_RAYA_CODE = '62.71';
     private const API = 'https://wilayah.id/api';
 
     public function run(): void
     {
         $categories = $this->categories();
 
-        // Tenant tingkat provinsi tetap harus memenuhi kolom wilayah wajib
-        // pada tabel tenants, sehingga menggunakan lokasi pusat pemerintahan.
+        // Seeder ini khusus untuk wilayah yang berada di bawah
+        // Pemerintah Kota Palangka Raya: 1 kota, 5 kecamatan,
+        // dan seluruh kelurahan di dalamnya.
+        $regency = collect($this->get('/regencies/'.self::PROVINCE_CODE.'.json'))
+            ->firstWhere('code', self::PALANGKA_RAYA_CODE);
+
+        if (!is_array($regency)) {
+            throw new RuntimeException('Kota Palangka Raya tidak ditemukan pada data wilayah.');
+        }
+
+        $regencyCode = (string) $regency['code'];
+        $regencyName = (string) $regency['name'];
+
         $this->seedTenant(
-            'wilayah-62',
-            'Pemerintah Provinsi Kalimantan Tengah',
-            $categories['pemerintah-provinsi'],
-            'Palangka Raya',
-            'Jekan Raya',
-            'Menteng',
-            'Gubernur Kalimantan Tengah',
-            'Gubernur',
+            $this->tenantCode($regencyCode),
+            "Pemerintah {$regencyName}",
+            $categories['pemerintah-kota'],
+            $regencyName,
+            'Pusat Pemerintahan',
+            'Pusat Pemerintahan',
+            "Wali Kota {$regencyName}",
+            'Wali Kota',
         );
 
-        $regencies = $this->get('/regencies/'.self::PROVINCE_CODE.'.json');
-        $counts = ['regencies' => 0, 'districts' => 0, 'villages' => 0];
+        $counts = [
+            'city' => 1,
+            'districts' => 0,
+            'villages' => 0,
+        ];
 
-        foreach ($regencies as $regency) {
-            $regencyCode = (string) $regency['code'];
-            $regencyName = (string) $regency['name'];
-            $isCity = str_ends_with($regencyCode, '.71');
-            $regencyCategory = $isCity ? $categories['pemerintah-kota'] : $categories['pemerintah-kabupaten'];
+        foreach ($this->get('/districts/'.$regencyCode.'.json') as $district) {
+            $districtCode = (string) $district['code'];
+            $districtName = (string) $district['name'];
 
             $this->seedTenant(
-                $this->tenantCode($regencyCode),
-                $isCity ? "Pemerintah {$regencyName}" : "Pemerintah Kabupaten {$regencyName}",
-                $regencyCategory,
+                $this->tenantCode($districtCode),
+                "Kecamatan {$districtName}",
+                $categories['kecamatan'],
                 $regencyName,
+                $districtName,
                 'Pusat Pemerintahan',
-                'Pusat Pemerintahan',
-                $isCity ? "Wali Kota {$regencyName}" : "Bupati {$regencyName}",
-                $isCity ? 'Wali Kota' : 'Bupati',
+                "Camat {$districtName}",
+                'Camat',
             );
-            $counts['regencies']++;
+            $counts['districts']++;
 
-            foreach ($this->get('/districts/'.$regencyCode.'.json') as $district) {
-                $districtCode = (string) $district['code'];
-                $districtName = (string) $district['name'];
+            foreach ($this->get('/villages/'.$districtCode.'.json') as $village) {
+                $villageCode = (string) $village['code'];
+                $villageName = (string) $village['name'];
+
+                // Palangka Raya berada pada wilayah perkotaan, sehingga
+                // tenant tingkat desa yang tidak relevan tidak ikut dibuat.
+                $suffix = substr(strrchr($villageCode, '.'), 1);
+                if (!str_starts_with($suffix, '1')) {
+                    continue;
+                }
 
                 $this->seedTenant(
-                    $this->tenantCode($districtCode),
-                    "Kecamatan {$districtName}",
-                    $categories['kecamatan'],
+                    $this->tenantCode($villageCode),
+                    "Kelurahan {$villageName}",
+                    $categories['kelurahan'],
                     $regencyName,
                     $districtName,
-                    'Pusat Pemerintahan',
-                    "Camat {$districtName}",
-                    'Camat',
+                    $villageName,
+                    "Lurah {$villageName}",
+                    'Lurah',
                 );
-                $counts['districts']++;
-
-                foreach ($this->get('/villages/'.$districtCode.'.json') as $village) {
-                    $villageCode = (string) $village['code'];
-                    $villageName = (string) $village['name'];
-                    $suffix = substr(strrchr($villageCode, '.'), 1);
-                    $isKelurahan = str_starts_with($suffix, '1');
-                    $category = $isKelurahan ? $categories['kelurahan'] : $categories['desa'];
-
-                    $this->seedTenant(
-                        $this->tenantCode($villageCode),
-                        ($isKelurahan ? 'Kelurahan ' : 'Desa ').$villageName,
-                        $category,
-                        $regencyName,
-                        $districtName,
-                        $villageName,
-                        ($isKelurahan ? 'Lurah ' : 'Kepala Desa ').$villageName,
-                        $isKelurahan ? 'Lurah' : 'Kepala Desa',
-                    );
-                    $counts['villages']++;
-                }
+                $counts['villages']++;
             }
         }
 
         $this->command?->info(sprintf(
-            'Kalimantan Tengah seeded: %d kabupaten/kota, %d kecamatan, %d desa/kelurahan.',
-            $counts['regencies'],
+            'Palangka Raya seeded: %d kota, %d kecamatan, %d kelurahan.',
+            $counts['city'],
             $counts['districts'],
             $counts['villages'],
         ));
@@ -103,12 +103,9 @@ class KalimantanTengahTenantSeeder extends Seeder
     private function categories(): array
     {
         $names = [
-            'pemerintah-provinsi' => 'Pemerintah Provinsi',
-            'pemerintah-kabupaten' => 'Pemerintah Kabupaten',
             'pemerintah-kota' => 'Pemerintah Kota',
             'kecamatan' => 'Kecamatan',
             'kelurahan' => 'Kelurahan',
-            'desa' => 'Pemerintahan Desa',
         ];
 
         $result = [];
