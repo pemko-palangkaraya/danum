@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Family;
-use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class FamilyCardController extends Controller
 {
     public function pdf(Request $request, string $id): Response
     {
+        abort_unless($request->user()?->hasPermission('population.view'), 403);
+
         $family = Family::query()
             ->with([
                 'tenant:id,name,head_name,head_title',
@@ -27,8 +29,6 @@ class FamilyCardController extends Controller
             )
             ->findOrFail($id);
 
-        $this->authorize('view', $family);
-
         $pdf = Pdf::loadView('population.family-card-pdf', [
             'family' => $family,
             'printedAt' => now(),
@@ -36,10 +36,8 @@ class FamilyCardController extends Controller
 
         $filename = 'kartu-keluarga-' . str($family->no_kk)->slug() . '.pdf';
 
-        if ($request->boolean('download')) {
-            return $pdf->download($filename);
-        }
-
-        return $pdf->stream($filename);
+        return $request->boolean('download')
+            ? $pdf->download($filename)
+            : $pdf->stream($filename);
     }
 }
