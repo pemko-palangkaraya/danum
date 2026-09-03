@@ -17,6 +17,8 @@ return new class extends Migration
     private const ROLE_PERMISSIONS = [
         'tenant_admin' => [
             'dashboard.view',
+            'rbac.view',
+            'rbac.manage',
             'tenant-users.view',
             'tenant-profile.view',
             'positions.view',
