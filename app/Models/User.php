@@ -52,18 +52,11 @@ class User extends Authenticatable
     {
         if ($this->isSuperAdmin() || $this->tenant_id === null) return null;
 
-        if ($this->custom_role_id === null) {
-            $legacySlug = $this->role?->value;
-
-            if (! in_array($legacySlug, [UserRole::TENANT_ADMIN->value, UserRole::TENANT_USER->value], true)) {
-                return null;
-            }
-
+        if ($this->custom_role_id !== null) {
             return Role::query()
-                ->where('slug', $legacySlug)
-                ->where('is_system', true)
+                ->whereKey($this->custom_role_id)
                 ->where('is_active', true)
-                ->where(function ($query) use ($legacySlug) {
+                ->where(function ($query) {
                     $query->where(fn ($q) => $q->where('scope', 'global')->whereNull('tenant_id'))
                         ->orWhere(fn ($q) => $q->where('scope', 'tenant')->where('tenant_id', $this->tenant_id))
                         ->orWhere(fn ($q) => $q->where('scope', 'tenant')->whereNull('tenant_id')->where('is_system', true));
@@ -71,11 +64,22 @@ class User extends Authenticatable
                 ->first();
         }
 
-        return $this->customRole()->where('is_active', true)->where(function ($query) {
-            $query->where(fn ($q) => $q->where('scope', 'global')->whereNull('tenant_id'))
-                ->orWhere(fn ($q) => $q->where('scope', 'tenant')->where('tenant_id', $this->tenant_id))
-                ->orWhere(fn ($q) => $q->where('scope', 'tenant')->whereNull('tenant_id')->where('is_system', true));
-        })->first();
+        $legacySlug = $this->role?->value;
+
+        if (! in_array($legacySlug, [UserRole::TENANT_ADMIN->value, UserRole::TENANT_USER->value], true)) {
+            return null;
+        }
+
+        return Role::query()
+            ->where('slug', $legacySlug)
+            ->where('is_system', true)
+            ->where('is_active', true)
+            ->where(function ($query) use ($legacySlug) {
+                $query->where(fn ($q) => $q->where('scope', 'global')->whereNull('tenant_id'))
+                    ->orWhere(fn ($q) => $q->where('scope', 'tenant')->where('tenant_id', $this->tenant_id))
+                    ->orWhere(fn ($q) => $q->where('scope', 'tenant')->whereNull('tenant_id')->where('is_system', true));
+            })
+            ->first();
     }
 
     /**
@@ -99,9 +103,12 @@ class User extends Authenticatable
         if ($this->status !== UserStatus::ACTIVE) return false;
         if ($this->isSuperAdmin()) return true;
         if (! $this->isTenantMember()) return false;
+
         $slug = $permission instanceof PermissionEnum ? $permission->value : $permission;
         $role = $this->roleModel();
-        return $role !== null && $role->permissions()->where('slug', $slug)->exists();
+
+        return $role !== null
+            && $role->permissions()->where('slug', $slug)->exists();
     }
 
     public function hasAnyPermission(array $permissions): bool { foreach ($permissions as $permission) if ($this->hasPermission($permission)) return true; return false; }
