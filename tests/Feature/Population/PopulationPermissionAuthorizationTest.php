@@ -20,7 +20,7 @@ class PopulationPermissionAuthorizationTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $permission = Permission::query()->where('slug', PermissionEnum::POPULATION_MANAGE->value)->firstOrFail();
-        $role = Role::factory()->create([
+        $role = Role::create([
             'tenant_id' => $tenant->id,
             'name' => 'Population Operator',
             'slug' => 'population-operator',
