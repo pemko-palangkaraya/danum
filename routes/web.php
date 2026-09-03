@@ -54,7 +54,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/population/citizens/export', [PopulationExportController::class, 'citizens'])->name('population.citizens.export');
         Route::get('/population/families/{id}/pdf', [FamilyCardController::class, 'pdf'])->name('population.families.pdf');
     });
-    Route::middleware('permission:population.manage')->group(function () { Volt::route('/population/citizens/import', 'pages.population.citizen-import')->name('population.citizens.import'); Route::get('/population/citizens/template', [PopulationExportController::class, 'template'])->name('population.citizens.template'); });
+
+    // The import page performs its own permission check in mount() so custom
+    // tenant roles are authorized by the same persisted RBAC path as actions.
+    // Keeping this route under auth avoids exposing the Livewire upload surface
+    // while allowing the component to own the population.manage decision.
+    Volt::route('/population/citizens/import', 'pages.population.citizen-import')->name('population.citizens.import');
+    Route::get('/population/citizens/template', [PopulationExportController::class, 'template'])
+        ->middleware('permission:population.manage')
+        ->name('population.citizens.template');
+
     Route::middleware('permission:outgoing-letters.view')->group(function () { Route::get('/outgoing-letters', OutgoingLetterIndex::class)->name('outgoing-letters.index'); Route::get('/outgoing-letter-withdrawals/{letter?}', OutgoingLetterWithdrawalIndex::class)->name('outgoing-letter-withdrawals.index'); Route::get('/outgoing-letter-withdrawals/{id}/statement', [OutgoingLetterWithdrawalController::class, 'statement'])->name('outgoing-letter-withdrawals.statement'); Route::get('/outgoing-letters/{id}/pdf', [OutgoingLetterController::class, 'downloadPdf'])->name('outgoing-letters.pdf'); Route::get('/outgoing-letters/{id}', OutgoingLetterShow::class)->name('outgoing-letters.show'); });
     Route::middleware('permission:outgoing-letters.issue')->group(function () { Volt::route('/settings/signing-pin', 'pages.settings.signing-pin')->name('settings.signing-pin'); Volt::route('/settings/signing-certificate', 'pages.settings.signing-certificate')->name('settings.signing-certificate'); });
     Route::post('/logout', function (Request $request) { Auth::logout(); $request->session()->invalidate(); $request->session()->regenerateToken(); return redirect()->route('login'); })->name('logout');
