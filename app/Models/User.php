@@ -45,12 +45,31 @@ class User extends Authenticatable
 
     public function isTenantMember(): bool { return $this->tenant_id !== null && ! $this->isSuperAdmin(); }
     public function isTenantUser(): bool { return $this->isTenantMember(); }
-    public function isTenantAdmin(): bool { return $this->isTenantMember() && $this->customRole?->slug === 'tenant_admin'; }
+    public function isTenantAdmin(): bool { return $this->isTenantMember() && $this->roleModel()?->slug === 'tenant_admin'; }
     public function customRole(): BelongsTo { return $this->belongsTo(Role::class, 'custom_role_id'); }
 
     public function roleModel(): ?Role
     {
-        if ($this->isSuperAdmin() || $this->custom_role_id === null || $this->tenant_id === null) return null;
+        if ($this->isSuperAdmin() || $this->tenant_id === null) return null;
+
+        if ($this->custom_role_id === null) {
+            $legacySlug = $this->role?->value;
+
+            if (! in_array($legacySlug, [UserRole::TENANT_ADMIN->value, UserRole::TENANT_USER->value], true)) {
+                return null;
+            }
+
+            return Role::query()
+                ->where('slug', $legacySlug)
+                ->where('is_system', true)
+                ->where('is_active', true)
+                ->where(function ($query) use ($legacySlug) {
+                    $query->where(fn ($q) => $q->where('scope', 'global')->whereNull('tenant_id'))
+                        ->orWhere(fn ($q) => $q->where('scope', 'tenant')->where('tenant_id', $this->tenant_id))
+                        ->orWhere(fn ($q) => $q->where('scope', 'tenant')->whereNull('tenant_id')->where('is_system', true));
+                })
+                ->first();
+        }
 
         return $this->customRole()->where('is_active', true)->where(function ($query) {
             $query->where(fn ($q) => $q->where('scope', 'global')->whereNull('tenant_id'))
