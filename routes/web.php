@@ -22,6 +22,7 @@ use App\Http\Controllers\OutgoingLetterWithdrawalController;
 use App\Http\Controllers\PopulationExportController;
 use App\Http\Controllers\FamilyCardController;
 use App\Http\Controllers\OrganizationStructureController;
+use App\Http\Controllers\PositionAppointmentDocumentController;
 
 Route::view('/', 'welcome')->name('home');
 Route::get('/verify/{token}', [VerificationController::class, 'page'])->name('verification.show');
@@ -54,6 +55,7 @@ Route::middleware('auth')->group(function () {
     });
     Route::middleware('permission:population.view')->group(function () { Route::get('/population/citizens/export', [PopulationExportController::class, 'citizens'])->name('population.citizens.export'); Route::get('/population/families/{id}/pdf', [FamilyCardController::class, 'pdf'])->name('population.families.pdf'); });
     Route::get('/population/citizens/template', [PopulationExportController::class, 'template'])->middleware('permission:population.manage')->name('population.citizens.template');
+    Route::middleware('permission:positions.view')->group(function () { Route::get('/position-holders/{holder}/appointment-document', [PositionAppointmentDocumentController::class, 'show'])->name('positions.appointment-document'); });
     Route::middleware('permission:outgoing-letters.view')->group(function () { Route::get('/outgoing-letters', OutgoingLetterIndex::class)->name('outgoing-letters.index'); Route::get('/outgoing-letter-withdrawals/{letter?}', OutgoingLetterWithdrawalIndex::class)->name('outgoing-letter-withdrawals.index'); Route::get('/outgoing-letter-withdrawals/{id}/statement', [OutgoingLetterWithdrawalController::class, 'statement'])->name('outgoing-letter-withdrawals.statement'); Route::get('/outgoing-letters/{id}/pdf', [OutgoingLetterController::class, 'downloadPdf'])->name('outgoing-letters.pdf'); Route::get('/outgoing-letters/{id}', OutgoingLetterShow::class)->name('outgoing-letters.show'); });
     Route::middleware('permission:outgoing-letters.issue')->group(function () { Volt::route('/settings/signing-pin', 'pages.settings.signing-pin')->name('settings.signing-pin'); Volt::route('/settings/signing-certificate', 'pages.settings.signing-certificate')->name('settings.signing-certificate'); });
     Route::post('/logout', function (Request $request) { Auth::logout(); $request->session()->invalidate(); $request->session()->regenerateToken(); return redirect()->route('login'); })->name('logout');
