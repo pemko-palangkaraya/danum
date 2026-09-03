@@ -27,16 +27,8 @@ class PositionService
     ) {}
 
     public function find(string $id): ?Position { return $this->positionRepository->find($id); }
-
-    public function findByCode(string $tenantId, string $code): ?Position
-    {
-        return Position::query()->where('code', $code)->whereHas('category.tenants', fn ($q) => $q->whereKey($tenantId))->first();
-    }
-
-    public function getAll(string $tenantId): Collection
-    {
-        return Position::query()->whereHas('category.tenants', fn ($q) => $q->whereKey($tenantId))->orderBy('sort_order')->orderBy('name')->get();
-    }
+    public function findByCode(string $tenantId, string $code): ?Position { return Position::query()->where('code', $code)->whereHas('category.tenants', fn ($q) => $q->whereKey($tenantId))->first(); }
+    public function getAll(string $tenantId): Collection { return Position::query()->whereHas('category.tenants', fn ($q) => $q->whereKey($tenantId))->orderBy('sort_order')->orderBy('name')->get(); }
 
     public function create(array $data): Position
     {
@@ -48,12 +40,9 @@ class PositionService
     public function update(Position $position, array $data): Position
     {
         return DB::transaction(function () use ($position, $data): Position {
-            $currentStatus = $position->status;
-            $newStatus = $data['status'] ?? $currentStatus;
+            $currentStatus = $position->status; $newStatus = $data['status'] ?? $currentStatus;
             $isBecomingInactive = $currentStatus === PositionStatus::ACTIVE && $newStatus === PositionStatus::INACTIVE;
-            if (array_key_exists('parent_id', $data) || array_key_exists('tenant_category_id', $data)) {
-                $this->validateParent($data['tenant_category_id'] ?? $position->tenant_category_id, $data['parent_id'] ?? $position->parent_id, $position);
-            }
+            if (array_key_exists('parent_id', $data) || array_key_exists('tenant_category_id', $data)) $this->validateParent($data['tenant_category_id'] ?? $position->tenant_category_id, $data['parent_id'] ?? $position->parent_id, $position);
             $updatedPosition = $this->positionRepository->update($position, $data);
             if ($isBecomingInactive) foreach ($position->holders()->whereNull('ended_at')->get() as $activeHolder) $this->positionHolderRepository->end($activeHolder, now());
             return $updatedPosition->refresh();
@@ -71,14 +60,8 @@ class PositionService
 
     public function restore(Position $position): bool { return $this->positionRepository->restore($position); }
 
-    public function assignHolder(
-        Position $position,
-        int $userId,
-        \DateTimeInterface $startedAt,
-        string|PositionAssignmentStatus $assignmentStatus = PositionAssignmentStatus::DEFINITIF,
-        ?string $appointmentNumber = null,
-        ?string $appointmentDocumentPath = null,
-    ): PositionHolder {
+    public function assignHolder(Position $position, int $userId, \DateTimeInterface $startedAt, string|PositionAssignmentStatus $assignmentStatus = PositionAssignmentStatus::DEFINITIF, ?string $appointmentNumber = null, ?string $appointmentDocumentPath = null): PositionHolder
+    {
         return DB::transaction(function () use ($position, $userId, $startedAt, $assignmentStatus, $appointmentNumber, $appointmentDocumentPath): PositionHolder {
             if ($position->status !== PositionStatus::ACTIVE) throw new LogicException('Cannot assign a holder to an inactive position.');
             $status = $assignmentStatus instanceof PositionAssignmentStatus ? $assignmentStatus : PositionAssignmentStatus::tryFrom($assignmentStatus);
@@ -89,8 +72,6 @@ class PositionService
             if (! $user->tenant_id) throw new LogicException('User must belong to a tenant.');
             $categoryId = DB::table('tenants')->where('id', $user->tenant_id)->value('tenant_category_id');
             if ((string) $categoryId !== (string) $position->tenant_category_id) throw new LogicException('User and position must belong to the same tenant category.');
-            if ($appointmentNumber === null || trim($appointmentNumber) === '') throw new InvalidArgumentException('Nomor SK wajib diisi.');
-
             $activeHolder = $position->holders()->where('tenant_id', $user->tenant_id)->whereNull('ended_at')->where('user_id', $userId)->first();
             if ($activeHolder !== null) throw new LogicException('User is already the active holder of this position.');
             if (! $position->allowsMultipleActiveHolders()) {
@@ -100,16 +81,10 @@ class PositionService
                     $this->positionHolderRepository->end($currentHolder, $startedAt);
                 }
             }
-
             return $this->positionHolderRepository->create([
-                'position_id' => $position->id,
-                'tenant_id' => $user->tenant_id,
-                'user_id' => $userId,
-                'assignment_status' => $status->value,
-                'appointment_number' => trim($appointmentNumber),
-                'appointment_document_path' => $appointmentDocumentPath,
-                'started_at' => $startedAt,
-                'ended_at' => null,
+                'position_id' => $position->id, 'tenant_id' => $user->tenant_id, 'user_id' => $userId,
+                'assignment_status' => $status->value, 'appointment_number' => $appointmentNumber ? trim($appointmentNumber) : null,
+                'appointment_document_path' => $appointmentDocumentPath, 'started_at' => $startedAt, 'ended_at' => null,
             ]);
         });
     }
@@ -120,28 +95,11 @@ class PositionService
         if ($endedAt < $holder->started_at) throw new InvalidArgumentException('Holder end date cannot be earlier than start date.');
         return $this->positionHolderRepository->end($holder, $endedAt);
     }
-
-    public function getActiveHolder(Position $position): ?PositionHolder
-    {
-        $tenantId = auth()->user()?->tenant_id;
-        $query = $position->holders()->whereNull('ended_at');
-        if ($tenantId) $query->where('tenant_id', $tenantId);
-        return $query->latest('started_at')->first();
-    }
-
-    public function getActiveHolders(Position $position): Collection
-    {
-        $tenantId = auth()->user()?->tenant_id;
-        return $position->holders()->with('user')->whereNull('ended_at')->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))->orderBy('started_at')->orderBy('id')->get();
-    }
-
+    public function getActiveHolder(Position $position): ?PositionHolder { $tenantId = auth()->user()?->tenant_id; $query = $position->holders()->whereNull('ended_at'); if ($tenantId) $query->where('tenant_id', $tenantId); return $query->latest('started_at')->first(); }
+    public function getActiveHolders(Position $position): Collection { $tenantId = auth()->user()?->tenant_id; return $position->holders()->with('user')->whereNull('ended_at')->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))->orderBy('started_at')->orderBy('id')->get(); }
     public function getHolderHistory(Position $position): Collection { return $position->holders()->with('user', 'tenant')->orderByDesc('started_at')->get(); }
     public function findWithTrashed(string $id): ?Position { return $this->positionRepository->findWithTrashed($id); }
-
-    public function getActiveSignatoryPositions(string $tenantId): Collection
-    {
-        return Position::query()->whereHas('category.tenants', fn ($q) => $q->whereKey($tenantId))->where('status', PositionStatus::ACTIVE)->where('can_sign', true)->with(['holders' => fn ($q) => $q->where('tenant_id', $tenantId)->whereNull('ended_at'), 'holders.user'])->orderBy('name')->get();
-    }
+    public function getActiveSignatoryPositions(string $tenantId): Collection { return Position::query()->whereHas('category.tenants', fn ($q) => $q->whereKey($tenantId))->where('status', PositionStatus::ACTIVE)->where('can_sign', true)->with(['holders' => fn ($q) => $q->where('tenant_id', $tenantId)->whereNull('ended_at'), 'holders.user'])->orderBy('name')->get(); }
 
     private function validateParent(string $categoryId, ?string $parentId, ?Position $current = null): void
     {
@@ -149,13 +107,6 @@ class PositionService
         if ($current && (string) $current->id === (string) $parentId) throw new InvalidArgumentException('Jabatan tidak dapat menjadi atasan dirinya sendiri.');
         $parent = Position::query()->find($parentId);
         if (! $parent || (string) $parent->tenant_category_id !== (string) $categoryId) throw new InvalidArgumentException('Atasan jabatan harus berada pada organisasi yang sama.');
-        if ($current) {
-            $cursor = $parent;
-            while ($cursor->parent_id) {
-                if ((string) $cursor->parent_id === (string) $current->id) throw new InvalidArgumentException('Struktur jabatan tidak boleh membentuk siklus.');
-                $cursor = $cursor->parent;
-                if (! $cursor) break;
-            }
-        }
+        if ($current) { $cursor = $parent; while ($cursor->parent_id) { if ((string) $cursor->parent_id === (string) $current->id) throw new InvalidArgumentException('Struktur jabatan tidak boleh membentuk siklus.'); $cursor = $cursor->parent; if (! $cursor) break; } }
     }
 }
