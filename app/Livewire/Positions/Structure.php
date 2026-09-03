@@ -24,14 +24,16 @@ class Structure extends Component
     public bool $isRoot = false;
     public bool $showForm = false;
 
-    public function mount(): void
+    public function mount(?string $tenant = null): void
     {
         $this->authorize('viewAny', Position::class);
         $user = auth()->user();
         if ($user->tenant_id) {
             $this->selectedTenantId = (string) $user->tenant_id;
-            $this->ensureStructureRows();
+        } elseif ($user->isSuperAdmin() && $tenant) {
+            $this->selectedTenantId = $tenant;
         }
+        if ($this->selectedTenantId !== '') $this->ensureStructureRows();
     }
 
     public function updatedSelectedTenantId(): void
@@ -88,17 +90,10 @@ class Structure extends Component
                 ['sort_order' => 0, 'is_root' => false]
             );
             if ($this->isRoot) {
-                TenantPositionStructure::query()
-                    ->where('tenant_id', $this->selectedTenantId)
-                    ->where('position_id', '!=', $position->id)
-                    ->update(['is_root' => false]);
+                TenantPositionStructure::query()->where('tenant_id', $this->selectedTenantId)->where('position_id', '!=', $position->id)->update(['is_root' => false]);
             }
             $position->update(['position_type' => $this->positionType]);
-            $structure->update([
-                'parent_position_id' => $parentId,
-                'sort_order' => (int) $this->sortOrder,
-                'is_root' => $this->isRoot,
-            ]);
+            $structure->update(['parent_position_id' => $parentId, 'sort_order' => (int) $this->sortOrder, 'is_root' => $this->isRoot]);
         });
 
         $this->showForm = false;
@@ -117,10 +112,7 @@ class Structure extends Component
         $this->dispatch('toast', type: 'success', message: $position->name.' ditetapkan sebagai kepala organisasi.');
     }
 
-    private function ensureCanManage(): void
-    {
-        abort_unless(auth()->user()?->canManagePositions(), 403);
-    }
+    private function ensureCanManage(): void { abort_unless(auth()->user()?->canManagePositions(), 403); }
 
     private function positionForSelectedTenant(string $id): Position
     {
@@ -136,7 +128,7 @@ class Structure extends Component
     {
         $categoryId = Tenant::query()->whereKey($this->selectedTenantId)->value('tenant_category_id');
         if (! $categoryId) return;
-        $positions = Position::query()->where('tenant_category_id', $categoryId)->where('status', 'active')->get(['id', 'parent_id', 'sort_order']);
+        $positions = Position::query()->where('tenant_category_id', $categoryId)->where('status', 'active')->get(['id', 'sort_order']);
         foreach ($positions as $position) {
             TenantPositionStructure::query()->firstOrCreate(
                 ['tenant_id' => $this->selectedTenantId, 'position_id' => $position->id],
@@ -170,33 +162,16 @@ class Structure extends Component
     public function render()
     {
         $user = auth()->user();
-        $tenants = $user->isSuperAdmin()
-            ? Tenant::query()->where('status', 'active')->orderBy('name')->get(['id', 'name', 'tenant_category_id'])
-            : Tenant::query()->whereKey($user->tenant_id)->get(['id', 'name', 'tenant_category_id']);
-
+        $tenants = $user->isSuperAdmin() ? Tenant::query()->where('status', 'active')->orderBy('name')->get(['id', 'name', 'tenant_category_id']) : Tenant::query()->whereKey($user->tenant_id)->get(['id', 'name', 'tenant_category_id']);
         $categoryId = $this->selectedTenantId ? Tenant::query()->whereKey($this->selectedTenantId)->value('tenant_category_id') : null;
-        $positions = $categoryId
-            ? Position::query()->with(['holders' => fn ($q) => $q->where('tenant_id', $this->selectedTenantId)->whereNull('ended_at')->with('user')])->where('tenant_category_id', $categoryId)->where('status', 'active')->orderBy('sort_order')->orderBy('name')->get()
-            : collect();
-        $structures = $this->selectedTenantId
-            ? TenantPositionStructure::query()->where('tenant_id', $this->selectedTenantId)->get()->keyBy('position_id')
-            : collect();
-
+        $positions = $categoryId ? Position::query()->with(['holders' => fn ($q) => $q->where('tenant_id', $this->selectedTenantId)->whereNull('ended_at')->where('started_at', '<=', now())->with('user')])->where('tenant_category_id', $categoryId)->where('status', 'active')->orderBy('sort_order')->orderBy('name')->get() : collect();
+        $structures = $this->selectedTenantId ? TenantPositionStructure::query()->where('tenant_id', $this->selectedTenantId)->get()->keyBy('position_id') : collect();
         $nodes = $positions->map(fn (Position $position) => ['position' => $position, 'structure' => $structures->get($position->id)]);
         $roots = $nodes->filter(fn ($node) => $node['structure']?->is_root || $node['structure']?->parent_position_id === null)->values();
         if ($roots->count() > 1) {
             $explicitRoot = $nodes->first(fn ($node) => $node['structure']?->is_root);
             if ($explicitRoot) $roots = collect([$explicitRoot]);
         }
-
-        return view('livewire.positions.structure', [
-            'tenants' => $tenants,
-            'positions' => $positions,
-            'structures' => $structures,
-            'nodes' => $nodes,
-            'roots' => $roots,
-            'canManage' => $user->canManagePositions(),
-            'positionTypes' => PositionType::cases(),
-        ]);
+        return view('livewire.positions.structure', compact('tenants', 'positions', 'structures', 'nodes', 'roots') + ['canManage' => $user->canManagePositions(), 'positionTypes' => PositionType::cases()]);
     }
 }
