@@ -279,8 +279,8 @@ class Families extends Component
         return Citizen::query()
             ->where('tenant_id', $tenantId)
             ->when($this->headSearch !== '', fn ($q) => $q->where(function ($query) {
-                $query->where('nik', 'like', '%'.$this->headSearch.'%')
-                    ->orWhere('nama_lengkap', 'like', '%'.$this->headSearch.'%');
+                $query->whereRaw('LOWER(nik) LIKE LOWER(?)', ['%'.$this->headSearch.'%'])
+                    ->orWhereRaw('LOWER(nama_lengkap) LIKE LOWER(?)', ['%'.$this->headSearch.'%']);
             }))
             ->orderBy('nama_lengkap')
             ->limit(10)
@@ -297,8 +297,8 @@ class Families extends Component
         return Citizen::query()
             ->where('tenant_id', $tenantId)
             ->when($this->memberSearch !== '', fn ($q) => $q->where(function ($query) {
-                $query->where('nik', 'like', '%'.$this->memberSearch.'%')
-                    ->orWhere('nama_lengkap', 'like', '%'.$this->memberSearch.'%');
+                $query->whereRaw('LOWER(nik) LIKE LOWER(?)', ['%'.$this->memberSearch.'%'])
+                    ->orWhereRaw('LOWER(nama_lengkap) LIKE LOWER(?)', ['%'.$this->memberSearch.'%']);
             }))
             ->orderBy('nama_lengkap')
             ->limit(10)
