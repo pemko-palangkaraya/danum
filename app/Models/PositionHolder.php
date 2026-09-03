@@ -18,7 +18,7 @@ class PositionHolder extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'position_id', 'tenant_id', 'user_id', 'started_at', 'ended_at',
+        'position_id', 'tenant_id', 'user_id', 'assignment_status', 'started_at', 'ended_at',
     ];
 
     protected function casts(): array
