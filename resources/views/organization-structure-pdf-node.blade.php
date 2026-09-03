@@ -1,25 +1,42 @@
 @php
     $nodePosition = $node['position'];
     $nodeStructure = $node['structure'];
-    $children = $nodes->filter(fn ($item) => (string) ($item['structure']?->parent_position_id) === (string) $nodePosition->id)->sortBy(fn ($item) => [$item['structure']?->sort_order ?? 0, $item['position']->name])->values();
+    $children = $nodes
+        ->filter(fn ($item) => (string) ($item['structure']?->parent_position_id) === (string) $nodePosition->id)
+        ->sortBy(fn ($item) => [$item['structure']?->sort_order ?? 0, $item['position']->name])
+        ->values();
+    $isRoot = $root ?? $nodeStructure?->is_root;
 @endphp
 
-<div class="node {{ $nodeStructure?->is_root ? 'root' : '' }}">
-    <div class="box">
-        <div class="type">{{ $nodeStructure?->is_root ? 'Kepala Organisasi' : ($nodePosition->position_type?->label() ?? 'Jabatan') }}</div>
+<div class="{{ $isRoot ? 'root-node' : 'nested' }}">
+    <div class="box {{ $isRoot ? 'root-box' : '' }}">
+        <div class="type">{{ $isRoot ? 'Kepala Organisasi' : ($nodePosition->position_type?->label() ?? 'Jabatan') }}</div>
         <div class="name">{{ $nodePosition->name }}</div>
         @forelse($nodePosition->holders as $holder)
-            <div class="holder"><strong>{{ $holder->user?->name ?? '—' }}</strong> ({{ strtoupper($holder->assignment_status ?? 'definitif') }})</div>
-            @if($holder->user?->nip)<div class="meta">NIP. {{ $holder->user->nip }}</div>@endif
+            <div class="holder">
+                <strong>{{ $holder->user?->name ?? '—' }}</strong>
+                <span>({{ strtoupper($holder->assignment_status ?? 'definitif') }})</span>
+            </div>
+            @if($holder->user?->nip)
+                <div class="meta">NIP. {{ $holder->user->nip }}</div>
+            @endif
         @empty
             <div class="meta">Belum ada pemangku jabatan</div>
         @endforelse
     </div>
+
     @if($children->isNotEmpty())
-        <div class="line"></div>
-        <div class="children">
+        <div class="down-line"></div>
+        <div class="children-row">
             @foreach($children as $child)
-                @include('organization-structure-pdf-node', ['node' => $child, 'nodes' => $nodes, 'depth' => $depth + 1])
+                <div class="children-cell">
+                    @include('organization-structure-pdf-node', [
+                        'node' => $child,
+                        'nodes' => $nodes,
+                        'depth' => $depth + 1,
+                        'root' => false,
+                    ])
+                </div>
             @endforeach
         </div>
     @endif
