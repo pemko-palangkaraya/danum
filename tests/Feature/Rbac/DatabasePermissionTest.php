@@ -25,6 +25,43 @@ class DatabasePermissionTest extends TestCase
         $this->assertDatabaseHas('permissions', ['slug' => PermissionEnum::RBAC_MANAGE->value, 'scope' => 'global']);
     }
 
+    public function test_default_tenant_role_permission_matrix_is_seeded(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $tenantAdmin = User::factory()->tenantAdmin($tenant)->create();
+        $tenantUser = User::factory()->tenantUser($tenant)->create();
+
+        $this->assertTrue($tenantAdmin->hasAllPermissions([
+            PermissionEnum::DASHBOARD_VIEW,
+            PermissionEnum::TENANT_USERS_VIEW,
+            PermissionEnum::POSITIONS_MANAGE,
+            PermissionEnum::OUTGOING_LETTERS_VALIDATE,
+            PermissionEnum::OUTGOING_LETTERS_ISSUE,
+            PermissionEnum::POPULATION_VIEW,
+            PermissionEnum::POPULATION_MANAGE,
+        ]));
+        $this->assertFalse($tenantAdmin->hasPermission(PermissionEnum::TENANT_PROFILE_UPDATE));
+        $this->assertFalse($tenantAdmin->hasPermission(PermissionEnum::AUDIT_LOGS_VIEW));
+        $this->assertFalse($tenantAdmin->hasPermission(PermissionEnum::RBAC_MANAGE));
+
+        $this->assertTrue($tenantUser->hasAllPermissions([
+            PermissionEnum::DASHBOARD_VIEW,
+            PermissionEnum::TENANT_PROFILE_VIEW,
+            PermissionEnum::POSITIONS_VIEW,
+            PermissionEnum::LETTER_TYPES_VIEW,
+            PermissionEnum::OUTGOING_LETTERS_VIEW,
+            PermissionEnum::OUTGOING_LETTERS_CREATE,
+            PermissionEnum::OUTGOING_LETTERS_UPDATE,
+            PermissionEnum::OUTGOING_LETTERS_DELETE,
+            PermissionEnum::OUTGOING_LETTERS_SUBMIT,
+            PermissionEnum::POPULATION_VIEW,
+        ]));
+        $this->assertFalse($tenantUser->hasPermission(PermissionEnum::TENANT_USERS_VIEW));
+        $this->assertFalse($tenantUser->hasPermission(PermissionEnum::POPULATION_MANAGE));
+        $this->assertFalse($tenantUser->hasPermission(PermissionEnum::OUTGOING_LETTERS_VALIDATE));
+        $this->assertFalse($tenantUser->hasPermission(PermissionEnum::TENANTS_CREATE));
+    }
+
     public function test_permission_is_resolved_from_role_permission_pivot(): void
     {
         $tenant = Tenant::factory()->create();
