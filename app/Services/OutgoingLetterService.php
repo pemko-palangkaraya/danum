@@ -19,7 +19,6 @@ class OutgoingLetterService
         private readonly OutgoingLetterStatusHistoryRepositoryInterface $historyRepository,
         private readonly LetterTypeService $letterTypeService,
         private readonly AuditLogService $auditLogService,
-        private readonly OutgoingLetterWorkflowService $workflowService,
         private readonly OutgoingLetterIssuanceService $issuanceService,
         private readonly OutgoingLetterWithdrawalService $withdrawalService,
     ) {}
@@ -54,10 +53,6 @@ class OutgoingLetterService
         return $updated;
     }
 
-    public function submit(OutgoingLetter $letter, int $changedBy): OutgoingLetter { return $this->workflowService->submit($letter, $changedBy); }
-    public function reject(OutgoingLetter $letter, int $changedBy, string $reason): OutgoingLetter { return $this->workflowService->reject($letter, $changedBy, $reason); }
-    public function cancel(OutgoingLetter $letter, int $changedBy, ?string $note = null): OutgoingLetter { return $this->workflowService->cancel($letter, $changedBy, $note); }
-
     public function delete(OutgoingLetter $letter): bool
     {
         $this->ensureMutable($letter);
@@ -79,7 +74,6 @@ class OutgoingLetterService
         return $restored;
     }
 
-    public function validate(OutgoingLetter $letter, int $changedBy, ?string $note = null): OutgoingLetter { return $this->workflowService->validate($letter, $changedBy, $note); }
     public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null, ?string $pin = null): OutgoingLetter { return $this->issuanceService->issue($letter, $changedBy, $note, $pin); }
     public function requestWithdrawal(OutgoingLetter $letter, int $requestedBy, string $reason, string $statementPath) { return $this->withdrawalService->request($letter, $requestedBy, $reason, $statementPath); }
     public function approveWithdrawal($withdrawal, int $decidedBy, ?string $note = null) { return $this->withdrawalService->approve($withdrawal, $decidedBy, $note); }
