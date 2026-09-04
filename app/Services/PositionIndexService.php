@@ -68,7 +68,7 @@ class PositionIndexService
         }
 
         if (! $categoryId) {
-            return collect();
+            return new Collection();
         }
 
         return User::query()
@@ -81,13 +81,13 @@ class PositionIndexService
     public function history(?string $positionId, User $user): Collection
     {
         if (! $positionId) {
-            return collect();
+            return new Collection();
         }
 
         $position = Position::withTrashed()->find($positionId);
 
         if (! $position) {
-            return collect();
+            return new Collection();
         }
 
         return $position->holders()
