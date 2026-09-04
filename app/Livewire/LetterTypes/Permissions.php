@@ -19,7 +19,6 @@ class Permissions extends Component
     use WithStandardTablePagination;
 
     public string $search = '';
-    public string $filter = 'active';
     public int $perPage = 5;
     public string $letterTypeId;
     public ?string $selectedTenantId = null;
@@ -35,22 +34,13 @@ class Permissions extends Component
 
     public function grant(string $tenantId, LetterTypeService $service, AuditLogService $auditLog): void
     {
-        $letterType = $this->letterType();
-        $this->authorize('update', $letterType);
-
+        $letterType = $this->authorizedLetterType();
         $tenant = Tenant::query()->findOrFail($tenantId);
         $existing = $letterType->permissions()->where('tenant_id', $tenant->id)->first();
         $permission = $service->grantTenantPermission($letterType, $tenant->id);
 
         if (! $existing || ! $existing->allowed) {
-            $auditLog->record(
-                'letter_type.permission.granted',
-                auth()->user(),
-                $permission,
-                $existing?->only(['tenant_id', 'letter_type_id', 'allowed']),
-                $permission->only(['tenant_id', 'letter_type_id', 'allowed']),
-                $tenant->id,
-            );
+            $this->recordAudit($auditLog, 'letter_type.permission.granted', $permission, $existing?->only(['tenant_id', 'letter_type_id', 'allowed']), $permission->only(['tenant_id', 'letter_type_id', 'allowed']), $tenant->id);
         }
 
         $this->dispatch('toast', type: 'success', message: 'Akses jenis surat diberikan ke ' . $tenant->name . '.');
@@ -58,25 +48,13 @@ class Permissions extends Component
 
     public function grantCategory(int $categoryId, LetterTypeService $service, AuditLogService $auditLog): void
     {
-        $letterType = $this->letterType();
-        $this->authorize('update', $letterType);
-
+        $letterType = $this->authorizedLetterType();
         $category = TenantCategory::query()->where('is_active', true)->findOrFail($categoryId);
-        $existing = $letterType->permissions()
-            ->whereNull('tenant_id')
-            ->where('tenant_category_id', $category->id)
-            ->first();
-
+        $existing = $letterType->permissions()->whereNull('tenant_id')->where('tenant_category_id', $category->id)->first();
         $permission = $service->grantCategoryPermission($letterType, $category->id);
 
         if (! $existing || ! $existing->allowed) {
-            $auditLog->record(
-                'letter_type.category_permission.granted',
-                auth()->user(),
-                $permission,
-                $existing?->only(['tenant_category_id', 'letter_type_id', 'allowed']),
-                $permission->only(['tenant_category_id', 'letter_type_id', 'allowed']),
-            );
+            $this->recordAudit($auditLog, 'letter_type.category_permission.granted', $permission, $existing?->only(['tenant_category_id', 'letter_type_id', 'allowed']), $permission->only(['tenant_category_id', 'letter_type_id', 'allowed']));
         }
 
         $this->dispatch('toast', type: 'success', message: 'Akses jenis surat diberikan ke kategori ' . $category->name . '.');
@@ -84,13 +62,10 @@ class Permissions extends Component
 
     public function confirmRevokeCategory(int $categoryId): void
     {
-        $letterType = $this->letterType();
-        $this->authorize('update', $letterType);
-
+        $this->authorizedLetterType();
         $category = TenantCategory::query()->where('is_active', true)->findOrFail($categoryId);
         $this->selectedCategoryId = $category->id;
         $this->selectedCategoryName = $category->name;
-
         $this->dispatch('open-confirmation-modal', id: 'letter-type-category-permission-revoke');
     }
 
@@ -102,18 +77,10 @@ class Permissions extends Component
 
     public function revokeCategory(LetterTypeService $service, AuditLogService $auditLog): void
     {
-        if ($this->selectedCategoryId === null) {
-            return;
-        }
-
-        $letterType = $this->letterType();
-        $this->authorize('update', $letterType);
-
+        if ($this->selectedCategoryId === null) return;
+        $letterType = $this->authorizedLetterType();
         $categoryId = $this->selectedCategoryId;
-        $permission = $letterType->permissions()
-            ->whereNull('tenant_id')
-            ->where('tenant_category_id', $categoryId)
-            ->first();
+        $permission = $letterType->permissions()->whereNull('tenant_id')->where('tenant_category_id', $categoryId)->first();
 
         if (! $service->revokeCategoryPermission($letterType, $categoryId)) {
             $this->cancelRevokeCategory();
@@ -123,13 +90,7 @@ class Permissions extends Component
 
         if ($permission?->allowed) {
             $permission->refresh();
-            $auditLog->record(
-                'letter_type.category_permission.revoked',
-                auth()->user(),
-                $permission,
-                ['tenant_category_id' => $categoryId, 'letter_type_id' => $letterType->id, 'allowed' => true],
-                $permission->only(['tenant_category_id', 'letter_type_id', 'allowed']),
-            );
+            $this->recordAudit($auditLog, 'letter_type.category_permission.revoked', $permission, ['tenant_category_id' => $categoryId, 'letter_type_id' => $letterType->id, 'allowed' => true], $permission->only(['tenant_category_id', 'letter_type_id', 'allowed']));
         }
 
         $this->cancelRevokeCategory();
@@ -138,21 +99,14 @@ class Permissions extends Component
 
     public function confirmRevoke(string $tenantId): void
     {
-        $this->letterType();
-        $this->authorize('update', $this->letterType());
-
+        $this->authorizedLetterType();
         $tenant = Tenant::query()->findOrFail($tenantId);
-
         $this->selectedTenantId = $tenant->id;
         $this->selectedTenantName = $tenant->name;
-
         $this->dispatch('open-confirmation-modal', id: 'letter-type-permission-revoke');
     }
 
-    public function updatedSearch(): void
-    {
-        $this->resetPage();
-    }
+    public function updatedSearch(): void { $this->resetPage(); }
 
     public function updatedPerPage(): void
     {
@@ -168,37 +122,23 @@ class Permissions extends Component
 
     public function revoke(LetterTypeService $service, AuditLogService $auditLog): void
     {
-        if (! $this->selectedTenantId) {
-            return;
-        }
-
-        $letterType = $this->letterType();
-        $this->authorize('update', $letterType);
-
+        if (! $this->selectedTenantId) return;
+        $letterType = $this->authorizedLetterType();
         $tenantId = $this->selectedTenantId;
         $permission = $letterType->permissions()->where('tenant_id', $tenantId)->first();
 
         if (! $service->revokeTenantPermission($letterType, $tenantId)) {
-            $this->selectedTenantId = null;
-            $this->selectedTenantName = '';
+            $this->cancelRevoke();
             $this->dispatch('toast', type: 'error', message: 'Akses tidak ditemukan.');
             return;
         }
 
         if ($permission?->allowed) {
             $permission->refresh();
-            $auditLog->record(
-                'letter_type.permission.revoked',
-                auth()->user(),
-                $permission,
-                ['tenant_id' => $tenantId, 'letter_type_id' => $letterType->id, 'allowed' => true],
-                $permission->only(['tenant_id', 'letter_type_id', 'allowed']),
-                $tenantId,
-            );
+            $this->recordAudit($auditLog, 'letter_type.permission.revoked', $permission, ['tenant_id' => $tenantId, 'letter_type_id' => $letterType->id, 'allowed' => true], $permission->only(['tenant_id', 'letter_type_id', 'allowed']), $tenantId);
         }
 
-        $this->selectedTenantId = null;
-        $this->selectedTenantName = '';
+        $this->cancelRevoke();
         $this->dispatch('toast', type: 'success', message: 'Akses jenis surat dicabut.');
     }
 
@@ -206,8 +146,19 @@ class Permissions extends Component
     {
         $letterType = LetterType::query()->findOrFail($this->letterTypeId);
         abort_unless($letterType->isGlobal(), 404);
-
         return $letterType;
+    }
+
+    private function authorizedLetterType(): LetterType
+    {
+        $letterType = $this->letterType();
+        $this->authorize('update', $letterType);
+        return $letterType;
+    }
+
+    private function recordAudit(AuditLogService $auditLog, string $action, object $auditable, ?array $oldValues, array $newValues, ?string $tenantId = null): void
+    {
+        $auditLog->record($action, auth()->user(), $auditable, $oldValues, $newValues, $tenantId);
     }
 
     public function render()
@@ -217,37 +168,15 @@ class Permissions extends Component
 
         if ($this->search !== '') {
             $value = '%' . trim($this->search) . '%';
-            $query->where(fn($q) => $q
-                ->where('name', 'like', $value)
-                ->orWhere('code', 'like', $value));
+            $query->where(fn($q) => $q->where('name', 'like', $value)->orWhere('code', 'like', $value));
         }
-
-        $tenants = $query->paginate($this->perPage);
-        $allowedTenantIds = $letterType->permissions()
-            ->where('allowed', true)
-            ->whereNotNull('tenant_id')
-            ->pluck('tenant_id')
-            ->all();
-
-        $allowedCategoryIds = $letterType->permissions()
-            ->where('allowed', true)
-            ->whereNotNull('tenant_category_id')
-            ->pluck('tenant_category_id')
-            ->map(fn($id) => (int) $id)
-            ->all();
-
-        $categories = TenantCategory::query()
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
 
         return view('livewire.pages.letter-types.permissions', [
             'letterType' => $letterType,
-            'tenants' => $tenants,
-            'categories' => $categories,
-            'allowedTenantIds' => $allowedTenantIds,
-            'allowedCategoryIds' => $allowedCategoryIds,
+            'tenants' => $query->paginate($this->perPage),
+            'categories' => TenantCategory::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(),
+            'allowedTenantIds' => $letterType->permissions()->where('allowed', true)->whereNotNull('tenant_id')->pluck('tenant_id')->all(),
+            'allowedCategoryIds' => $letterType->permissions()->where('allowed', true)->whereNotNull('tenant_category_id')->pluck('tenant_category_id')->map(fn($id) => (int) $id)->all(),
         ]);
     }
 }
