@@ -20,7 +20,7 @@
                         <td class="px-6 py-4 text-right">
                             <button wire:click="showDetail('{{ $family->id }}')" class="mr-3 text-sm font-semibold text-slate-700 hover:text-slate-950">Detail</button>
                             <a href="{{ route('population.families.pdf', ['id' => $family->id]) }}" target="_blank" rel="noopener" class="mr-3 text-sm font-semibold text-indigo-700 hover:text-indigo-800">Cetak KK</a>
-                            @if(auth()->user()->hasPermission('population.manage'))
+                            @if($canManage)
                                 <button wire:click="edit('{{ $family->id }}')" class="text-sm font-semibold text-slate-700 hover:text-slate-950">Edit</button>
                             @endif
                         </td>
