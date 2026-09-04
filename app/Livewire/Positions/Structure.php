@@ -8,7 +8,6 @@ use App\Enums\PositionAssignmentStatus;
 use App\Enums\PositionType;
 use App\Models\Position;
 use App\Models\Tenant;
-use App\Models\TenantPositionStructure;
 use App\Models\User;
 use App\Services\PositionService;
 use App\Services\PositionStructureService;
@@ -173,11 +172,11 @@ class Structure extends Component
         $tenants = $user->isSuperAdmin() ? Tenant::query()->where('status', true)->orderBy('name')->get(['id', 'name', 'tenant_category_id']) : Tenant::query()->whereKey($user->tenant_id)->get(['id', 'name', 'tenant_category_id']);
         $categoryId = $this->selectedTenantId ? $structures->tenantCategoryId($this->selectedTenantId) : null;
         $positions = $categoryId ? Position::query()->with(['holders' => fn ($q) => $q->where('tenant_id', $this->selectedTenantId)->whereNull('ended_at')->where('started_at', '<=', now())->with('user')])->where('tenant_category_id', $categoryId)->where('status', 'active')->orderBy('sort_order')->orderBy('name')->get() : collect();
-        $structuresByPosition = $this->selectedTenantId ? $structures->structures($this->selectedTenantId) : collect();
-        $nodes = $positions->map(fn (Position $position) => ['position' => $position, 'structure' => $structuresByPosition->get($position->id)]);
+        $structures = $this->selectedTenantId ? $structures->structures($this->selectedTenantId) : collect();
+        $nodes = $positions->map(fn (Position $position) => ['position' => $position, 'structure' => $structures->get($position->id)]);
         $roots = $nodes->filter(fn ($node) => $node['structure']?->is_root || $node['structure']?->parent_position_id === null)->values();
         if ($roots->count() > 1) { $explicitRoot = $nodes->first(fn ($node) => $node['structure']?->is_root); if ($explicitRoot) $roots = collect([$explicitRoot]); }
         $users = $this->selectedTenantId ? User::query()->where('tenant_id', $this->selectedTenantId)->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email']) : collect();
-        return view('livewire.positions.structure', compact('tenants', 'positions', 'structuresByPosition', 'nodes', 'roots', 'users') + ['canManage' => $user->canManagePositions(), 'positionTypes' => PositionType::cases(), 'assignmentStatuses' => PositionAssignmentStatus::cases()]);
+        return view('livewire.positions.structure', compact('tenants', 'positions', 'structures', 'nodes', 'roots', 'users') + ['canManage' => $user->canManagePositions(), 'positionTypes' => PositionType::cases(), 'assignmentStatuses' => PositionAssignmentStatus::cases()]);
     }
 }
