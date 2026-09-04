@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Citizen extends Model
@@ -41,6 +42,11 @@ class Citizen extends Model
     public function familyMemberships(): HasMany
     {
         return $this->hasMany(FamilyMember::class);
+    }
+
+    public function activeFamilyMembership(): HasOne
+    {
+        return $this->hasOne(FamilyMember::class)->where('status', 'active');
     }
 
     public function addresses(): HasMany
