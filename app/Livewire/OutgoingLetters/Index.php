@@ -7,23 +7,24 @@ namespace App\Livewire\OutgoingLetters;
 use App\Enums\LetterTypeStatus;
 use App\Enums\OutgoingLetterStatus;
 use App\Enums\PositionStatus;
+use App\Livewire\Concerns\HandlesLetterVariables;
+use App\Livewire\Concerns\WithStandardTablePagination;
 use App\Models\OutgoingLetter;
 use App\Models\Position;
-use App\Models\PositionHolder;
+use App\Services\DocxTemplateService;
 use App\Services\LetterTypeService;
 use App\Services\OutgoingLetterDraftService;
 use App\Services\OutgoingLetterService;
-use App\Support\LetterVariableSchema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Component;
-use App\Livewire\Concerns\WithStandardTablePagination;
 
 #[Layout('layouts.app')]
 class Index extends Component
 {
+    use HandlesLetterVariables;
     use WithStandardTablePagination;
 
     public string $search = '';
@@ -39,12 +40,6 @@ class Index extends Component
     public string $validator_position_id = '';
     public array $variables = [];
     public array $variableValues = [];
-
-    private const SYSTEM_VARIABLES = [
-        'letterhead', 'tenant_name', 'tenant_city', 'tenant_district', 'tenant_village',
-        'tenant_province', 'tenant_address', 'tenant_phone', 'tenant_email',
-        'tenant_head_name', 'tenant_head_title', 'tte',
-    ];
 
     public function mount(): void
     {
@@ -131,42 +126,6 @@ class Index extends Component
         $this->variableValues = [];
         $this->initializeVariableValues(true);
         $this->applySystemValues();
-    }
-
-    public function addRepeaterRow(string $key): void
-    {
-        $definition = collect(LetterVariableSchema::repeaters($this->variables))->firstWhere('key', $key);
-        if (! $definition) {
-            return;
-        }
-
-        $row = [];
-        foreach ($definition['fields'] as $field) {
-            $row[$field['key']] = '';
-        }
-
-        $this->variableValues[$key] ??= [];
-        $this->variableValues[$key][] = $row;
-    }
-
-    public function removeRepeaterRow(string $key, int $index): void
-    {
-        if (! isset($this->variableValues[$key][$index])) {
-            return;
-        }
-
-        unset($this->variableValues[$key][$index]);
-        $this->variableValues[$key] = array_values($this->variableValues[$key]);
-
-        if ($this->variableValues[$key] === []) {
-            $this->addRepeaterRow($key);
-        }
-    }
-
-    /** @return list<array{key:string,label:string,fields:list<array{key:string,label:string}>}> */
-    public function repeaterDefinitions(): array
-    {
-        return LetterVariableSchema::repeaters($this->variables);
     }
 
     #[On('outgoing-letters-refresh')]
@@ -431,115 +390,6 @@ class Index extends Component
         }
     }
 
-    private function initializeVariableValues(bool $newRows = false): void
-    {
-        foreach ($this->variables as $variable) {
-            $variable = (string) $variable;
-            if ($definition = LetterVariableSchema::parseRepeater($variable)) {
-                $this->variableValues[$definition['key']] ??= $newRows ? [[]] : [];
-            } else {
-                $this->variableValues[$variable] ??= '';
-            }
-        }
-    }
-
-    private function validateVariableValues(): void
-    {
-        foreach ($this->variables as $variable) {
-            $variable = (string) $variable;
-            if ($this->isSystemVariable($variable)) {
-                continue;
-            }
-
-            if ($definition = LetterVariableSchema::parseRepeater($variable)) {
-                $rows = $this->variableValues[$definition['key']] ?? [];
-                if (! is_array($rows) || $rows === []) {
-                    $this->addError('variableValues.' . $definition['key'], 'Tambahkan minimal satu data.');
-                    continue;
-                }
-
-                foreach ($rows as $rowIndex => $row) {
-                    foreach ($definition['fields'] as $field) {
-                        if (blank($row[$field['key']] ?? null)) {
-                            $this->addError(
-                                'variableValues.' . $definition['key'] . '.' . $rowIndex . '.' . $field['key'],
-                                'Field ini wajib diisi.'
-                            );
-                        }
-                    }
-                }
-                continue;
-            }
-
-            if (blank($this->variableValues[$variable] ?? null)) {
-                $this->addError('variableValues.' . $variable, 'Field ini wajib diisi.');
-            }
-        }
-
-        foreach ($this->variables as $variable) {
-            $variable = (string) $variable;
-            if (! $this->isDateVariable($variable)) {
-                continue;
-            }
-
-            $value = $this->variableValues[$variable] ?? null;
-            if (blank($value)) {
-                $this->addError('variableValues.' . $variable, 'Tanggal wajib diisi.');
-                continue;
-            }
-
-            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $value)) {
-                $this->addError('variableValues.' . $variable, 'Format tanggal tidak valid.');
-                continue;
-            }
-
-            if ($this->isBirthDateVariable($variable) && $value > now()->toDateString()) {
-                $this->addError('variableValues.' . $variable, 'Tanggal lahir tidak boleh tanggal di masa depan.');
-            } elseif (! $this->isBirthDateVariable($variable) && $value > now()->toDateString()) {
-                $this->addError('variableValues.' . $variable, 'Tanggal tidak boleh melewati hari ini.');
-            }
-        }
-    }
-
-    /** @return array<string,mixed> */
-    private function normalizedVariableValues(): array
-    {
-        $data = $this->variableValues;
-        foreach (['number', 'recipient_name', 'recipient_address', 'subject'] as $key) {
-            $data[$key] = (string) ($data[$key] ?? '');
-        }
-
-        return $data;
-    }
-
-    private function applySystemValues(?PositionHolder $holder = null): void
-    {
-        $tenant = auth()->user()->tenant;
-        if (! $tenant) {
-            return;
-        }
-
-        $values = [
-            'tenant_name' => $tenant->name,
-            'tenant_city' => $tenant->city,
-            'tenant_district' => $tenant->district,
-            'tenant_village' => $tenant->village,
-            'tenant_province' => $tenant->province,
-            'tenant_address' => $tenant->address,
-            'tenant_phone' => $tenant->phone,
-            'tenant_email' => $tenant->email,
-            'tenant_head_name' => $holder?->user?->name ?? $tenant->head_name,
-            'tenant_head_title' => $holder?->position?->name ?? $tenant->head_title,
-        ];
-
-        foreach ($this->variables as $variable) {
-            $variable = (string) $variable;
-            if (! LetterVariableSchema::isRepeater($variable) && $this->isSystemVariable($variable)) {
-                $this->variableValues[$variable] = (string) ($values[$variable] ?? '');
-            }
-        }
-    }
-
     private function availableSignerPositions()
     {
         return $this->availablePositions('can_sign');
@@ -570,21 +420,6 @@ class Index extends Component
                 ->whereNull('ended_at')
                 ->where('started_at', '<=', now())
                 ->with('user')]);
-    }
-
-    private function isSystemVariable(string $variable): bool
-    {
-        return in_array($variable, self::SYSTEM_VARIABLES, true);
-    }
-
-    private function isDateVariable(string $variable): bool
-    {
-        return (bool) preg_match('/(^|_)date$/i', $variable);
-    }
-
-    private function isBirthDateVariable(string $variable): bool
-    {
-        return (bool) preg_match('/(^|_)birth_date$/i', $variable);
     }
 
     private function isSuperAdmin(): bool
@@ -656,7 +491,7 @@ class Index extends Component
             'letterTypes' => $letterTypes,
             'signerPositions' => $this->availableSignerPositions()->orderBy('name')->get(),
             'validatorPositions' => $this->availableValidatorPositions()->orderBy('name')->get(),
-            'variableLabels' => (new \App\Services\DocxTemplateService)->allowedVariables(),
+            'variableLabels' => (new DocxTemplateService)->allowedVariables(),
             'repeaters' => $this->repeaterDefinitions(),
             'isSuperAdmin' => $this->isSuperAdmin(),
         ]);
