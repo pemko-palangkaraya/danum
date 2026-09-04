@@ -1,6 +1,6 @@
 <x-ui.card>
     <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        @if(auth()->user()->isSuperAdmin())
+        @if($isSuperAdmin)
             <div class="w-full lg:max-w-md">
                 <x-ui.field label="Tenant" for="citizens-tenant">
                     <select id="citizens-tenant" wire:model.live="selectedTenantId" class="form-select w-full">
