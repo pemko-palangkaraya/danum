@@ -66,6 +66,11 @@ class Citizens extends Component
         $this->resetPage();
     }
 
+    public function updatedPerPage(): void
+    {
+        $this->resetPage();
+    }
+
     public function updatedSelectedTenantId(): void
     {
         abort_unless(auth()->user()->isSuperAdmin(), 403);
@@ -151,15 +156,21 @@ class Citizens extends Component
     {
         $user = auth()->user();
         $isSuperAdmin = $user->isSuperAdmin();
-        $hasTenant = $this->selectedTenantId || $user->tenant_id;
+        $canManage = $user->hasPermission('population.manage');
+        $tenantSelected = (bool) ($this->selectedTenantId || $user->tenant_id);
         $service = app(CitizenService::class);
 
         return view('livewire.pages.population.citizens', [
-            'citizens' => $hasTenant
+            'citizens' => $tenantSelected
                 ? $service->paginate($this->tenantId(), $this->search, $this->perPage)
                 : collect(),
             'tenants' => $isSuperAdmin ? $service->tenants() : collect(),
             'isSuperAdmin' => $isSuperAdmin,
+            'canManage' => $canManage,
+            'tenantSelected' => $tenantSelected,
+            'detailRoute' => $isSuperAdmin
+                ? 'population.admin.citizens.show'
+                : 'population.citizens.show',
         ]);
     }
 }
