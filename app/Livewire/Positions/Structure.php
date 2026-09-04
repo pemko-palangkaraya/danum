@@ -9,7 +9,7 @@ use App\Enums\PositionType;
 use App\Models\Position;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Services\PositionService;
+use App\Services\PositionHolderService;
 use App\Services\PositionStructureService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -104,7 +104,7 @@ class Structure extends Component
         $this->resetValidation();
     }
 
-    public function saveHolder(PositionService $service, PositionStructureService $structures): void
+    public function saveHolder(PositionHolderService $holders, PositionStructureService $structures): void
     {
         $this->ensureCanManage();
         $this->validate([
@@ -125,7 +125,7 @@ class Structure extends Component
             if ($this->holderAppointmentDocument) {
                 $documentPath = $this->holderAppointmentDocument->store('position-appointments/' . $this->selectedTenantId . '/' . $position->id, 'local');
             }
-            $service->assignHolder($position, (int) $this->holderUserId, new \DateTimeImmutable($this->holderStartedAt), PositionAssignmentStatus::from($this->holderAssignmentStatus), $this->holderAppointmentNumber, $documentPath);
+            $holders->assign($position, (int) $this->holderUserId, new \DateTimeImmutable($this->holderStartedAt), PositionAssignmentStatus::from($this->holderAssignmentStatus), $this->holderAppointmentNumber, $documentPath);
         } catch (\Throwable $exception) {
             if ($documentPath) Storage::disk('local')->delete($documentPath);
             $this->addError('holderUserId', $exception->getMessage());
