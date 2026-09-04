@@ -136,7 +136,6 @@ class Index extends Component
         $history = $index->history($this->historyPositionId, $user);
         $certificate = $this->showCertificate ? $index->certificate($this->certificatePositionId) : null;
         $categories = $index->categories();
-        $categoryTenants = $index->categoryTenants($categoryId);
         $index->preparePositions($positions, $user);
 
         return view('livewire.pages.positions.index', [
@@ -145,7 +144,6 @@ class Index extends Component
             'history' => $history,
             'certificate' => $certificate,
             'tenants' => $categories,
-            'categoryTenants' => $categoryTenants,
             'isSuperAdmin' => $user->isSuperAdmin(),
             'canManageHolders' => $user->canManagePositions(),
         ]);
