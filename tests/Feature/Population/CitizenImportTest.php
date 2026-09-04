@@ -26,6 +26,39 @@ class CitizenImportTest extends TestCase
         Livewire::actingAs($user)
             ->test(CitizenImport::class)
             ->assertStatus(403);
+
+        $this->actingAs($user)
+            ->get(route('population.citizens.import'))
+            ->assertForbidden();
+    }
+
+    public function test_tenant_admin_can_preview_and_import_through_livewire(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->tenantAdmin($tenant)->create();
+        $file = UploadedFile::fake()->createWithContent(
+            'citizens.csv',
+            "NIK;Nama Lengkap\n6271010101010101;Warga Baru\n",
+        );
+
+        Livewire::actingAs($user)
+            ->test(CitizenImport::class)
+            ->set('file', $file)
+            ->assertSet('selectedTenantId', $tenant->id)
+            ->assertSet('validCount', 1)
+            ->assertSet('invalidCount', 0)
+            ->assertSet('ready', true)
+            ->call('import')
+            ->assertSet('ready', false)
+            ->assertSet('rows', [])
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('citizens', [
+            'tenant_id' => $tenant->id,
+            'nik' => '6271010101010101',
+            'nama_lengkap' => 'Warga Baru',
+            'created_by' => $user->id,
+        ]);
     }
 
     public function test_tenant_user_imports_only_against_their_tenant(): void
@@ -57,6 +90,30 @@ class CitizenImportTest extends TestCase
             'nik' => '6271010101010101',
             'nama_lengkap' => 'Warga Tenant Saya',
         ]);
+    }
+
+    public function test_tenant_user_cannot_change_import_tenant(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $otherTenant = Tenant::factory()->create();
+        $user = User::factory()->tenantAdmin($tenant)->create();
+
+        Livewire::actingAs($user)
+            ->test(CitizenImport::class)
+            ->set('selectedTenantId', $otherTenant->id)
+            ->assertStatus(403);
+    }
+
+    public function test_super_admin_can_select_import_tenant(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $superAdmin = User::factory()->superAdmin()->create();
+
+        Livewire::actingAs($superAdmin)
+            ->test(CitizenImport::class)
+            ->assertSet('selectedTenantId', null)
+            ->set('selectedTenantId', $tenant->id)
+            ->assertSet('selectedTenantId', $tenant->id);
     }
 
     public function test_preview_marks_existing_nik_as_skipped(): void
@@ -101,6 +158,7 @@ class CitizenImportTest extends TestCase
             'tenant_id' => $tenant->id,
             'nik' => '6271010101010101',
             'nama_lengkap' => 'Nama Baru',
+            'updated_by' => $user->id,
         ]);
     }
 
