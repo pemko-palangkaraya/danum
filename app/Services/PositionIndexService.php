@@ -31,7 +31,9 @@ class PositionIndexService
         $query = Position::query()
             ->with([
                 'category',
-                'holders.user',
+                'holders' => fn ($q) => $q
+                    ->when($user->tenant_id, fn ($q) => $q->where('tenant_id', $user->tenant_id))
+                    ->with('user'),
                 'signerCertificates' => fn ($q) => $q->where('is_active', true)->latest('created_at'),
             ])
             ->orderBy('name');
@@ -120,17 +122,10 @@ class PositionIndexService
             ->get(['id', 'code', 'name']);
     }
 
-    public function preparePositions(LengthAwarePaginator $positions, User $user): void
+    public function preparePositions(LengthAwarePaginator $positions): void
     {
         foreach ($positions->getCollection() as $position) {
             $position->setRelation('tenant', $position->category);
-
-            if ($user->tenant_id) {
-                $position->setRelation(
-                    'holders',
-                    $position->holders->where('tenant_id', $user->tenant_id)->values(),
-                );
-            }
         }
     }
 }
