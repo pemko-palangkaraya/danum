@@ -8,6 +8,7 @@ use App\Enums\PositionType;
 use App\Models\Position;
 use App\Models\Tenant;
 use App\Models\TenantPositionStructure;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -17,6 +18,36 @@ class PositionStructureService
     public function tenantCategoryId(string $tenantId): mixed
     {
         return Tenant::query()->whereKey($tenantId)->value('tenant_category_id');
+    }
+
+    public function positionsForTenant(string $tenantId): Collection
+    {
+        $categoryId = $this->tenantCategoryId($tenantId);
+
+        if (! $categoryId) {
+            return new Collection();
+        }
+
+        return Position::query()
+            ->with(['holders' => fn ($query) => $query
+                ->where('tenant_id', $tenantId)
+                ->whereNull('ended_at')
+                ->where('started_at', '<=', now())
+                ->with('user')])
+            ->where('tenant_category_id', $categoryId)
+            ->where('status', 'active')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function activeUsersForTenant(string $tenantId): Collection
+    {
+        return User::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
     }
 
     public function ensureRows(string $tenantId): void
