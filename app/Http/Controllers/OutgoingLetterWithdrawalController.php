@@ -6,14 +6,14 @@ namespace App\Http\Controllers;
 
 use App\Models\OutgoingLetter;
 use App\Models\OutgoingLetterWithdrawalRequest;
-use App\Services\OutgoingLetterService;
+use App\Services\OutgoingLetterWithdrawalService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class OutgoingLetterWithdrawalController extends Controller
 {
-    public function __construct(private readonly OutgoingLetterService $service) {}
+    public function __construct(private readonly OutgoingLetterWithdrawalService $service) {}
 
     public function store(Request $request, string $id): JsonResponse
     {
@@ -28,7 +28,7 @@ class OutgoingLetterWithdrawalController extends Controller
 
         try {
             $path = $request->file('statement')->store('outgoing-letter-withdrawals');
-            $withdrawal = $this->service->requestWithdrawal(
+            $withdrawal = $this->service->request(
                 $letter,
                 $request->user()->id,
                 $request->string('reason')->toString(),
@@ -68,7 +68,7 @@ class OutgoingLetterWithdrawalController extends Controller
         $this->authorize('decideWithdrawal', $withdrawal->outgoingLetter);
 
         try {
-            $letter = $this->service->approveWithdrawal($withdrawal, $request->user()->id, $request->input('note'));
+            $letter = $this->service->approve($withdrawal, $request->user()->id, $request->input('note'));
             return response()->json(['data' => $letter]);
         } catch (\DomainException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
@@ -83,7 +83,7 @@ class OutgoingLetterWithdrawalController extends Controller
         $this->authorize('decideWithdrawal', $withdrawal->outgoingLetter);
 
         try {
-            $withdrawal = $this->service->rejectWithdrawal($withdrawal, $request->user()->id, $request->string('note')->toString());
+            $withdrawal = $this->service->reject($withdrawal, $request->user()->id, $request->string('note')->toString());
             return response()->json(['data' => $withdrawal]);
         } catch (\DomainException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
