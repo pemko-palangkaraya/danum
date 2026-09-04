@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Position;
+use App\Models\SignerCertificate;
 use App\Models\Tenant;
 use App\Models\TenantCategory;
 use App\Models\User;
@@ -89,6 +90,20 @@ class PositionIndexService
             ->when($user->tenant_id, fn ($q) => $q->where('tenant_id', $user->tenant_id))
             ->orderByDesc('started_at')
             ->get();
+    }
+
+    public function certificate(?string $positionId): ?SignerCertificate
+    {
+        if (! $positionId) {
+            return null;
+        }
+
+        return Position::query()
+            ->find($positionId)
+            ?->signerCertificates()
+            ->where('is_active', true)
+            ->latest('created_at')
+            ->first();
     }
 
     public function categories(): Collection
