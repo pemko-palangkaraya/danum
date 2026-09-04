@@ -62,16 +62,16 @@ class DatabasePermissionTest extends TestCase
         $this->assertFalse($tenantUser->hasPermission(PermissionEnum::TENANTS_CREATE));
     }
 
-    public function test_legacy_tenant_admin_role_without_custom_role_id_still_resolves_permissions(): void
+    public function test_legacy_tenant_admin_without_custom_role_id_has_no_database_permissions(): void
     {
         $tenant = Tenant::factory()->create();
         $user = User::factory()->create([
-            'role' => UserRole::TENANT_ADMIN,
+            'platform_role' => null,
             'custom_role_id' => null,
             'tenant_id' => $tenant->id,
         ]);
 
-        $this->assertTrue($user->hasPermission(PermissionEnum::POPULATION_MANAGE));
+        $this->assertFalse($user->hasPermission(PermissionEnum::POPULATION_MANAGE));
     }
 
     public function test_permission_is_resolved_from_role_permission_pivot(): void
