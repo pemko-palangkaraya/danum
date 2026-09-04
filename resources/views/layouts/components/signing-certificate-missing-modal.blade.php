@@ -7,6 +7,11 @@
             ->whereNull('revoked_at')
             ->where('valid_from', '<=', now())
             ->where('valid_until', '>', now())
+            ->where(function ($query) {
+                $query->whereNotNull('serial_number')
+                    ->whereRaw("TRIM(serial_number) <> ''")
+                    ->whereRaw("TRIM(serial_number) !~ '^0+$'");
+            })
             ->exists();
     }
 @endphp
@@ -29,7 +34,7 @@
                         </svg>
                     </div>
                     <h2 class="mt-4 text-lg font-semibold text-slate-900">Sertifikat TTE Belum Siap</h2>
-                    <p class="mt-2 text-sm leading-6 text-slate-500">Sertifikat TTE Anda belum dikonfigurasi atau sertifikat yang tersedia sudah kedaluwarsa. Buat atau perbarui sertifikat sebelum menerbitkan surat.</p>
+                    <p class="mt-2 text-sm leading-6 text-slate-500">Sertifikat TTE Anda belum dikonfigurasi, tidak memiliki serial number yang valid, atau sertifikat yang tersedia sudah kedaluwarsa. Buat atau perbarui sertifikat sebelum menerbitkan surat.</p>
                 </div>
                 <button type="button" x-on:click="open = false" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Tutup">✕</button>
             </div>
