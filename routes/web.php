@@ -17,6 +17,7 @@ use App\Livewire\Positions\Structure as PositionStructure;
 use App\Livewire\Population\Families as PopulationFamilies;
 use App\Livewire\Population\Statistics as PopulationStatistics;
 use App\Livewire\Population\Citizens as PopulationCitizens;
+use App\Livewire\Population\CitizenImport as PopulationCitizenImport;
 use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\OutgoingLetterController;
 use App\Http\Controllers\OutgoingLetterWithdrawalController;
@@ -36,7 +37,7 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
-    Volt::route('/population/citizens/import', 'pages.population.citizen-import')->name('population.citizens.import');
+    Route::get('/population/citizens/import', PopulationCitizenImport::class)->name('population.citizens.import');
     Route::middleware('permission:dashboard.view')->group(function () { Volt::route('/dashboard', 'pages.dashboard')->name('dashboard'); });
     Route::middleware('permission:rbac.view')->group(function () { Volt::route('/rbac', 'pages.rbac.index')->name('rbac.index'); });
     Route::middleware(['superadmin', 'permission:users.view'])->group(function () { Volt::route('/users', 'pages.users.index')->name('users.index'); });
