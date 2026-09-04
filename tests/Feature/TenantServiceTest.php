@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Enums\TenantStatus;
-use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use App\Models\AuditLog;
+use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\TenantService;
@@ -37,10 +37,16 @@ class TenantServiceTest extends TestCase
             'administrator_user_id' => $tenant->administrator_user_id,
         ]);
 
+        $administrator = User::query()->findOrFail($tenant->administrator_user_id);
+
+        $this->assertSame(
+            'tenant_admin',
+            Role::query()->whereKey($administrator->custom_role_id)->value('slug'),
+        );
         $this->assertDatabaseHas('users', [
             'id' => $tenant->administrator_user_id,
             'email' => 'admin@test.local',
-            'role' => UserRole::TENANT_USER->value,
+            'custom_role_id' => $administrator->custom_role_id,
             'status' => UserStatus::ACTIVE->value,
             'tenant_id' => $tenant->id,
         ]);
