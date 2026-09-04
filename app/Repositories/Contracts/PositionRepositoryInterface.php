@@ -11,8 +11,6 @@ interface PositionRepositoryInterface
 {
     public function find(string $id): ?Position;
 
-    public function findByCode(string $tenantId, string $code): ?Position;
-
     public function getAll(string $tenantId): Collection;
 
     public function create(array $data): Position;
