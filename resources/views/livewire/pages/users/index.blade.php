@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
@@ -30,8 +29,8 @@ new #[Layout('layouts.app')] class extends Component {
     public string $nip = '';
     public string $email = '';
     public string $password = '';
-    public string $role = UserRole::TENANT_USER->value;
-    public string $roleSelection = UserRole::TENANT_USER->value;
+    public string $role = 'tenant_user';
+    public string $roleSelection = 'tenant_user';
     public string $tenantId = '';
     public string $status = UserStatus::ACTIVE->value;
     public ?string $customRoleId = null;
@@ -61,14 +60,14 @@ new #[Layout('layouts.app')] class extends Component {
 
     public function edit(int $id): void
     {
-        $user = User::query()->findOrFail($id);
+        $user = User::query()->with('customRole')->findOrFail($id);
         $this->authorize('update', $user);
         $this->editingUserId = $user->id;
         $this->name = $user->name;
         $this->nip = (string) ($user->nip ?? '');
         $this->email = $user->email;
         $this->password = '';
-        $this->role = $user->role->value;
+        $this->role = $user->isSuperAdmin() ? 'super_admin' : ($user->effectiveRole()?->slug ?? 'tenant_user');
         $this->tenantId = (string) ($user->tenant_id ?? '');
         $this->status = $user->status->value;
         $this->customRoleId = $user->custom_role_id ? (string) $user->custom_role_id : null;
@@ -81,7 +80,7 @@ new #[Layout('layouts.app')] class extends Component {
     {
         if (str_starts_with($this->roleSelection, 'custom:')) {
             $customRoleId = substr($this->roleSelection, 7);
-            $this->role = UserRole::TENANT_USER->value;
+            $this->role = 'tenant_user';
             $this->customRoleId = $customRoleId !== '' ? $customRoleId : null;
             return;
         }
@@ -169,7 +168,7 @@ new #[Layout('layouts.app')] class extends Component {
                     $query->where('scope', 'tenant')->where('tenant_id', $this->tenantId);
                 }
             })->firstOrFail();
-            $this->role = UserRole::TENANT_USER->value;
+            $this->role = 'tenant_user';
             $this->customRoleId = (string) $customRole->id;
         } else {
             $this->customRoleId = null;
@@ -181,7 +180,7 @@ new #[Layout('layouts.app')] class extends Component {
             'email' => $this->email,
             'password' => $this->password,
             'role' => $this->role,
-            'tenant_id' => in_array($this->role, [UserRole::TENANT_USER->value, UserRole::TENANT_ADMIN->value], true) ? $this->tenantId : null,
+            'tenant_id' => in_array($this->role, ['tenant_user', 'tenant_admin'], true) ? $this->tenantId : null,
             'status' => $this->status,
             'custom_role_id' => $customRole?->id,
         ];
@@ -225,8 +224,8 @@ new #[Layout('layouts.app')] class extends Component {
         $this->nip = '';
         $this->email = '';
         $this->password = '';
-        $this->role = UserRole::TENANT_USER->value;
-        $this->roleSelection = UserRole::TENANT_USER->value;
+        $this->role = 'tenant_user';
+        $this->roleSelection = 'tenant_user';
         $this->tenantId = '';
         $this->status = UserStatus::ACTIVE->value;
         $this->customRoleId = null;
@@ -336,7 +335,7 @@ new #[Layout('layouts.app')] class extends Component {
                             <td class="px-5 py-4"><div class="text-sm font-semibold text-slate-900">{{ $user->name }}</div><div class="mt-0.5 text-xs text-slate-400">{{ $user->email }}</div></td>
                             <td class="px-5 py-4 text-sm text-slate-600">{{ $user->nip ?: '-' }}</td>
                             <td class="px-5 py-4 text-sm text-slate-600">{{ $user->tenant?->name ?? 'System' }}</td>
-                            <td class="px-5 py-4 text-sm text-slate-600">{{ $user->effectiveRole()?->name ?? ucfirst(str_replace('_', ' ', $user->role->value)) }}</td>
+                            <td class="px-5 py-4 text-sm text-slate-600">{{ $user->isSuperAdmin() ? 'Super Admin' : ($user->effectiveRole()?->name ?? '-') }}</td>
                             <td class="px-5 py-4"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $user->status === UserStatus::ACTIVE ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">{{ strtolower($user->status->value) }}</span></td>
                             <td class="px-5 py-4 text-right"><x-ui.user-actions :user="$user" /></td>
                         </tr>
@@ -350,7 +349,7 @@ new #[Layout('layouts.app')] class extends Component {
         <div class="divide-y divide-slate-100 lg:hidden">
             @forelse($users as $user)
                 <div class="flex items-center justify-between gap-3 p-4">
-                    <div class="min-w-0 flex-1"><div class="text-sm font-semibold text-slate-900">{{ $user->name }}</div><div class="mt-1 text-xs text-slate-500">{{ $user->email }} · {{ $user->tenant?->name ?? 'System' }}</div><div class="mt-1 text-xs text-slate-500">{{ $user->effectiveRole()?->name ?? ucfirst(str_replace('_', ' ', $user->role->value)) }}</div><span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $user->status === UserStatus::ACTIVE ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">{{ strtolower($user->status->value) }}</span></div>
+                    <div class="min-w-0 flex-1"><div class="text-sm font-semibold text-slate-900">{{ $user->name }}</div><div class="mt-1 text-xs text-slate-500">{{ $user->email }} · {{ $user->tenant?->name ?? 'System' }}</div><div class="mt-1 text-xs text-slate-500">{{ $user->isSuperAdmin() ? 'Super Admin' : ($user->effectiveRole()?->name ?? '-') }}</div><span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $user->status === UserStatus::ACTIVE ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">{{ strtolower($user->status->value) }}</span></div>
                     <div class="shrink-0"><x-ui.user-actions :user="$user" /></div>
                 </div>
             @empty
