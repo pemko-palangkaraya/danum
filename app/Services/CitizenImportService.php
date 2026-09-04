@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use RuntimeException;
 
@@ -21,7 +22,7 @@ class CitizenImportService
 
     public function tenantExists(string $tenantId): bool
     {
-        return Tenant::query()->whereKey($tenantId)->exists();
+        return Str::isUuid($tenantId) && Tenant::query()->whereKey($tenantId)->exists();
     }
 
     public function tenants(): Collection
@@ -31,6 +32,7 @@ class CitizenImportService
 
     public function preview(UploadedFile $file, string $tenantId, string $duplicateMode): array
     {
+        $this->validateTenant($tenantId);
         $this->validateDuplicateMode($duplicateMode);
 
         $path = $file->getRealPath();
@@ -109,6 +111,7 @@ class CitizenImportService
 
     public function import(array $rows, string $tenantId, string $duplicateMode, int|string $userId): int
     {
+        $this->validateTenant($tenantId);
         $this->validateDuplicateMode($duplicateMode);
 
         if ($rows === []) {
@@ -163,6 +166,15 @@ class CitizenImportService
 
             return $count;
         });
+    }
+
+    private function validateTenant(string $tenantId): void
+    {
+        if (! $this->tenantExists($tenantId)) {
+            throw ValidationException::withMessages([
+                'tenant_id' => 'Tenant tidak valid atau tidak ditemukan.',
+            ]);
+        }
     }
 
     private function validateDuplicateMode(string $duplicateMode): void
