@@ -10,6 +10,7 @@ use App\Models\FamilyMember;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class FamilyService
 {
@@ -54,9 +55,11 @@ class FamilyService
         return $tenantId === '' ? collect() : $this->citizenCandidates($tenantId, $search);
     }
 
-    public function findMemberCandidates(string $tenantId, string $search)
+    public function findMemberCandidates(string $tenantId, string $familyId, string $search)
     {
-        return $tenantId === '' ? collect() : $this->citizenCandidates($tenantId, $search);
+        return $tenantId === '' || $familyId === ''
+            ? collect()
+            : $this->memberCandidates($tenantId, $familyId, $search);
     }
 
     public function findCitizen(string $tenantId, string $citizenId): Citizen
@@ -124,6 +127,12 @@ class FamilyService
             ]
         )->validate();
 
+        if ($status === 'active' && $this->isMemberUnavailable($citizen->id)) {
+            throw ValidationException::withMessages([
+                'hubungan_dalam_keluarga' => 'Warga ini sudah menjadi anggota aktif KK lain atau merupakan kepala keluarga.',
+            ]);
+        }
+
         FamilyMember::updateOrCreate(
             ['family_id' => $family->id, 'citizen_id' => $citizen->id],
             [
@@ -159,6 +168,30 @@ class FamilyService
             ->orderBy('nama_lengkap')
             ->limit(10)
             ->get(['id', 'nik', 'nama_lengkap']);
+    }
+
+    private function memberCandidates(string $tenantId, string $familyId, string $search)
+    {
+        return Citizen::query()
+            ->where('tenant_id', $tenantId)
+            ->whereDoesntHave('activeFamilyMembership')
+            ->whereDoesntHave('headedFamilies')
+            ->when($search !== '', fn ($q) => $q->where(function ($query) use ($search): void {
+                $query->whereRaw('LOWER(nik) LIKE LOWER(?)', ['%'.$search.'%'])
+                    ->orWhereRaw('LOWER(nama_lengkap) LIKE LOWER(?)', ['%'.$search.'%']);
+            }))
+            ->orderBy('nama_lengkap')
+            ->limit(10)
+            ->get(['id', 'nik', 'nama_lengkap']);
+    }
+
+    private function isMemberUnavailable(string $citizenId): bool
+    {
+        return FamilyMember::query()
+            ->where('citizen_id', $citizenId)
+            ->where('status', 'active')
+            ->exists()
+            || Family::query()->where('head_citizen_id', $citizenId)->exists();
     }
 
     private function rules(string $tenantId, ?string $editingId): array
