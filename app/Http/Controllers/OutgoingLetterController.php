@@ -10,8 +10,8 @@ use App\Http\Requests\StoreOutgoingLetterRequest;
 use App\Http\Requests\UpdateOutgoingLetterRequest;
 use App\Models\OutgoingLetter;
 use App\Services\LetterTypeService;
+use App\Services\OutgoingLetterParticipantService;
 use App\Services\OutgoingLetterPdfPreviewService;
-use App\Services\OutgoingLetterPositionService;
 use App\Services\OutgoingLetterService;
 use App\Services\OutgoingLetterTemplateService;
 use App\Services\OutgoingLetterWorkflowService;
@@ -24,9 +24,9 @@ class OutgoingLetterController extends Controller
     public function __construct(
         private readonly OutgoingLetterService $outgoingLetterService,
         private readonly OutgoingLetterWorkflowService $workflowService,
+        private readonly OutgoingLetterParticipantService $participantService,
         private readonly LetterTypeService $letterTypeService,
         private readonly OutgoingLetterTemplateService $outgoingLetterTemplateService,
-        private readonly OutgoingLetterPositionService $positionService,
         private readonly OutgoingLetterPdfPreviewService $pdfPreviewService,
     ) {}
 
@@ -45,10 +45,8 @@ class OutgoingLetterController extends Controller
         if ($letterType === null) return response()->json(['message' => 'Letter type not found.'], 404);
         if ($letterType->body_template === null) return response()->json(['message' => 'The selected letter type has no template.'], 422);
 
-        $signerError = $this->resolveSigner($data, $tenant->id, false, true);
-        if ($signerError instanceof JsonResponse) return $signerError;
-        $validatorError = $this->resolveValidator($data, $tenant->id, false);
-        if ($validatorError instanceof JsonResponse) return $validatorError;
+        if ($error = $this->participantService->resolveSigner($data, $tenant->id, false, true)) return $this->participantError($error);
+        if ($error = $this->participantService->resolveValidator($data, $tenant->id, false)) return $this->participantError($error);
 
         return response()->json(['data' => [
             'letter_type_id' => $letterType->id,
@@ -64,10 +62,8 @@ class OutgoingLetterController extends Controller
         $letterType = $this->letterTypeService->find($data['letter_type_id'], $tenant->id);
         if ($letterType === null) return response()->json(['message' => 'Letter type not found.'], 404);
 
-        $signerError = $this->resolveSigner($data, $tenant->id, true, false);
-        if ($signerError instanceof JsonResponse) return $signerError;
-        $validatorError = $this->resolveValidator($data, $tenant->id, true);
-        if ($validatorError instanceof JsonResponse) return $validatorError;
+        if ($error = $this->participantService->resolveSigner($data, $tenant->id, true)) return $this->participantError($error);
+        if ($error = $this->participantService->resolveValidator($data, $tenant->id, true)) return $this->participantError($error);
 
         $templateVersion = $this->letterTypeService->ensureCurrentVersion($letterType);
         if (! isset($data['content']) && $templateVersion !== null) {
@@ -115,10 +111,8 @@ class OutgoingLetterController extends Controller
 
         try {
             $data = $request->validated();
-            $signerError = $this->resolveSigner($data, $request->user()->tenant_id);
-            if ($signerError instanceof JsonResponse) return $signerError;
-            $validatorError = $this->resolveValidator($data, $request->user()->tenant_id);
-            if ($validatorError instanceof JsonResponse) return $validatorError;
+            if ($error = $this->participantService->resolveSigner($data, $request->user()->tenant_id)) return $this->participantError($error);
+            if ($error = $this->participantService->resolveValidator($data, $request->user()->tenant_id)) return $this->participantError($error);
             $outgoingLetter = $this->outgoingLetterService->update($outgoingLetter, $data);
         } catch (\DomainException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
@@ -181,42 +175,12 @@ class OutgoingLetterController extends Controller
         return $this->pdfPreviewService->respond($outgoingLetter, $request);
     }
 
-    private function resolveSigner(array &$data, string $tenantId, bool $includeErrors = false, bool $previewOnly = false): ?JsonResponse
+    private function participantError(array $error): JsonResponse
     {
-        if (! array_key_exists('signer_position_id', $data) || empty($data['signer_position_id'])) return null;
-        $signer = $this->positionService->findAvailable($tenantId, $data['signer_position_id'], 'can_sign');
-        $holder = $signer?->holders->first();
-        if (! $signer || ! $holder?->user) {
-            return response()->json([
-                'message' => 'Signer position is unavailable or has no active holder.',
-                ...($includeErrors ? ['errors' => ['signer_position_id' => ['The selected signer position is not currently available.']]] : []),
-            ], 422);
-        }
-        $data['tenant_head_name'] = $holder->user->name;
-        $data['tenant_head_title'] = $signer->name;
-        if (! $previewOnly) {
-            $data['signer_user_id'] = $holder->user_id;
-            $data['signer_name'] = $holder->user->name;
-            $data['signer_title'] = $signer->name;
-        }
-        return null;
-    }
-
-    private function resolveValidator(array &$data, string $tenantId, bool $includeErrors = false): ?JsonResponse
-    {
-        if (! array_key_exists('validator_position_id', $data) || empty($data['validator_position_id'])) return null;
-        $validator = $this->positionService->findAvailable($tenantId, $data['validator_position_id'], 'can_validate');
-        $holder = $validator?->holders->first();
-        if (! $validator || ! $holder?->user) {
-            return response()->json([
-                'message' => 'Validator position is unavailable or has no active holder.',
-                ...($includeErrors ? ['errors' => ['validator_position_id' => ['The selected validator position is not currently available.']]] : []),
-            ], 422);
-        }
-        $data['validator_user_id'] = $holder->user_id;
-        $data['validator_name'] = $holder->user->name;
-        $data['validator_title'] = $validator->name;
-        return null;
+        return response()->json(
+            array_filter(['message' => $error['message'] ?? null, 'errors' => $error['errors'] ?? null]),
+            $error['status'] ?? 422,
+        );
     }
 
     private function findForTenant(string $id, Request $request): ?OutgoingLetter
