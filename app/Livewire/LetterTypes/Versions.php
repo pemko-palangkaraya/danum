@@ -23,12 +23,6 @@ class Versions extends Component
     public string $search = '';
     public string $filter = 'active';
     public int $perPage = 5;
-
-    public function updatedPerPage(): void
-    {
-        $this->resetPage();
-    }
-
     public string $letterTypeId = '';
     public bool $showForm = false;
     public $template_file = null;
@@ -45,9 +39,14 @@ class Versions extends Component
     {
         $this->authorize('viewAny', LetterType::class);
         $this->letterTypeId = $letterType instanceof LetterType ? $letterType->getKey() : $letterType;
-        $model = $this->letterType();
-        $this->authorize('view', $model);
+        $this->authorize('view', $this->letterType());
         $this->resetForm();
+    }
+
+    public function updatedPerPage(): void
+    {
+        $this->perPage = max(5, min($this->perPage, 100));
+        $this->resetPage();
     }
 
     public function create(): void
@@ -56,14 +55,15 @@ class Versions extends Component
         $this->authorize('update', $letterType);
         $this->resetForm();
         $this->versionVariables = $this->normalizedVariables($letterType->variables ?? []);
-        $this->effective_from = now()->format('Y-m-d\TH:i');
+        $this->effective_from = now()->format('Y-m-d\\TH:i');
         $this->showForm = true;
     }
 
     public function updatedTemplateFile(DocxTemplateService $docx): void
     {
-        $this->validateTemplate($docx);
+        $this->checkTemplate($docx);
     }
+
     public function checkTemplate(DocxTemplateService $docx): void
     {
         $this->validateTemplate($docx);
@@ -71,40 +71,73 @@ class Versions extends Component
 
     public function addFoundVariables(DocxTemplateService $docx): void
     {
-        if (! $this->templateUnknownVariables) return;
-        $this->versionVariables = $this->normalizedVariables(array_merge($this->versionVariables, $this->templateUnknownVariables));
+        if (! $this->templateUnknownVariables) {
+            return;
+        }
+
+        $this->versionVariables = $this->normalizedVariables([
+            ...$this->versionVariables,
+            ...$this->templateUnknownVariables,
+        ]);
         $this->validateTemplate($docx);
     }
 
     private function validateTemplate(DocxTemplateService $docx): bool
+    {
+        $this->resetTemplateCheck();
+
+        if (! $this->template_file) {
+            return false;
+        }
+
+        if (! $this->validateTemplateFile()) {
+            return false;
+        }
+
+        try {
+            $found = $docx->extractVariables($this->template_file->getRealPath());
+            $diff = $docx->compareVariables(
+                $this->normalizedVariables($this->versionVariables),
+                $found,
+            );
+
+            $this->templateFoundVariables = array_values($found);
+            $this->templateUnknownVariables = array_values($diff['unknown']);
+            $this->templateMissingVariables = array_values($diff['missing']);
+            $this->templateCheckStatus = ($diff['unknown'] || $diff['missing']) ? 'failed' : 'passed';
+
+            return $this->templateCheckStatus === 'passed';
+        } catch (\Throwable $e) {
+            $this->addError('template_file', 'Template tidak dapat diperiksa: ' . $e->getMessage());
+            $this->templateCheckStatus = 'failed';
+
+            return false;
+        }
+    }
+
+    private function resetTemplateCheck(): void
     {
         $this->resetValidation('template_file');
         $this->templateCheckStatus = '';
         $this->templateFoundVariables = [];
         $this->templateUnknownVariables = [];
         $this->templateMissingVariables = [];
-        if (! $this->template_file) return false;
+    }
 
-        $validator = validator(['template_file' => $this->template_file], ['template_file' => ['required', 'file', 'mimes:docx', 'max:10240']]);
-        if ($validator->fails()) {
-            $this->addError('template_file', $validator->errors()->first('template_file'));
-            return false;
+    private function validateTemplateFile(): bool
+    {
+        $validator = validator(
+            ['template_file' => $this->template_file],
+            ['template_file' => ['required', 'file', 'mimes:docx', 'max:10240']],
+        );
+
+        if (! $validator->fails()) {
+            return true;
         }
 
-        try {
-            $found = $docx->extractVariables($this->template_file->getRealPath());
-            $declared = $this->normalizedVariables($this->versionVariables);
-            $diff = $docx->compareVariables($declared, $found);
-            $this->templateFoundVariables = array_values($found);
-            $this->templateUnknownVariables = array_values($diff['unknown']);
-            $this->templateMissingVariables = array_values($diff['missing']);
-            $this->templateCheckStatus = ($diff['unknown'] || $diff['missing']) ? 'failed' : 'passed';
-            return $this->templateCheckStatus === 'passed';
-        } catch (\Throwable $e) {
-            $this->addError('template_file', 'Template tidak dapat diperiksa: ' . $e->getMessage());
-            $this->templateCheckStatus = 'failed';
-            return false;
-        }
+        $this->addError('template_file', $validator->errors()->first('template_file'));
+
+        return false;
     }
 
     public function save(LetterTypeService $service, DocxTemplateService $docx): void
@@ -123,7 +156,9 @@ class Versions extends Component
             $this->addError('template_file', 'Versi template wajib memiliki minimal satu variabel input.');
             return;
         }
-        if (! $this->validateTemplate($docx)) return;
+        if (! $this->validateTemplate($docx)) {
+            return;
+        }
 
         $storedPath = null;
         try {
@@ -137,7 +172,9 @@ class Versions extends Component
                 'change_note' => $this->change_note,
             ], (int) auth()->id());
         } catch (\Throwable $e) {
-            if ($storedPath) Storage::disk('local')->delete($storedPath);
+            if ($storedPath) {
+                Storage::disk('local')->delete($storedPath);
+            }
             throw $e;
         }
 
@@ -148,7 +185,9 @@ class Versions extends Component
 
     private function normalizedVariables(array $variables): array
     {
-        return array_values(array_unique(array_filter(array_map(static fn($value) => trim((string) $value), $variables))));
+        return array_values(array_unique(array_filter(
+            array_map(static fn ($value) => trim((string) $value), $variables),
+        )));
     }
 
     private function letterType(): LetterType
@@ -172,6 +211,7 @@ class Versions extends Component
     public function render()
     {
         $letterType = $this->letterType();
+
         return view('livewire.pages.letter-types.versions', [
             'letterType' => $letterType,
             'declaredVariables' => $this->versionVariables ?: $this->normalizedVariables($letterType->variables ?? []),
