@@ -1,4 +1,4 @@
-@if(auth()->user()->hasPermission('population.manage'))
+@if($canManage)
     <div class="border-t border-slate-100 bg-white px-6 py-5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
