@@ -9,8 +9,6 @@
         </div>
     </div>
 
-    @php($isSuperAdmin = auth()->user()->isSuperAdmin())
-
     @include('livewire.pages.population.partials.citizen-import-header', [
         'isSuperAdmin' => $isSuperAdmin,
     ])
