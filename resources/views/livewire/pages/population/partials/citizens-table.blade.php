@@ -18,8 +18,8 @@
                         <td class="hidden px-6 py-4 text-sm text-slate-600 md:table-cell">{{ $citizen->tempat_lahir ?: '-' }}, {{ $citizen->tanggal_lahir?->format('d/m/Y') ?: '-' }}</td>
                         <td class="px-6 py-4"><x-ui.badge variant="success">{{ ucfirst($citizen->status_kependudukan) }}</x-ui.badge></td>
                         <td class="px-6 py-4 text-right">
-                            <a href="{{ route(auth()->user()->isSuperAdmin() ? 'population.admin.citizens.show' : 'population.citizens.show', $citizen) }}" class="mr-3 text-sm font-semibold text-slate-700 hover:text-slate-950">Detail</a>
-                            @if(auth()->user()->hasPermission('population.manage'))
+                            <a href="{{ route($detailRoute, $citizen) }}" class="mr-3 text-sm font-semibold text-slate-700 hover:text-slate-950">Detail</a>
+                            @if($canManage)
                                 <button wire:click="edit('{{ $citizen->id }}')" class="text-sm font-semibold text-slate-700 hover:text-slate-950">Edit</button>
                             @endif
                         </td>
