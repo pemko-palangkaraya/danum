@@ -258,121 +258,12 @@ new #[Layout('layouts.app')] class extends Component {
 ?>
 
 <div class="space-y-6">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-            <p class="text-sm text-slate-500">Administration</p>
-            <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Users</h1>
-            <p class="mt-1 text-sm text-slate-500">Kelola administrator dan pengguna seluruh tenant.</p>
-        </div>
-        <button type="button" wire:click="create" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800">＋ Add User</button>
-    </div>
+    @include('livewire.pages.users.partials.header')
 
     @if ($showForm)
-        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <h2 class="text-sm font-semibold text-slate-900">{{ $editingUserId ? 'Edit User' : 'Add User' }}</h2>
-            <div class="mt-5 grid gap-5 sm:grid-cols-2">
-                <div><label class="text-sm font-medium text-slate-700">Name</label><input wire:model="name" type="text" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">@error('name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                <div><label class="text-sm font-medium text-slate-700">NIP</label><input wire:model="nip" type="text" maxlength="32" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm" placeholder="Nomor Induk Pegawai">@error('nip')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                <div><label class="text-sm font-medium text-slate-700">Email / Login</label><input wire:model="email" type="email" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">@error('email')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                <div>
-                    <label class="text-sm font-medium text-slate-700">Role</label>
-                    <select wire:model.live="roleSelection" class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm">
-                        @if(auth()->user()->isSuperAdmin())
-                            <option value="tenant_user">Tenant User</option>
-                            <option value="tenant_admin">Tenant Admin</option>
-                            <option value="super_admin">Super Admin</option>
-                        @else
-                            <option value="tenant_user">Tenant User</option>
-                        @endif
-                        @if($tenantId !== '')
-                            @php($customRoles = $this->availableCustomRoles())
-                            @if($customRoles->isNotEmpty())
-                                <optgroup label="Custom Roles">
-                                    @foreach($customRoles as $customRole)
-                                        <option value="custom:{{ $customRole->id }}">{{ $customRole->name }} · {{ $customRole->scope === 'global' ? 'Global' : 'Tenant' }}</option>
-                                    @endforeach
-                                </optgroup>
-                            @endif
-                        @endif
-                    </select>
-                    <p class="mt-1 text-xs text-slate-500">Custom role muncul setelah tenant dipilih dan hanya role yang berlaku untuk tenant tersebut yang dapat dipilih.</p>
-                    @error('role')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-                    @error('custom_role_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-                </div>
-                <div><label class="text-sm font-medium text-slate-700">Tenant</label><select wire:model.live="tenantId" class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm"><option value="">Select tenant</option>@foreach ($tenants as $tenant)<option value="{{ $tenant->id }}">{{ $tenant->name }}</option>@endforeach</select>@error('tenant_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                <div><label class="text-sm font-medium text-slate-700">Password {{ $editingUserId ? '(optional)' : '' }}</label><input wire:model="password" type="password" autocomplete="new-password" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">@error('password')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                <div><label class="text-sm font-medium text-slate-700">Status</label><select wire:model="status" class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm">@foreach (UserStatus::cases() as $userStatus)<option value="{{ $userStatus->value }}">{{ ucfirst($userStatus->value) }}</option>@endforeach</select>@error('status')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-            </div>
-            <div class="mt-5 flex justify-end gap-3"><button type="button" wire:click="resetForm" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancel</button><button type="button" wire:click="save" class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white">Save User</button></div>
-        </div>
+        @include('livewire.pages.users.partials.form')
     @endif
 
-    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div class="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex rounded-xl bg-slate-100 p-1">
-                <button type="button" wire:click="$set('filter','active')" class="rounded-lg px-4 py-2 text-sm font-medium {{ $filter === 'active' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500' }}">Active</button>
-                <button type="button" wire:click="$set('filter','inactive')" class="rounded-lg px-4 py-2 text-sm font-medium {{ $filter === 'inactive' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500' }}">Inactive</button>
-            </div>
-            <div class="relative w-full sm:w-80">
-                <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">⌕</span>
-                <input wire:model.live.debounce.300ms="search" type="search" placeholder="Search user..." class="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-700 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100">
-            </div>
-        </div>
-
-        <div class="hidden overflow-x-auto lg:block">
-            <table class="min-w-full">
-                <thead class="bg-slate-50"><tr>
-                    <th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">User</th>
-                    <th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">NIP</th>
-                    <th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Tenant</th>
-                    <th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Role</th>
-                    <th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Status</th>
-                    <th class="px-5 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Action</th>
-                </tr></thead>
-                <tbody class="divide-y divide-slate-100">
-                    @forelse($users as $user)
-                        <tr class="hover:bg-slate-50/70">
-                            <td class="px-5 py-4"><div class="text-sm font-semibold text-slate-900">{{ $user->name }}</div><div class="mt-0.5 text-xs text-slate-400">{{ $user->email }}</div></td>
-                            <td class="px-5 py-4 text-sm text-slate-600">{{ $user->nip ?: '-' }}</td>
-                            <td class="px-5 py-4 text-sm text-slate-600">{{ $user->tenant?->name ?? 'System' }}</td>
-                            <td class="px-5 py-4 text-sm text-slate-600">{{ $user->isSuperAdmin() ? 'Super Admin' : ($user->effectiveRole()?->name ?? '-') }}</td>
-                            <td class="px-5 py-4"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $user->status === UserStatus::ACTIVE ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">{{ strtolower($user->status->value) }}</span></td>
-                            <td class="px-5 py-4 text-right"><x-ui.user-actions :user="$user" /></td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="6" class="px-5 py-12 text-center text-sm text-slate-400">No users found.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-
-        <div class="divide-y divide-slate-100 lg:hidden">
-            @forelse($users as $user)
-                <div class="flex items-center justify-between gap-3 p-4">
-                    <div class="min-w-0 flex-1"><div class="text-sm font-semibold text-slate-900">{{ $user->name }}</div><div class="mt-1 text-xs text-slate-500">{{ $user->email }} · {{ $user->tenant?->name ?? 'System' }}</div><div class="mt-1 text-xs text-slate-500">{{ $user->isSuperAdmin() ? 'Super Admin' : ($user->effectiveRole()?->name ?? '-') }}</div><span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $user->status === UserStatus::ACTIVE ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">{{ strtolower($user->status->value) }}</span></div>
-                    <div class="shrink-0"><x-ui.user-actions :user="$user" /></div>
-                </div>
-            @empty
-                <div class="p-8 text-center text-sm text-slate-400">No users found.</div>
-            @endforelse
-        </div>
-
-        @if($users->total() > 0)
-            <div class="border-t border-slate-200 bg-slate-50 px-4 py-3 sm:px-6"><div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div class="flex items-center gap-4"><div class="flex items-center gap-2"><label for="user-per-page" class="text-xs text-slate-500">Show</label><select id="user-per-page" wire:model.live="perPage" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700"><option value="5">5</option><option value="10">10</option><option value="25">25</option><option value="50">50</option></select></div><p class="text-xs text-slate-500">Showing {{ $users->firstItem() }} – {{ $users->lastItem() }} of {{ $users->total() }} users</p></div><x-ui.pagination :paginator="$users" /></div></div>
-        @endif
-    </div>
-
-    @if($showSignerPin)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" wire:click.self="closeSignerPin">
-            <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-                <h2 class="text-lg font-semibold text-slate-900">PIN Tanda Tangan</h2>
-                <p class="mt-1 text-sm text-slate-500">Atur PIN tanda tangan untuk {{ $signerPinUserName }}.</p>
-                <div class="mt-5 space-y-4">
-                    <div><label class="text-sm font-medium text-slate-700">PIN</label><input wire:model="signerPin" type="password" inputmode="numeric" maxlength="6" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">@error('signerPin')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                    <div><label class="text-sm font-medium text-slate-700">Konfirmasi PIN</label><input wire:model="signerPinConfirmation" type="password" inputmode="numeric" maxlength="6" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">@error('signerPinConfirmation')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
-                </div>
-                <div class="mt-6 flex justify-end gap-3"><button type="button" wire:click="closeSignerPin" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancel</button><button type="button" wire:click="saveSignerPin" class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white">Save PIN</button></div>
-            </div>
-        </div>
-    @endif
+    @include('livewire.pages.users.partials.table')
+    @include('livewire.pages.users.partials.signer-pin')
 </div>
