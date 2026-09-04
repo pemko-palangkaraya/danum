@@ -55,11 +55,9 @@ class FamilyService
         return $tenantId === '' ? collect() : $this->citizenCandidates($tenantId, $search);
     }
 
-    public function findMemberCandidates(string $tenantId, string $familyId, string $search)
+    public function findMemberCandidates(string $tenantId, string $search)
     {
-        return $tenantId === '' || $familyId === ''
-            ? collect()
-            : $this->memberCandidates($tenantId, $familyId, $search);
+        return $tenantId === '' ? collect() : $this->memberCandidates($tenantId, $search);
     }
 
     public function findCitizen(string $tenantId, string $citizenId): Citizen
@@ -170,7 +168,7 @@ class FamilyService
             ->get(['id', 'nik', 'nama_lengkap']);
     }
 
-    private function memberCandidates(string $tenantId, string $familyId, string $search)
+    private function memberCandidates(string $tenantId, string $search)
     {
         return Citizen::query()
             ->where('tenant_id', $tenantId)
