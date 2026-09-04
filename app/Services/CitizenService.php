@@ -49,8 +49,7 @@ class CitizenService
     public function loadDetail(Citizen $citizen): Citizen
     {
         return $citizen->load([
-            'familyMemberships.family.headCitizen',
-            'familyMemberships.family.activeMembers.citizen',
+            'activeFamilyMembership.family.headCitizen',
             'addresses' => fn ($query) => $query->latest('berlaku_mulai')->latest('created_at'),
             'populationEvents' => fn ($query) => $query->latest('event_date'),
         ]);
