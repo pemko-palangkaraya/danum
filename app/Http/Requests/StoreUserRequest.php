@@ -5,28 +5,20 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Models\Role;
+use App\Services\UserRoleAssignmentService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreUserRequest extends FormRequest
 {
-    public function authorize(): bool { return $this->user()?->isSuperAdmin() === true; }
+    public function authorize(): bool
+    {
+        return $this->user()?->isSuperAdmin() === true;
+    }
 
     protected function prepareForValidation(): void
     {
-        $role = $this->input('role');
-        $tenantId = $this->input('tenant_id');
-        $customRoleId = $this->input('custom_role_id');
-
-        if ($role === 'super_admin') {
-            $this->merge(['platform_role' => 'super_admin', 'tenant_id' => null, 'custom_role_id' => null]);
-            return;
-        }
-
-        if ($tenantId !== null && $customRoleId === null && in_array($role, ['tenant_user', 'tenant_admin'], true)) {
-            $defaultRole = Role::resolveSystemForTenant($role, $tenantId);
-            if ($defaultRole !== null) $this->merge(['platform_role' => null, 'custom_role_id' => $defaultRole->getKey()]);
-        }
+        $this->replace(app(UserRoleAssignmentService::class)->normalize($this->all()));
     }
 
     public function rules(): array
