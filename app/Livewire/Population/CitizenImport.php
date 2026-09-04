@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Livewire\Population;
 
 use App\Services\CitizenImportService;
-use App\Services\LibreOfficeSpreadsheetService;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -77,7 +76,6 @@ class CitizenImport extends Component
             $this->file,
             $this->tenantId(),
             $this->duplicateMode,
-            app(LibreOfficeSpreadsheetService::class),
         );
 
         $this->rows = $result['rows'];
@@ -123,10 +121,12 @@ class CitizenImport extends Component
 
     public function render()
     {
+        $user = auth()->user();
+        $isSuperAdmin = $user->isSuperAdmin();
+
         return view('livewire.pages.population.citizen-import', [
-            'tenants' => auth()->user()->isSuperAdmin()
-                ? app(CitizenImportService::class)->tenants()
-                : collect(),
+            'isSuperAdmin' => $isSuperAdmin,
+            'tenants' => $isSuperAdmin ? app(CitizenImportService::class)->tenants() : collect(),
         ]);
     }
 }
