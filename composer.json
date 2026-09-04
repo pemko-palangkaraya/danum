@@ -13,7 +13,7 @@
         "laravel/tinker": "^2.10.1",
         "livewire/livewire": "^4.4",
         "livewire/volt": "^1.11",
-        "phpoffice/phpspreadsheet": "^5.3",
+        "phpoffice/phpspreadsheet": "5.9",
         "setasign/fpdf": "^1.8.6",
         "setasign/fpdi": "^2.6",
         "tecnickcom/tc-lib-pdf": "^8"
