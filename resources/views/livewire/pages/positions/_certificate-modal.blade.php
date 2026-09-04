@@ -1,6 +1,4 @@
 @if($showCertificate)
-    @php($certificatePosition = $certificatePositionId ? \App\Models\Position::with('signerCertificates')->find($certificatePositionId) : null)
-    @php($certificate = $certificatePosition?->signerCertificates?->first())
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" wire:click.self="$set('showCertificate', false)">
         <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
             <div class="flex items-start justify-between gap-4">
