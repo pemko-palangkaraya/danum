@@ -74,10 +74,7 @@ new #[Layout('layouts.app')] class extends Component {
 
     private function tenantId(): string
     {
-        $id = auth()->user()->isSuperAdmin()
-            ? $this->selectedTenantId
-            : auth()->user()->tenant_id;
-
+        $id = auth()->user()->isSuperAdmin() ? $this->selectedTenantId : auth()->user()->tenant_id;
         abort_unless($id, 422);
         return (string) $id;
     }
@@ -169,11 +166,8 @@ new #[Layout('layouts.app')] class extends Component {
     {
         return [
             'nik' => [
-                'required',
-                'digits:16',
-                Rule::unique('citizens', 'nik')
-                    ->where(fn ($query) => $query->where('tenant_id', $tenantId))
-                    ->ignore($this->editingId),
+                'required', 'digits:16',
+                Rule::unique('citizens', 'nik')->where(fn ($query) => $query->where('tenant_id', $tenantId))->ignore($this->editingId),
             ],
             'nama_lengkap' => ['required', 'string', 'max:255'],
             'tempat_lahir' => ['nullable', 'string', 'max:255'],
@@ -198,57 +192,21 @@ new #[Layout('layouts.app')] class extends Component {
     public function with(): array
     {
         return [
-            'citizens' => ($this->selectedTenantId || auth()->user()->tenant_id)
-                ? $this->query()->paginate($this->perPage)
-                : collect(),
-            'tenants' => auth()->user()->isSuperAdmin()
-                ? Tenant::query()->orderBy('name')->get(['id', 'name', 'code'])
-                : collect(),
+            'citizens' => ($this->selectedTenantId || auth()->user()->tenant_id) ? $this->query()->paginate($this->perPage) : collect(),
+            'tenants' => auth()->user()->isSuperAdmin() ? Tenant::query()->orderBy('name')->get(['id', 'name', 'code']) : collect(),
         ];
     }
 };
 ?>
 <div class="space-y-6">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div><p class="text-sm font-medium text-slate-500">Kependudukan</p><h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Data Warga</h1><p class="mt-1 text-sm text-slate-500">Master data penduduk yang terdaftar dalam tenant.</p></div>
-        <div class="flex flex-wrap gap-2">
-            @if(auth()->user()->hasPermission('population.view') && (!auth()->user()->isSuperAdmin() || $selectedTenantId))
-                <a href="{{ route('population.citizens.export', ['format'=>'xlsx','tenant_id'=>$selectedTenantId]) }}" class="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">Export Excel</a>
-                <a href="{{ route('population.citizens.export', ['format'=>'csv','tenant_id'=>$selectedTenantId]) }}" class="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">Export CSV</a>
-            @endif
-            @if(auth()->user()->hasPermission('population.manage') && (!auth()->user()->isSuperAdmin() || $selectedTenantId))
-                <a href="{{ route('population.citizens.import') }}" class="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Import</a>
-                <button wire:click="create" class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"><span>+</span> Tambah Warga</button>
-            @endif
-        </div>
-    </div>
-
-    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm"><div class="flex flex-col gap-4 p-5 lg:flex-row lg:items-end lg:justify-between">
-        @if(auth()->user()->isSuperAdmin())<div class="w-full lg:max-w-md"><label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Tenant</label><select wire:model.live="selectedTenantId" class="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm"><option value="">Pilih tenant...</option>@foreach($tenants as $tenant)<option value="{{$tenant->id}}">{{$tenant->name}}{{ $tenant->code?' ('.$tenant->code.')':'' }}</option>@endforeach</select></div>@endif
-        <div class="flex w-full flex-col gap-3 sm:flex-row lg:justify-end"><input wire:model.live.debounce.300ms="search" placeholder="Cari NIK atau nama..." class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm sm:max-w-sm"><select wire:model.live="perPage" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"><option value="10">10 / halaman</option><option value="25">25 / halaman</option><option value="50">50 / halaman</option></select></div>
-    </div></div>
+    @include('livewire.pages.population.partials.citizens-header')
+    @include('livewire.pages.population.partials.citizens-filters')
 
     @if($selectedTenantId || auth()->user()->tenant_id)
         @if($showForm)
-            <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div class="border-b border-slate-100 px-6 py-5"><h2 class="text-base font-semibold text-slate-900">{{$editingId?'Edit Data Warga':'Tambah Data Warga'}}</h2><p class="mt-1 text-sm text-slate-500">Lengkapi identitas, data keluarga, dan dokumen kependudukan.</p></div>
-                <div class="space-y-7 p-6">
-                    <section><h3 class="text-sm font-semibold text-slate-900">Identitas</h3><div class="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                        @foreach([['nik','NIK'],['nama_lengkap','Nama Lengkap'],['tempat_lahir','Tempat Lahir'],['tanggal_lahir','Tanggal Lahir']] as [$f,$l])<div><label class="text-sm font-medium text-slate-700">{{$l}}</label><input wire:model="{{$f}}" type="{{$f==='tanggal_lahir'?'date':'text'}}" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">@error($f)<p class="mt-1 text-xs text-red-600">{{$message}}</p>@enderror</div>@endforeach
-                        <div><label class="text-sm font-medium text-slate-700">Jenis Kelamin</label><select wire:model="jenis_kelamin" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"><option value="">Pilih</option><option value="male">Laki-laki</option><option value="female">Perempuan</option></select></div>
-                        <div><label class="text-sm font-medium text-slate-700">Golongan Darah</label><select wire:model="golongan_darah" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"><option value="">Pilih</option>@foreach(['A','B','AB','O','unknown'] as $v)<option value="{{$v}}">{{$v}}</option>@endforeach</select></div>
-                    </div></section>
-                    <section class="border-t border-slate-100 pt-6"><h3 class="text-sm font-semibold text-slate-900">Data Keluarga</h3><div class="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">@foreach([['nama_ayah','Nama Ayah'],['nik_ayah','NIK Ayah'],['nama_ibu','Nama Ibu'],['nik_ibu','NIK Ibu'],['status_perkawinan','Status Perkawinan']] as [$f,$l])<div><label class="text-sm font-medium text-slate-700">{{$l}}</label><input wire:model="{{$f}}" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">@error($f)<p class="mt-1 text-xs text-red-600">{{$message}}</p>@enderror</div>@endforeach</div></section>
-                    <section class="border-t border-slate-100 pt-6"><h3 class="text-sm font-semibold text-slate-900">Kewarganegaraan & Dokumen</h3><div class="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">@foreach([['kewarganegaraan','Kewarganegaraan'],['no_passport','No. Passport'],['no_kitap','No. KITAP']] as [$f,$l])<div><label class="text-sm font-medium text-slate-700">{{$l}}</label><input wire:model="{{$f}}" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">@error($f)<p class="mt-1 text-xs text-red-600">{{$message}}</p>@enderror</div>@endforeach</div></section>
-                    <section class="border-t border-slate-100 pt-6"><h3 class="text-sm font-semibold text-slate-900">Pendidikan, Pekerjaan & Status</h3><div class="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">@foreach([['pendidikan','Pendidikan'],['pekerjaan','Pekerjaan'],['agama','Agama']] as [$f,$l])<div><label class="text-sm font-medium text-slate-700">{{$l}}</label><input wire:model="{{$f}}" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">@error($f)<p class="mt-1 text-xs text-red-600">{{$message}}</p>@enderror</div>@endforeach<div><label class="text-sm font-medium text-slate-700">Status Kependudukan</label><select wire:model="status_kependudukan" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"><option value="active">Aktif</option><option value="inactive">Tidak Aktif</option><option value="deceased">Meninggal</option><option value="moved">Pindah</option></select></div></div></section>
-                </div>
-                <div class="flex justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4"><button wire:click="resetForm" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">Batal</button><button wire:click="save" class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white">Simpan</button></div>
-            </div>
+            @include('livewire.pages.population.partials.citizens-form')
         @endif
 
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200"><thead class="bg-slate-50"><tr><th class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Nama</th><th class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">NIK</th><th class="hidden px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 md:table-cell">Tempat, Tanggal Lahir</th><th class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th><th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Aksi</th></tr></thead><tbody class="divide-y divide-slate-100">
-            @forelse($citizens as $c)<tr class="transition hover:bg-slate-50/70"><td class="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-900">{{$c->nama_lengkap}}</td><td class="whitespace-nowrap px-6 py-4 font-mono text-sm text-slate-600">{{$c->nik}}</td><td class="hidden px-6 py-4 text-sm text-slate-600 md:table-cell">{{$c->tempat_lahir?:'-'}}, {{$c->tanggal_lahir?->format('d/m/Y')?:'-'}}</td><td class="px-6 py-4"><span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{{ucfirst($c->status_kependudukan)}}</span></td><td class="px-6 py-4 text-right"><a href="{{ route(auth()->user()->isSuperAdmin() ? 'population.admin.citizens.show' : 'population.citizens.show', $c) }}" class="mr-3 text-sm font-semibold text-slate-700 hover:text-slate-950">Detail</a>@if(auth()->user()->hasPermission('population.manage'))<button wire:click="edit('{{$c->id}}')" class="text-sm font-semibold text-slate-700 hover:text-slate-950">Edit</button>@endif</td></tr>
-            @empty<tr><td colspan="5" class="px-6 py-14 text-center"><p class="text-sm font-medium text-slate-700">Belum ada data warga</p></td></tr>@endforelse
-            </tbody></table></div><div class="border-t border-slate-100 px-6 py-4">{{$citizens->links()}}</div></div>
+        @include('livewire.pages.population.partials.citizens-table')
     @endif
 </div>
