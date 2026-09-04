@@ -102,16 +102,16 @@ class Index extends Component
         $this->showHolderForm = false; $this->resetHolderForm(); $this->dispatch('toast', type: 'success', message: 'Pemegang jabatan berhasil ditetapkan.');
     }
 
-    public function manageCertificate(string $positionId, PositionService $positions, PositionCertificateService $certificates): void
+    public function manageCertificate(string $positionId, PositionHolderService $holders, PositionCertificateService $certificates): void
     {
         $position = Position::query()->findOrFail($positionId); $this->authorize('manageHolder', $position);
-        try { $holder = $certificates->validateSigner($position, $positions); } catch (\Throwable $exception) { $this->dispatch('toast', type: 'error', message: $exception->getMessage()); return; }
+        try { $holder = $certificates->validateSigner($position, $holders); } catch (\Throwable $exception) { $this->dispatch('toast', type: 'error', message: $exception->getMessage()); return; }
         $this->certificatePositionId = $position->id; $this->certificatePositionName = $position->name; $this->certificateHolderName = $holder->user->name; $this->showCertificate = true;
     }
 
-    public function generateCertificate(SignerCertificateService $service, PositionService $positions): void
+    public function generateCertificate(SignerCertificateService $service, PositionHolderService $holders): void
     {
-        $position = Position::query()->findOrFail($this->certificatePositionId); $this->authorize('manageHolder', $position); $holder = $positions->getActiveHolder($position); $holder?->loadMissing('user');
+        $position = Position::query()->findOrFail($this->certificatePositionId); $this->authorize('manageHolder', $position); $holder = $holders->active($position); $holder?->loadMissing('user');
         if (! $holder) { $this->addError('certificatePositionId', 'Tetapkan pejabat aktif terlebih dahulu.'); return; }
         try { $service->generate($position, $holder, auth()->user()); } catch (\Throwable $exception) { $this->addError('certificatePositionId', $exception->getMessage()); return; }
         $this->dispatch('toast', type: 'success', message: 'Sertifikat publik berhasil dibuat.'); $this->showCertificate = false; $this->resetCertificateForm();
