@@ -31,7 +31,7 @@ class OutgoingLetterPositionService
                 ->with('user')]);
     }
 
-    public function availableForTenantCategory(string $tenantId, ?string $tenantCategoryId, string $capability): Builder
+    public function availableForTenantCategory(string $tenantId, string|int|null $tenantCategoryId, string $capability): Builder
     {
         return Position::query()
             ->where('tenant_category_id', $tenantCategoryId)
