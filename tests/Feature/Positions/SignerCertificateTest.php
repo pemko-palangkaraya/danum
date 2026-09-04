@@ -24,6 +24,7 @@ class SignerCertificateTest extends TestCase
         $holder = PositionHolder::factory()->create(['position_id' => $position->id, 'tenant_id' => $signer->tenant_id, 'user_id' => $signer->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
 
         $certificate = app(SignerCertificateService::class)->generate($position, $holder->load('user', 'tenant'), $generator);
+        $parsed = openssl_x509_parse($certificate->certificate_pem);
 
         $this->assertInstanceOf(SignerCertificate::class, $certificate);
         $this->assertTrue($certificate->is_active);
@@ -31,8 +32,11 @@ class SignerCertificateTest extends TestCase
         $this->assertNotEmpty($certificate->certificate_pem);
         $this->assertNotEmpty($certificate->private_key_encrypted);
         $this->assertNotEmpty($certificate->fingerprint_sha256);
-        $this->assertTrue(openssl_x509_parse($certificate->certificate_pem) !== false);
+        $this->assertIsArray($parsed);
         $this->assertTrue($certificate->valid_until->isAfter($certificate->valid_from));
+        $this->assertSame((int) $parsed['validFrom_time_t'], $certificate->valid_from->timestamp);
+        $this->assertSame((int) $parsed['validTo_time_t'], $certificate->valid_until->timestamp);
+        $this->assertNotSame('0', ltrim((string) ($parsed['serialNumberHex'] ?? ''), '0'));
     }
 
     public function test_regenerating_a_certificate_deactivates_the_previous_certificate(): void
@@ -49,6 +53,8 @@ class SignerCertificateTest extends TestCase
         $this->assertFalse($first->refresh()->is_active);
         $this->assertNotNull($first->revoked_at);
         $this->assertTrue($second->is_active);
+        $this->assertNotSame($first->serial_number, $second->serial_number);
+        $this->assertNotSame($first->fingerprint_sha256, $second->fingerprint_sha256);
         $this->assertSame(1, SignerCertificate::query()->where('position_id', $position->id)->where('is_active', true)->count());
     }
 
