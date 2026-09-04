@@ -34,7 +34,9 @@ class FamilyService
     {
         return $this->query($tenantId)
             ->with('headCitizen')
-            ->withCount('members')
+            ->withCount([
+                'activeMembers as active_members_count',
+            ])
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($q) use ($search): void {
                     $q->where('no_kk', 'like', '%'.$search.'%')
