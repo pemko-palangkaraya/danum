@@ -37,13 +37,15 @@ class Statistics extends Component
         abort_unless(auth()->user()?->hasPermission('population.view'), 403);
 
         $user = auth()->user();
-        $tenantId = $user->isSuperAdmin() ? $this->selectedTenantId : $user->tenant_id;
+        $isSuperAdmin = $user->isSuperAdmin();
+        $tenantId = $isSuperAdmin ? $this->selectedTenantId : $user->tenant_id;
         $service = app(PopulationStatisticsService::class);
         $statistics = $service->summarize($tenantId);
 
         return view('livewire.population.statistics', [
             ...$statistics,
-            'tenants' => $user->isSuperAdmin() ? $service->tenants() : collect(),
+            'isSuperAdmin' => $isSuperAdmin,
+            'tenants' => $isSuperAdmin ? $service->tenants() : collect(),
         ]);
     }
 }
