@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\Permission as PermissionEnum;
-use App\Enums\UserRole;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Services\AuditLogService;
@@ -11,6 +10,9 @@ use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
 new #[Layout('layouts.app')] class extends Component {
+    private const TENANT_ADMIN_ROLE = 'tenant_admin';
+    private const SUPER_ADMIN_ROLE = 'super_admin';
+
     public bool $showForm = false;
     public ?int $editingRoleId = null;
     public string $name = '';
@@ -32,7 +34,7 @@ new #[Layout('layouts.app')] class extends Component {
         $query = Role::query()->with('permissions')->orderByDesc('is_system')->orderBy('name');
 
         if (!auth()->user()?->isSuperAdmin()) {
-            $query->where(fn($q) => $q->where('is_system', true)->where('slug', UserRole::TENANT_ADMIN->value)
+            $query->where(fn($q) => $q->where('is_system', true)->where('slug', self::TENANT_ADMIN_ROLE)
                 ->orWhere(fn($custom) => $custom->where('is_system', false)->where('scope', 'tenant')->where('tenant_id', auth()->user()?->tenant_id)));
         }
 
@@ -178,7 +180,7 @@ new #[Layout('layouts.app')] class extends Component {
 
         if (auth()->user()?->isSuperAdmin()) {
             $role = $query->firstOrFail();
-            abort_if($role->slug === UserRole::SUPER_ADMIN->value, 403);
+            abort_if($role->slug === self::SUPER_ADMIN_ROLE, 403);
             return $role;
         }
 
