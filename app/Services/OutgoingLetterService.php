@@ -20,7 +20,6 @@ class OutgoingLetterService
         private readonly LetterTypeService $letterTypeService,
         private readonly AuditLogService $auditLogService,
         private readonly OutgoingLetterIssuanceService $issuanceService,
-        private readonly OutgoingLetterWithdrawalService $withdrawalService,
     ) {}
 
     public function getAll(string $tenantId): Collection { return $this->repository->getAll($tenantId); }
@@ -117,10 +116,6 @@ class OutgoingLetterService
     }
 
     public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null, ?string $pin = null): OutgoingLetter { return $this->issuanceService->issue($letter, $changedBy, $note, $pin); }
-
-    public function requestWithdrawal(OutgoingLetter $letter, int $requestedBy, string $reason, string $statementPath) { return $this->withdrawalService->request($letter, $requestedBy, $reason, $statementPath); }
-    public function approveWithdrawal($withdrawal, int $decidedBy, ?string $note = null) { return $this->withdrawalService->approve($withdrawal, $decidedBy, $note); }
-    public function rejectWithdrawal($withdrawal, int $decidedBy, string $note) { return $this->withdrawalService->reject($withdrawal, $decidedBy, $note); }
 
     private function requiredWorkflowNote(?string $note, string $message): string
     {
