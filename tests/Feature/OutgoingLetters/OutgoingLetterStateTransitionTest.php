@@ -11,6 +11,7 @@ use App\Models\OutgoingLetter;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\OutgoingLetterService;
+use App\Services\OutgoingLetterWorkflowService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -39,14 +40,14 @@ class OutgoingLetterStateTransitionTest extends TestCase
         [$letter, $admin] = $this->letter();
         $letter->update(['validator_user_id' => null, 'submitted_at' => null]);
         $this->expectException(\DomainException::class);
-        app(OutgoingLetterService::class)->submit($letter, $admin->id);
+        app(OutgoingLetterWorkflowService::class)->submit($letter, $admin->id);
     }
 
     public function test_validate_cannot_be_called_on_issued_letter(): void
     {
         [$letter, $admin] = $this->letter(OutgoingLetterStatus::ISSUED);
         $this->expectException(\DomainException::class);
-        app(OutgoingLetterService::class)->validate($letter, $admin->id);
+        app(OutgoingLetterWorkflowService::class)->validate($letter, $admin->id);
     }
 
     public function test_issue_cannot_skip_validation(): void
@@ -59,9 +60,10 @@ class OutgoingLetterStateTransitionTest extends TestCase
     public function test_issued_letter_cannot_be_cancelled_or_modified(): void
     {
         [$letter, $admin] = $this->letter(OutgoingLetterStatus::ISSUED);
+        $workflow = app(OutgoingLetterWorkflowService::class);
         $service = app(OutgoingLetterService::class);
 
-        try { $service->cancel($letter, $admin->id); $this->fail('Expected cancel to fail.'); } catch (\DomainException) {}
+        try { $workflow->cancel($letter, $admin->id); $this->fail('Expected cancel to fail.'); } catch (\DomainException) {}
         try { $service->update($letter, ['subject' => 'changed']); $this->fail('Expected update to fail.'); } catch (\DomainException) {}
 
         $this->assertSame(OutgoingLetterStatus::ISSUED, $letter->refresh()->status);
