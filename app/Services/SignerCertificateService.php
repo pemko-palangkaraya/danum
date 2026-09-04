@@ -82,18 +82,20 @@ class SignerCertificateService
             $fingerprint = openssl_x509_fingerprint($certificatePem, 'sha256');
             if (! $fingerprint) throw new RuntimeException('Gagal menghitung fingerprint sertifikat.');
 
-            // OpenSSL owns the actual X.509 validity timestamps. Persist the
-            // parsed certificate timestamps instead of separately calculating
-            // them with Laravel, so DB and certificate can never drift by a
-            // timezone conversion or a second/day boundary.
+            // OpenSSL exposes X.509 validity as Unix timestamps. A Unix
+            // timestamp is an absolute instant, so construct the Carbon values
+            // directly in DANUM's configured application timezone. This avoids
+            // treating an already-absolute timestamp as a UTC wall-clock value
+            // and then accidentally displaying it seven hours behind local time.
             $validFromTimestamp = (int) ($parsed['validFrom_time_t'] ?? 0);
             $validUntilTimestamp = (int) ($parsed['validTo_time_t'] ?? 0);
             if ($validFromTimestamp <= 0 || $validUntilTimestamp <= $validFromTimestamp) {
                 throw new RuntimeException('Rentang berlaku sertifikat publik tidak valid.');
             }
 
-            $validFrom = CarbonImmutable::createFromTimestampUTC($validFromTimestamp);
-            $validUntil = CarbonImmutable::createFromTimestampUTC($validUntilTimestamp);
+            $applicationTimezone = (string) config('app.timezone', 'UTC');
+            $validFrom = CarbonImmutable::createFromTimestamp($validFromTimestamp, $applicationTimezone);
+            $validUntil = CarbonImmutable::createFromTimestamp($validUntilTimestamp, $applicationTimezone);
 
             return DB::transaction(function () use ($position, $holder, $generatedBy, $serial, $validFrom, $validUntil, $certificatePem, $privateKeyPem, $parsed, $fingerprint): SignerCertificate {
                 SignerCertificate::query()
