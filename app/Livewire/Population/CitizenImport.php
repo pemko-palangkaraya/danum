@@ -40,6 +40,15 @@ class CitizenImport extends Component
         $this->resetPreview();
     }
 
+    public function updatedDuplicateMode(): void
+    {
+        if ($this->file) {
+            $this->preview();
+        } else {
+            $this->resetPreview(false);
+        }
+    }
+
     public function updatedFile(): void
     {
         $this->preview();
