@@ -31,7 +31,7 @@
         </table>
     </div>
 
-    @if($citizens->total() > 0)
-        <x-slot:footer>{{ $citizens->links() }}</x-slot:footer>
-    @endif
+    <x-slot:footer>
+        <x-ui.table-footer :paginator="$citizens" label="warga" />
+    </x-slot:footer>
 </x-ui.table-shell>
