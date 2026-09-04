@@ -26,7 +26,7 @@
                         <td class="px-5 py-4 text-sm text-slate-600">{{ $user->tenant?->name ?? 'System' }}</td>
                         <td class="px-5 py-4 text-sm text-slate-600">{{ $user->isSuperAdmin() ? 'Super Admin' : ($user->effectiveRole()?->name ?? '-') }}</td>
                         <td class="px-5 py-4">
-                            <x-ui.badge :variant="$user->status === UserStatus::ACTIVE ? 'success' : 'default'">
+                            <x-ui.badge :variant="$user->status === \App\Enums\UserStatus::ACTIVE ? 'success' : 'default'">
                                 {{ strtolower($user->status->value) }}
                             </x-ui.badge>
                         </td>
@@ -50,15 +50,15 @@
                     <div class="text-sm font-semibold text-slate-900">{{ $user->name }}</div>
                     <div class="mt-1 text-xs text-slate-500">{{ $user->email }} · {{ $user->tenant?->name ?? 'System' }}</div>
                     <div class="mt-1 text-xs text-slate-500">{{ $user->isSuperAdmin() ? 'Super Admin' : ($user->effectiveRole()?->name ?? '-') }}</div>
-                    <x-ui.badge class="mt-2" :variant="$user->status === UserStatus::ACTIVE ? 'success' : 'default'">
+                    <x-ui.badge class="mt-2" :variant="$user->status === \App\Enums\UserStatus::ACTIVE ? 'success' : 'default'">
                         {{ strtolower($user->status->value) }}
                     </x-ui.badge>
                 </div>
                 <div class="shrink-0"><x-ui.user-actions :user="$user" /></div>
             </div>
         @empty
-            <div class="p-8 text-center">
-                <p class="text-sm text-slate-400">No users found.</p>
+            <div class="p-8">
+                <x-ui.empty-state title="No users found." />
             </div>
         @endforelse
     </div>
