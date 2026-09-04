@@ -14,6 +14,7 @@ use App\Services\OutgoingLetterPdfPreviewService;
 use App\Services\OutgoingLetterPositionService;
 use App\Services\OutgoingLetterService;
 use App\Services\OutgoingLetterTemplateService;
+use App\Services\OutgoingLetterWorkflowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -22,6 +23,7 @@ class OutgoingLetterController extends Controller
 {
     public function __construct(
         private readonly OutgoingLetterService $outgoingLetterService,
+        private readonly OutgoingLetterWorkflowService $workflowService,
         private readonly LetterTypeService $letterTypeService,
         private readonly OutgoingLetterTemplateService $outgoingLetterTemplateService,
         private readonly OutgoingLetterPositionService $positionService,
@@ -147,12 +149,12 @@ class OutgoingLetterController extends Controller
 
     public function submit(Request $request, string $id): JsonResponse
     {
-        return $this->transition($request, $id, 'submit', fn (OutgoingLetter $letter) => $this->outgoingLetterService->submit($letter, $request->user()->id));
+        return $this->transition($request, $id, 'submit', fn (OutgoingLetter $letter) => $this->workflowService->submit($letter, $request->user()->id));
     }
 
     public function validateLetter(Request $request, string $id): JsonResponse
     {
-        return $this->transition($request, $id, 'validate', fn (OutgoingLetter $letter) => $this->outgoingLetterService->validate($letter, $request->user()->id));
+        return $this->transition($request, $id, 'validate', fn (OutgoingLetter $letter) => $this->workflowService->validate($letter, $request->user()->id));
     }
 
     public function issue(Request $request, string $id): JsonResponse
@@ -163,12 +165,12 @@ class OutgoingLetterController extends Controller
     public function reject(Request $request, string $id): JsonResponse
     {
         $request->validate(['reason' => ['required', 'string', 'max:2000']]);
-        return $this->transition($request, $id, 'reject', fn (OutgoingLetter $letter) => $this->outgoingLetterService->reject($letter, $request->user()->id, $request->string('reason')->toString()));
+        return $this->transition($request, $id, 'reject', fn (OutgoingLetter $letter) => $this->workflowService->reject($letter, $request->user()->id, $request->string('reason')->toString()));
     }
 
     public function cancel(Request $request, string $id): JsonResponse
     {
-        return $this->transition($request, $id, 'cancel', fn (OutgoingLetter $letter) => $this->outgoingLetterService->cancel($letter, $request->user()->id));
+        return $this->transition($request, $id, 'cancel', fn (OutgoingLetter $letter) => $this->workflowService->cancel($letter, $request->user()->id));
     }
 
     public function downloadPdf(Request $request, string $id): Response
