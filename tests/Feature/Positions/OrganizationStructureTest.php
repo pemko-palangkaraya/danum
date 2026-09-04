@@ -10,7 +10,7 @@ use App\Models\Position;
 use App\Models\Tenant;
 use App\Models\TenantPositionStructure;
 use App\Models\User;
-use App\Services\PositionService;
+use App\Services\PositionHolderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -26,13 +26,13 @@ class OrganizationStructureTest extends TestCase
         $first = User::factory()->tenantUser($tenant)->create();
         $second = User::factory()->tenantUser($tenant)->create();
         $position = Position::factory()->forCategory($tenant->category)->jft()->create();
-        $service = app(PositionService::class);
+        $service = app(PositionHolderService::class);
 
-        $service->assignHolder($position, $first->id, now()->subDay());
-        $service->assignHolder($position, $second->id, now());
+        $service->assign($position, $first->id, now()->subDay());
+        $service->assign($position, $second->id, now());
 
         $this->assertDatabaseCount('position_holders', 2);
-        $this->assertCount(2, $service->getActiveHolders($position));
+        $this->assertCount(2, $service->activeMany($position));
     }
 
     public function test_managerial_position_keeps_only_one_active_holder(): void
@@ -41,14 +41,14 @@ class OrganizationStructureTest extends TestCase
         $first = User::factory()->tenantUser($tenant)->create();
         $second = User::factory()->tenantUser($tenant)->create();
         $position = Position::factory()->forCategory($tenant->category)->managerial()->create();
-        $service = app(PositionService::class);
+        $service = app(PositionHolderService::class);
 
-        $service->assignHolder($position, $first->id, now()->subDay(), 'definitif');
-        $service->assignHolder($position, $second->id, now(), 'plt');
+        $service->assign($position, $first->id, now()->subDay(), 'definitif');
+        $service->assign($position, $second->id, now(), 'plt');
 
         $this->assertDatabaseCount('position_holders', 2);
-        $this->assertSame($second->id, $service->getActiveHolder($position)?->user_id);
-        $this->assertSame('plt', $service->getActiveHolder($position)?->assignment_status);
+        $this->assertSame($second->id, $service->active($position)?->user_id);
+        $this->assertSame('plt', $service->active($position)?->assignment_status);
     }
 
     public function test_holder_can_store_assignment_status_and_sk_metadata(): void
@@ -56,9 +56,9 @@ class OrganizationStructureTest extends TestCase
         $tenant = Tenant::factory()->create();
         $user = User::factory()->tenantUser($tenant)->create();
         $position = Position::factory()->forCategory($tenant->category)->managerial()->create();
-        $service = app(PositionService::class);
+        $service = app(PositionHolderService::class);
 
-        $holder = $service->assignHolder($position, $user->id, now(), PositionAssignmentStatus::PJ, '800.1.3.3/123/BKPSDM/2026', 'position-appointments/test/sk.pdf');
+        $holder = $service->assign($position, $user->id, now(), PositionAssignmentStatus::PJ, '800.1.3.3/123/BKPSDM/2026', 'position-appointments/test/sk.pdf');
 
         $this->assertSame('pj', $holder->assignment_status);
         $this->assertSame('800.1.3.3/123/BKPSDM/2026', $holder->appointment_number);
@@ -70,14 +70,14 @@ class OrganizationStructureTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $position = Position::factory()->forCategory($tenant->category)->managerial()->create();
-        $service = app(PositionService::class);
+        $service = app(PositionHolderService::class);
 
         foreach ([PositionAssignmentStatus::PLT, PositionAssignmentStatus::PLH, PositionAssignmentStatus::PJ, PositionAssignmentStatus::PJS] as $index => $status) {
             $user = User::factory()->tenantUser($tenant)->create();
-            $service->assignHolder($position, $user->id, now()->addDays($index), $status, 'SK-'.$status->value.'-'.$index);
+            $service->assign($position, $user->id, now()->addDays($index), $status, 'SK-'.$status->value.'-'.$index);
         }
 
-        $this->assertSame('pjs', $service->getActiveHolder($position)?->assignment_status);
+        $this->assertSame('pjs', $service->active($position)?->assignment_status);
     }
 
     public function test_tenant_structure_can_assign_a_position_below_another_position(): void
@@ -97,11 +97,11 @@ class OrganizationStructureTest extends TestCase
         $tenant = Tenant::factory()->create();
         $user = User::factory()->tenantUser($tenant)->create();
         $position = Position::factory()->forCategory($tenant->category)->jfu()->create();
-        $service = app(PositionService::class);
+        $service = app(PositionHolderService::class);
 
-        $service->assignHolder($position, $user->id, now()->subDay());
+        $service->assign($position, $user->id, now()->subDay());
 
         $this->expectException(LogicException::class);
-        $service->assignHolder($position, $user->id, now());
+        $service->assign($position, $user->id, now());
     }
 }
