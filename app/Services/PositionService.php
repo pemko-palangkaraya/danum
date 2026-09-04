@@ -6,7 +6,6 @@ namespace App\Services;
 
 use App\Enums\PositionAssignmentStatus;
 use App\Enums\PositionStatus;
-use App\Enums\PositionType;
 use App\Enums\UserStatus;
 use App\Models\Position;
 use App\Models\PositionHolder;
@@ -44,7 +43,7 @@ class PositionService
             $isBecomingInactive = $currentStatus === PositionStatus::ACTIVE && $newStatus === PositionStatus::INACTIVE;
             if (array_key_exists('parent_id', $data) || array_key_exists('tenant_category_id', $data)) $this->validateParent($data['tenant_category_id'] ?? $position->tenant_category_id, $data['parent_id'] ?? $position->parent_id, $position);
             $updatedPosition = $this->positionRepository->update($position, $data);
-            if ($isBecomingInactive) foreach ($position->holders()->whereNull('ended_at')->get() as $activeHolder) $this->positionHolderRepository->end($activeHolder, now());
+            if ($isBecomingInactive) $this->endActiveHolders($position);
             return $updatedPosition->refresh();
         });
     }
@@ -53,7 +52,7 @@ class PositionService
     {
         return DB::transaction(function () use ($position): bool {
             if ($position->children()->exists()) throw new LogicException('Jabatan yang masih memiliki bawahan tidak dapat dihapus. Pindahkan bawahannya terlebih dahulu.');
-            foreach ($position->holders()->whereNull('ended_at')->get() as $activeHolder) $this->positionHolderRepository->end($activeHolder, now());
+            $this->endActiveHolders($position);
             return $this->positionRepository->delete($position);
         });
     }
@@ -100,6 +99,13 @@ class PositionService
     public function getHolderHistory(Position $position): Collection { return $position->holders()->with('user', 'tenant')->orderByDesc('started_at')->get(); }
     public function findWithTrashed(string $id): ?Position { return $this->positionRepository->findWithTrashed($id); }
     public function getActiveSignatoryPositions(string $tenantId): Collection { return Position::query()->whereHas('category.tenants', fn ($q) => $q->whereKey($tenantId))->where('status', PositionStatus::ACTIVE)->where('can_sign', true)->with(['holders' => fn ($q) => $q->where('tenant_id', $tenantId)->whereNull('ended_at'), 'holders.user'])->orderBy('name')->get(); }
+
+    private function endActiveHolders(Position $position): void
+    {
+        foreach ($position->holders()->whereNull('ended_at')->get() as $activeHolder) {
+            $this->positionHolderRepository->end($activeHolder, now());
+        }
+    }
 
     private function validateParent(string $categoryId, ?string $parentId, ?Position $current = null): void
     {
