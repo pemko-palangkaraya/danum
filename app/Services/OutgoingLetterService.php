@@ -5,15 +5,12 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\OutgoingLetterStatus;
-use App\Enums\OutgoingLetterWithdrawalStatus;
 use App\Models\OutgoingLetter;
-use App\Models\OutgoingLetterWithdrawalRequest;
-use App\Models\User;
 use App\Repositories\Contracts\OutgoingLetterRepositoryInterface;
 use App\Repositories\Contracts\OutgoingLetterStatusHistoryRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use App\Models\User;
 
 class OutgoingLetterService
 {
@@ -23,6 +20,7 @@ class OutgoingLetterService
         private readonly LetterTypeService $letterTypeService,
         private readonly AuditLogService $auditLogService,
         private readonly OutgoingLetterIssuanceService $issuanceService,
+        private readonly OutgoingLetterWithdrawalService $withdrawalService,
     ) {}
 
     public function getAll(string $tenantId): Collection { return $this->repository->getAll($tenantId); }
@@ -118,65 +116,11 @@ class OutgoingLetterService
         return $letter;
     }
 
-    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null, ?string $pin = null): OutgoingLetter
-    {
-        return $this->issuanceService->issue($letter, $changedBy, $note, $pin);
-    }
+    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null, ?string $pin = null): OutgoingLetter { return $this->issuanceService->issue($letter, $changedBy, $note, $pin); }
 
-    public function requestWithdrawal(OutgoingLetter $letter, int $requestedBy, string $reason, string $statementPath): OutgoingLetterWithdrawalRequest
-    {
-        $reason = trim($reason);
-        $statementPath = trim($statementPath);
-        if ($letter->status !== OutgoingLetterStatus::ISSUED) throw new \DomainException('Hanya surat yang sudah diterbitkan yang dapat ditarik.');
-        if ($reason === '') throw new \DomainException('Alasan penarikan wajib diisi.');
-        if ($statementPath === '') throw new \DomainException('Surat pernyataan penarikan wajib dilampirkan.');
-        $pending = OutgoingLetterWithdrawalRequest::query()->where('outgoing_letter_id', $letter->id)->where('status', OutgoingLetterWithdrawalStatus::PENDING)->exists();
-        if ($pending) throw new \DomainException('Pengajuan penarikan untuk surat ini masih menunggu keputusan.');
-        return DB::transaction(function () use ($letter, $requestedBy, $reason, $statementPath): OutgoingLetterWithdrawalRequest {
-            $withdrawal = OutgoingLetterWithdrawalRequest::query()->create([
-                'outgoing_letter_id' => $letter->id,
-                'requested_by' => $requestedBy,
-                'requested_at' => now(),
-                'reason' => $reason,
-                'statement_path' => $statementPath,
-                'status' => OutgoingLetterWithdrawalStatus::PENDING,
-            ]);
-            $this->recordAudit('outgoing_letter.withdrawal_requested', $letter, $requestedBy, null, ['status' => 'pending', 'reason' => $reason]);
-            return $withdrawal;
-        });
-    }
-
-    public function approveWithdrawal(OutgoingLetterWithdrawalRequest $withdrawal, int $decidedBy, ?string $note = null): OutgoingLetter
-    {
-        $this->ensureWithdrawalDecider($decidedBy);
-        $note = trim((string) ($note ?? ''));
-        $letter = $withdrawal->outgoingLetter()->lockForUpdate()->firstOrFail();
-        if ($withdrawal->status !== OutgoingLetterWithdrawalStatus::PENDING) throw new \DomainException('Pengajuan penarikan sudah diputuskan.');
-        if ($letter->status !== OutgoingLetterStatus::ISSUED) throw new \DomainException('Hanya surat issued yang dapat ditarik.');
-        return DB::transaction(function () use ($withdrawal, $letter, $decidedBy, $note): OutgoingLetter {
-            $withdrawal->forceFill(['status' => OutgoingLetterWithdrawalStatus::APPROVED, 'decided_by' => $decidedBy, 'decided_at' => now(), 'decision_note' => $note])->save();
-            $oldValues = $this->auditValues($letter);
-            $letter = $this->repository->update($letter, ['status' => OutgoingLetterStatus::WITHDRAWN]);
-            $this->recordHistory($letter, 'withdrawn', $decidedBy, $note);
-            $this->recordAudit('outgoing_letter.withdrawn', $letter, $decidedBy, $oldValues, $this->auditValues($letter));
-            return $letter;
-        });
-    }
-
-    public function rejectWithdrawal(OutgoingLetterWithdrawalRequest $withdrawal, int $decidedBy, string $note): OutgoingLetterWithdrawalRequest
-    {
-        $this->ensureWithdrawalDecider($decidedBy);
-        $note = trim($note);
-        if ($note === '') throw new \DomainException('Catatan keputusan wajib diisi.');
-        if ($withdrawal->status !== OutgoingLetterWithdrawalStatus::PENDING) throw new \DomainException('Pengajuan penarikan sudah diputuskan.');
-        $withdrawal->forceFill(['status' => OutgoingLetterWithdrawalStatus::REJECTED, 'decided_by' => $decidedBy, 'decided_at' => now(), 'decision_note' => $note])->save();
-        return $withdrawal;
-    }
-
-    private function ensureWithdrawalDecider(int $userId): void
-    {
-        if (! User::query()->findOrFail($userId)->isSuperAdmin()) throw new \DomainException('Hanya Super Admin yang dapat memutuskan penarikan.');
-    }
+    public function requestWithdrawal(OutgoingLetter $letter, int $requestedBy, string $reason, string $statementPath) { return $this->withdrawalService->request($letter, $requestedBy, $reason, $statementPath); }
+    public function approveWithdrawal($withdrawal, int $decidedBy, ?string $note = null) { return $this->withdrawalService->approve($withdrawal, $decidedBy, $note); }
+    public function rejectWithdrawal($withdrawal, int $decidedBy, string $note) { return $this->withdrawalService->reject($withdrawal, $decidedBy, $note); }
 
     private function requiredWorkflowNote(?string $note, string $message): string
     {
