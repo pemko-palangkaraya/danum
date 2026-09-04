@@ -151,21 +151,25 @@ class Families extends Component
     {
         $service = app(FamilyService::class);
         $tenantId = $this->tenantIdForQuery();
+        $user = auth()->user();
+        $isSuperAdmin = $user?->isSuperAdmin() ?? false;
+        $canManage = $user?->hasPermission('population.manage') ?? false;
+        $hasTenant = $tenantId !== '';
 
-        $families = $tenantId !== ''
+        $families = $hasTenant
             ? $service->paginate($tenantId, $this->search, $this->perPage)
             : collect();
-        $tenants = auth()->user()?->isSuperAdmin() ? $service->tenants() : collect();
-        $detail = $this->detailId && $tenantId !== ''
+        $tenants = $isSuperAdmin ? $service->tenants() : collect();
+        $detail = $this->detailId && $hasTenant
             ? $service->findDetail($tenantId, $this->detailId)
             : null;
-        $headCitizens = $tenantId !== '' && $this->headSearch !== ''
+        $headCitizens = $hasTenant && $this->headSearch !== ''
             ? $service->findHeadCandidates($tenantId, $this->headSearch)
             : collect();
-        $memberCandidates = $tenantId !== '' && $this->memberSearch !== ''
+        $memberCandidates = $hasTenant && $this->memberSearch !== ''
             ? $service->findMemberCandidates($tenantId, $this->memberSearch)
             : collect();
-        $selectedHead = $tenantId !== '' && $this->head_citizen_id !== ''
+        $selectedHead = $hasTenant && $this->head_citizen_id !== ''
             ? $service->selectedHead($tenantId, $this->head_citizen_id)
             : null;
 
@@ -176,6 +180,9 @@ class Families extends Component
             'memberCandidates',
             'selectedHead',
             'headCitizens',
+            'canManage',
+            'isSuperAdmin',
+            'hasTenant',
         ));
     }
 
