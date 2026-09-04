@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\UserStatus;
-use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\TenantCategory;
 use App\Models\User;
@@ -20,6 +18,7 @@ class TenantService
     public function __construct(
         private readonly TenantRepositoryInterface $tenantRepository,
         private readonly AuditLogService $auditLogService,
+        private readonly UserRoleAssignmentService $roleAssignmentService,
     ) {}
 
     public function find(string $id): ?Tenant
@@ -61,16 +60,16 @@ class TenantService
     {
         return DB::transaction(function () use ($tenantData, $userData): Tenant {
             $tenant = $this->tenantRepository->create($this->withDefaultCategory($tenantData));
-            $tenantUserRole = Role::resolveSystemForTenant('tenant_user', $tenant->id);
-
-            $administrator = User::query()->create([
+            $administratorData = $this->roleAssignmentService->normalize([
                 'name' => $userData['name'],
                 'email' => $userData['email'],
                 'password' => $userData['password'],
-                'custom_role_id' => $tenantUserRole?->getKey(),
-                'status' => UserStatus::ACTIVE,
+                'role' => 'tenant_admin',
                 'tenant_id' => $tenant->id,
+                'status' => 'active',
             ]);
+
+            $administrator = User::query()->create($administratorData);
 
             $tenant->forceFill([
                 'administrator_user_id' => $administrator->id,
@@ -230,13 +229,16 @@ class TenantService
 
     private function userAuditValues(User $user): array
     {
+        $role = $user->roleModel();
+
         return [
             'name' => $user->name,
             'nip' => $user->nip,
             'email' => $user->email,
-            'role' => $user->role?->value,
+            'platform_role' => $user->platform_role?->value,
+            'role' => $role?->slug,
             'custom_role_id' => $user->custom_role_id,
-            'custom_role' => $user->customRole?->name,
+            'custom_role' => $role?->name,
             'status' => $user->status?->value,
             'tenant_id' => $user->tenant_id,
         ];
