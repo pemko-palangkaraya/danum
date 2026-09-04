@@ -14,10 +14,12 @@ class Statistics extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()?->hasPermission('population.view'), 403);
+        $user = auth()->user();
+        abort_unless($user?->hasPermission('population.view'), 403);
 
-        if (! auth()->user()->isSuperAdmin()) {
-            $this->selectedTenantId = auth()->user()->tenant_id;
+        if (! $user->isSuperAdmin()) {
+            abort_unless($user->tenant_id, 422);
+            $this->selectedTenantId = $user->tenant_id;
         }
     }
 
@@ -34,11 +36,13 @@ class Statistics extends Component
 
     public function render()
     {
-        abort_unless(auth()->user()?->hasPermission('population.view'), 403);
-
         $user = auth()->user();
+        abort_unless($user?->hasPermission('population.view'), 403);
+
         $isSuperAdmin = $user->isSuperAdmin();
         $tenantId = $isSuperAdmin ? $this->selectedTenantId : $user->tenant_id;
+        abort_unless($isSuperAdmin || $tenantId, 422);
+
         $service = app(PopulationStatisticsService::class);
         $statistics = $service->summarize($tenantId);
 
