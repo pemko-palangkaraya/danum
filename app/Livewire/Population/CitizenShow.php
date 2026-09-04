@@ -59,9 +59,19 @@ class CitizenShow extends Component
 
     public function render(): View
     {
-        $activeMembership = $this->citizen->familyMemberships
-            ->first(fn ($member) => $member->status === 'active');
+        $user = auth()->user();
+        $isSuperAdmin = $user->isSuperAdmin();
 
-        return view('livewire.pages.population.citizen-show', compact('activeMembership'));
+        return view('livewire.pages.population.citizen-show', [
+            'activeMembership' => $this->citizen->familyMemberships
+                ->first(fn ($member) => $member->status === 'active'),
+            'canManage' => $user->hasPermission('population.manage'),
+            'citizensRoute' => $isSuperAdmin
+                ? 'population.admin.citizens.index'
+                : 'population.citizens.index',
+            'familiesRoute' => $isSuperAdmin
+                ? 'population.admin.families.index'
+                : 'population.families.index',
+        ]);
     }
 }
