@@ -19,15 +19,8 @@ class PopulationStatisticsService
 
     public function summarize(?string $tenantId): array
     {
-        $citizens = Citizen::query()->when(
-            $tenantId,
-            fn ($query) => $query->where('tenant_id', $tenantId)
-        );
-
-        $families = Family::query()->when(
-            $tenantId,
-            fn ($query) => $query->where('tenant_id', $tenantId)
-        );
+        $citizens = Citizen::query()->when($tenantId, fn ($query) => $query->where('tenant_id', $tenantId));
+        $families = Family::query()->when($tenantId, fn ($query) => $query->where('tenant_id', $tenantId));
 
         $totalCitizens = (clone $citizens)->count();
         $gender = $this->gender($citizens);
@@ -42,18 +35,8 @@ class PopulationStatisticsService
             'male' => $this->genderCount($gender, 'male'),
             'female' => $this->genderCount($gender, 'female'),
             'gender' => $gender,
-            'marital' => (clone $citizens)
-                ->select('status_perkawinan', DB::raw('count(*) as total'))
-                ->groupBy('status_perkawinan')
-                ->pluck('total', 'status_perkawinan'),
-            'occupations' => (clone $citizens)
-                ->select('pekerjaan', DB::raw('count(*) as total'))
-                ->whereNotNull('pekerjaan')
-                ->whereRaw("TRIM(pekerjaan) <> ''")
-                ->groupBy('pekerjaan')
-                ->orderByDesc('total')
-                ->limit(8)
-                ->pluck('total', 'pekerjaan'),
+            'marital' => (clone $citizens)->select('status_perkawinan', DB::raw('count(*) as total'))->groupBy('status_perkawinan')->pluck('total', 'status_perkawinan'),
+            'occupations' => (clone $citizens)->select('pekerjaan', DB::raw('count(*) as total'))->whereNotNull('pekerjaan')->whereRaw("TRIM(pekerjaan) <> ''")->groupBy('pekerjaan')->orderByDesc('total')->limit(8)->pluck('total', 'pekerjaan'),
             'ageGroups' => $ageGroups,
             'toddlers' => $this->countAgeRange($citizens, 0, 5),
             'children' => $this->countAgeRange($citizens, 6, 14),
@@ -66,10 +49,7 @@ class PopulationStatisticsService
 
     private function gender($citizens): Collection
     {
-        return (clone $citizens)
-            ->select('jenis_kelamin', DB::raw('count(*) as total'))
-            ->groupBy('jenis_kelamin')
-            ->pluck('total', 'jenis_kelamin');
+        return (clone $citizens)->select('jenis_kelamin', DB::raw('count(*) as total'))->groupBy('jenis_kelamin')->pluck('total', 'jenis_kelamin');
     }
 
     private function genderCount(Collection $gender, string $wanted): int
@@ -90,10 +70,7 @@ class PopulationStatisticsService
         if ($max === null) {
             $query->whereRaw("DATE_PART('year', AGE(CURRENT_DATE, tanggal_lahir)) >= ?", [$min]);
         } else {
-            $query->whereRaw(
-                "DATE_PART('year', AGE(CURRENT_DATE, tanggal_lahir)) BETWEEN ? AND ?",
-                [$min, $max]
-            );
+            $query->whereRaw("DATE_PART('year', AGE(CURRENT_DATE, tanggal_lahir)) BETWEEN ? AND ?", [$min, $max]);
         }
 
         return $query->count();
@@ -101,12 +78,7 @@ class PopulationStatisticsService
 
     private function buildAgeGroups($citizens): Collection
     {
-        $labels = [
-            '80+', '75–79', '70–74', '65–69', '60–64', '55–59', '50–54',
-            '45–49', '40–44', '35–39', '30–34', '25–29', '20–24', '15–19',
-            '10–14', '5–9', '0–4',
-        ];
-
+        $labels = ['80+', '75–79', '70–74', '65–69', '60–64', '55–59', '50–54', '45–49', '40–44', '35–39', '30–34', '25–29', '20–24', '15–19', '10–14', '5–9', '0–4'];
         $ageSql = "CASE
             WHEN DATE_PART('year', AGE(CURRENT_DATE, tanggal_lahir)) >= 80 THEN '80+'
             WHEN DATE_PART('year', AGE(CURRENT_DATE, tanggal_lahir)) BETWEEN 75 AND 79 THEN '75–79'
@@ -126,31 +98,20 @@ class PopulationStatisticsService
             WHEN DATE_PART('year', AGE(CURRENT_DATE, tanggal_lahir)) BETWEEN 5 AND 9 THEN '5–9'
             WHEN DATE_PART('year', AGE(CURRENT_DATE, tanggal_lahir)) BETWEEN 0 AND 4 THEN '0–4'
         END";
-
         $genderSql = "CASE
             WHEN UPPER(TRIM(jenis_kelamin)) IN ('L', 'LAKI-LAKI', 'LAKI LAKI', 'MALE') THEN 'male'
             WHEN UPPER(TRIM(jenis_kelamin)) IN ('P', 'PEREMPUAN', 'FEMALE') THEN 'female'
             ELSE 'other'
         END";
 
-        $rows = (clone $citizens)
-            ->whereNotNull('tanggal_lahir')
-            ->selectRaw("{$ageSql} AS age_group, {$genderSql} AS gender, COUNT(*) AS total")
-            ->groupByRaw("{$ageSql}, {$genderSql}")
-            ->get();
-
-        $groups = collect($labels)->mapWithKeys(fn (string $label) => [
-            $label => ['male' => 0, 'female' => 0, 'other' => 0, 'total' => 0],
-        ]);
+        $rows = (clone $citizens)->whereNotNull('tanggal_lahir')->selectRaw("{$ageSql} AS age_group, {$genderSql} AS gender, COUNT(*) AS total")->groupByRaw("{$ageSql}, {$genderSql}")->get();
+        $groups = collect($labels)->mapWithKeys(fn (string $label) => [$label => ['male' => 0, 'female' => 0, 'other' => 0, 'total' => 0]]);
 
         foreach ($rows as $row) {
             if (! $groups->has($row->age_group)) {
                 continue;
             }
-
-            $gender = in_array($row->gender, ['male', 'female', 'other'], true)
-                ? $row->gender
-                : 'other';
+            $gender = in_array($row->gender, ['male', 'female', 'other'], true) ? $row->gender : 'other';
             $total = (int) $row->total;
             $group = $groups->get($row->age_group);
             $group[$gender] += $total;
@@ -159,11 +120,9 @@ class PopulationStatisticsService
         }
 
         $max = max(1, (int) $groups->max('total'));
-
         return $groups->map(function (array $group) use ($max): array {
             $group['male_width'] = round(($group['male'] / $max) * 100, 2);
             $group['female_width'] = round(($group['female'] / $max) * 100, 2);
-
             return $group;
         });
     }
