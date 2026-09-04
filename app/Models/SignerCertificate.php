@@ -39,6 +39,13 @@ class SignerCertificate extends Model
 
     public function isUsable(): bool
     {
-        return $this->is_active && $this->revoked_at === null && $this->valid_from->lte(now()) && $this->valid_until->gt(now());
+        $serial = strtoupper(trim((string) $this->serial_number));
+        $hasValidSerial = $serial !== '' && preg_match('/^[0]+$/', $serial) !== 1;
+
+        return $hasValidSerial
+            && $this->is_active
+            && $this->revoked_at === null
+            && $this->valid_from->lte(now())
+            && $this->valid_until->gt(now());
     }
 }
