@@ -44,14 +44,19 @@ class PdfSigningService
         $certificate->loadMissing('user.tenant');
         $tenantName = trim((string) $certificate->user?->tenant?->name);
 
-        // TCPDF derives the PDF signature signing time from PHP's default timezone.
-        // Laravel's configured timezone is therefore applied for the duration of
-        // the signing operation so the displayed signing time matches the server.
+        // tc-lib-pdf formats the PDF /M signature date with PHP's date() and the
+        // current default timezone. Apply Laravel's configured application timezone
+        // before constructing the PDF and explicitly pin the document modification
+        // time to the signing instant. This makes the signature metadata carry the
+        // server-local offset (for example +07'00 for Asia/Pontianak), rather than UTC.
         $previousTimezone = date_default_timezone_get();
-        date_default_timezone_set((string) config('app.timezone', 'UTC'));
+        $applicationTimezone = (string) config('app.timezone', 'UTC');
+        $signingTime = now()->startOfSecond();
+        date_default_timezone_set($applicationTimezone);
 
         try {
             $pdf = new \Com\Tecnick\Pdf\Tcpdf();
+            $pdf->setDocModificationDate($signingTime);
             $pdf->setCreator('DANUM');
             $pdf->setAuthor($signerName);
             $pdf->setSubject('Surat Keluar - Tanda Tangan Elektronik');
