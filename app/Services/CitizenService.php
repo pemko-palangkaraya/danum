@@ -8,6 +8,7 @@ use App\Models\Citizen;
 use App\Models\CitizenAddress;
 use App\Models\Tenant;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -23,6 +24,11 @@ class CitizenService
                     ->orWhere('nama_lengkap', 'ilike', '%' . $search . '%')
             ))
             ->orderBy('nama_lengkap');
+    }
+
+    public function paginate(string $tenantId, string $search = '', int $perPage = 10): LengthAwarePaginator
+    {
+        return $this->query($tenantId, $search)->paginate($perPage);
     }
 
     public function findForTenant(string $tenantId, string $id): Citizen
