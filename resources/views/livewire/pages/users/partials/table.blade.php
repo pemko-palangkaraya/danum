@@ -57,15 +57,15 @@
                 <div class="shrink-0"><x-ui.user-actions :user="$user" /></div>
             </div>
         @empty
-            <div class="p-8">
-                <x-ui.empty-state title="No users found." />
+            <div class="p-8 text-center">
+                <p class="text-sm text-slate-400">No users found.</p>
             </div>
         @endforelse
     </div>
 
     @if($users->total() > 0)
         <x-slot:footer>
-            @include('livewire.pages.users.partials/footer')
+            @include('livewire.pages.users.partials.footer')
         </x-slot:footer>
     @endif
 </x-ui.table-shell>
