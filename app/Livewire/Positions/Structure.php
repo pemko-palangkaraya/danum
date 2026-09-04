@@ -37,13 +37,13 @@ class Structure extends Component
     public string $holderAppointmentNumber = '';
     public $holderAppointmentDocument = null;
 
-    public function mount(?string $tenant = null, PositionStructureService $structures): void
+    public function mount(?string $tenant = null): void
     {
         $this->authorize('viewAny', Position::class);
         $user = auth()->user();
         if ($user->tenant_id) $this->selectedTenantId = (string) $user->tenant_id;
         elseif ($user->isSuperAdmin() && $tenant) $this->selectedTenantId = $tenant;
-        if ($this->selectedTenantId !== '') $structures->ensureRows($this->selectedTenantId);
+        if ($this->selectedTenantId !== '') app(PositionStructureService::class)->ensureRows($this->selectedTenantId);
     }
 
     public function updatedSelectedTenantId(PositionStructureService $structures): void
