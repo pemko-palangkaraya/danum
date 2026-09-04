@@ -36,7 +36,9 @@ class SignerCertificateTest extends TestCase
         $this->assertTrue($certificate->valid_until->isAfter($certificate->valid_from));
         $this->assertSame((int) $parsed['validFrom_time_t'], $certificate->valid_from->timestamp);
         $this->assertSame((int) $parsed['validTo_time_t'], $certificate->valid_until->timestamp);
-        $this->assertNotSame('0', ltrim((string) ($parsed['serialNumberHex'] ?? ''), '0'));
+        $serialHex = strtoupper((string) ($parsed['serialNumberHex'] ?? ''));
+        $this->assertNotSame('', $serialHex);
+        $this->assertMatchesRegularExpression('/[1-9A-F]/', $serialHex);
     }
 
     public function test_regenerating_a_certificate_deactivates_the_previous_certificate(): void
