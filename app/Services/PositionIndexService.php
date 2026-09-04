@@ -120,13 +120,6 @@ class PositionIndexService
             ->get(['id', 'code', 'name']);
     }
 
-    public function categoryTenants(mixed $categoryId): Collection
-    {
-        return $categoryId
-            ? Tenant::query()->where('tenant_category_id', $categoryId)->orderBy('name')->get(['id', 'name'])
-            : collect();
-    }
-
     public function preparePositions(LengthAwarePaginator $positions, User $user): void
     {
         foreach ($positions->getCollection() as $position) {
