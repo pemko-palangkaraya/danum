@@ -17,7 +17,7 @@
                 @php
                     $canEdit = $this->canManage()
                         && ((!$role->is_system && auth()->user()->isTenantAdmin())
-                            || (auth()->user()->isSuperAdmin() && $role->slug !== \App\Enums\UserRole::SUPER_ADMIN->value));
+                            || (auth()->user()->isSuperAdmin() && $role->slug !== 'super_admin'));
                 @endphp
 
                 @if($canEdit)
