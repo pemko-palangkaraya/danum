@@ -70,16 +70,19 @@ class OutgoingLetterWithdrawalService
         $this->ensureWithdrawalDecider($decidedBy);
         $note = trim((string) ($note ?? ''));
 
-        $letter = $withdrawal->outgoingLetter()->lockForUpdate()->firstOrFail();
+        return DB::transaction(function () use ($withdrawal, $decidedBy, $note): OutgoingLetter {
+            $withdrawal->refresh();
 
-        if ($withdrawal->status !== OutgoingLetterWithdrawalStatus::PENDING) {
-            throw new \DomainException('Pengajuan penarikan sudah diputuskan.');
-        }
-        if ($letter->status !== OutgoingLetterStatus::ISSUED) {
-            throw new \DomainException('Hanya surat issued yang dapat ditarik.');
-        }
+            if ($withdrawal->status !== OutgoingLetterWithdrawalStatus::PENDING) {
+                throw new \DomainException('Pengajuan penarikan sudah diputuskan.');
+            }
 
-        return DB::transaction(function () use ($withdrawal, $letter, $decidedBy, $note): OutgoingLetter {
+            $letter = $withdrawal->outgoingLetter()->lockForUpdate()->firstOrFail();
+
+            if ($letter->status !== OutgoingLetterStatus::ISSUED) {
+                throw new \DomainException('Hanya surat issued yang dapat ditarik.');
+            }
+
             $withdrawal->forceFill([
                 'status' => OutgoingLetterWithdrawalStatus::APPROVED,
                 'decided_by' => $decidedBy,
