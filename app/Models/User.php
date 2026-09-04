@@ -53,15 +53,7 @@ class User extends Authenticatable
         if ($this->isSuperAdmin() || $this->tenant_id === null) return null;
 
         if ($this->custom_role_id !== null) {
-            return Role::query()
-                ->whereKey($this->custom_role_id)
-                ->where('is_active', true)
-                ->where(function ($query) {
-                    $query->where(fn ($q) => $q->where('scope', 'global')->whereNull('tenant_id'))
-                        ->orWhere(fn ($q) => $q->where('scope', 'tenant')->where('tenant_id', $this->tenant_id))
-                        ->orWhere(fn ($q) => $q->where('scope', 'tenant')->whereNull('tenant_id')->where('is_system', true));
-                })
-                ->first();
+            return Role::findActiveForTenant($this->custom_role_id, $this->tenant_id);
         }
 
         $legacySlug = $this->role?->value;
@@ -70,16 +62,7 @@ class User extends Authenticatable
             return null;
         }
 
-        return Role::query()
-            ->where('slug', $legacySlug)
-            ->where('is_system', true)
-            ->where('is_active', true)
-            ->where(function ($query) use ($legacySlug) {
-                $query->where(fn ($q) => $q->where('scope', 'global')->whereNull('tenant_id'))
-                    ->orWhere(fn ($q) => $q->where('scope', 'tenant')->where('tenant_id', $this->tenant_id))
-                    ->orWhere(fn ($q) => $q->where('scope', 'tenant')->whereNull('tenant_id')->where('is_system', true));
-            })
-            ->first();
+        return Role::resolveSystemForTenant($legacySlug, $this->tenant_id);
     }
 
     /**
