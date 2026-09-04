@@ -15,6 +15,7 @@ use App\Services\DocxTemplateService;
 use App\Services\LetterTypeService;
 use App\Services\OutgoingLetterDraftService;
 use App\Services\OutgoingLetterService;
+use App\Services\OutgoingLetterWorkflowService;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -95,9 +96,7 @@ class Index extends Component
             $this->resetValidation();
             $this->showForm = true;
         } catch (\Throwable $exception) {
-            $this->toastError(
-                $exception instanceof \DomainException ? $exception->getMessage() : 'Draft tidak dapat diedit.'
-            );
+            $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Draft tidak dapat diedit.');
         }
     }
 
@@ -147,18 +146,14 @@ class Index extends Component
 
             $this->resetValidation();
             $this->validate([
-                'letter_type_id' => [
-                    'required',
-                    Rule::exists('letter_types', 'id')->where('status', LetterTypeStatus::ACTIVE->value),
-                ],
+                'letter_type_id' => ['required', Rule::exists('letter_types', 'id')->where('status', LetterTypeStatus::ACTIVE->value)],
                 'signer_position_id' => ['required', 'uuid'],
                 'validator_position_id' => ['required', 'uuid'],
                 'variableValues' => ['array'],
             ]);
 
             $letterTypeService = app(LetterTypeService::class);
-            $letterType = $letterTypeService->getAvailableForTenant($tenantId)
-                ->firstWhere('id', $this->letter_type_id);
+            $letterType = $letterTypeService->getAvailableForTenant($tenantId)->firstWhere('id', $this->letter_type_id);
             if (! $letterType) {
                 throw new \DomainException('Jenis surat tidak tersedia atau belum diberikan akses ke OPD Anda.');
             }
@@ -181,7 +176,6 @@ class Index extends Component
                 return;
             }
 
-            $data = $this->normalizedVariableValues();
             $existing = $this->editingId ? $this->tenantQuery()->findOrFail($this->editingId) : null;
             if ($existing) {
                 $this->authorize('update', $existing);
@@ -194,7 +188,7 @@ class Index extends Component
                 $holder,
                 $validatorPosition,
                 $validatorHolder,
-                $data,
+                $this->normalizedVariableValues(),
                 auth()->id(),
                 $tenantId,
                 $tenant,
@@ -206,23 +200,19 @@ class Index extends Component
         } catch (ValidationException $exception) {
             $this->setErrorBag($exception->validator->errors());
         } catch (\Throwable $exception) {
-            $this->toastError(
-                $exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal disimpan. Silakan coba lagi.'
-            );
+            $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal disimpan. Silakan coba lagi.');
         }
     }
 
-    public function submitLetter(string $id, OutgoingLetterService $service): void
+    public function submitLetter(string $id, OutgoingLetterWorkflowService $workflow): void
     {
         try {
             $letter = $this->tenantQuery()->findOrFail($id);
             $this->authorize('submit', $letter);
-            $service->submit($letter, auth()->id());
+            $workflow->submit($letter, auth()->id());
             $this->dispatch('toast', type: 'success', message: 'Surat dikirim untuk verifikasi. Data sekarang terkunci.');
         } catch (\Throwable $exception) {
-            $this->toastError(
-                $exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal dikirim untuk verifikasi.'
-            );
+            $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal dikirim untuk verifikasi.');
         }
     }
 
@@ -240,13 +230,13 @@ class Index extends Component
         }
     }
 
-    public function rejectLetter(OutgoingLetterService $service): void
+    public function rejectLetter(OutgoingLetterWorkflowService $workflow): void
     {
         try {
             $this->validate(['rejectReason' => ['required', 'string', 'max:2000']]);
             $letter = $this->tenantQuery()->findOrFail($this->rejectId);
             $this->authorize('reject', $letter);
-            $service->reject($letter, auth()->id(), $this->rejectReason);
+            $workflow->reject($letter, auth()->id(), $this->rejectReason);
             $this->showRejectForm = false;
             $this->rejectId = '';
             $this->rejectReason = '';
@@ -254,36 +244,24 @@ class Index extends Component
         } catch (ValidationException $exception) {
             $this->setErrorBag($exception->validator->errors());
         } catch (\Throwable $exception) {
-            $this->toastError(
-                $exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal ditolak.'
-            );
+            $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal ditolak.');
         }
     }
 
-    public function validateLetter(string $id, OutgoingLetterService $service, ?string $note = null): void
+    public function validateLetter(string $id, OutgoingLetterWorkflowService $workflow, ?string $note = null): void
     {
         if (blank($note)) {
-            $this->dispatch(
-                'workflow-note-required',
-                action: 'validate',
-                id: $id,
-                title: 'Catatan Verifikasi',
-                description: 'Berikan catatan pemeriksaan sebelum mengesahkan bahwa surat ini sudah diverifikasi.'
-            );
+            $this->dispatch('workflow-note-required', action: 'validate', id: $id, title: 'Catatan Verifikasi', description: 'Berikan catatan pemeriksaan sebelum mengesahkan bahwa surat ini sudah diverifikasi.');
             return;
         }
 
         try {
             $letter = $this->tenantQuery()->findOrFail($id);
             $this->authorize('validate', $letter);
-            $service->validate($letter, auth()->id(), $note);
+            $workflow->validate($letter, auth()->id(), $note);
             $this->dispatch('toast', type: 'success', message: 'Surat berhasil diverifikasi.');
         } catch (\Throwable $exception) {
-            $this->toastError(
-                $exception instanceof \DomainException
-                    ? $exception->getMessage()
-                    : 'Surat gagal diverifikasi. Anda mungkin tidak memiliki kewenangan atau status surat sudah berubah.'
-            );
+            $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal diverifikasi. Anda mungkin tidak memiliki kewenangan atau status surat sudah berubah.');
         }
     }
 
@@ -295,25 +273,12 @@ class Index extends Component
         }
 
         if (blank($note)) {
-            $this->dispatch(
-                'workflow-note-required',
-                action: 'issue',
-                id: $id,
-                title: 'Catatan Penandatanganan',
-                description: 'Berikan catatan sebelum menandatangani dan menerbitkan surat.'
-            );
+            $this->dispatch('workflow-note-required', action: 'issue', id: $id, title: 'Catatan Penandatanganan', description: 'Berikan catatan sebelum menandatangani dan menerbitkan surat.');
             return;
         }
 
         if (blank($pin)) {
-            $this->dispatch(
-                'signer-pin-required',
-                action: 'issue',
-                id: $id,
-                note: $note,
-                title: 'PIN Tanda Tangan',
-                description: 'Masukkan PIN tanda tangan Anda untuk melanjutkan proses penandatanganan.'
-            );
+            $this->dispatch('signer-pin-required', action: 'issue', id: $id, note: $note, title: 'PIN Tanda Tangan', description: 'Masukkan PIN tanda tangan Anda untuk melanjutkan proses penandatanganan.');
             return;
         }
 
@@ -324,38 +289,23 @@ class Index extends Component
             $this->dispatch('toast', type: 'success', message: 'Surat berhasil diterbitkan.');
         } catch (\Throwable $exception) {
             report($exception);
-            $this->toastError(
-                $exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal diterbitkan. Silakan cek log aplikasi.'
-            );
+            $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal diterbitkan. Silakan cek log aplikasi.');
         }
     }
 
     #[On('workflow-note-submitted')]
-    public function handleWorkflowNote(string $action, string $id, string $note, OutgoingLetterService $service): void
+    public function handleWorkflowNote(string $action, string $id, string $note, OutgoingLetterWorkflowService $workflow): void
     {
         $note = trim($note);
         if ($note === '') {
-            $this->dispatch(
-                'workflow-note-required',
-                action: $action,
-                id: $id,
-                title: $action === 'validate' ? 'Catatan Verifikasi' : 'Catatan Penandatanganan',
-                description: 'Catatan wajib diisi.'
-            );
+            $this->dispatch('workflow-note-required', action: $action, id: $id, title: $action === 'validate' ? 'Catatan Verifikasi' : 'Catatan Penandatanganan', description: 'Catatan wajib diisi.');
             return;
         }
 
         if ($action === 'validate') {
-            $this->validateLetter($id, $service, $note);
+            $this->validateLetter($id, $workflow, $note);
         } elseif ($action === 'issue') {
-            $this->dispatch(
-                'signer-pin-required',
-                action: 'issue',
-                id: $id,
-                note: $note,
-                title: 'Catatan Penandatanganan',
-                description: 'Masukkan PIN tanda tangan Anda untuk melanjutkan proses penandatanganan.'
-            );
+            $this->dispatch('signer-pin-required', action: 'issue', id: $id, note: $note, title: 'PIN Tanda Tangan', description: 'Masukkan PIN tanda tangan Anda untuk melanjutkan proses penandatanganan.');
         }
     }
 
@@ -384,9 +334,7 @@ class Index extends Component
             $this->dispatch('toast', type: 'success', message: 'Surat berhasil direstore.');
             $this->resetPage();
         } catch (\Throwable $exception) {
-            $this->toastError(
-                $exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal direstore.'
-            );
+            $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal direstore.');
         }
     }
 
@@ -411,15 +359,8 @@ class Index extends Component
             ->where('tenant_category_id', $tenant->tenant_category_id)
             ->where('status', PositionStatus::ACTIVE)
             ->where($capability, true)
-            ->whereHas('holders', fn ($query) => $query
-                ->where('tenant_id', $tenant->id)
-                ->whereNull('ended_at')
-                ->where('started_at', '<=', now()))
-            ->with(['holders' => fn ($query) => $query
-                ->where('tenant_id', $tenant->id)
-                ->whereNull('ended_at')
-                ->where('started_at', '<=', now())
-                ->with('user')]);
+            ->whereHas('holders', fn ($query) => $query->where('tenant_id', $tenant->id)->whereNull('ended_at')->where('started_at', '<=', now()))
+            ->with(['holders' => fn ($query) => $query->where('tenant_id', $tenant->id)->whereNull('ended_at')->where('started_at', '<=', now())->with('user')]);
     }
 
     private function isSuperAdmin(): bool
@@ -441,10 +382,7 @@ class Index extends Component
 
     private function resetForm(): void
     {
-        $this->reset([
-            'editingId', 'letter_type_id', 'signer_position_id', 'validator_position_id',
-            'variables', 'variableValues',
-        ]);
+        $this->reset(['editingId', 'letter_type_id', 'signer_position_id', 'validator_position_id', 'variables', 'variableValues']);
     }
 
     private function toastError(string $message): void
@@ -454,17 +392,11 @@ class Index extends Component
 
     public function render()
     {
-        if ($this->filter === null || $this->filter === '') {
-            $this->filter = 'all';
-        }
-
+        $this->filter = $this->filter ?: 'all';
         $this->authorize('viewAny', OutgoingLetter::class);
 
         $letters = $this->archiveQuery()
-            ->with([
-                'tenant', 'letterType', 'letterTypeVersion', 'signerPosition', 'signerUser',
-                'validatorPosition', 'validatorUser', 'creator', 'rejectedBy',
-            ])
+            ->with(['tenant', 'letterType', 'letterTypeVersion', 'signerPosition', 'signerUser', 'validatorPosition', 'validatorUser', 'creator', 'rejectedBy'])
             ->latest();
 
         if ($this->isSuperAdmin() && $this->filter === 'deleted') {
