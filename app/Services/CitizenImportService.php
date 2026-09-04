@@ -80,10 +80,14 @@ class CitizenImportService
 
                 if ($validation->fails()) {
                     $rows[$i]['_error'] = implode(' ', $validation->errors()->all());
+                    continue;
                 }
 
-                if ($existingNiks->has($item['nik']) && $duplicateMode === 'skip') {
-                    $rows[$i]['_error'] = 'NIK sudah ada — akan dilewati.';
+                if ($existingNiks->has($item['nik'])) {
+                    $rows[$i]['_duplicate'] = true;
+                    if ($duplicateMode === 'skip') {
+                        $rows[$i]['_error'] = 'NIK sudah ada — akan dilewati.';
+                    }
                 }
             }
 
@@ -121,17 +125,17 @@ class CitizenImportService
             $now = now();
 
             foreach ($rows as $row) {
-                $citizen = $existing->get($row['nik']);
-
-                if ($citizen) {
-                    if ($duplicateMode === 'update' && $row['_error'] === 'NIK sudah ada — akan dilewati.') {
-                        $citizen->update($this->cleanRow($row, $tenantId) + ['updated_by' => $userId]);
-                        $count++;
-                    }
+                if (! empty($row['_error'])) {
                     continue;
                 }
 
-                if ($row['_error']) {
+                $citizen = $existing->get($row['nik']);
+
+                if ($citizen) {
+                    if ($duplicateMode === 'update') {
+                        $citizen->update($this->cleanRow($row, $tenantId) + ['updated_by' => $userId]);
+                        $count++;
+                    }
                     continue;
                 }
 
@@ -202,6 +206,7 @@ class CitizenImportService
             $item['kewarganegaraan'] = $item['kewarganegaraan'] ?: 'WNI';
             $item['status_kependudukan'] = $item['status_kependudukan'] ?: 'active';
             $item['_error'] = null;
+            $item['_duplicate'] = false;
 
             if ($item['nik'] === '' && $item['nama_lengkap'] === '') {
                 continue;
@@ -234,7 +239,7 @@ class CitizenImportService
     private function cleanRow(array $row, string $tenantId): array
     {
         return collect($row)
-            ->except(['line', '_error'])
+            ->except(['line', '_error', '_duplicate'])
             ->merge(['tenant_id' => $tenantId])
             ->toArray();
     }
