@@ -6,6 +6,7 @@ namespace App\Services;
 
 use DOMDocument;
 use DOMElement;
+use DOMNode;
 use DOMXPath;
 use RuntimeException;
 use ZipArchive;
@@ -16,6 +17,7 @@ class DocxTteService
     private const REL_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';
     private const OFFICE_REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
     private const TTE_NAME = 'DANUM TTE QR';
+    private const TTE_MARKER = '{{tte}}';
 
     public function embed(string $docxPath, string $verificationUrl): void
     {
@@ -57,24 +59,29 @@ class DocxTteService
 
             $dom = new DOMDocument();
             $dom->preserveWhiteSpace = true;
-            if (! $dom->loadXML($xml, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) {
-                continue;
-            }
+            if (! $dom->loadXML($xml, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) continue;
+
             $xpath = new DOMXPath($dom);
             $xpath->registerNamespace('w', self::WORD_NS);
-            $node = $xpath->query('//w:t[contains(., "{{tte}}")]')?->item(0);
-            if (! $node) continue;
+            $paragraphs = $xpath->query('//w:p');
+            if (! $paragraphs) continue;
 
-            $rid = $this->nextRelationshipId($rels);
-            $drawingXml = $this->drawingXml($rid, $mediaName);
-            $fragment = $dom->createDocumentFragment();
-            if (! $fragment->appendXML($drawingXml)) continue;
-            $node->parentNode?->replaceChild($fragment, $node);
+            foreach ($paragraphs as $paragraph) {
+                if (! $paragraph instanceof DOMElement) continue;
+                if (! $this->replaceMarkerInParagraph($paragraph, $xpath, $mediaName, $rels)) continue;
+
+                $rels = $this->relsForDocument($rels);
+                $embedded = true;
+                break;
+            }
+
+            if (! $embedded) continue;
 
             $relsDom = new DOMDocument();
             $relsDom->preserveWhiteSpace = true;
             if (! $relsDom->loadXML($rels, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) continue;
             $root = $relsDom->documentElement;
+            $rid = $this->lastRelationshipId($rels);
             $rel = $relsDom->createElementNS(self::REL_NS, 'Relationship');
             $rel->setAttribute('Id', $rid);
             $rel->setAttribute('Type', self::OFFICE_REL_NS . '/image');
@@ -83,7 +90,6 @@ class DocxTteService
 
             $zip->addFromString($part['xml'], $dom->saveXML() ?: $xml);
             $zip->addFromString($part['rels'], $relsDom->saveXML() ?: $rels);
-            $embedded = true;
         }
 
         if ($embedded) {
@@ -120,10 +126,88 @@ class DocxTteService
         return $parts;
     }
 
+    private function replaceMarkerInParagraph(DOMElement $paragraph, DOMXPath $xpath, string $mediaName, string &$rels): bool
+    {
+        $nodes = $xpath->query('.//w:t', $paragraph);
+        if (! $nodes || $nodes->length === 0) return false;
+
+        $text = '';
+        $items = [];
+        foreach ($nodes as $node) {
+            if (! $node instanceof DOMElement) continue;
+            $value = $node->textContent;
+            $start = strlen($text);
+            $text .= $value;
+            $items[] = ['node' => $node, 'start' => $start, 'length' => strlen($value)];
+        }
+
+        $markerStart = strpos($text, self::TTE_MARKER);
+        if ($markerStart === false) return false;
+        $markerEnd = $markerStart + strlen(self::TTE_MARKER);
+
+        $first = null;
+        $last = null;
+        foreach ($items as $item) {
+            $itemEnd = $item['start'] + $item['length'];
+            if ($first === null && $markerStart < $itemEnd) $first = $item;
+            if ($markerEnd > $item['start'] && $markerEnd <= $itemEnd) { $last = $item; break; }
+        }
+        if ($first === null || $last === null) return false;
+
+        $rid = $this->nextRelationshipId($rels);
+        $drawingXml = $this->drawingXml($rid, $mediaName);
+        $drawing = $paragraph->ownerDocument?->createDocumentFragment();
+        if (! $drawing || ! $drawing->appendXML($drawingXml)) return false;
+
+        $firstNode = $first['node'];
+        $firstText = $firstNode->textContent;
+        $prefix = substr($firstText, 0, max(0, $markerStart - $first['start']));
+        $suffix = '';
+        if ($last['node'] === $firstNode) {
+            $after = $markerEnd - $first['start'];
+            $suffix = substr($firstText, $after);
+        } else {
+            $lastText = $last['node']->textContent;
+            $after = $markerEnd - $last['start'];
+            $suffix = substr($lastText, $after);
+        }
+
+        $firstNode->nodeValue = $prefix . $suffix;
+        $firstNode->parentNode?->appendChild($drawing);
+
+        foreach ($items as $item) {
+            $node = $item['node'];
+            if ($node === $firstNode) continue;
+            $itemEnd = $item['start'] + $item['length'];
+            if ($item['start'] >= $markerStart && $itemEnd <= $markerEnd) {
+                $node->nodeValue = '';
+            } elseif ($node === $last['node']) {
+                $node->nodeValue = $suffix;
+            }
+        }
+
+        $rels .= "\n<!-- DANUM_TTE_REL:$rid -->";
+        return true;
+    }
+
+    private function relsForDocument(string $rels): string
+    {
+        if (preg_match('/<!-- DANUM_TTE_REL:(rIdDanumTte\d+) -->/', $rels, $match)) {
+            return preg_replace('/\n<!-- DANUM_TTE_REL:rIdDanumTte\d+ -->/', '', $rels) ?? $rels;
+        }
+        return $rels;
+    }
+
+    private function lastRelationshipId(string $rels): string
+    {
+        if (preg_match('/<!-- DANUM_TTE_REL:(rIdDanumTte\d+) -->/', $rels, $match)) return $match[1];
+        return $this->nextRelationshipId($rels);
+    }
+
     private function nextRelationshipId(string $rels): string
     {
         $dom = new DOMDocument();
-        $dom->loadXML($rels, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING);
+        if (! $dom->loadXML($rels, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) return 'rIdDanumTte1';
         $used = [];
         foreach ($dom->documentElement?->childNodes ?? [] as $child) {
             if ($child instanceof DOMElement) $used[$child->getAttribute('Id')] = true;
