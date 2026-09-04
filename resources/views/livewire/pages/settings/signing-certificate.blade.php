@@ -123,7 +123,7 @@ new #[Layout('layouts.app')] class extends Component {
                     <div class="min-w-0">
                         <div class="font-semibold text-slate-900">{{ $certificate->position?->name ?? '-' }}</div>
                         <div class="mt-1 text-xs text-slate-500">
-                            Serial {{ $certificate->serial_number }} · Berlaku {{ $certificate->valid_from?->format('d M Y') }} – {{ $certificate->valid_until?->format('d M Y') }}
+                            Serial {{ $certificate->serial_number }} · Berlaku {{ $certificate->valid_from?->timezone(config('app.timezone'))->format('d M Y H:i:s') }} – {{ $certificate->valid_until?->timezone(config('app.timezone'))->format('d M Y H:i:s') }} {{ config('app.timezone') }}
                         </div>
                         <div class="mt-1 truncate font-mono text-[11px] text-slate-400">SHA-256 {{ $certificate->fingerprint_sha256 }}</div>
                     </div>
