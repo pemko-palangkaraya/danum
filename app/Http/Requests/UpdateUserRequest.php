@@ -6,14 +6,22 @@ namespace App\Http\Requests;
 
 use App\Models\Role;
 use App\Models\User;
+use App\Services\UserRoleAssignmentService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class UpdateUserRequest extends FormRequest
 {
-    public function authorize(): bool { return $this->user()?->isSuperAdmin() === true; }
-    public function rules(): array { return self::rulesFor($this->currentUser()); }
+    public function authorize(): bool
+    {
+        return $this->user()?->isSuperAdmin() === true;
+    }
+
+    public function rules(): array
+    {
+        return self::rulesFor($this->currentUser());
+    }
 
     public static function rulesFor(?User $user): array
     {
@@ -32,28 +40,33 @@ class UpdateUserRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->input('role') === 'super_admin') {
-            $this->merge(['platform_role' => 'super_admin', 'tenant_id' => null, 'custom_role_id' => null]);
-            return;
-        }
-
-        if ($this->input('role') && $this->input('tenant_id') && ! $this->input('custom_role_id')) {
-            $role = Role::resolveSystemForTenant($this->input('role'), $this->input('tenant_id'));
-            if ($role) $this->merge(['platform_role' => null, 'custom_role_id' => $role->getKey()]);
-        }
+        $this->replace(app(UserRoleAssignmentService::class)->normalize($this->all()));
     }
 
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
             $user = $this->currentUser();
-            if ($user === null) return;
-            $platformRole = $this->has('platform_role') ? $this->input('platform_role') : $user->platform_role?->value;
-            $tenantId = $this->has('tenant_id') ? $this->input('tenant_id') : $user->tenant_id;
-            $customRoleId = $this->has('custom_role_id') ? $this->input('custom_role_id') : $user->custom_role_id;
-            if ($platformRole === 'super_admin' && ($tenantId !== null || $customRoleId !== null)) $validator->errors()->add('platform_role', 'Super Admin tidak boleh memiliki tenant atau RBAC role.');
-            if ($platformRole === null && $tenantId === null) $validator->errors()->add('tenant_id', 'Tenant member harus memiliki tenant.');
-            if ($platformRole === null && $tenantId !== null && $customRoleId === null) $validator->errors()->add('custom_role_id', 'Tenant member harus memiliki RBAC role.');
+            if ($user === null) {
+                return;
+            }
+
+            $platformRole = $this->input('platform_role', $user->platform_role?->value);
+            $tenantId = $this->input('tenant_id', $user->tenant_id);
+            $customRoleId = $this->input('custom_role_id', $user->custom_role_id);
+
+            if ($platformRole === 'super_admin' && ($tenantId !== null || $customRoleId !== null)) {
+                $validator->errors()->add('platform_role', 'Super Admin tidak boleh memiliki tenant atau RBAC role.');
+            }
+
+            if ($platformRole === null && $tenantId === null) {
+                $validator->errors()->add('tenant_id', 'Tenant member harus memiliki tenant.');
+            }
+
+            if ($platformRole === null && $tenantId !== null && $customRoleId === null) {
+                $validator->errors()->add('custom_role_id', 'Tenant member harus memiliki RBAC role.');
+            }
+
             if ($customRoleId !== null && $tenantId !== null && Role::findActiveForTenant($customRoleId, $tenantId) === null) {
                 $validator->errors()->add('custom_role_id', 'RBAC role tidak berlaku untuk tenant yang dipilih.');
             }
@@ -63,7 +76,10 @@ class UpdateUserRequest extends FormRequest
     private function currentUser(): ?User
     {
         $routeUser = $this->route('user') ?? $this->route('id');
-        if ($routeUser instanceof User) return $routeUser;
+        if ($routeUser instanceof User) {
+            return $routeUser;
+        }
+
         $userId = $routeUser ?? $this->input('user_id');
         return $userId === null ? null : User::query()->find($userId);
     }
