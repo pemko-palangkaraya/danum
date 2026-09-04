@@ -7,7 +7,6 @@ namespace Tests\Feature\Population;
 use App\Livewire\Population\Families;
 use App\Models\Citizen;
 use App\Models\Family;
-use App\Models\FamilyMember;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
