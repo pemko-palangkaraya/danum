@@ -6,7 +6,6 @@ namespace App\Services;
 
 use App\Enums\UserStatus;
 use App\Events\UserStatusChanged;
-use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
@@ -17,6 +16,7 @@ class UserService
     public function __construct(
         private readonly UserRepositoryInterface $userRepository,
         private readonly AuditLogService $auditLogService,
+        private readonly UserRoleAssignmentService $roleAssignmentService,
     ) {}
 
     public function find(int $id): ?User
@@ -36,8 +36,7 @@ class UserService
 
     public function create(array $data): User
     {
-        $data = $this->normalizeSystemRole($data);
-        $user = $this->userRepository->create($data);
+        $user = $this->userRepository->create($this->normalizeRoleAssignment($data));
 
         $this->auditLogService->record(
             action: 'user.created',
@@ -52,11 +51,10 @@ class UserService
 
     public function update(User $user, array $data): User
     {
-        $data = $this->normalizeSystemRole($data);
+        $data = $this->normalizeRoleAssignment($data);
         $oldStatus = $user->status;
         $newStatus = $data['status'] ?? $oldStatus;
         $oldValues = $this->auditValues($user);
-
         $changedAt = now();
 
         $updatedUser = $this->userRepository->update($user, $data);
@@ -94,27 +92,9 @@ class UserService
         return $deleted;
     }
 
-    private function normalizeSystemRole(array $data): array
+    private function normalizeRoleAssignment(array $data): array
     {
-        $role = $data['role'] ?? null;
-        $tenantId = $data['tenant_id'] ?? null;
-
-        if ($tenantId !== null && in_array($role, ['tenant_admin', 'tenant_user'], true) && empty($data['custom_role_id'])) {
-            $systemRole = Role::resolveSystemForTenant($role, $tenantId);
-
-            if ($systemRole !== null) {
-                $data['platform_role'] = null;
-                $data['custom_role_id'] = $systemRole->getKey();
-            }
-        }
-
-        if ($role === 'super_admin') {
-            $data['platform_role'] = 'super_admin';
-            $data['tenant_id'] = null;
-            $data['custom_role_id'] = null;
-        }
-
-        return $data;
+        return $this->roleAssignmentService->normalize($data);
     }
 
     private function actor(): ?User
@@ -126,13 +106,16 @@ class UserService
 
     private function auditValues(User $user): array
     {
+        $role = $user->effectiveRole();
+
         return [
             'name' => $user->name,
             'nip' => $user->nip,
             'email' => $user->email,
-            'role' => $user->role?->value,
+            'platform_role' => $user->platform_role?->value,
+            'role' => $role?->slug,
             'custom_role_id' => $user->custom_role_id,
-            'custom_role' => $user->customRole?->name,
+            'custom_role' => $role?->name,
             'status' => $user->status?->value,
             'tenant_id' => $user->tenant_id,
         ];
