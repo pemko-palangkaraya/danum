@@ -6,7 +6,6 @@ namespace App\Services;
 
 use DOMDocument;
 use DOMElement;
-use DOMNode;
 use DOMXPath;
 use RuntimeException;
 use ZipArchive;
@@ -27,29 +26,17 @@ class DocxTteService
         if ($zip->open($docxPath) !== true) throw new RuntimeException('DOCX hasil surat tidak dapat dibuka.');
 
         $parts = $this->tteParts($zip);
-        if ($parts === []) {
-            $zip->close();
-            return;
-        }
+        if ($parts === []) { $zip->close(); return; }
 
         $svg = app(VerificationQrCodeService::class)->render($verificationUrl);
         $prefix = 'data:image/svg+xml;base64,';
-        if (! str_starts_with($svg, $prefix)) {
-            $zip->close();
-            throw new RuntimeException('QR verification tidak menghasilkan SVG yang valid.');
-        }
+        if (! str_starts_with($svg, $prefix)) { $zip->close(); throw new RuntimeException('QR verification tidak menghasilkan SVG yang valid.'); }
         $svgBytes = base64_decode(substr($svg, strlen($prefix)), true);
-        if ($svgBytes === false) {
-            $zip->close();
-            throw new RuntimeException('Data QR verification tidak valid.');
-        }
+        if ($svgBytes === false) { $zip->close(); throw new RuntimeException('Data QR verification tidak valid.'); }
 
         $mediaName = 'danum-tte-' . substr(hash('sha256', $verificationUrl), 0, 16) . '.svg';
         $contentTypes = $zip->getFromName('[Content_Types].xml');
-        if ($contentTypes === false) {
-            $zip->close();
-            throw new RuntimeException('DOCX [Content_Types].xml tidak ditemukan.');
-        }
+        if ($contentTypes === false) { $zip->close(); throw new RuntimeException('DOCX [Content_Types].xml tidak ditemukan.'); }
 
         $embedded = false;
         foreach ($parts as $part) {
@@ -60,36 +47,16 @@ class DocxTteService
             $dom = new DOMDocument();
             $dom->preserveWhiteSpace = true;
             if (! $dom->loadXML($xml, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) continue;
-
             $xpath = new DOMXPath($dom);
             $xpath->registerNamespace('w', self::WORD_NS);
-            $paragraphs = $xpath->query('//w:p');
-            if (! $paragraphs) continue;
 
-            foreach ($paragraphs as $paragraph) {
-                if (! $paragraph instanceof DOMElement) continue;
-                if (! $this->replaceMarkerInParagraph($paragraph, $xpath, $mediaName, $rels)) continue;
+            $replacement = $this->replaceMarkerInDocument($dom, $xpath, $rels, $mediaName);
+            if ($replacement === null) continue;
 
-                $rels = $this->relsForDocument($rels);
-                $embedded = true;
-                break;
-            }
-
-            if (! $embedded) continue;
-
-            $relsDom = new DOMDocument();
-            $relsDom->preserveWhiteSpace = true;
-            if (! $relsDom->loadXML($rels, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) continue;
-            $root = $relsDom->documentElement;
-            $rid = $this->lastRelationshipId($rels);
-            $rel = $relsDom->createElementNS(self::REL_NS, 'Relationship');
-            $rel->setAttribute('Id', $rid);
-            $rel->setAttribute('Type', self::OFFICE_REL_NS . '/image');
-            $rel->setAttribute('Target', 'media/' . $mediaName);
-            $root?->appendChild($rel);
-
+            [$rid, $updatedRels] = $replacement;
             $zip->addFromString($part['xml'], $dom->saveXML() ?: $xml);
-            $zip->addFromString($part['rels'], $relsDom->saveXML() ?: $rels);
+            $zip->addFromString($part['rels'], $updatedRels);
+            $embedded = true;
         }
 
         if ($embedded) {
@@ -118,7 +85,7 @@ class DocxTteService
         $parts = [];
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i);
-            if (! is_string($name) || ! preg_match('#^word/(document|header\d+|footer\d+)\.xml$#', $name, $matches)) continue;
+            if (! is_string($name) || ! preg_match('#^word/(document|header\d+|footer\d+)\.xml$#', $name)) continue;
             $base = pathinfo($name, PATHINFO_FILENAME);
             $rels = 'word/_rels/' . $base . '.xml.rels';
             if ($zip->locateName($rels) !== false) $parts[] = ['xml' => $name, 'rels' => $rels];
@@ -126,82 +93,84 @@ class DocxTteService
         return $parts;
     }
 
-    private function replaceMarkerInParagraph(DOMElement $paragraph, DOMXPath $xpath, string $mediaName, string &$rels): bool
+    private function replaceMarkerInDocument(DOMDocument $dom, DOMXPath $xpath, string $rels, string $mediaName): ?array
     {
-        $nodes = $xpath->query('.//w:t', $paragraph);
-        if (! $nodes || $nodes->length === 0) return false;
+        $paragraphs = $xpath->query('//w:p');
+        if (! $paragraphs) return null;
 
-        $text = '';
-        $items = [];
-        foreach ($nodes as $node) {
-            if (! $node instanceof DOMElement) continue;
-            $value = $node->textContent;
-            $start = strlen($text);
-            $text .= $value;
-            $items[] = ['node' => $node, 'start' => $start, 'length' => strlen($value)];
-        }
+        foreach ($paragraphs as $paragraph) {
+            if (! $paragraph instanceof DOMElement) continue;
+            $nodes = $xpath->query('.//w:t', $paragraph);
+            if (! $nodes || $nodes->length === 0) continue;
 
-        $markerStart = strpos($text, self::TTE_MARKER);
-        if ($markerStart === false) return false;
-        $markerEnd = $markerStart + strlen(self::TTE_MARKER);
-
-        $first = null;
-        $last = null;
-        foreach ($items as $item) {
-            $itemEnd = $item['start'] + $item['length'];
-            if ($first === null && $markerStart < $itemEnd) $first = $item;
-            if ($markerEnd > $item['start'] && $markerEnd <= $itemEnd) { $last = $item; break; }
-        }
-        if ($first === null || $last === null) return false;
-
-        $rid = $this->nextRelationshipId($rels);
-        $drawingXml = $this->drawingXml($rid, $mediaName);
-        $drawing = $paragraph->ownerDocument?->createDocumentFragment();
-        if (! $drawing || ! $drawing->appendXML($drawingXml)) return false;
-
-        $firstNode = $first['node'];
-        $firstText = $firstNode->textContent;
-        $prefix = substr($firstText, 0, max(0, $markerStart - $first['start']));
-        $suffix = '';
-        if ($last['node'] === $firstNode) {
-            $after = $markerEnd - $first['start'];
-            $suffix = substr($firstText, $after);
-        } else {
-            $lastText = $last['node']->textContent;
-            $after = $markerEnd - $last['start'];
-            $suffix = substr($lastText, $after);
-        }
-
-        $firstNode->nodeValue = $prefix . $suffix;
-        $firstNode->parentNode?->appendChild($drawing);
-
-        foreach ($items as $item) {
-            $node = $item['node'];
-            if ($node === $firstNode) continue;
-            $itemEnd = $item['start'] + $item['length'];
-            if ($item['start'] >= $markerStart && $itemEnd <= $markerEnd) {
-                $node->nodeValue = '';
-            } elseif ($node === $last['node']) {
-                $node->nodeValue = $suffix;
+            $text = '';
+            $items = [];
+            foreach ($nodes as $node) {
+                if (! $node instanceof DOMElement) continue;
+                $value = $node->textContent;
+                $start = strlen($text);
+                $text .= $value;
+                $items[] = ['node' => $node, 'start' => $start, 'length' => strlen($value)];
             }
+
+            $markerStart = strpos($text, self::TTE_MARKER);
+            if ($markerStart === false) continue;
+            $markerEnd = $markerStart + strlen(self::TTE_MARKER);
+
+            $first = null;
+            $last = null;
+            foreach ($items as $item) {
+                $itemEnd = $item['start'] + $item['length'];
+                if ($first === null && $markerStart < $itemEnd) $first = $item;
+                if ($markerEnd > $item['start'] && $markerEnd <= $itemEnd) { $last = $item; break; }
+            }
+            if ($first === null || $last === null) continue;
+
+            $rid = $this->nextRelationshipId($rels);
+            $drawingXml = $this->drawingXml($rid, $mediaName);
+            $fragment = $dom->createDocumentFragment();
+            if (! $fragment->appendXML($drawingXml)) continue;
+
+            $firstNode = $first['node'];
+            $firstOffset = $markerStart - $first['start'];
+            $prefix = substr($firstNode->textContent, 0, max(0, $firstOffset));
+            $suffix = '';
+            if ($firstNode === $last['node']) {
+                $after = $markerEnd - $first['start'];
+                $suffix = substr($firstNode->textContent, $after);
+            } else {
+                $after = $markerEnd - $last['start'];
+                $suffix = substr($last['node']->textContent, $after);
+            }
+
+            $firstNode->nodeValue = $prefix;
+            $firstNode->parentNode?->appendChild($fragment);
+
+            foreach ($items as $item) {
+                $node = $item['node'];
+                if ($node === $firstNode) continue;
+                $itemEnd = $item['start'] + $item['length'];
+                if ($item['start'] >= $markerStart && $itemEnd <= $markerEnd) {
+                    $node->nodeValue = '';
+                } elseif ($node === $last['node']) {
+                    $node->nodeValue = $suffix;
+                }
+            }
+
+            $relsDom = new DOMDocument();
+            $relsDom->preserveWhiteSpace = true;
+            if (! $relsDom->loadXML($rels, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) continue;
+            $root = $relsDom->documentElement;
+            $rel = $relsDom->createElementNS(self::REL_NS, 'Relationship');
+            $rel->setAttribute('Id', $rid);
+            $rel->setAttribute('Type', self::OFFICE_REL_NS . '/image');
+            $rel->setAttribute('Target', 'media/' . $mediaName);
+            $root?->appendChild($rel);
+
+            return [$rid, $relsDom->saveXML() ?: $rels];
         }
 
-        $rels .= "\n<!-- DANUM_TTE_REL:$rid -->";
-        return true;
-    }
-
-    private function relsForDocument(string $rels): string
-    {
-        if (preg_match('/<!-- DANUM_TTE_REL:(rIdDanumTte\d+) -->/', $rels, $match)) {
-            return preg_replace('/\n<!-- DANUM_TTE_REL:rIdDanumTte\d+ -->/', '', $rels) ?? $rels;
-        }
-        return $rels;
-    }
-
-    private function lastRelationshipId(string $rels): string
-    {
-        if (preg_match('/<!-- DANUM_TTE_REL:(rIdDanumTte\d+) -->/', $rels, $match)) return $match[1];
-        return $this->nextRelationshipId($rels);
+        return null;
     }
 
     private function nextRelationshipId(string $rels): string
@@ -255,7 +224,6 @@ class DocxTteService
     {
         $zip = new ZipArchive();
         if ($zip->open($docxPath) !== true) throw new RuntimeException('DOCX hasil surat tidak dapat dibuka.');
-
         foreach ($this->tteParts($zip) as $part) {
             $xml = $zip->getFromName($part['xml']);
             if ($xml === false) continue;
