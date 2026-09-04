@@ -144,7 +144,7 @@ class Index extends Component
 
     public function render(PositionIndexService $index)
     {
-        $user = auth()->user(); $categoryId = $index->categoryIdFor($user, $this->selectedTenantId); $positions = $index->positions($user, $categoryId, $this->search, $this->filter, $this->perPage); $users = $index->holderUsers($user, $categoryId); $history = $index->history($this->historyPositionId, $user); $certificate = $this->showCertificate ? $index->certificate($this->certificatePositionId) : null; $categories = $index->categories(); $index->preparePositions($positions, $user);
+        $user = auth()->user(); $categoryId = $index->categoryIdFor($user, $this->selectedTenantId); $positions = $index->positions($user, $categoryId, $this->search, $this->filter, $this->perPage); $users = $index->holderUsers($user, $categoryId); $history = $index->history($this->historyPositionId, $user); $certificate = $this->showCertificate ? $index->certificate($this->certificatePositionId) : null; $categories = $index->categories(); $index->preparePositions($positions);
         return view('livewire.pages.positions.index', ['positions' => $positions, 'users' => $users, 'history' => $history, 'certificate' => $certificate, 'tenants' => $categories, 'isSuperAdmin' => $user->isSuperAdmin(), 'canManageHolders' => $user->canManagePositions()]);
     }
 }
