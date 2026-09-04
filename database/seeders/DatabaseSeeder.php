@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Enums\PlatformRole;
@@ -20,6 +22,13 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
+        // Reference/master data must exist before demo tenants depend on it.
+        $this->call([
+            TenantReferenceSeeder::class,
+            PopulationReferenceSeeder::class,
+            PositionSeeder::class,
+        ]);
+
         $superAdminEmail = env('DANUM_SUPER_ADMIN_EMAIL', 'admin@danum.local');
         $superAdminPassword = env('DANUM_SUPER_ADMIN_PASSWORD', 'password');
 
@@ -57,12 +66,7 @@ class DatabaseSeeder extends Seeder
 
         $permissionService = app(SystemRolePermissionService::class);
 
-        $tenantAdminRole = Role::query()->updateOrCreate(['tenant_id' => null, 'slug' => 'tenant_admin'], [
-            'name' => 'Tenant Admin',
-            'scope' => 'tenant',
-            'is_system' => true,
-            'is_active' => true,
-        ]);
+        $tenantAdminRole = $this->ensureSystemRole('tenant_admin', 'Tenant Admin');
         $permissionService->sync($tenantAdminRole);
 
         User::updateOrCreate(['email' => env('DANUM_TENANT_ADMIN_EMAIL', 'yudhistira@danum.local')], [
@@ -77,12 +81,7 @@ class DatabaseSeeder extends Seeder
             'tenant_id' => $tenant->id,
         ]);
 
-        $tenantUserRole = Role::query()->updateOrCreate(['tenant_id' => null, 'slug' => 'tenant_user'], [
-            'name' => 'Tenant User',
-            'scope' => 'tenant',
-            'is_system' => true,
-            'is_active' => true,
-        ]);
+        $tenantUserRole = $this->ensureSystemRole('tenant_user', 'Tenant User');
         $permissionService->sync($tenantUserRole);
 
         User::updateOrCreate(['email' => env('DANUM_TENANT_USER_EMAIL', 'ucok@danum.local')], [
@@ -97,10 +96,19 @@ class DatabaseSeeder extends Seeder
             'tenant_id' => $tenant->id,
         ]);
 
-        $this->call([
-            PopulationReferenceSeeder::class,
-            PositionSeeder::class,
-            KalimantanTengahTenantSeeder::class,
-        ]);
+        $this->call(KalimantanTengahTenantSeeder::class);
+    }
+
+    private function ensureSystemRole(string $slug, string $name): Role
+    {
+        return Role::query()->updateOrCreate(
+            ['tenant_id' => null, 'slug' => $slug],
+            [
+                'name' => $name,
+                'scope' => 'tenant',
+                'is_system' => true,
+                'is_active' => true,
+            ],
+        );
     }
 }
