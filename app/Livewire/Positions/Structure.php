@@ -8,7 +8,6 @@ use App\Enums\PositionAssignmentStatus;
 use App\Enums\PositionType;
 use App\Models\Position;
 use App\Models\Tenant;
-use App\Models\User;
 use App\Services\PositionHolderService;
 use App\Services\PositionStructureService;
 use Illuminate\Support\Facades\Storage;
@@ -169,14 +168,28 @@ class Structure extends Component
     public function render(PositionStructureService $structures)
     {
         $user = auth()->user();
-        $tenants = $user->isSuperAdmin() ? Tenant::query()->where('status', true)->orderBy('name')->get(['id', 'name', 'tenant_category_id']) : Tenant::query()->whereKey($user->tenant_id)->get(['id', 'name', 'tenant_category_id']);
-        $categoryId = $this->selectedTenantId ? $structures->tenantCategoryId($this->selectedTenantId) : null;
-        $positions = $categoryId ? Position::query()->with(['holders' => fn ($q) => $q->where('tenant_id', $this->selectedTenantId)->whereNull('ended_at')->where('started_at', '<=', now())->with('user')])->where('tenant_category_id', $categoryId)->where('status', 'active')->orderBy('sort_order')->orderBy('name')->get() : collect();
-        $structures = $this->selectedTenantId ? $structures->structures($this->selectedTenantId) : collect();
-        $nodes = $positions->map(fn (Position $position) => ['position' => $position, 'structure' => $structures->get($position->id)]);
+        $tenants = $user->isSuperAdmin()
+            ? Tenant::query()->where('status', true)->orderBy('name')->get(['id', 'name', 'tenant_category_id'])
+            : Tenant::query()->whereKey($user->tenant_id)->get(['id', 'name', 'tenant_category_id']);
+        $positions = $this->selectedTenantId ? $structures->positionsForTenant($this->selectedTenantId) : new \Illuminate\Database\Eloquent\Collection();
+        $structureRows = $this->selectedTenantId ? $structures->structures($this->selectedTenantId) : new \Illuminate\Database\Eloquent\Collection();
+        $nodes = $positions->map(fn (Position $position) => ['position' => $position, 'structure' => $structureRows->get($position->id)]);
         $roots = $nodes->filter(fn ($node) => $node['structure']?->is_root || $node['structure']?->parent_position_id === null)->values();
-        if ($roots->count() > 1) { $explicitRoot = $nodes->first(fn ($node) => $node['structure']?->is_root); if ($explicitRoot) $roots = collect([$explicitRoot]); }
-        $users = $this->selectedTenantId ? User::query()->where('tenant_id', $this->selectedTenantId)->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email']) : collect();
-        return view('livewire.positions.structure', compact('tenants', 'positions', 'structures', 'nodes', 'roots', 'users') + ['canManage' => $user->canManagePositions(), 'positionTypes' => PositionType::cases(), 'assignmentStatuses' => PositionAssignmentStatus::cases()]);
+        if ($roots->count() > 1) {
+            $explicitRoot = $nodes->first(fn ($node) => $node['structure']?->is_root);
+            if ($explicitRoot) $roots = new \Illuminate\Support\Collection([$explicitRoot]);
+        }
+        $users = $this->selectedTenantId ? $structures->activeUsersForTenant($this->selectedTenantId) : new \Illuminate\Database\Eloquent\Collection();
+        return view('livewire.positions.structure', [
+            'tenants' => $tenants,
+            'positions' => $positions,
+            'structures' => $structureRows,
+            'nodes' => $nodes,
+            'roots' => $roots,
+            'users' => $users,
+            'canManage' => $user->canManagePositions(),
+            'positionTypes' => PositionType::cases(),
+            'assignmentStatuses' => PositionAssignmentStatus::cases(),
+        ]);
     }
 }
