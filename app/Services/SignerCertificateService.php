@@ -58,11 +58,17 @@ class SignerCertificateService
             ]);
             if ($csr === false) throw new RuntimeException('Gagal membuat CSR sertifikat: '.$this->opensslError());
 
+            // Do not use serial 0: OpenSSL interprets the sixth argument as the
+            // X.509 certificate serial number, and 0 is what caused viewers to
+            // report the e-certificate serial as 00000000. Generate a positive
+            // 64-bit value so every certificate receives a unique, non-zero serial.
+            $serialNumber = random_int(1, PHP_INT_MAX);
+
             $cert = openssl_csr_sign($csr, null, $key, 365, [
                 'config' => $certificateConfig,
                 'digest_alg' => 'sha256',
                 'x509_extensions' => 'v3_req',
-            ], 0);
+            ], $serialNumber);
             if ($cert === false) throw new RuntimeException('Gagal menerbitkan sertifikat publik: '.$this->opensslError());
 
             if (! openssl_x509_export($cert, $certificatePem)) throw new RuntimeException('Gagal mengekspor sertifikat publik: '.$this->opensslError());
@@ -71,7 +77,7 @@ class SignerCertificateService
             $parsed = openssl_x509_parse($certificatePem);
             $serial = strtoupper((string) ($parsed['serialNumberHex'] ?? ''));
             if ($serial === '') $serial = strtoupper((string) ($parsed['serialNumber'] ?? ''));
-            if ($serial === '') throw new RuntimeException('Gagal membaca serial number sertifikat publik.');
+            if ($serial === '' || preg_match('/^0+$/', $serial) === 1) throw new RuntimeException('Gagal membaca serial number sertifikat publik yang valid.');
 
             $fingerprint = openssl_x509_fingerprint($certificatePem, 'sha256');
             if (! $fingerprint) throw new RuntimeException('Gagal menghitung fingerprint sertifikat.');
