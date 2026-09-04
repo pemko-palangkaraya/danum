@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Livewire\Population;
 
+use App\Livewire\Concerns\WithStandardTablePagination;
 use App\Services\CitizenService;
+use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
-use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
 class Citizens extends Component
 {
-    use WithPagination;
+    use WithStandardTablePagination;
 
-    public int $perPage = 10;
     public string $search = '';
     public bool $showForm = false;
     public ?string $editingId = null;
@@ -62,11 +62,6 @@ class Citizens extends Component
     }
 
     public function updatedSearch(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedPerPage(): void
     {
         $this->resetPage();
     }
@@ -152,7 +147,7 @@ class Citizens extends Component
         ];
     }
 
-    public function render()
+    public function render(): View
     {
         $user = auth()->user();
         $isSuperAdmin = $user->isSuperAdmin();
