@@ -28,13 +28,20 @@ class DocxTteService
         $parts = $this->tteParts($zip);
         if ($parts === []) { $zip->close(); return; }
 
-        $svg = app(VerificationQrCodeService::class)->render($verificationUrl);
-        $prefix = 'data:image/svg+xml;base64,';
-        if (! str_starts_with($svg, $prefix)) { $zip->close(); throw new RuntimeException('QR verification tidak menghasilkan SVG yang valid.'); }
-        $svgBytes = base64_decode(substr($svg, strlen($prefix)), true);
-        if ($svgBytes === false) { $zip->close(); throw new RuntimeException('Data QR verification tidak valid.'); }
+        $png = app(VerificationQrCodeService::class)->render($verificationUrl);
+        $prefix = 'data:image/png;base64,';
+        if (! str_starts_with($png, $prefix)) {
+            $zip->close();
+            throw new RuntimeException('QR verification tidak menghasilkan PNG yang valid.');
+        }
 
-        $mediaName = 'danum-tte-' . substr(hash('sha256', $verificationUrl), 0, 16) . '.svg';
+        $pngBytes = base64_decode(substr($png, strlen($prefix)), true);
+        if ($pngBytes === false) {
+            $zip->close();
+            throw new RuntimeException('Data QR verification tidak valid.');
+        }
+
+        $mediaName = 'danum-tte-' . substr(hash('sha256', $verificationUrl), 0, 16) . '.png';
         $contentTypes = $zip->getFromName('[Content_Types].xml');
         if ($contentTypes === false) { $zip->close(); throw new RuntimeException('DOCX [Content_Types].xml tidak ditemukan.'); }
 
@@ -53,15 +60,15 @@ class DocxTteService
             $replacement = $this->replaceMarkerInDocument($dom, $xpath, $rels, $mediaName);
             if ($replacement === null) continue;
 
-            [$rid, $updatedRels] = $replacement;
+            [, $updatedRels] = $replacement;
             $zip->addFromString($part['xml'], $dom->saveXML() ?: $xml);
             $zip->addFromString($part['rels'], $updatedRels);
             $embedded = true;
         }
 
         if ($embedded) {
-            $zip->addFromString('[Content_Types].xml', $this->ensureSvgContentType($contentTypes));
-            $zip->addFromString('word/media/' . $mediaName, $svgBytes);
+            $zip->addFromString('[Content_Types].xml', $this->ensurePngContentType($contentTypes));
+            $zip->addFromString('word/media/' . $mediaName, $pngBytes);
         }
         $zip->close();
     }
@@ -197,17 +204,17 @@ class DocxTteService
             . '</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>';
     }
 
-    private function ensureSvgContentType(string $contentTypes): string
+    private function ensurePngContentType(string $contentTypes): string
     {
         $dom = new DOMDocument();
         $dom->preserveWhiteSpace = true;
         if (! $dom->loadXML($contentTypes, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) return $contentTypes;
         foreach ($dom->getElementsByTagName('Default') as $item) {
-            if (strcasecmp($item->getAttribute('Extension'), 'svg') === 0) return $dom->saveXML() ?: $contentTypes;
+            if (strcasecmp($item->getAttribute('Extension'), 'png') === 0) return $dom->saveXML() ?: $contentTypes;
         }
         $default = $dom->createElementNS('http://schemas.openxmlformats.org/package/2006/content-types', 'Default');
-        $default->setAttribute('Extension', 'svg');
-        $default->setAttribute('ContentType', 'image/svg+xml');
+        $default->setAttribute('Extension', 'png');
+        $default->setAttribute('ContentType', 'image/png');
         $dom->documentElement?->appendChild($default);
         return $dom->saveXML() ?: $contentTypes;
     }
