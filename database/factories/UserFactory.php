@@ -42,12 +42,7 @@ class UserFactory extends Factory
                 return;
             }
 
-            $role = Role::resolveSystemForTenant('tenant_user', $user->tenant_id);
-            if ($role === null) {
-                throw new \RuntimeException('System role [tenant_user] tidak ditemukan.');
-            }
-
-            app(SystemRolePermissionService::class)->sync($role);
+            $role = $this->ensureSystemRole('tenant_user', 'Tenant User');
             $user->forceFill(['custom_role_id' => $role->id])->saveQuietly();
         });
     }
@@ -71,8 +66,7 @@ class UserFactory extends Factory
         $tenant ??= Tenant::factory()->create();
 
         return $this->state(function (array $attributes) use ($tenant): array {
-            $role = $this->ensureSystemRole('tenant_admin', $tenant->id);
-            app(SystemRolePermissionService::class)->sync($role);
+            $role = $this->ensureSystemRole('tenant_admin', 'Tenant Admin');
 
             return [
                 'platform_role' => null,
@@ -87,8 +81,7 @@ class UserFactory extends Factory
         $tenant ??= Tenant::factory()->create();
 
         return $this->state(function (array $attributes) use ($tenant): array {
-            $role = $this->ensureSystemRole('tenant_user', $tenant->id);
-            app(SystemRolePermissionService::class)->sync($role);
+            $role = $this->ensureSystemRole('tenant_user', 'Tenant User');
 
             return [
                 'platform_role' => null,
@@ -98,10 +91,21 @@ class UserFactory extends Factory
         });
     }
 
-    private function ensureSystemRole(string $slug, string|int $tenantId): Role
+    private function ensureSystemRole(string $slug, string $name): Role
     {
-        return Role::resolveSystemForTenant($slug, $tenantId)
-            ?? throw new \RuntimeException("System role [{$slug}] tidak ditemukan.");
+        $role = Role::query()->updateOrCreate(
+            ['tenant_id' => null, 'slug' => $slug],
+            [
+                'name' => $name,
+                'scope' => 'tenant',
+                'is_system' => true,
+                'is_active' => true,
+            ],
+        );
+
+        app(SystemRolePermissionService::class)->sync($role);
+
+        return $role;
     }
 
     public function inactive(): static
