@@ -54,12 +54,12 @@ class FamilyService
 
     public function findHeadCandidates(string $tenantId, string $search)
     {
-        return $this->citizenCandidates($tenantId, $search);
+        return $tenantId === '' ? collect() : $this->citizenCandidates($tenantId, $search);
     }
 
     public function findMemberCandidates(string $tenantId, string $search)
     {
-        return $this->citizenCandidates($tenantId, $search);
+        return $tenantId === '' ? collect() : $this->citizenCandidates($tenantId, $search);
     }
 
     public function findCitizen(string $tenantId, string $citizenId): Citizen
@@ -72,7 +72,7 @@ class FamilyService
 
     public function selectedHead(string $tenantId, string $citizenId): ?Citizen
     {
-        if ($citizenId === '') {
+        if ($tenantId === '' || $citizenId === '') {
             return null;
         }
 
