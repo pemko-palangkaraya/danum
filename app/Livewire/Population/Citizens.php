@@ -149,15 +149,17 @@ class Citizens extends Component
 
     public function render()
     {
+        $user = auth()->user();
+        $isSuperAdmin = $user->isSuperAdmin();
+        $hasTenant = $this->selectedTenantId || $user->tenant_id;
         $service = app(CitizenService::class);
 
         return view('livewire.pages.population.citizens', [
-            'citizens' => ($this->selectedTenantId || auth()->user()->tenant_id)
-                ? $service->query($this->tenantId(), $this->search)->paginate($this->perPage)
+            'citizens' => $hasTenant
+                ? $service->paginate($this->tenantId(), $this->search, $this->perPage)
                 : collect(),
-            'tenants' => auth()->user()->isSuperAdmin()
-                ? $service->tenants()
-                : collect(),
+            'tenants' => $isSuperAdmin ? $service->tenants() : collect(),
+            'isSuperAdmin' => $isSuperAdmin,
         ]);
     }
 }
