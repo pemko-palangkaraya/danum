@@ -58,9 +58,9 @@ class PopulationStatisticsService
             ? ['L', 'LAKI-LAKI', 'LAKI LAKI', 'MALE']
             : ['P', 'PEREMPUAN', 'FEMALE'];
 
-        return $gender->sum(function ($count, $label) use ($labels): int {
-            return in_array(strtoupper(trim((string) $label)), $labels, true) ? (int) $count : 0;
-        });
+        return $gender->filter(
+            fn ($count, $label): bool => in_array(strtoupper(trim((string) $label)), $labels, true)
+        )->sum();
     }
 
     private function countAgeRange($citizens, int $min, ?int $max): int
