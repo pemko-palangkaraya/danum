@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Authorization;
 
-use App\Enums\UserRole;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -69,9 +68,9 @@ class TenantIsolationTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $admin = User::factory()->tenantAdmin($tenant)->create();
-        $orphan = User::factory()->create([
-            'role' => UserRole::TENANT_USER,
+        $orphan = User::factory()->tenantUser($tenant)->create([
             'tenant_id' => null,
+            'custom_role_id' => null,
         ]);
 
         $this->assertFalse($admin->can('view', $orphan));
