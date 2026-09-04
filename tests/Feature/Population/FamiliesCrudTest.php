@@ -73,9 +73,9 @@ class FamiliesCrudTest extends TestCase
         $tenant = Tenant::factory()->create();
         $user = User::factory()->tenantAdmin($tenant)->create();
         $family = Family::factory()->forTenant($tenant)->create();
-        $head = Citizen::factory()->forTenant($tenant)->create(['nama_lengkap' => 'Kepala Keluarga']);
-        $otherFamilyHead = Citizen::factory()->forTenant($tenant)->create(['nama_lengkap' => 'Kepala KK Lain']);
-        $activeMember = Citizen::factory()->forTenant($tenant)->create(['nama_lengkap' => 'Sudah Terdaftar']);
+        $head = Citizen::factory()->forTenant($tenant)->create(['nama_lengkap' => 'Warga Kepala']);
+        $otherFamilyHead = Citizen::factory()->forTenant($tenant)->create(['nama_lengkap' => 'Warga Kepala Lain']);
+        $activeMember = Citizen::factory()->forTenant($tenant)->create(['nama_lengkap' => 'Warga Terdaftar']);
         $available = Citizen::factory()->forTenant($tenant)->create(['nama_lengkap' => 'Warga Tersedia']);
 
         $family->update(['head_citizen_id' => $head->id]);
