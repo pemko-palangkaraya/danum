@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use App\Enums\PlatformRole;
-use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use App\Models\Role;
 use App\Models\Tenant;
@@ -21,18 +20,19 @@ class UserFactory extends Factory
 
     public function definition(): array
     {
+        $tenant = Tenant::factory();
+        $role = Role::resolveSystemForTenant('tenant_user', $tenant->getKey());
+
         return [
             'name' => fake()->name(),
             'nip' => null,
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
-            'remember_token' => Str::random(10),
-            'role' => UserRole::TENANT_USER,
             'platform_role' => null,
-            'custom_role_id' => null,
+            'custom_role_id' => $role?->getKey(),
             'status' => UserStatus::ACTIVE,
-            'tenant_id' => Tenant::factory(),
+            'tenant_id' => $tenant,
         ];
     }
 
@@ -41,7 +41,6 @@ class UserFactory extends Factory
     public function superAdmin(): static
     {
         return $this->state(fn(array $attributes) => [
-            'role' => UserRole::SUPER_ADMIN,
             'platform_role' => PlatformRole::SUPER_ADMIN,
             'custom_role_id' => null,
             'tenant_id' => null,
@@ -52,8 +51,8 @@ class UserFactory extends Factory
     {
         $tenant ??= Tenant::factory()->create();
         return $this->state(function (array $attributes) use ($tenant): array {
-            $role = $this->ensureSystemRole('tenant_admin');
-            return ['role' => UserRole::TENANT_ADMIN, 'platform_role' => null, 'custom_role_id' => $role->id, 'tenant_id' => $tenant->id];
+            $role = $this->ensureSystemRole('tenant_admin', $tenant->id);
+            return ['platform_role' => null, 'custom_role_id' => $role->id, 'tenant_id' => $tenant->id];
         });
     }
 
@@ -61,19 +60,14 @@ class UserFactory extends Factory
     {
         $tenant ??= Tenant::factory()->create();
         return $this->state(function (array $attributes) use ($tenant): array {
-            $role = $this->ensureSystemRole('tenant_user');
-            return ['role' => UserRole::TENANT_USER, 'platform_role' => null, 'custom_role_id' => $role->id, 'tenant_id' => $tenant->id];
+            $role = $this->ensureSystemRole('tenant_user', $tenant->id);
+            return ['platform_role' => null, 'custom_role_id' => $role->id, 'tenant_id' => $tenant->id];
         });
     }
 
-    private function ensureSystemRole(string $slug): Role
+    private function ensureSystemRole(string $slug, string|int $tenantId): Role
     {
-        return Role::query()
-            ->whereNull('tenant_id')
-            ->where('slug', $slug)
-            ->where('is_system', true)
-            ->where('is_active', true)
-            ->firstOrFail();
+        return Role::resolveSystemForTenant($slug, $tenantId) ?? throw new \RuntimeException("System role [{$slug}] tidak ditemukan.");
     }
 
     public function inactive(): static { return $this->state(fn(array $attributes) => ['status' => UserStatus::INACTIVE]); }
