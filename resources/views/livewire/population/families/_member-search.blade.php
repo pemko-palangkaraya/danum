@@ -59,13 +59,13 @@
                     </div>
                 @empty
                     <div class="px-4 py-7 text-center">
-                        <p class="text-sm font-medium text-slate-700">Warga tidak ditemukan</p>
-                        <p class="mt-1 text-xs text-slate-500">Coba gunakan nama lengkap atau NIK yang berbeda.</p>
+                        <p class="text-sm font-medium text-slate-700">Tidak ada warga yang dapat ditambahkan</p>
+                        <p class="mt-1 text-xs text-slate-500">Warga yang sudah menjadi anggota aktif atau kepala keluarga tidak tersedia untuk dipilih.</p>
                     </div>
                 @endforelse
             </div>
         @else
-            <p class="mt-2 text-xs text-slate-400">Ketik nama atau NIK untuk mencari warga yang akan ditambahkan.</p>
+            <p class="mt-2 text-xs text-slate-400">Ketik nama atau NIK untuk mencari warga yang dapat ditambahkan.</p>
         @endif
     </div>
 @endif
