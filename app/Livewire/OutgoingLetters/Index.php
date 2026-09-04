@@ -6,14 +6,13 @@ namespace App\Livewire\OutgoingLetters;
 
 use App\Enums\LetterTypeStatus;
 use App\Enums\OutgoingLetterStatus;
-use App\Enums\PositionStatus;
 use App\Livewire\Concerns\HandlesLetterVariables;
 use App\Livewire\Concerns\WithStandardTablePagination;
 use App\Models\OutgoingLetter;
-use App\Models\Position;
 use App\Services\DocxTemplateService;
 use App\Services\LetterTypeService;
 use App\Services\OutgoingLetterDraftService;
+use App\Services\OutgoingLetterPositionService;
 use App\Services\OutgoingLetterService;
 use App\Services\OutgoingLetterWorkflowService;
 use Illuminate\Validation\Rule;
@@ -135,7 +134,7 @@ class Index extends Component
         }
     }
 
-    public function save(OutgoingLetterDraftService $drafts): void
+    public function save(OutgoingLetterDraftService $drafts, OutgoingLetterPositionService $positions): void
     {
         try {
             $tenant = auth()->user()->tenant;
@@ -158,13 +157,13 @@ class Index extends Component
                 throw new \DomainException('Jenis surat tidak tersedia atau belum diberikan akses ke OPD Anda.');
             }
 
-            $position = $this->availableSignerPositions()->find($this->signer_position_id);
+            $position = $positions->availableForTenantCategory($tenantId, $tenant->tenant_category_id, 'can_sign')->find($this->signer_position_id);
             $holder = $position?->holders->first();
             if (! $position || ! $holder?->user) {
                 throw new \DomainException('Jabatan penanda tangan tidak tersedia atau belum memiliki pejabat aktif.');
             }
 
-            $validatorPosition = $this->availableValidatorPositions()->find($this->validator_position_id);
+            $validatorPosition = $positions->availableForTenantCategory($tenantId, $tenant->tenant_category_id, 'can_validate')->find($this->validator_position_id);
             $validatorHolder = $validatorPosition?->holders->first();
             if (! $validatorPosition || ! $validatorHolder?->user) {
                 throw new \DomainException('Jabatan verifikator tidak tersedia atau belum memiliki pejabat aktif.');
@@ -181,18 +180,7 @@ class Index extends Component
                 $this->authorize('update', $existing);
             }
 
-            $message = $drafts->save(
-                $existing,
-                $letterType,
-                $position,
-                $holder,
-                $validatorPosition,
-                $validatorHolder,
-                $this->normalizedVariableValues(),
-                auth()->id(),
-                $tenantId,
-                $tenant,
-            );
+            $message = $drafts->save($existing, $letterType, $position, $holder, $validatorPosition, $validatorHolder, $this->normalizedVariableValues(), auth()->id(), $tenantId, $tenant);
 
             $this->showForm = false;
             $this->resetForm();
@@ -338,29 +326,16 @@ class Index extends Component
         }
     }
 
-    private function availableSignerPositions()
-    {
-        return $this->availablePositions('can_sign');
-    }
-
-    private function availableValidatorPositions()
-    {
-        return $this->availablePositions('can_validate');
-    }
-
-    private function availablePositions(string $capability)
+    private function availableSignerPositions(OutgoingLetterPositionService $positions)
     {
         $tenant = auth()->user()?->tenant;
-        if (! $tenant) {
-            return Position::query()->whereRaw('1 = 0');
-        }
+        return $tenant ? $positions->availableForTenantCategory($tenant->id, $tenant->tenant_category_id, 'can_sign') : null;
+    }
 
-        return Position::query()
-            ->where('tenant_category_id', $tenant->tenant_category_id)
-            ->where('status', PositionStatus::ACTIVE)
-            ->where($capability, true)
-            ->whereHas('holders', fn ($query) => $query->where('tenant_id', $tenant->id)->whereNull('ended_at')->where('started_at', '<=', now()))
-            ->with(['holders' => fn ($query) => $query->where('tenant_id', $tenant->id)->whereNull('ended_at')->where('started_at', '<=', now())->with('user')]);
+    private function availableValidatorPositions(OutgoingLetterPositionService $positions)
+    {
+        $tenant = auth()->user()?->tenant;
+        return $tenant ? $positions->availableForTenantCategory($tenant->id, $tenant->tenant_category_id, 'can_validate') : null;
     }
 
     private function isSuperAdmin(): bool
@@ -370,9 +345,7 @@ class Index extends Component
 
     private function tenantQuery()
     {
-        return $this->isSuperAdmin()
-            ? OutgoingLetter::query()->with(['letterType'])
-            : OutgoingLetter::query()->where('tenant_id', auth()->user()->tenant_id)->with(['letterType']);
+        return $this->isSuperAdmin() ? OutgoingLetter::query()->with(['letterType']) : OutgoingLetter::query()->where('tenant_id', auth()->user()->tenant_id)->with(['letterType']);
     }
 
     private function archiveQuery()
@@ -390,14 +363,12 @@ class Index extends Component
         $this->dispatch('toast', type: 'error', message: $message);
     }
 
-    public function render()
+    public function render(OutgoingLetterPositionService $positions)
     {
         $this->filter = $this->filter ?: 'all';
         $this->authorize('viewAny', OutgoingLetter::class);
 
-        $letters = $this->archiveQuery()
-            ->with(['tenant', 'letterType', 'letterTypeVersion', 'signerPosition', 'signerUser', 'validatorPosition', 'validatorUser', 'creator', 'rejectedBy'])
-            ->latest();
+        $letters = $this->archiveQuery()->with(['tenant', 'letterType', 'letterTypeVersion', 'signerPosition', 'signerUser', 'validatorPosition', 'validatorUser', 'creator', 'rejectedBy'])->latest();
 
         if ($this->isSuperAdmin() && $this->filter === 'deleted') {
             $letters->onlyTrashed();
@@ -406,23 +377,22 @@ class Index extends Component
         }
 
         if ($this->search !== '') {
-            $letters->where(fn ($query) => $query
-                ->where('number', 'like', "%{$this->search}%")
-                ->orWhere('recipient_name', 'like', "%{$this->search}%")
-                ->orWhere('subject', 'like', "%{$this->search}%"));
+            $letters->where(fn ($query) => $query->where('number', 'like', "%{$this->search}%")->orWhere('recipient_name', 'like', "%{$this->search}%")->orWhere('subject', 'like', "%{$this->search}%"));
         }
 
         $tenantId = auth()->user()->tenant_id;
         $letterTypeService = app(LetterTypeService::class);
-        $letterTypes = $this->isSuperAdmin() || $tenantId === null
-            ? collect()
-            : $letterTypeService->getAvailableForTenant($tenantId)->sortBy('name')->values();
+        $letterTypes = $this->isSuperAdmin() || $tenantId === null ? collect() : $letterTypeService->getAvailableForTenant($tenantId)->sortBy('name')->values();
+
+        $tenant = auth()->user()?->tenant;
+        $signerPositions = $tenant ? $positions->availableForTenantCategory($tenant->id, $tenant->tenant_category_id, 'can_sign')->orderBy('name')->get() : collect();
+        $validatorPositions = $tenant ? $positions->availableForTenantCategory($tenant->id, $tenant->tenant_category_id, 'can_validate')->orderBy('name')->get() : collect();
 
         return view('livewire.pages.outgoing-letters.index', [
             'letters' => $letters->paginate($this->perPage),
             'letterTypes' => $letterTypes,
-            'signerPositions' => $this->availableSignerPositions()->orderBy('name')->get(),
-            'validatorPositions' => $this->availableValidatorPositions()->orderBy('name')->get(),
+            'signerPositions' => $signerPositions,
+            'validatorPositions' => $validatorPositions,
             'variableLabels' => (new DocxTemplateService)->allowedVariables(),
             'repeaters' => $this->repeaterDefinitions(),
             'isSuperAdmin' => $this->isSuperAdmin(),
