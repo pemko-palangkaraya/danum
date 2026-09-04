@@ -63,18 +63,26 @@ class PopulationReferenceSeeder extends Seeder
     private function upsert(string $group, array $rows): void
     {
         foreach ($rows as $row) {
-            $now = now();
+            $key = [
+                'group' => $group,
+                'code' => $row['code'],
+            ];
 
-            DB::table('population_reference_data')->updateOrInsert(
-                ['group' => $group, 'code' => $row['code']],
-                [
-                    'label' => $row['label'],
-                    'sort_order' => $row['sort_order'],
-                    'is_active' => true,
-                    'updated_at' => $now,
-                    'created_at' => $now,
-                ],
-            );
+            $values = [
+                'label' => $row['label'],
+                'sort_order' => $row['sort_order'],
+                'is_active' => true,
+                'updated_at' => now(),
+            ];
+
+            if (DB::table('population_reference_data')->where($key)->exists()) {
+                DB::table('population_reference_data')->where($key)->update($values);
+                continue;
+            }
+
+            DB::table('population_reference_data')->insert($key + $values + [
+                'created_at' => now(),
+            ]);
         }
     }
 }
