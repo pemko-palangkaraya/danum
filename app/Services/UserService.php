@@ -100,15 +100,7 @@ class UserService
         $tenantId = $data['tenant_id'] ?? null;
 
         if ($tenantId !== null && in_array($role, ['tenant_admin', 'tenant_user'], true) && empty($data['custom_role_id'])) {
-            $systemRole = Role::query()
-                ->where('slug', $role)
-                ->where('is_system', true)
-                ->where('is_active', true)
-                ->where(function ($query) use ($tenantId) {
-                    $query->whereNull('tenant_id')->orWhere('tenant_id', $tenantId);
-                })
-                ->orderByRaw('CASE WHEN tenant_id = ? THEN 0 ELSE 1 END', [$tenantId])
-                ->first();
+            $systemRole = Role::resolveSystemForTenant($role, $tenantId);
 
             if ($systemRole !== null) {
                 $data['platform_role'] = null;
