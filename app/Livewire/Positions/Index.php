@@ -101,7 +101,7 @@ class Index extends Component
     }
     public function manageCertificate(string $positionId, PositionService $positions): void
     {
-        $position = Position::query()->with(['signerCertificates' => fn ($q) => $q->where('is_active', true)->latest('created_at')])->findOrFail($positionId); $this->authorize('manageHolder', $position);
+        $position = Position::query()->findOrFail($positionId); $this->authorize('manageHolder', $position);
         if (! $position->can_sign) { $this->dispatch('toast', type: 'error', message: 'Jabatan ini belum diizinkan untuk TTE.'); return; }
         $holder = $positions->getActiveHolder($position); $holder?->loadMissing('user');
         if (! $holder?->user) { $this->dispatch('toast', type: 'error', message: 'Tetapkan pejabat aktif terlebih dahulu.'); return; }
@@ -117,7 +117,7 @@ class Index extends Component
     }
     public function downloadCertificate(string $positionId)
     {
-        $position = Position::query()->with(['signerCertificates'])->findOrFail($positionId); $this->authorize('view', $position); $certificate = $position->signerCertificates()->where('is_active', true)->latest('created_at')->first(); if (! $certificate) abort(404);
+        $position = Position::query()->findOrFail($positionId); $this->authorize('view', $position); $certificate = $position->signerCertificates()->where('is_active', true)->latest('created_at')->first(); if (! $certificate) abort(404);
         $filename = 'sertifikat-' . str($position->code)->slug() . '-' . str($certificate->fingerprint_sha256)->substr(0, 12) . '.pem'; return response()->streamDownload(fn () => print($certificate->certificate_pem), $filename, ['Content-Type' => 'application/x-pem-file']);
     }
     public function showHistoryFor(string $positionId): void { $position = Position::query()->findOrFail($positionId); $this->authorize('view', $position); $this->historyPositionId = $position->id; $this->historyPositionName = $position->name; $this->showHistory = true; }
@@ -134,6 +134,7 @@ class Index extends Component
         $positions = $index->positions($user, $categoryId, $this->search, $this->filter, $this->perPage);
         $users = $index->holderUsers($user, $categoryId);
         $history = $index->history($this->historyPositionId, $user);
+        $certificate = $this->showCertificate ? $index->certificate($this->certificatePositionId) : null;
         $categories = $index->categories();
         $categoryTenants = $index->categoryTenants($categoryId);
         $index->preparePositions($positions, $user);
@@ -142,6 +143,7 @@ class Index extends Component
             'positions' => $positions,
             'users' => $users,
             'history' => $history,
+            'certificate' => $certificate,
             'tenants' => $categories,
             'categoryTenants' => $categoryTenants,
             'isSuperAdmin' => $user->isSuperAdmin(),
