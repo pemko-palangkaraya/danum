@@ -10,7 +10,7 @@
         <x-ui.field label="Kategori Organisasi" for="tenant-category" error="{{ $errors->first('tenant_category_id') }}" required>
             <select id="tenant-category" wire:model="tenant_category_id" class="form-select w-full">
                 <option value="">Pilih kategori</option>
-                @foreach (TenantCategory::query()->where('is_active', true)->orderBy('sort_order')->get() as $category)
+                @foreach (\App\Models\TenantCategory::query()->where('is_active', true)->orderBy('sort_order')->get() as $category)
                     <option value="{{ $category->id }}">{{ $category->name }}</option>
                 @endforeach
             </select>
