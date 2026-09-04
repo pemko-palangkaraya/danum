@@ -7,8 +7,7 @@ namespace App\Livewire\Positions;
 use App\Enums\PositionStatus;
 use App\Models\Position;
 use App\Models\Tenant;
-use App\Models\TenantCategory;
-use App\Models\User;
+use App\Services\PositionIndexService;
 use App\Services\PositionService;
 use App\Services\SignerCertificateService;
 use Illuminate\Validation\Rule;
@@ -20,9 +19,9 @@ use App\Livewire\Concerns\WithStandardTablePagination;
 class Index extends Component
 {
     use WithStandardTablePagination;
+
     public string $search = '';
     public string $filter = 'active';
-    public int $perPage = 5;
     public bool $showForm = false;
     public ?string $editingId = null;
     public string $selectedTenantId = '';
@@ -45,8 +44,15 @@ class Index extends Component
     public string $certificatePositionName = '';
     public string $certificateHolderName = '';
 
-    public function updatedPerPage(): void { $this->perPage = max(5, min($this->perPage, 50)); $this->resetPage(); }
-    public function mount(): void { $this->authorize('viewAny', Position::class); $user = auth()->user(); if ($user->tenant_id) $this->selectedTenantId = (string) Tenant::query()->whereKey($user->tenant_id)->value('tenant_category_id'); }
+    public function mount(): void
+    {
+        $this->authorize('viewAny', Position::class);
+        $user = auth()->user();
+        if ($user->tenant_id) {
+            $this->selectedTenantId = (string) Tenant::query()->whereKey($user->tenant_id)->value('tenant_category_id');
+        }
+    }
+
     public function updatedSearch(): void { $this->resetPage(); }
     public function updatedFilter(): void { $this->resetPage(); }
     public function updatedSelectedTenantId(): void { $this->resetPage(); }
@@ -120,18 +126,26 @@ class Index extends Component
     private function resetForm(): void { $this->reset(['editingId', 'code', 'name', 'description', 'can_sign', 'can_validate']); if (auth()->user()->tenant_id) $this->selectedTenantId = (string) Tenant::query()->whereKey(auth()->user()->tenant_id)->value('tenant_category_id'); else $this->selectedTenantId = ''; $this->status = PositionStatus::ACTIVE->value; $this->resetValidation(); }
     private function resetHolderForm(): void { $this->reset(['holderPositionId', 'holderUserId', 'holderStartedAt', 'holderAssignmentStatus']); $this->holderAssignmentStatus = 'definitif'; }
     private function resetCertificateForm(): void { $this->reset(['certificatePositionId', 'certificatePositionName', 'certificateHolderName']); $this->resetValidation(); }
-    public function render()
+
+    public function render(PositionIndexService $index)
     {
-        $user = auth()->user(); $categoryId = $user->tenant_id ? Tenant::query()->whereKey($user->tenant_id)->value('tenant_category_id') : ($this->selectedTenantId ?: null);
-        $query = Position::query()->with(['category', 'holders.user', 'signerCertificates' => fn ($q) => $q->where('is_active', true)->latest('created_at')])->orderBy('name'); if ($categoryId) $query->where('tenant_category_id', $categoryId); elseif (! $user->isSuperAdmin()) $query->whereRaw('1 = 0');
-        if ($this->search !== '') $query->where(fn ($q) => $q->where('code', 'like', "%{$this->search}%")->orWhere('name', 'like', "%{$this->search}%")); if ($this->filter === 'deleted') $query->onlyTrashed(); elseif ($this->filter !== 'all') $query->where('status', $this->filter);
-        $holderTenantId = $user->tenant_id ?: null;
-        $users = $holderTenantId ? User::query()->where('tenant_id', $holderTenantId)->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email']) : ($categoryId ? User::query()->whereIn('tenant_id', Tenant::query()->where('tenant_category_id', $categoryId)->pluck('id'))->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email']) : collect());
-        $historyQuery = $this->historyPositionId ? Position::withTrashed()->find($this->historyPositionId)?->holders()->with('user') : null;
-        $history = $historyQuery ? $historyQuery->when($user->tenant_id, fn ($q) => $q->where('tenant_id', $user->tenant_id))->orderByDesc('started_at')->get() : collect();
-        $categories = TenantCategory::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'code', 'name']); $categoryTenants = $categoryId ? Tenant::query()->where('tenant_category_id', $categoryId)->orderBy('name')->get(['id', 'name']) : collect();
-        $positions = $query->paginate($this->perPage);
-        foreach ($positions->getCollection() as $position) { $position->setRelation('tenant', $position->category); if ($user->tenant_id) $position->setRelation('holders', $position->holders->where('tenant_id', $user->tenant_id)->values()); }
-        return view('livewire.pages.positions.index', ['positions' => $positions, 'users' => $users, 'history' => $history, 'tenants' => $categories, 'categoryTenants' => $categoryTenants, 'isSuperAdmin' => $user->isSuperAdmin(), 'canManageHolders' => $user->canManagePositions()]);
+        $user = auth()->user();
+        $categoryId = $index->categoryIdFor($user, $this->selectedTenantId);
+        $positions = $index->positions($user, $categoryId, $this->search, $this->filter, $this->perPage);
+        $users = $index->holderUsers($user, $categoryId);
+        $history = $index->history($this->historyPositionId, $user);
+        $categories = $index->categories();
+        $categoryTenants = $index->categoryTenants($categoryId);
+        $index->preparePositions($positions, $user);
+
+        return view('livewire.pages.positions.index', [
+            'positions' => $positions,
+            'users' => $users,
+            'history' => $history,
+            'tenants' => $categories,
+            'categoryTenants' => $categoryTenants,
+            'isSuperAdmin' => $user->isSuperAdmin(),
+            'canManageHolders' => $user->canManagePositions(),
+        ]);
     }
 }
