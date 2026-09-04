@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\UserRole;
 use App\Enums\UserStatus;
+use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\TenantCategory;
 use App\Models\User;
@@ -61,12 +61,13 @@ class TenantService
     {
         return DB::transaction(function () use ($tenantData, $userData): Tenant {
             $tenant = $this->tenantRepository->create($this->withDefaultCategory($tenantData));
+            $tenantUserRole = Role::resolveSystemForTenant('tenant_user', $tenant->id);
 
             $administrator = User::query()->create([
                 'name' => $userData['name'],
                 'email' => $userData['email'],
                 'password' => $userData['password'],
-                'role' => UserRole::TENANT_USER,
+                'custom_role_id' => $tenantUserRole?->getKey(),
                 'status' => UserStatus::ACTIVE,
                 'tenant_id' => $tenant->id,
             ]);
@@ -234,6 +235,8 @@ class TenantService
             'nip' => $user->nip,
             'email' => $user->email,
             'role' => $user->role?->value,
+            'custom_role_id' => $user->custom_role_id,
+            'custom_role' => $user->customRole?->name,
             'status' => $user->status?->value,
             'tenant_id' => $user->tenant_id,
         ];
