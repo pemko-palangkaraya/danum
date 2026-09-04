@@ -7,7 +7,7 @@
                 <p class="mt-1 text-sm text-slate-500">Kepala keluarga: {{ $detail->headCitizen?->nama_lengkap ?? 'Belum ditentukan' }}</p>
                 <p class="mt-2 text-sm text-slate-600">{{ $detail->alamat }}, RT {{ $detail->rt ?: '-' }} / RW {{ $detail->rw ?: '-' }}</p>
             </div>
-            <button wire:click="$set('detailId', null)" class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Tutup</button>
+            <button wire:click="closeDetail" class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Tutup</button>
         </div>
 
         <div class="overflow-x-auto">
@@ -27,7 +27,7 @@
                             <td class="px-6 py-3.5 font-mono text-sm text-slate-600">{{ $member->citizen?->nik }}</td>
                             <td class="px-6 py-3.5 text-sm text-slate-600">{{ $member->hubungan_dalam_keluarga }}</td>
                             <td class="px-6 py-3.5 text-right">
-                                @if(auth()->user()->hasPermission('population.manage'))
+                                @if($canManage)
                                     <button wire:click="removeMember('{{ $detail->id }}', '{{ $member->citizen_id }}')" class="text-sm font-semibold text-red-600 hover:text-red-700">Keluarkan</button>
                                 @endif
                             </td>
