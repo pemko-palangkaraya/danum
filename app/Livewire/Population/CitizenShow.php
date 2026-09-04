@@ -27,9 +27,11 @@ class CitizenShow extends Component
 
     public function mount(Citizen $citizen): void
     {
-        abort_unless(auth()->user()?->hasPermission('population.view'), 403);
+        $user = auth()->user();
+
+        abort_unless($user?->hasPermission('population.view'), 403);
         abort_unless(
-            auth()->user()->isSuperAdmin() || auth()->user()->tenant_id === $citizen->tenant_id,
+            $user->isSuperAdmin() || $user->tenant_id === $citizen->tenant_id,
             404
         );
 
@@ -40,15 +42,13 @@ class CitizenShow extends Component
     {
         abort_unless(auth()->user()?->hasPermission('population.manage'), 403);
 
-        app(CitizenService::class)->addAddress(
-            $this->citizen,
-            $this->only([
-                'alamat', 'rt', 'rw', 'kelurahan', 'kecamatan', 'kabupaten_kota',
-                'provinsi', 'kode_pos', 'jenis_alamat', 'berlaku_mulai',
-            ]),
-        );
+        $service = app(CitizenService::class);
+        $service->addAddress($this->citizen, $this->only([
+            'alamat', 'rt', 'rw', 'kelurahan', 'kecamatan', 'kabupaten_kota',
+            'provinsi', 'kode_pos', 'jenis_alamat', 'berlaku_mulai',
+        ]));
 
-        $this->citizen = app(CitizenService::class)->loadAddresses($this->citizen);
+        $this->citizen = $service->loadAddresses($this->citizen);
         $this->reset([
             'alamat', 'rt', 'rw', 'kelurahan', 'kecamatan', 'kabupaten_kota',
             'provinsi', 'kode_pos', 'berlaku_mulai',
@@ -63,8 +63,7 @@ class CitizenShow extends Component
         $isSuperAdmin = $user->isSuperAdmin();
 
         return view('livewire.pages.population.citizen-show', [
-            'activeMembership' => $this->citizen->familyMemberships
-                ->first(fn ($member) => $member->status === 'active'),
+            'activeMembership' => $this->citizen->activeFamilyMembership,
             'canManage' => $user->hasPermission('population.manage'),
             'citizensRoute' => $isSuperAdmin
                 ? 'population.admin.citizens.index'
