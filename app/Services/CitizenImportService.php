@@ -11,11 +11,14 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use RuntimeException;
 
 class CitizenImportService
 {
+    private const DUPLICATE_MODES = ['skip', 'update'];
+
     public function tenantExists(string $tenantId): bool
     {
         return Tenant::query()->whereKey($tenantId)->exists();
@@ -28,10 +31,10 @@ class CitizenImportService
 
     public function preview(UploadedFile $file, string $tenantId, string $duplicateMode): array
     {
+        $this->validateDuplicateMode($duplicateMode);
+
         $path = $file->getRealPath();
         $extension = strtolower($file->getClientOriginalExtension());
-        $errors = [];
-        $rows = [];
 
         if (! is_string($path) || ! is_file($path)) {
             throw new RuntimeException('File import tidak ditemukan.');
@@ -42,37 +45,43 @@ class CitizenImportService
             : $this->readRows($path);
 
         if (count($raw) < 2) {
-            return ['rows' => [], 'errors' => ['File tidak memiliki baris data.'], 'validCount' => 0, 'invalidCount' => 0];
+            return [
+                'rows' => [],
+                'errors' => ['File tidak memiliki baris data.'],
+                'validCount' => 0,
+                'invalidCount' => 0,
+            ];
         }
 
         $headerMap = $this->headerMap(array_shift($raw));
-        foreach (['nik', 'nama lengkap'] as $required) {
-            if (! array_key_exists($required, $headerMap)) {
-                $errors[] = 'Kolom wajib tidak ditemukan: ' . strtoupper($required) . '.';
-            }
-        }
-        if ($errors) {
-            return ['rows' => [], 'errors' => $errors, 'validCount' => 0, 'invalidCount' => 0];
+        $missingHeaders = array_diff(['nik', 'nama lengkap'], array_keys($headerMap));
+
+        if ($missingHeaders !== []) {
+            return [
+                'rows' => [],
+                'errors' => array_map(
+                    static fn (string $header): string => 'Kolom wajib tidak ditemukan: '.strtoupper($header).'.',
+                    $missingHeaders,
+                ),
+                'validCount' => 0,
+                'invalidCount' => 0,
+            ];
         }
 
         $rows = $this->normalizeRows($raw, $headerMap);
         $this->markFileDuplicates($rows);
 
         $niks = array_values(array_unique(array_filter(array_column($rows, 'nik'))));
-        $existingNiks = $niks
-            ? Citizen::query()->where('tenant_id', $tenantId)->whereIn('nik', $niks)->pluck('nik')->flip()
-            : collect();
+        $existingNiks = $niks === []
+            ? collect()
+            : Citizen::query()
+                ->where('tenant_id', $tenantId)
+                ->whereIn('nik', $niks)
+                ->pluck('nik')
+                ->flip();
 
         foreach ($rows as $i => $item) {
-            $validation = Validator::make($item, [
-                'nik' => ['required', 'digits:16'],
-                'nama_lengkap' => ['required', 'string', 'max:255'],
-                'tanggal_lahir' => ['nullable', 'date'],
-                'jenis_kelamin' => ['nullable', 'in:male,female'],
-                'golongan_darah' => ['nullable', 'in:A,B,AB,O,unknown'],
-                'nik_ayah' => ['nullable', 'digits:16'],
-                'nik_ibu' => ['nullable', 'digits:16'],
-            ]);
+            $validation = Validator::make($item, $this->rowRules());
 
             if ($validation->fails()) {
                 $rows[$i]['_error'] = implode(' ', $validation->errors()->all());
@@ -81,6 +90,7 @@ class CitizenImportService
 
             if ($existingNiks->has($item['nik'])) {
                 $rows[$i]['_duplicate'] = true;
+
                 if ($duplicateMode === 'skip') {
                     $rows[$i]['_error'] = 'NIK sudah ada — akan dilewati.';
                 }
@@ -99,24 +109,30 @@ class CitizenImportService
 
     public function import(array $rows, string $tenantId, string $duplicateMode, int|string $userId): int
     {
+        $this->validateDuplicateMode($duplicateMode);
+
         if ($rows === []) {
             return 0;
         }
 
         return DB::transaction(function () use ($rows, $tenantId, $duplicateMode, $userId): int {
             $niks = array_values(array_unique(array_filter(array_column($rows, 'nik'))));
-            $existing = Citizen::query()
-                ->where('tenant_id', $tenantId)
-                ->whereIn('nik', $niks)
-                ->get()
-                ->keyBy('nik');
+            $existing = $niks === []
+                ? collect()
+                : Citizen::query()
+                    ->where('tenant_id', $tenantId)
+                    ->whereIn('nik', $niks)
+                    ->get()
+                    ->keyBy('nik');
 
             $creates = [];
             $count = 0;
             $now = now();
 
             foreach ($rows as $row) {
-                if (! empty($row['_error'])) {
+                $validation = Validator::make($row, $this->rowRules());
+
+                if ($validation->fails()) {
                     continue;
                 }
 
@@ -127,6 +143,7 @@ class CitizenImportService
                         $citizen->update($this->cleanRow($row, $tenantId) + ['updated_by' => $userId]);
                         $count++;
                     }
+
                     continue;
                 }
 
@@ -141,13 +158,32 @@ class CitizenImportService
             }
 
             foreach (array_chunk($creates, 500) as $chunk) {
-                if ($chunk) {
-                    Citizen::insert($chunk);
-                }
+                Citizen::insert($chunk);
             }
 
             return $count;
         });
+    }
+
+    private function validateDuplicateMode(string $duplicateMode): void
+    {
+        Validator::make(
+            ['duplicate_mode' => $duplicateMode],
+            ['duplicate_mode' => ['required', 'string', Rule::in(self::DUPLICATE_MODES)]],
+        )->validate();
+    }
+
+    private function rowRules(): array
+    {
+        return [
+            'nik' => ['required', 'digits:16'],
+            'nama_lengkap' => ['required', 'string', 'max:255'],
+            'tanggal_lahir' => ['nullable', 'date'],
+            'jenis_kelamin' => ['nullable', 'in:male,female'],
+            'golongan_darah' => ['nullable', 'in:A,B,AB,O,unknown'],
+            'nik_ayah' => ['nullable', 'digits:16'],
+            'nik_ibu' => ['nullable', 'digits:16'],
+        ];
     }
 
     private function readSpreadsheetRows(string $path): array
@@ -171,23 +207,26 @@ class CitizenImportService
 
             return $rows;
         } catch (\Throwable $e) {
-            throw new RuntimeException('File Excel tidak dapat dibaca: ' . $e->getMessage(), 0, $e);
+            throw new RuntimeException('File Excel tidak dapat dibaca: '.$e->getMessage(), 0, $e);
         }
     }
 
     private function readRows(string $path): array
     {
         $handle = fopen($path, 'rb');
+
         if ($handle === false) {
             throw new RuntimeException('File import tidak dapat dibaca.');
         }
 
         try {
             $rows = [];
+
             while (($row = fgetcsv($handle, 0, ';')) !== false) {
                 if (count($row) === 1 && str_contains((string) $row[0], ',')) {
                     $row = str_getcsv($row[0], ',');
                 }
+
                 $rows[] = $row;
             }
 
@@ -200,6 +239,7 @@ class CitizenImportService
     private function headerMap(array $headers): array
     {
         $map = [];
+
         foreach ($headers as $index => $header) {
             $header = preg_replace('/^\xEF\xBB\xBF/', '', (string) $header);
             $map[strtolower(trim($header))] = $index;
@@ -211,8 +251,10 @@ class CitizenImportService
     private function normalizeRows(array $raw, array $headerMap): array
     {
         $rows = [];
+
         foreach ($raw as $index => $rawRow) {
             $item = ['line' => $index + 2];
+
             foreach ($this->headers() as $source => $target) {
                 $item[$target] = isset($headerMap[$source])
                     ? trim((string) ($rawRow[$headerMap[$source]] ?? ''))
@@ -237,6 +279,7 @@ class CitizenImportService
     private function markFileDuplicates(array &$rows): void
     {
         $seen = [];
+
         foreach ($rows as $index => $row) {
             if ($row['nik'] !== '') {
                 $seen[$row['nik']][] = $index;
@@ -255,7 +298,7 @@ class CitizenImportService
     private function cleanRow(array $row, string $tenantId): array
     {
         return collect($row)
-            ->except(['line', '_error', '_duplicate'])
+            ->only(array_values($this->headers()))
             ->merge(['tenant_id' => $tenantId])
             ->toArray();
     }
