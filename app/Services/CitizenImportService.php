@@ -311,6 +311,7 @@ class CitizenImportService
     {
         return collect($row)
             ->only(array_values($this->headers()))
+            ->map(static fn ($value) => $value === '' ? null : $value)
             ->merge(['tenant_id' => $tenantId])
             ->toArray();
     }
