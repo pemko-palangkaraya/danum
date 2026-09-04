@@ -24,8 +24,8 @@ class StoreUserRequest extends FormRequest
         }
 
         if ($tenantId !== null && $customRoleId === null && in_array($role, ['tenant_user', 'tenant_admin'], true)) {
-            $defaultRole = Role::query()->where('tenant_id', $tenantId)->where('slug', $role)->where('is_active', true)->first();
-            if ($defaultRole !== null) $this->merge(['platform_role' => null, 'custom_role_id' => $defaultRole->id]);
+            $defaultRole = Role::resolveSystemForTenant($role, $tenantId);
+            if ($defaultRole !== null) $this->merge(['platform_role' => null, 'custom_role_id' => $defaultRole->getKey()]);
         }
     }
 
@@ -60,12 +60,8 @@ class StoreUserRequest extends FormRequest
             if ($tenantId !== null && $customRoleId === null) {
                 $validator->errors()->add('custom_role_id', 'Tenant member harus memiliki RBAC role.');
             }
-            if ($customRoleId !== null && $tenantId !== null) {
-                $valid = Role::query()->whereKey($customRoleId)->where('is_active', true)->where(function ($query) use ($tenantId) {
-                    $query->where(fn ($q) => $q->where('scope', 'global')->whereNull('tenant_id'))
-                        ->orWhere(fn ($q) => $q->where('scope', 'tenant')->where('tenant_id', $tenantId));
-                })->exists();
-                if (! $valid) $validator->errors()->add('custom_role_id', 'RBAC role tidak berlaku untuk tenant yang dipilih.');
+            if ($customRoleId !== null && $tenantId !== null && Role::findActiveForTenant($customRoleId, $tenantId) === null) {
+                $validator->errors()->add('custom_role_id', 'RBAC role tidak berlaku untuk tenant yang dipilih.');
             }
         });
     }
