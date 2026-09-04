@@ -15,14 +15,6 @@ class PositionRepository implements PositionRepositoryInterface
         return Position::query()->find($id);
     }
 
-    public function findByCode(string $tenantId, string $code): ?Position
-    {
-        return Position::query()
-            ->where('tenant_id', $tenantId)
-            ->where('code', $code)
-            ->first();
-    }
-
     public function getAll(string $tenantId): Collection
     {
         return Position::query()
