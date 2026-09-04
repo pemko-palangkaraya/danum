@@ -22,12 +22,15 @@ class UserRoleAssignmentService
             ]);
         }
 
-        if ($tenantId !== null && $customRoleId === null && in_array($role, ['tenant_admin', 'tenant_user'], true)) {
-            $systemRole = Role::resolveSystemForTenant($role, $tenantId);
+        if (in_array($role, ['tenant_admin', 'tenant_user'], true)) {
+            $data['platform_role'] = null;
 
-            if ($systemRole !== null) {
-                $data['platform_role'] = null;
-                $data['custom_role_id'] = $systemRole->getKey();
+            if ($tenantId !== null && $customRoleId === null) {
+                $systemRole = Role::resolveSystemForTenant($role, $tenantId);
+
+                if ($systemRole !== null) {
+                    $data['custom_role_id'] = $systemRole->getKey();
+                }
             }
         }
 
