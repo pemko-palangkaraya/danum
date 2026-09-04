@@ -23,7 +23,6 @@ class SignerCertificateService
         $user = $holder->user;
         $tenantName = (string) ($holder->tenant?->name ?? 'DANUM');
         $commonName = trim($user->name) !== '' ? $user->name : (string) $user->email;
-        $serial = strtoupper(bin2hex(random_bytes(16)));
         $validFrom = now()->startOfSecond();
         $validUntil = $validFrom->copy()->addYear();
 
@@ -70,6 +69,10 @@ class SignerCertificateService
             if (! openssl_pkey_export($key, $privateKeyPem, null, ['config' => $certificateConfig])) throw new RuntimeException('Gagal mengekspor private key: '.$this->opensslError());
 
             $parsed = openssl_x509_parse($certificatePem);
+            $serial = strtoupper((string) ($parsed['serialNumberHex'] ?? ''));
+            if ($serial === '') $serial = strtoupper((string) ($parsed['serialNumber'] ?? ''));
+            if ($serial === '') throw new RuntimeException('Gagal membaca serial number sertifikat publik.');
+
             $fingerprint = openssl_x509_fingerprint($certificatePem, 'sha256');
             if (! $fingerprint) throw new RuntimeException('Gagal menghitung fingerprint sertifikat.');
 
@@ -110,11 +113,8 @@ class SignerCertificateService
                 return $certificate;
             });
         } finally {
-            if ($previousOpenSslConf === false) {
-                putenv('OPENSSL_CONF');
-            } else {
-                putenv('OPENSSL_CONF='.$previousOpenSslConf);
-            }
+            if ($previousOpenSslConf === false) putenv('OPENSSL_CONF');
+            else putenv('OPENSSL_CONF='.$previousOpenSslConf);
         }
     }
 
