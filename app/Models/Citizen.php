@@ -49,6 +49,11 @@ class Citizen extends Model
         return $this->hasOne(FamilyMember::class)->where('status', 'active');
     }
 
+    public function headedFamilies(): HasMany
+    {
+        return $this->hasMany(Family::class, 'head_citizen_id');
+    }
+
     public function addresses(): HasMany
     {
         return $this->hasMany(CitizenAddress::class);
