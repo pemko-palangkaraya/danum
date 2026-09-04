@@ -7,9 +7,9 @@ use App\Enums\UserStatus;
 use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\SystemRolePermissionService;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 /**
  * @extends Factory<User>
@@ -52,6 +52,7 @@ class UserFactory extends Factory
         $tenant ??= Tenant::factory()->create();
         return $this->state(function (array $attributes) use ($tenant): array {
             $role = $this->ensureSystemRole('tenant_admin', $tenant->id);
+            app(SystemRolePermissionService::class)->sync($role);
             return ['platform_role' => null, 'custom_role_id' => $role->id, 'tenant_id' => $tenant->id];
         });
     }
@@ -61,6 +62,7 @@ class UserFactory extends Factory
         $tenant ??= Tenant::factory()->create();
         return $this->state(function (array $attributes) use ($tenant): array {
             $role = $this->ensureSystemRole('tenant_user', $tenant->id);
+            app(SystemRolePermissionService::class)->sync($role);
             return ['platform_role' => null, 'custom_role_id' => $role->id, 'tenant_id' => $tenant->id];
         });
     }
