@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Livewire\OutgoingLetters;
 
 use App\Enums\OutgoingLetterWithdrawalStatus;
-use App\Enums\UserRole;
 use App\Models\OutgoingLetter;
 use App\Models\OutgoingLetterWithdrawalRequest;
 use App\Services\VerificationQrCodeService;
@@ -39,7 +38,7 @@ class Show extends Component
         $query = OutgoingLetter::query()
             ->with(['tenant', 'letterType', 'letterTypeVersion', 'withdrawalRequests.decidedBy']);
 
-        if (auth()->user()->role === UserRole::SUPER_ADMIN) {
+        if (auth()->user()->isSuperAdmin()) {
             $query->withTrashed();
         } else {
             $query->where('tenant_id', auth()->user()->tenant_id);
