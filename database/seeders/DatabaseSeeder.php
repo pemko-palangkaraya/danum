@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\TenantCategory;
 use App\Models\User;
+use App\Services\SystemRolePermissionService;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -54,12 +55,15 @@ class DatabaseSeeder extends Seeder
             'status' => TenantStatus::ACTIVE,
         ]);
 
+        $permissionService = app(SystemRolePermissionService::class);
+
         $tenantAdminRole = Role::query()->updateOrCreate(['tenant_id' => null, 'slug' => 'tenant_admin'], [
             'name' => 'Tenant Admin',
             'scope' => 'tenant',
             'is_system' => true,
             'is_active' => true,
         ]);
+        $permissionService->sync($tenantAdminRole);
 
         User::updateOrCreate(['email' => env('DANUM_TENANT_ADMIN_EMAIL', 'yudhistira@danum.local')], [
             'name' => 'Tenant Admin',
@@ -79,6 +83,7 @@ class DatabaseSeeder extends Seeder
             'is_system' => true,
             'is_active' => true,
         ]);
+        $permissionService->sync($tenantUserRole);
 
         User::updateOrCreate(['email' => env('DANUM_TENANT_USER_EMAIL', 'ucok@danum.local')], [
             'name' => 'Tenant User',
