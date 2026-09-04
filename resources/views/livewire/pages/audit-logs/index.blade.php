@@ -1,6 +1,5 @@
 <div
     x-data="{ open: false, detail: null }"
-    x-on:audit-detail.window="detail = $event.detail; open = true"
     x-on:keydown.escape.window="open = false"
     class="space-y-6"
 >
@@ -88,6 +87,22 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse ($logs as $log)
+                        @php
+                            $auditDetail = [
+                                'action' => $log->action,
+                                'createdAt' => $log->created_at?->format('d M Y H:i:s'),
+                                'actor' => $log->user?->name ?? 'System / Unknown',
+                                'actorEmail' => $log->user?->email,
+                                'tenant' => $log->tenant?->name ?? 'Global',
+                                'tenantCode' => $log->tenant?->code,
+                                'object' => class_basename($log->auditable_type ?? '—'),
+                                'objectId' => $log->auditable_id ?? '—',
+                                'oldValues' => $log->old_values ?? [],
+                                'newValues' => $log->new_values ?? [],
+                                'ip' => $log->ip_address ?? '—',
+                                'id' => $log->id,
+                            ];
+                        @endphp
                         <tr class="hover:bg-slate-50/70">
                             <td class="whitespace-nowrap px-4 py-3 text-xs text-slate-600">{{ $log->created_at?->format('d M Y H:i:s') }}</td>
                             <td class="max-w-44 px-4 py-3">
@@ -113,20 +128,7 @@
                                 <button
                                     type="button"
                                     class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900"
-                                    x-on:click="$dispatch('audit-detail', {
-                                        action: @js($log->action),
-                                        createdAt: @js($log->created_at?->format('d M Y H:i:s')),
-                                        actor: @js($log->user?->name ?? 'System / Unknown'),
-                                        actorEmail: @js($log->user?->email),
-                                        tenant: @js($log->tenant?->name ?? 'Global'),
-                                        tenantCode: @js($log->tenant?->code),
-                                        object: @js(class_basename($log->auditable_type ?? '—')),
-                                        objectId: @js($log->auditable_id ?? '—'),
-                                        oldValues: @js($log->old_values ?? []),
-                                        newValues: @js($log->new_values ?? []),
-                                        ip: @js($log->ip_address ?? '—'),
-                                        id: @js($log->id),
-                                    })"
+                                    x-on:click="detail = @js($auditDetail); open = true"
                                 >
                                     View
                                 </button>
@@ -141,6 +143,22 @@
 
         <div class="divide-y divide-slate-100 lg:hidden">
             @forelse ($logs as $log)
+                @php
+                    $auditDetail = [
+                        'action' => $log->action,
+                        'createdAt' => $log->created_at?->format('d M Y H:i:s'),
+                        'actor' => $log->user?->name ?? 'System / Unknown',
+                        'actorEmail' => $log->user?->email,
+                        'tenant' => $log->tenant?->name ?? 'Global',
+                        'tenantCode' => $log->tenant?->code,
+                        'object' => class_basename($log->auditable_type ?? '—'),
+                        'objectId' => $log->auditable_id ?? '—',
+                        'oldValues' => $log->old_values ?? [],
+                        'newValues' => $log->new_values ?? [],
+                        'ip' => $log->ip_address ?? '—',
+                        'id' => $log->id,
+                    ];
+                @endphp
                 <div class="p-4">
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0 flex-1">
@@ -154,20 +172,7 @@
                         <button
                             type="button"
                             class="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm"
-                            x-on:click="$dispatch('audit-detail', {
-                                action: @js($log->action),
-                                createdAt: @js($log->created_at?->format('d M Y H:i:s')),
-                                actor: @js($log->user?->name ?? 'System / Unknown'),
-                                actorEmail: @js($log->user?->email),
-                                tenant: @js($log->tenant?->name ?? 'Global'),
-                                tenantCode: @js($log->tenant?->code),
-                                object: @js(class_basename($log->auditable_type ?? '—')),
-                                objectId: @js($log->auditable_id ?? '—'),
-                                oldValues: @js($log->old_values ?? []),
-                                newValues: @js($log->new_values ?? []),
-                                ip: @js($log->ip_address ?? '—'),
-                                id: @js($log->id),
-                            })"
+                            x-on:click="detail = @js($auditDetail); open = true"
                         >View</button>
                     </div>
                 </div>
