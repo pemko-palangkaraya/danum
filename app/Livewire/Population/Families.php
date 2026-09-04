@@ -104,11 +104,6 @@ class Families extends Component
         );
     }
 
-    public function getHeadCitizensProperty()
-    {
-        return app(FamilyService::class)->findHeadCandidates($this->tenantIdForQuery(), $this->headSearch);
-    }
-
     public function save(): void
     {
         $this->authorizeManage();
@@ -174,14 +169,23 @@ class Families extends Component
         $detail = $this->detailId && $tenantId !== ''
             ? $service->findDetail($tenantId, $this->detailId)
             : null;
-        $headCandidates = $service->findHeadCandidates($tenantId, $this->headSearch);
-        $memberCandidates = $service->findMemberCandidates($tenantId, $this->memberSearch);
-        $selectedHead = $service->selectedHead($tenantId, $this->head_citizen_id);
-        $headCitizens = $headCandidates;
+        $headCitizens = $tenantId !== '' && $this->headSearch !== ''
+            ? $service->findHeadCandidates($tenantId, $this->headSearch)
+            : collect();
+        $memberCandidates = $tenantId !== '' && $this->memberSearch !== ''
+            ? $service->findMemberCandidates($tenantId, $this->memberSearch)
+            : collect();
+        $selectedHead = $tenantId !== '' && $this->head_citizen_id !== ''
+            ? $service->selectedHead($tenantId, $this->head_citizen_id)
+            : null;
 
         return view('livewire.population.families', compact(
-            'families', 'tenants', 'detail', 'headCandidates', 'memberCandidates',
-            'selectedHead', 'headCitizens'
+            'families',
+            'tenants',
+            'detail',
+            'memberCandidates',
+            'selectedHead',
+            'headCitizens',
         ));
     }
 
