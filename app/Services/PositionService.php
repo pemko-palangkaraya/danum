@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\PositionAssignmentStatus;
 use App\Enums\PositionStatus;
 use App\Models\Position;
-use App\Models\PositionHolder;
 use App\Repositories\Contracts\PositionRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -55,26 +53,6 @@ class PositionService
     }
 
     public function restore(Position $position): bool { return $this->positionRepository->restore($position); }
-
-    /** @deprecated Use PositionHolderService directly. */
-    public function assignHolder(Position $position, int $userId, \DateTimeInterface $startedAt, string|PositionAssignmentStatus $assignmentStatus = PositionAssignmentStatus::DEFINITIF, ?string $appointmentNumber = null, ?string $appointmentDocumentPath = null): PositionHolder
-    { return $this->holderService->assign($position, $userId, $startedAt, $assignmentStatus, $appointmentNumber, $appointmentDocumentPath); }
-
-    /** @deprecated Use PositionHolderService directly. */
-    public function endHolder(PositionHolder $holder, \DateTimeInterface $endedAt): PositionHolder
-    { return $this->holderService->end($holder, $endedAt); }
-
-    /** @deprecated Use PositionHolderService directly. */
-    public function getActiveHolder(Position $position): ?PositionHolder
-    { return $this->holderService->active($position); }
-
-    /** @deprecated Use PositionHolderService directly. */
-    public function getActiveHolders(Position $position): Collection
-    { return $this->holderService->activeMany($position); }
-
-    /** @deprecated Use PositionHolderService directly. */
-    public function getHolderHistory(Position $position): Collection
-    { return $this->holderService->history($position); }
 
     public function findWithTrashed(string $id): ?Position { return $this->positionRepository->findWithTrashed($id); }
     public function getActiveSignatoryPositions(string $tenantId): Collection { return Position::query()->whereHas('category.tenants', fn ($q) => $q->whereKey($tenantId))->where('status', PositionStatus::ACTIVE)->where('can_sign', true)->with(['holders' => fn ($q) => $q->where('tenant_id', $tenantId)->whereNull('ended_at'), 'holders.user'])->orderBy('name')->get(); }
