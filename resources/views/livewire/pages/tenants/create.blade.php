@@ -90,6 +90,8 @@ new #[Layout('layouts.app')] class extends Component {
     <x-ui.page-header
         title="Add Tenant"
         description="Tambahkan organisasi, kop surat, dan administrator awal ke DANUM."
+        :back-url="route('tenants.index')"
+        back-label="Back to tenants"
     />
 
     <form wire:submit="save" class="space-y-6">
