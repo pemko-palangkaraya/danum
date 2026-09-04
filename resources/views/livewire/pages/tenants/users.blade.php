@@ -8,7 +8,6 @@ use App\Models\User;
 use App\Services\AuditLogService;
 use App\Services\SignerPinService;
 use App\Services\UserService;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
@@ -45,7 +44,7 @@ new #[Layout('layouts.app')] class extends Component {
 
     public function edit(int $id): void
     {
-        $user = User::query()->where('tenant_id', $this->tenantId)->findOrFail($id);
+        $user = $this->tenantUser($id);
         $this->authorize('update', $user);
         $this->editingUserId = $user->id;
         $this->name = $user->name;
@@ -58,7 +57,7 @@ new #[Layout('layouts.app')] class extends Component {
 
     public function openSignerPin(int $id): void
     {
-        $user = User::query()->where('tenant_id', $this->tenantId)->findOrFail($id);
+        $user = $this->tenantUser($id);
         $this->authorize('update', $user);
         $this->signerPinUserId = $user->id;
         $this->signerPinUserName = $user->name;
@@ -70,7 +69,7 @@ new #[Layout('layouts.app')] class extends Component {
 
     public function saveSignerPin(SignerPinService $pinService, AuditLogService $auditLogService): void
     {
-        $user = User::query()->where('tenant_id', $this->tenantId)->findOrFail($this->signerPinUserId);
+        $user = $this->tenantUser($this->signerPinUserId);
         $this->authorize('update', $user);
         $validated = Validator::make([
             'signerPin' => $this->signerPin,
@@ -113,18 +112,16 @@ new #[Layout('layouts.app')] class extends Component {
         ];
 
         if ($this->editingUserId) {
-            $user = User::query()->where('tenant_id', $this->tenantId)->findOrFail($this->editingUserId);
+            $user = $this->tenantUser($this->editingUserId);
             $this->authorize('update', $user);
             if ($this->password === '') unset($data['password']);
             $rules = UpdateUserRequest::rulesFor($user);
             $rules['email'] = ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->getKey())];
             $validated = Validator::make($data, $rules)->validate();
-            if (isset($validated['password'])) $validated['password'] = Hash::make($validated['password']);
             $userService->update($user, $validated);
         } else {
             $this->authorize('create', User::class);
             $validated = Validator::make($data, (new StoreUserRequest())->rules())->validate();
-            $validated['password'] = Hash::make($validated['password']);
             $userService->create($validated);
         }
 
@@ -134,7 +131,7 @@ new #[Layout('layouts.app')] class extends Component {
 
     public function toggleStatus(int $id, UserService $userService): void
     {
-        $user = User::query()->where('tenant_id', $this->tenantId)->findOrFail($id);
+        $user = $this->tenantUser($id);
         $this->authorize('update', $user);
         $userService->update($user, ['status' => $user->status === UserStatus::ACTIVE ? UserStatus::INACTIVE : UserStatus::ACTIVE]);
         $this->dispatch('toast', type: 'success', message: 'Status user diperbarui.');
@@ -149,6 +146,13 @@ new #[Layout('layouts.app')] class extends Component {
         $this->password = '';
         $this->showForm = false;
         $this->resetValidation();
+    }
+
+    private function tenantUser(?int $id): User
+    {
+        return User::query()
+            ->where('tenant_id', $this->tenantId)
+            ->findOrFail($id);
     }
 
     public function with(): array
