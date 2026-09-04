@@ -10,9 +10,7 @@ use Illuminate\Database\Eloquent\Collection;
 
 class UserRepository implements UserRepositoryInterface
 {
-    // public function find(string $id): ?User 
-    // diganti saat test user
-    public function find(int $id): ?user
+    public function find(int $id): ?User
     {
         return User::query()->find($id);
     }
@@ -26,8 +24,7 @@ class UserRepository implements UserRepositoryInterface
 
     public function getAll(): Collection
     {
-        return User::query()
-            ->get();
+        return User::query()->get();
     }
 
     public function create(array $data): User
