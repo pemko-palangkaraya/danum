@@ -7,18 +7,18 @@
 
         <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             <div class="sm:col-span-2 lg:col-span-4">
-                <x-ui.field label="Alamat" name="alamat">
+                <x-ui.field label="Alamat" :error="$errors->first('alamat')">
                     <textarea wire:model="alamat" rows="2" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm"></textarea>
                 </x-ui.field>
             </div>
 
             @foreach([['rt','RT'],['rw','RW'],['kelurahan','Kelurahan'],['kecamatan','Kecamatan'],['kabupaten_kota','Kabupaten/Kota'],['provinsi','Provinsi'],['kode_pos','Kode Pos'],['berlaku_mulai','Berlaku Mulai']] as [$field,$label])
-                <x-ui.field :label="$label" :name="$field">
+                <x-ui.field :label="$label" :error="$errors->first($field)">
                     <input wire:model="{{ $field }}" type="{{ $field === 'berlaku_mulai' ? 'date' : 'text' }}" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">
                 </x-ui.field>
             @endforeach
 
-            <x-ui.field label="Jenis Alamat" name="jenis_alamat">
+            <x-ui.field label="Jenis Alamat" :error="$errors->first('jenis_alamat')">
                 <select wire:model="jenis_alamat" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">
                     <option value="domisili">Domisili</option>
                     <option value="ktp">KTP</option>
