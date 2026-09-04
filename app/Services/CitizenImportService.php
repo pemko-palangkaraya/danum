@@ -11,6 +11,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use RuntimeException;
 
 class CitizenImportService
@@ -25,85 +26,75 @@ class CitizenImportService
         return Tenant::query()->orderBy('name')->get(['id', 'name', 'code']);
     }
 
-    public function preview(UploadedFile $file, string $tenantId, string $duplicateMode, LibreOfficeSpreadsheetService $spreadsheet): array
+    public function preview(UploadedFile $file, string $tenantId, string $duplicateMode): array
     {
         $path = $file->getRealPath();
         $extension = strtolower($file->getClientOriginalExtension());
-        $temporaryCsv = null;
         $errors = [];
         $rows = [];
 
-        try {
-            if (in_array($extension, ['xlsx', 'xls'], true)) {
-                $directory = storage_path('app' . DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR . 'population-import');
-                $temporaryCsv = $spreadsheet->spreadsheetToCsv(
-                    $path,
-                    $directory,
-                    'population-import-' . bin2hex(random_bytes(6)) . '.csv',
-                );
-                $path = $temporaryCsv;
-            }
+        if (! is_string($path) || ! is_file($path)) {
+            throw new RuntimeException('File import tidak ditemukan.');
+        }
 
-            $raw = $this->readRows($path);
-            if (count($raw) < 2) {
-                return ['rows' => [], 'errors' => ['File tidak memiliki baris data.'], 'validCount' => 0, 'invalidCount' => 0];
-            }
+        $raw = in_array($extension, ['xlsx', 'xls'], true)
+            ? $this->readSpreadsheetRows($path)
+            : $this->readRows($path);
 
-            $headerMap = $this->headerMap(array_shift($raw));
-            foreach (['nik', 'nama lengkap'] as $required) {
-                if (! array_key_exists($required, $headerMap)) {
-                    $errors[] = 'Kolom wajib tidak ditemukan: ' . strtoupper($required) . '.';
-                }
-            }
-            if ($errors) {
-                return ['rows' => [], 'errors' => $errors, 'validCount' => 0, 'invalidCount' => 0];
-            }
+        if (count($raw) < 2) {
+            return ['rows' => [], 'errors' => ['File tidak memiliki baris data.'], 'validCount' => 0, 'invalidCount' => 0];
+        }
 
-            $rows = $this->normalizeRows($raw, $headerMap);
-            $this->markFileDuplicates($rows);
-
-            $niks = array_values(array_unique(array_filter(array_column($rows, 'nik'))));
-            $existingNiks = $niks
-                ? Citizen::query()->where('tenant_id', $tenantId)->whereIn('nik', $niks)->pluck('nik')->flip()
-                : collect();
-
-            foreach ($rows as $i => $item) {
-                $validation = Validator::make($item, [
-                    'nik' => ['required', 'digits:16'],
-                    'nama_lengkap' => ['required', 'string', 'max:255'],
-                    'tanggal_lahir' => ['nullable', 'date'],
-                    'jenis_kelamin' => ['nullable', 'in:male,female'],
-                    'golongan_darah' => ['nullable', 'in:A,B,AB,O,unknown'],
-                    'nik_ayah' => ['nullable', 'digits:16'],
-                    'nik_ibu' => ['nullable', 'digits:16'],
-                ]);
-
-                if ($validation->fails()) {
-                    $rows[$i]['_error'] = implode(' ', $validation->errors()->all());
-                    continue;
-                }
-
-                if ($existingNiks->has($item['nik'])) {
-                    $rows[$i]['_duplicate'] = true;
-                    if ($duplicateMode === 'skip') {
-                        $rows[$i]['_error'] = 'NIK sudah ada — akan dilewati.';
-                    }
-                }
-            }
-
-            $validCount = collect($rows)->whereNull('_error')->count();
-
-            return [
-                'rows' => $rows,
-                'errors' => [],
-                'validCount' => $validCount,
-                'invalidCount' => count($rows) - $validCount,
-            ];
-        } finally {
-            if ($temporaryCsv && is_file($temporaryCsv)) {
-                @unlink($temporaryCsv);
+        $headerMap = $this->headerMap(array_shift($raw));
+        foreach (['nik', 'nama lengkap'] as $required) {
+            if (! array_key_exists($required, $headerMap)) {
+                $errors[] = 'Kolom wajib tidak ditemukan: ' . strtoupper($required) . '.';
             }
         }
+        if ($errors) {
+            return ['rows' => [], 'errors' => $errors, 'validCount' => 0, 'invalidCount' => 0];
+        }
+
+        $rows = $this->normalizeRows($raw, $headerMap);
+        $this->markFileDuplicates($rows);
+
+        $niks = array_values(array_unique(array_filter(array_column($rows, 'nik'))));
+        $existingNiks = $niks
+            ? Citizen::query()->where('tenant_id', $tenantId)->whereIn('nik', $niks)->pluck('nik')->flip()
+            : collect();
+
+        foreach ($rows as $i => $item) {
+            $validation = Validator::make($item, [
+                'nik' => ['required', 'digits:16'],
+                'nama_lengkap' => ['required', 'string', 'max:255'],
+                'tanggal_lahir' => ['nullable', 'date'],
+                'jenis_kelamin' => ['nullable', 'in:male,female'],
+                'golongan_darah' => ['nullable', 'in:A,B,AB,O,unknown'],
+                'nik_ayah' => ['nullable', 'digits:16'],
+                'nik_ibu' => ['nullable', 'digits:16'],
+            ]);
+
+            if ($validation->fails()) {
+                $rows[$i]['_error'] = implode(' ', $validation->errors()->all());
+                continue;
+            }
+
+            if ($existingNiks->has($item['nik'])) {
+                $rows[$i]['_duplicate'] = true;
+                if ($duplicateMode === 'skip') {
+                    $rows[$i]['_error'] = 'NIK sudah ada — akan dilewati.';
+                }
+            }
+        }
+
+        $validCount = collect($rows)->whereNull('_error')->count();
+
+        return [
+            'rows' => $rows,
+            'errors' => [],
+            'validCount' => $validCount,
+            'invalidCount' => count($rows) - $validCount,
+        ];
     }
 
     public function import(array $rows, string $tenantId, string $duplicateMode, int|string $userId): int
@@ -157,6 +148,31 @@ class CitizenImportService
 
             return $count;
         });
+    }
+
+    private function readSpreadsheetRows(string $path): array
+    {
+        try {
+            $reader = IOFactory::createReaderForFile($path);
+            $reader->setReadDataOnly(true);
+            $spreadsheet = $reader->load($path);
+            $worksheet = $spreadsheet->getActiveSheet();
+            $rows = [];
+
+            foreach ($worksheet->toArray('', true, true, false) as $row) {
+                $rows[] = array_map(
+                    static fn ($value): string => trim((string) $value),
+                    $row,
+                );
+            }
+
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+
+            return $rows;
+        } catch (\Throwable $e) {
+            throw new RuntimeException('File Excel tidak dapat dibaca: ' . $e->getMessage(), 0, $e);
+        }
     }
 
     private function readRows(string $path): array
