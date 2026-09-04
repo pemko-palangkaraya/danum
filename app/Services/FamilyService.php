@@ -26,7 +26,7 @@ class FamilyService
     public function findDetail(string $tenantId, string $id): ?Family
     {
         return $this->query($tenantId)
-            ->with(['headCitizen', 'members.citizen'])
+            ->with(['headCitizen', 'activeMembers.citizen'])
             ->find($id);
     }
 
