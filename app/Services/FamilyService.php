@@ -125,7 +125,7 @@ class FamilyService
             ]
         )->validate();
 
-        if ($status === 'active' && $this->isMemberUnavailable($citizen->id)) {
+        if ($this->isFamilyHead($citizen->id) || ($status === 'active' && $this->hasActiveMembership($citizen->id))) {
             throw ValidationException::withMessages([
                 'hubungan_dalam_keluarga' => 'Warga ini sudah menjadi anggota aktif KK lain atau merupakan kepala keluarga.',
             ]);
@@ -183,13 +183,17 @@ class FamilyService
             ->get(['id', 'nik', 'nama_lengkap']);
     }
 
-    private function isMemberUnavailable(string $citizenId): bool
+    private function isFamilyHead(string $citizenId): bool
+    {
+        return Family::query()->where('head_citizen_id', $citizenId)->exists();
+    }
+
+    private function hasActiveMembership(string $citizenId): bool
     {
         return FamilyMember::query()
             ->where('citizen_id', $citizenId)
             ->where('status', 'active')
-            ->exists()
-            || Family::query()->where('head_citizen_id', $citizenId)->exists();
+            ->exists();
     }
 
     private function rules(string $tenantId, ?string $editingId): array
