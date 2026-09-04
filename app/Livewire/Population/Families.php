@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Livewire\Population;
 
-use App\Models\Citizen;
 use App\Services\FamilyService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
@@ -94,14 +93,6 @@ class Families extends Component
     {
         $this->head_citizen_id = '';
         $this->headSearch = '';
-    }
-
-    public function getSelectedHeadProperty(): ?Citizen
-    {
-        return app(FamilyService::class)->selectedHead(
-            $this->tenantIdForQuery(),
-            $this->head_citizen_id,
-        );
     }
 
     public function save(): void
