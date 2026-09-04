@@ -8,6 +8,7 @@ use App\Models\Position;
 use App\Models\PositionHolder;
 use App\Models\SignerCertificate;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -23,8 +24,6 @@ class SignerCertificateService
         $user = $holder->user;
         $tenantName = (string) ($holder->tenant?->name ?? 'DANUM');
         $commonName = trim($user->name) !== '' ? $user->name : (string) $user->email;
-        $validFrom = now()->startOfSecond();
-        $validUntil = $validFrom->copy()->addYear();
 
         $certificateConfig = base_path('resources/certificates/openssl.cnf');
         if (! is_file($certificateConfig)) throw new RuntimeException('Konfigurasi OpenSSL sertifikat tidak ditemukan.');
@@ -58,10 +57,9 @@ class SignerCertificateService
             ]);
             if ($csr === false) throw new RuntimeException('Gagal membuat CSR sertifikat: '.$this->opensslError());
 
-            // Do not use serial 0: OpenSSL interprets the sixth argument as the
-            // X.509 certificate serial number, and 0 is what caused viewers to
-            // report the e-certificate serial as 00000000. Generate a positive
-            // 64-bit value so every certificate receives a unique, non-zero serial.
+            // The serial is part of the X.509 certificate identity. Generate it
+            // once at certificate issuance; it remains unchanged for every PDF
+            // signed with this certificate.
             $serialNumber = random_int(1, PHP_INT_MAX);
 
             $cert = openssl_csr_sign($csr, null, $key, 365, [
@@ -75,12 +73,27 @@ class SignerCertificateService
             if (! openssl_pkey_export($key, $privateKeyPem, null, ['config' => $certificateConfig])) throw new RuntimeException('Gagal mengekspor private key: '.$this->opensslError());
 
             $parsed = openssl_x509_parse($certificatePem);
+            if ($parsed === false) throw new RuntimeException('Gagal membaca sertifikat publik yang baru diterbitkan.');
+
             $serial = strtoupper((string) ($parsed['serialNumberHex'] ?? ''));
             if ($serial === '') $serial = strtoupper((string) ($parsed['serialNumber'] ?? ''));
             if ($serial === '' || preg_match('/^0+$/', $serial) === 1) throw new RuntimeException('Gagal membaca serial number sertifikat publik yang valid.');
 
             $fingerprint = openssl_x509_fingerprint($certificatePem, 'sha256');
             if (! $fingerprint) throw new RuntimeException('Gagal menghitung fingerprint sertifikat.');
+
+            // OpenSSL owns the actual X.509 validity timestamps. Persist the
+            // parsed certificate timestamps instead of separately calculating
+            // them with Laravel, so DB and certificate can never drift by a
+            // timezone conversion or a second/day boundary.
+            $validFromTimestamp = (int) ($parsed['validFrom_time_t'] ?? 0);
+            $validUntilTimestamp = (int) ($parsed['validTo_time_t'] ?? 0);
+            if ($validFromTimestamp <= 0 || $validUntilTimestamp <= $validFromTimestamp) {
+                throw new RuntimeException('Rentang berlaku sertifikat publik tidak valid.');
+            }
+
+            $validFrom = CarbonImmutable::createFromTimestampUTC($validFromTimestamp);
+            $validUntil = CarbonImmutable::createFromTimestampUTC($validUntilTimestamp);
 
             return DB::transaction(function () use ($position, $holder, $generatedBy, $serial, $validFrom, $validUntil, $certificatePem, $privateKeyPem, $parsed, $fingerprint): SignerCertificate {
                 SignerCertificate::query()
