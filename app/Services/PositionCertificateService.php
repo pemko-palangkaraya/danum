@@ -6,7 +6,6 @@ namespace App\Services;
 
 use App\Models\Position;
 use App\Models\SignerCertificate;
-use App\Models\User;
 use RuntimeException;
 
 class PositionCertificateService
@@ -24,13 +23,13 @@ class PositionCertificateService
             ->first();
     }
 
-    public function validateSigner(Position $position, PositionService $positions): object
+    public function validateSigner(Position $position, PositionHolderService $holders): object
     {
         if (! $position->can_sign) {
             throw new RuntimeException('Jabatan ini belum diizinkan untuk TTE.');
         }
 
-        $holder = $positions->getActiveHolder($position);
+        $holder = $holders->active($position);
         $holder?->loadMissing('user');
 
         if (! $holder?->user) {
