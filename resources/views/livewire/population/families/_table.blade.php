@@ -16,7 +16,7 @@
                         <td class="whitespace-nowrap px-6 py-4 font-mono text-sm font-semibold text-slate-900">{{ $family->no_kk }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-800">{{ $family->headCitizen?->nama_lengkap ?? '-' }}</td>
                         <td class="max-w-md px-6 py-4 text-sm text-slate-600">{{ $family->alamat }}</td>
-                        <td class="px-6 py-4 text-center"><span class="inline-flex min-w-8 justify-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ $family->activeMembers->count() }}</span></td>
+                        <td class="px-6 py-4 text-center"><span class="inline-flex min-w-8 justify-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ $family->active_members_count }}</span></td>
                         <td class="px-6 py-4 text-right">
                             <button wire:click="showDetail('{{ $family->id }}')" class="mr-3 text-sm font-semibold text-slate-700 hover:text-slate-950">Detail</button>
                             <a href="{{ route('population.families.pdf', ['id' => $family->id]) }}" target="_blank" rel="noopener" class="mr-3 text-sm font-semibold text-indigo-700 hover:text-indigo-800">Cetak KK</a>
@@ -37,8 +37,5 @@
         </table>
     </div>
 
-    <div class="flex flex-col gap-3 border-t border-slate-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <p class="text-sm text-slate-500">Menampilkan {{ $families->firstItem() ?: 0 }}–{{ $families->lastItem() ?: 0 }} dari {{ $families->total() }} KK</p>
-        {{ $families->links() }}
-    </div>
+    <x-ui.table-footer :paginator="$families" label="KK" />
 </div>
