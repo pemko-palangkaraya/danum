@@ -13,11 +13,6 @@ use Illuminate\Validation\Rule;
 
 class FamilyService
 {
-    public function tenantExists(string $tenantId): bool
-    {
-        return Tenant::query()->whereKey($tenantId)->exists();
-    }
-
     public function tenants()
     {
         return Tenant::query()->orderBy('name')->get(['id', 'name']);
@@ -117,13 +112,22 @@ class FamilyService
         $citizen = $this->findCitizen($tenantId, $citizenId);
 
         $data = Validator::make(
-            ['hubungan_dalam_keluarga' => $relationship],
-            ['hubungan_dalam_keluarga' => ['required', 'string', 'max:40']]
+            [
+                'hubungan_dalam_keluarga' => $relationship,
+                'status' => $status,
+            ],
+            [
+                'hubungan_dalam_keluarga' => ['required', 'string', 'max:40'],
+                'status' => ['required', 'string', Rule::in(['active', 'inactive'])],
+            ]
         )->validate();
 
         FamilyMember::updateOrCreate(
             ['family_id' => $family->id, 'citizen_id' => $citizen->id],
-            ['hubungan_dalam_keluarga' => $data['hubungan_dalam_keluarga'], 'status' => $status]
+            [
+                'hubungan_dalam_keluarga' => $data['hubungan_dalam_keluarga'],
+                'status' => $data['status'],
+            ]
         );
     }
 
