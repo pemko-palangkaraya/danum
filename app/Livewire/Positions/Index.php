@@ -6,7 +6,7 @@ namespace App\Livewire\Positions;
 
 use App\Enums\PositionStatus;
 use App\Models\Position;
-use App\Models\Tenant;
+use App\Services\PositionCertificateService;
 use App\Services\PositionIndexService;
 use App\Services\PositionService;
 use App\Services\SignerCertificateService;
@@ -44,12 +44,12 @@ class Index extends Component
     public string $certificatePositionName = '';
     public string $certificateHolderName = '';
 
-    public function mount(): void
+    public function mount(PositionIndexService $index): void
     {
         $this->authorize('viewAny', Position::class);
         $user = auth()->user();
         if ($user->tenant_id) {
-            $this->selectedTenantId = (string) Tenant::query()->whereKey($user->tenant_id)->value('tenant_category_id');
+            $this->selectedTenantId = (string) $index->categoryIdFor($user);
         }
     }
 
@@ -60,72 +60,165 @@ class Index extends Component
 
     public function edit(string $id): void
     {
-        $position = Position::query()->findOrFail($id); $this->authorize('update', $position);
-        $this->editingId = $position->id; $this->selectedTenantId = (string) $position->tenant_category_id;
-        $this->code = $position->code; $this->name = $position->name; $this->description = (string) $position->description;
-        $this->status = $position->status->value; $this->can_sign = (bool) $position->can_sign; $this->can_validate = (bool) $position->can_validate;
-        $this->resetValidation(); $this->showForm = true;
+        $position = Position::query()->findOrFail($id);
+        $this->authorize('update', $position);
+        $this->editingId = $position->id;
+        $this->selectedTenantId = (string) $position->tenant_category_id;
+        $this->code = $position->code;
+        $this->name = $position->name;
+        $this->description = (string) $position->description;
+        $this->status = $position->status->value;
+        $this->can_sign = (bool) $position->can_sign;
+        $this->can_validate = (bool) $position->can_validate;
+        $this->resetValidation();
+        $this->showForm = true;
     }
 
-    public function save(PositionService $service): void
+    public function save(PositionService $service, PositionIndexService $index): void
     {
-        $user = auth()->user(); $position = $this->editingId ? Position::query()->findOrFail($this->editingId) : null;
+        $user = auth()->user();
+        $position = $this->editingId ? Position::query()->findOrFail($this->editingId) : null;
         $this->authorize($position ? 'update' : 'create', $position ?? Position::class);
-        $categoryId = $this->selectedTenantId;
-        if ($user->tenant_id) { $categoryId = (string) Tenant::query()->whereKey($user->tenant_id)->value('tenant_category_id'); $this->selectedTenantId = $categoryId; }
+        $categoryId = $user->tenant_id ? (string) $index->categoryIdFor($user) : $this->selectedTenantId;
+        if ($user->tenant_id) $this->selectedTenantId = $categoryId;
+
         $this->validate([
             'selectedTenantId' => ['required', 'string', Rule::exists('tenant_categories', 'id')->where(fn ($q) => $q->where('is_active', true))],
             'code' => ['required', 'string', 'max:50', Rule::unique('positions', 'code')->where(fn ($q) => $q->where('tenant_category_id', $categoryId))->ignore($this->editingId)->whereNull('deleted_at')],
-            'name' => ['required', 'string', 'max:255'], 'description' => ['nullable', 'string'], 'status' => ['required', Rule::enum(PositionStatus::class)],
-            'can_sign' => ['boolean'], 'can_validate' => ['boolean'],
-        ], ['selectedTenantId.required' => 'Kategori tenant wajib dipilih.', 'selectedTenantId.exists' => 'Kategori tenant yang dipilih tidak valid.', 'code.unique' => 'Kode jabatan sudah digunakan pada kategori tenant ini.']);
-        $data = ['tenant_category_id' => $categoryId, 'code' => trim($this->code), 'name' => trim($this->name), 'description' => $this->description ?: null, 'status' => $this->status, 'can_sign' => $this->can_sign, 'can_validate' => $this->can_validate];
-        if ($position) { $service->update($position, $data); $message = 'Jabatan berhasil diperbarui.'; } else { $service->create($data); $message = 'Jabatan berhasil dibuat.'; }
-        $this->showForm = false; $this->resetForm(); $this->dispatch('toast', type: 'success', message: $message);
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'status' => ['required', Rule::enum(PositionStatus::class)],
+            'can_sign' => ['boolean'],
+            'can_validate' => ['boolean'],
+        ], [
+            'selectedTenantId.required' => 'Kategori tenant wajib dipilih.',
+            'selectedTenantId.exists' => 'Kategori tenant yang dipilih tidak valid.',
+            'code.unique' => 'Kode jabatan sudah digunakan pada kategori tenant ini.',
+        ]);
+
+        $data = [
+            'tenant_category_id' => $categoryId,
+            'code' => trim($this->code),
+            'name' => trim($this->name),
+            'description' => $this->description ?: null,
+            'status' => $this->status,
+            'can_sign' => $this->can_sign,
+            'can_validate' => $this->can_validate,
+        ];
+        if ($position) { $service->update($position, $data); $message = 'Jabatan berhasil diperbarui.'; }
+        else { $service->create($data); $message = 'Jabatan berhasil dibuat.'; }
+        $this->showForm = false;
+        $this->resetForm();
+        $this->dispatch('toast', type: 'success', message: $message);
     }
 
     public function assignHolder(string $positionId, PositionService $service): void
     {
         $position = Position::query()->findOrFail($positionId);
         if (! auth()->user()->canManagePositions()) { $this->dispatch('toast', type: 'error', message: 'Anda tidak memiliki izin untuk mengatur pejabat.'); return; }
-        $this->authorize('manageHolder', $position); $this->holderPositionId = $position->id; $currentHolder = $service->getActiveHolder($position);
-        $this->holderUserId = $currentHolder?->user_id !== null ? (string) $currentHolder->user_id : ''; $this->holderStartedAt = $currentHolder?->started_at ? $currentHolder->started_at->toDateString() : now()->toDateString(); $this->holderAssignmentStatus = $currentHolder?->assignment_status ?? 'definitif'; $this->resetValidation(['holderUserId', 'holderStartedAt', 'holderAssignmentStatus']); $this->showHolderForm = true;
+        $this->authorize('manageHolder', $position);
+        $this->holderPositionId = $position->id;
+        $currentHolder = $service->getActiveHolder($position);
+        $this->holderUserId = $currentHolder?->user_id !== null ? (string) $currentHolder->user_id : '';
+        $this->holderStartedAt = $currentHolder?->started_at ? $currentHolder->started_at->toDateString() : now()->toDateString();
+        $this->holderAssignmentStatus = $currentHolder?->assignment_status ?? 'definitif';
+        $this->resetValidation(['holderUserId', 'holderStartedAt', 'holderAssignmentStatus']);
+        $this->showHolderForm = true;
     }
+
     public function saveHolder(PositionService $service): void
     {
         if (! auth()->user()->canManagePositions()) { $this->dispatch('toast', type: 'error', message: 'Anda tidak memiliki izin untuk mengatur pejabat.'); return; }
         $this->validate(['holderUserId' => ['required', 'integer'], 'holderStartedAt' => ['required', 'date'], 'holderAssignmentStatus' => ['required', Rule::in(['definitif', 'plt'])]], ['holderUserId.required' => 'Silakan pilih pejabat.', 'holderStartedAt.required' => 'Tanggal mulai wajib diisi.', 'holderStartedAt.date' => 'Tanggal mulai tidak valid.']);
-        $position = Position::query()->findOrFail($this->holderPositionId); $this->authorize('manageHolder', $position);
-        try { $service->assignHolder($position, (int) $this->holderUserId, new \DateTimeImmutable($this->holderStartedAt), $this->holderAssignmentStatus); } catch (\Throwable $exception) { $field = str_contains(strtolower($exception->getMessage()), 'start date') ? 'holderStartedAt' : 'holderUserId'; $this->addError($field, $exception->getMessage()); return; }
-        $this->showHolderForm = false; $this->resetHolderForm(); $this->dispatch('toast', type: 'success', message: 'Pemegang jabatan berhasil ditetapkan.');
+        $position = Position::query()->findOrFail($this->holderPositionId);
+        $this->authorize('manageHolder', $position);
+        try { $service->assignHolder($position, (int) $this->holderUserId, new \DateTimeImmutable($this->holderStartedAt), $this->holderAssignmentStatus); }
+        catch (\Throwable $exception) { $field = str_contains(strtolower($exception->getMessage()), 'start date') ? 'holderStartedAt' : 'holderUserId'; $this->addError($field, $exception->getMessage()); return; }
+        $this->showHolderForm = false;
+        $this->resetHolderForm();
+        $this->dispatch('toast', type: 'success', message: 'Pemegang jabatan berhasil ditetapkan.');
     }
-    public function manageCertificate(string $positionId, PositionService $positions): void
+
+    public function manageCertificate(string $positionId, PositionService $positions, PositionCertificateService $certificates): void
     {
-        $position = Position::query()->findOrFail($positionId); $this->authorize('manageHolder', $position);
-        if (! $position->can_sign) { $this->dispatch('toast', type: 'error', message: 'Jabatan ini belum diizinkan untuk TTE.'); return; }
-        $holder = $positions->getActiveHolder($position); $holder?->loadMissing('user');
-        if (! $holder?->user) { $this->dispatch('toast', type: 'error', message: 'Tetapkan pejabat aktif terlebih dahulu.'); return; }
-        $this->certificatePositionId = $position->id; $this->certificatePositionName = $position->name; $this->certificateHolderName = $holder->user->name; $this->showCertificate = true;
+        $position = Position::query()->findOrFail($positionId);
+        $this->authorize('manageHolder', $position);
+        try { $holder = $certificates->validateSigner($position, $positions); }
+        catch (\Throwable $exception) { $this->dispatch('toast', type: 'error', message: $exception->getMessage()); return; }
+        $this->certificatePositionId = $position->id;
+        $this->certificatePositionName = $position->name;
+        $this->certificateHolderName = $holder->user->name;
+        $this->showCertificate = true;
     }
+
     public function generateCertificate(SignerCertificateService $service, PositionService $positions): void
     {
-        $position = Position::query()->findOrFail($this->certificatePositionId); $this->authorize('manageHolder', $position);
-        $holder = $positions->getActiveHolder($position); $holder?->loadMissing('user');
+        $position = Position::query()->findOrFail($this->certificatePositionId);
+        $this->authorize('manageHolder', $position);
+        $holder = $positions->getActiveHolder($position);
+        $holder?->loadMissing('user');
         if (! $holder) { $this->addError('certificatePositionId', 'Tetapkan pejabat aktif terlebih dahulu.'); return; }
-        try { $service->generate($position, $holder, auth()->user()); } catch (\Throwable $exception) { $this->addError('certificatePositionId', $exception->getMessage()); return; }
-        $this->dispatch('toast', type: 'success', message: 'Sertifikat publik berhasil dibuat.'); $this->showCertificate = false; $this->resetCertificateForm();
+        try { $service->generate($position, $holder, auth()->user()); }
+        catch (\Throwable $exception) { $this->addError('certificatePositionId', $exception->getMessage()); return; }
+        $this->dispatch('toast', type: 'success', message: 'Sertifikat publik berhasil dibuat.');
+        $this->showCertificate = false;
+        $this->resetCertificateForm();
     }
-    public function downloadCertificate(string $positionId)
+
+    public function downloadCertificate(string $positionId, PositionCertificateService $certificates)
     {
-        $position = Position::query()->findOrFail($positionId); $this->authorize('view', $position); $certificate = $position->signerCertificates()->where('is_active', true)->latest('created_at')->first(); if (! $certificate) abort(404);
-        $filename = 'sertifikat-' . str($position->code)->slug() . '-' . str($certificate->fingerprint_sha256)->substr(0, 12) . '.pem'; return response()->streamDownload(fn () => print($certificate->certificate_pem), $filename, ['Content-Type' => 'application/x-pem-file']);
+        $position = Position::query()->findOrFail($positionId);
+        $this->authorize('view', $position);
+        ['certificate' => $certificate, 'filename' => $filename] = $certificates->download($position);
+        return response()->streamDownload(fn () => print($certificate->certificate_pem), $filename, ['Content-Type' => 'application/x-pem-file']);
     }
-    public function showHistoryFor(string $positionId): void { $position = Position::query()->findOrFail($positionId); $this->authorize('view', $position); $this->historyPositionId = $position->id; $this->historyPositionName = $position->name; $this->showHistory = true; }
-    public function endHolder(string $positionId, PositionService $service): void { $position = Position::query()->findOrFail($positionId); $this->authorize('manageHolder', $position); $holder = $service->getActiveHolder($position); if ($holder) $service->endHolder($holder, now()); $this->dispatch('toast', type: 'success', message: 'Pemegang jabatan berhasil diakhiri.'); }
-    public function toggleStatus(string $id, PositionService $service): void { $position = Position::query()->findOrFail($id); $this->authorize('update', $position); $next = $position->status === PositionStatus::ACTIVE ? PositionStatus::INACTIVE : PositionStatus::ACTIVE; $service->update($position, ['status' => $next->value]); $this->dispatch('toast', type: 'success', message: 'Status jabatan diperbarui.'); }
-    private function resetForm(): void { $this->reset(['editingId', 'code', 'name', 'description', 'can_sign', 'can_validate']); if (auth()->user()->tenant_id) $this->selectedTenantId = (string) Tenant::query()->whereKey(auth()->user()->tenant_id)->value('tenant_category_id'); else $this->selectedTenantId = ''; $this->status = PositionStatus::ACTIVE->value; $this->resetValidation(); }
-    private function resetHolderForm(): void { $this->reset(['holderPositionId', 'holderUserId', 'holderStartedAt', 'holderAssignmentStatus']); $this->holderAssignmentStatus = 'definitif'; }
-    private function resetCertificateForm(): void { $this->reset(['certificatePositionId', 'certificatePositionName', 'certificateHolderName']); $this->resetValidation(); }
+
+    public function showHistoryFor(string $positionId): void
+    {
+        $position = Position::query()->findOrFail($positionId);
+        $this->authorize('view', $position);
+        $this->historyPositionId = $position->id;
+        $this->historyPositionName = $position->name;
+        $this->showHistory = true;
+    }
+
+    public function endHolder(string $positionId, PositionService $service): void
+    {
+        $position = Position::query()->findOrFail($positionId);
+        $this->authorize('manageHolder', $position);
+        $holder = $service->getActiveHolder($position);
+        if ($holder) $service->endHolder($holder, now());
+        $this->dispatch('toast', type: 'success', message: 'Pemegang jabatan berhasil diakhiri.');
+    }
+
+    public function toggleStatus(string $id, PositionService $service): void
+    {
+        $position = Position::query()->findOrFail($id);
+        $this->authorize('update', $position);
+        $next = $position->status === PositionStatus::ACTIVE ? PositionStatus::INACTIVE : PositionStatus::ACTIVE;
+        $service->update($position, ['status' => $next->value]);
+        $this->dispatch('toast', type: 'success', message: 'Status jabatan diperbarui.');
+    }
+
+    private function resetForm(): void
+    {
+        $this->reset(['editingId', 'code', 'name', 'description', 'can_sign', 'can_validate']);
+        if (! auth()->user()->tenant_id) $this->selectedTenantId = '';
+        $this->status = PositionStatus::ACTIVE->value;
+        $this->resetValidation();
+    }
+
+    private function resetHolderForm(): void
+    {
+        $this->reset(['holderPositionId', 'holderUserId', 'holderStartedAt', 'holderAssignmentStatus']);
+        $this->holderAssignmentStatus = 'definitif';
+    }
+
+    private function resetCertificateForm(): void
+    {
+        $this->reset(['certificatePositionId', 'certificatePositionName', 'certificateHolderName']);
+        $this->resetValidation();
+    }
 
     public function render(PositionIndexService $index)
     {
