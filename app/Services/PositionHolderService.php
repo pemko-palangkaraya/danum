@@ -59,6 +59,13 @@ class PositionHolderService
         return $this->holderRepository->end($holder, $endedAt);
     }
 
+    public function endActive(Position $position): void
+    {
+        foreach ($position->holders()->whereNull('ended_at')->get() as $holder) {
+            $this->holderRepository->end($holder, now());
+        }
+    }
+
     public function active(Position $position): ?PositionHolder
     {
         $tenantId = auth()->user()?->tenant_id;
