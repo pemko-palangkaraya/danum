@@ -38,8 +38,8 @@ class UpdateUserRequest extends FormRequest
         }
 
         if ($this->input('role') && $this->input('tenant_id') && ! $this->input('custom_role_id')) {
-            $role = Role::query()->where('tenant_id', $this->input('tenant_id'))->where('slug', $this->input('role'))->where('is_active', true)->first();
-            if ($role) $this->merge(['platform_role' => null, 'custom_role_id' => $role->id]);
+            $role = Role::resolveSystemForTenant($this->input('role'), $this->input('tenant_id'));
+            if ($role) $this->merge(['platform_role' => null, 'custom_role_id' => $role->getKey()]);
         }
     }
 
@@ -54,11 +54,8 @@ class UpdateUserRequest extends FormRequest
             if ($platformRole === 'super_admin' && ($tenantId !== null || $customRoleId !== null)) $validator->errors()->add('platform_role', 'Super Admin tidak boleh memiliki tenant atau RBAC role.');
             if ($platformRole === null && $tenantId === null) $validator->errors()->add('tenant_id', 'Tenant member harus memiliki tenant.');
             if ($platformRole === null && $tenantId !== null && $customRoleId === null) $validator->errors()->add('custom_role_id', 'Tenant member harus memiliki RBAC role.');
-            if ($customRoleId !== null && $tenantId !== null) {
-                $valid = Role::query()->whereKey($customRoleId)->where('is_active', true)->where(function ($query) use ($tenantId) {
-                    $query->where(fn ($q) => $q->where('scope', 'global')->whereNull('tenant_id'))->orWhere(fn ($q) => $q->where('scope', 'tenant')->where('tenant_id', $tenantId));
-                })->exists();
-                if (! $valid) $validator->errors()->add('custom_role_id', 'RBAC role tidak berlaku untuk tenant yang dipilih.');
+            if ($customRoleId !== null && $tenantId !== null && Role::findActiveForTenant($customRoleId, $tenantId) === null) {
+                $validator->errors()->add('custom_role_id', 'RBAC role tidak berlaku untuk tenant yang dipilih.');
             }
         });
     }
