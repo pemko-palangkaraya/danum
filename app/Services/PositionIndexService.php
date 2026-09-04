@@ -14,11 +14,16 @@ use Illuminate\Database\Eloquent\Collection;
 
 class PositionIndexService
 {
-    public function categoryIdFor(User $user, ?string $selectedCategoryId = null): mixed
+    public function tenantCategoryId(User $user): mixed
     {
         return $user->tenant_id
             ? Tenant::query()->whereKey($user->tenant_id)->value('tenant_category_id')
-            : ($selectedCategoryId ?: null);
+            : null;
+    }
+
+    public function categoryIdFor(User $user, ?string $selectedCategoryId = null): mixed
+    {
+        return $this->tenantCategoryId($user) ?? ($selectedCategoryId ?: null);
     }
 
     public function positions(User $user, mixed $categoryId, string $search, string $filter, int $perPage): LengthAwarePaginator
