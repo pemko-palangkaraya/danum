@@ -11,7 +11,7 @@ use App\Models\Tenant;
 use App\Models\TenantPositionStructure;
 use App\Models\User;
 use App\Services\PositionService;
-use Illuminate\Support\Facades\DB;
+use App\Services\PositionStructureService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
@@ -38,26 +38,26 @@ class Structure extends Component
     public string $holderAppointmentNumber = '';
     public $holderAppointmentDocument = null;
 
-    public function mount(?string $tenant = null): void
+    public function mount(?string $tenant = null, PositionStructureService $structures): void
     {
         $this->authorize('viewAny', Position::class);
         $user = auth()->user();
         if ($user->tenant_id) $this->selectedTenantId = (string) $user->tenant_id;
         elseif ($user->isSuperAdmin() && $tenant) $this->selectedTenantId = $tenant;
-        if ($this->selectedTenantId !== '') $this->ensureStructureRows();
+        if ($this->selectedTenantId !== '') $structures->ensureRows($this->selectedTenantId);
     }
 
-    public function updatedSelectedTenantId(): void
+    public function updatedSelectedTenantId(PositionStructureService $structures): void
     {
         $this->resetForm();
         $this->resetHolderForm();
-        if ($this->selectedTenantId !== '') $this->ensureStructureRows();
+        if ($this->selectedTenantId !== '') $structures->ensureRows($this->selectedTenantId);
     }
 
-    public function editStructure(string $positionId): void
+    public function editStructure(string $positionId, PositionStructureService $structures): void
     {
-        $position = $this->positionForSelectedTenant($positionId);
-        $structure = TenantPositionStructure::query()->where('tenant_id', $this->selectedTenantId)->where('position_id', $position->id)->firstOrFail();
+        $position = $this->positionForSelectedTenant($positionId, $structures);
+        $structure = $structures->structureForPosition($this->selectedTenantId, $position->id);
         $this->editingPositionId = $position->id;
         $this->parentPositionId = (string) ($structure->parent_position_id ?? '');
         $this->sortOrder = (string) $structure->sort_order;
@@ -67,10 +67,10 @@ class Structure extends Component
         $this->resetValidation();
     }
 
-    public function saveStructure(): void
+    public function saveStructure(PositionStructureService $structures): void
     {
         $this->ensureCanManage();
-        $position = $this->positionForSelectedTenant((string) $this->editingPositionId);
+        $position = $this->positionForSelectedTenant((string) $this->editingPositionId, $structures);
         $this->validate([
             'selectedTenantId' => ['required', 'uuid', Rule::exists('tenants', 'id')],
             'parentPositionId' => ['nullable', 'string'],
@@ -79,27 +79,21 @@ class Structure extends Component
             'isRoot' => ['boolean'],
         ]);
         $parentId = $this->parentPositionId !== '' ? $this->parentPositionId : null;
-        if ($parentId !== null) {
-            $parent = $this->positionForSelectedTenant($parentId);
-            if ((string) $parent->id === (string) $position->id) { $this->addError('parentPositionId', 'Jabatan tidak dapat menjadi atasan dirinya sendiri.'); return; }
-            if ($this->wouldCreateCycle($position->id, $parent->id)) { $this->addError('parentPositionId', 'Struktur tidak boleh membentuk siklus.'); return; }
+        try {
+            $structures->save($this->selectedTenantId, $position, $parentId, (int) $this->sortOrder, $this->positionType, $this->isRoot);
+        } catch (\InvalidArgumentException $exception) {
+            $this->addError('parentPositionId', $exception->getMessage());
+            return;
         }
-        if ($this->isRoot && $parentId !== null) { $this->addError('parentPositionId', 'Kepala organisasi tidak boleh memiliki atasan.'); return; }
-        DB::transaction(function () use ($position, $parentId): void {
-            $structure = TenantPositionStructure::query()->firstOrCreate(['tenant_id' => $this->selectedTenantId, 'position_id' => $position->id], ['sort_order' => 0, 'is_root' => false]);
-            if ($this->isRoot) TenantPositionStructure::query()->where('tenant_id', $this->selectedTenantId)->where('position_id', '!=', $position->id)->update(['is_root' => false]);
-            $position->update(['position_type' => $this->positionType]);
-            $structure->update(['parent_position_id' => $parentId, 'sort_order' => (int) $this->sortOrder, 'is_root' => $this->isRoot]);
-        });
         $this->showForm = false;
         $this->resetForm();
         $this->dispatch('toast', type: 'success', message: 'Struktur dan jenis jabatan berhasil diperbarui.');
     }
 
-    public function openHolderForm(string $positionId): void
+    public function openHolderForm(string $positionId, PositionStructureService $structures): void
     {
         $this->ensureCanManage();
-        $position = $this->positionForSelectedTenant($positionId);
+        $position = $this->positionForSelectedTenant($positionId, $structures);
         $current = $position->holders()->where('tenant_id', $this->selectedTenantId)->whereNull('ended_at')->latest('started_at')->first();
         $this->holderPositionId = $position->id;
         $this->holderUserId = (string) ($current?->user_id ?? '');
@@ -111,7 +105,7 @@ class Structure extends Component
         $this->resetValidation();
     }
 
-    public function saveHolder(PositionService $service): void
+    public function saveHolder(PositionService $service, PositionStructureService $structures): void
     {
         $this->ensureCanManage();
         $this->validate([
@@ -126,23 +120,13 @@ class Structure extends Component
             'holderAppointmentDocument.max' => 'Ukuran dokumen SK maksimal 10 MB.',
         ]);
 
-        $position = $this->positionForSelectedTenant((string) $this->holderPositionId);
+        $position = $this->positionForSelectedTenant((string) $this->holderPositionId, $structures);
         $documentPath = null;
         try {
             if ($this->holderAppointmentDocument) {
-                $documentPath = $this->holderAppointmentDocument->store(
-                    'position-appointments/' . $this->selectedTenantId . '/' . $position->id,
-                    'local'
-                );
+                $documentPath = $this->holderAppointmentDocument->store('position-appointments/' . $this->selectedTenantId . '/' . $position->id, 'local');
             }
-            $service->assignHolder(
-                $position,
-                (int) $this->holderUserId,
-                new \DateTimeImmutable($this->holderStartedAt),
-                PositionAssignmentStatus::from($this->holderAssignmentStatus),
-                $this->holderAppointmentNumber,
-                $documentPath,
-            );
+            $service->assignHolder($position, (int) $this->holderUserId, new \DateTimeImmutable($this->holderStartedAt), PositionAssignmentStatus::from($this->holderAssignmentStatus), $this->holderAppointmentNumber, $documentPath);
         } catch (\Throwable $exception) {
             if ($documentPath) Storage::disk('local')->delete($documentPath);
             $this->addError('holderUserId', $exception->getMessage());
@@ -153,46 +137,22 @@ class Structure extends Component
         $this->dispatch('toast', type: 'success', message: 'Pemangku jabatan dan SK berhasil ditetapkan.');
     }
 
-    public function setRoot(string $positionId): void
+    public function setRoot(string $positionId, PositionStructureService $structures): void
     {
         $this->ensureCanManage();
-        $position = $this->positionForSelectedTenant($positionId);
-        DB::transaction(function () use ($position): void {
-            TenantPositionStructure::query()->where('tenant_id', $this->selectedTenantId)->update(['is_root' => false]);
-            TenantPositionStructure::query()->where('tenant_id', $this->selectedTenantId)->where('position_id', $position->id)->update(['parent_position_id' => null, 'is_root' => true]);
-        });
+        $position = $this->positionForSelectedTenant($positionId, $structures);
+        $structures->setRoot($this->selectedTenantId, $position);
         $this->dispatch('toast', type: 'success', message: $position->name.' ditetapkan sebagai kepala organisasi.');
     }
 
     private function ensureCanManage(): void { abort_unless(auth()->user()?->canManagePositions(), 403); }
 
-    private function positionForSelectedTenant(string $id): Position
+    private function positionForSelectedTenant(string $id, PositionStructureService $structures): Position
     {
-        $position = Position::query()->with('category')->findOrFail($id);
         abort_unless($this->selectedTenantId !== '', 422);
-        $categoryId = Tenant::query()->whereKey($this->selectedTenantId)->value('tenant_category_id');
-        abort_unless((string) $position->tenant_category_id === (string) $categoryId, 403);
+        $position = $structures->positionForTenant($this->selectedTenantId, $id);
         $this->authorize('view', $position);
         return $position;
-    }
-
-    private function ensureStructureRows(): void
-    {
-        $categoryId = Tenant::query()->whereKey($this->selectedTenantId)->value('tenant_category_id');
-        if (! $categoryId) return;
-        $positions = Position::query()->where('tenant_category_id', $categoryId)->where('status', 'active')->get(['id', 'sort_order']);
-        foreach ($positions as $position) TenantPositionStructure::query()->firstOrCreate(['tenant_id' => $this->selectedTenantId, 'position_id' => $position->id], ['parent_position_id' => null, 'sort_order' => $position->sort_order, 'is_root' => false]);
-    }
-
-    private function wouldCreateCycle(string $positionId, string $parentId): bool
-    {
-        $rows = TenantPositionStructure::query()->where('tenant_id', $this->selectedTenantId)->pluck('parent_position_id', 'position_id');
-        $cursor = $parentId; $seen = [];
-        while ($cursor !== '') {
-            if ($cursor === $positionId || isset($seen[$cursor])) return true;
-            $seen[$cursor] = true; $cursor = (string) ($rows[$cursor] ?? '');
-        }
-        return false;
     }
 
     private function resetForm(): void
@@ -207,17 +167,17 @@ class Structure extends Component
         $this->holderAssignmentStatus = PositionAssignmentStatus::DEFINITIF->value;
     }
 
-    public function render()
+    public function render(PositionStructureService $structures)
     {
         $user = auth()->user();
         $tenants = $user->isSuperAdmin() ? Tenant::query()->where('status', true)->orderBy('name')->get(['id', 'name', 'tenant_category_id']) : Tenant::query()->whereKey($user->tenant_id)->get(['id', 'name', 'tenant_category_id']);
-        $categoryId = $this->selectedTenantId ? Tenant::query()->whereKey($this->selectedTenantId)->value('tenant_category_id') : null;
+        $categoryId = $this->selectedTenantId ? $structures->tenantCategoryId($this->selectedTenantId) : null;
         $positions = $categoryId ? Position::query()->with(['holders' => fn ($q) => $q->where('tenant_id', $this->selectedTenantId)->whereNull('ended_at')->where('started_at', '<=', now())->with('user')])->where('tenant_category_id', $categoryId)->where('status', 'active')->orderBy('sort_order')->orderBy('name')->get() : collect();
-        $structures = $this->selectedTenantId ? TenantPositionStructure::query()->where('tenant_id', $this->selectedTenantId)->get()->keyBy('position_id') : collect();
-        $nodes = $positions->map(fn (Position $position) => ['position' => $position, 'structure' => $structures->get($position->id)]);
+        $structuresByPosition = $this->selectedTenantId ? $structures->structures($this->selectedTenantId) : collect();
+        $nodes = $positions->map(fn (Position $position) => ['position' => $position, 'structure' => $structuresByPosition->get($position->id)]);
         $roots = $nodes->filter(fn ($node) => $node['structure']?->is_root || $node['structure']?->parent_position_id === null)->values();
         if ($roots->count() > 1) { $explicitRoot = $nodes->first(fn ($node) => $node['structure']?->is_root); if ($explicitRoot) $roots = collect([$explicitRoot]); }
         $users = $this->selectedTenantId ? User::query()->where('tenant_id', $this->selectedTenantId)->where('status', 'active')->orderBy('name')->get(['id', 'name', 'email']) : collect();
-        return view('livewire.positions.structure', compact('tenants', 'positions', 'structures', 'nodes', 'roots', 'users') + ['canManage' => $user->canManagePositions(), 'positionTypes' => PositionType::cases(), 'assignmentStatuses' => PositionAssignmentStatus::cases()]);
+        return view('livewire.positions.structure', compact('tenants', 'positions', 'structuresByPosition', 'nodes', 'roots', 'users') + ['canManage' => $user->canManagePositions(), 'positionTypes' => PositionType::cases(), 'assignmentStatuses' => PositionAssignmentStatus::cases()]);
     }
 }
