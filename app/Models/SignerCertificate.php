@@ -16,9 +16,9 @@ class SignerCertificate extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'position_id', 'user_id', 'type', 'serial_number', 'fingerprint_sha256',
+        'position_id', 'user_id', 'issuing_ca_id', 'type', 'serial_number', 'fingerprint_sha256',
         'certificate_pem', 'private_key_encrypted', 'valid_from', 'valid_until',
-        'revoked_at', 'is_active', 'generated_by',
+        'revoked_at', 'is_active', 'generated_by', 'metadata',
     ];
 
     protected $hidden = ['private_key_encrypted'];
@@ -30,12 +30,14 @@ class SignerCertificate extends Model
             'valid_until' => 'datetime',
             'revoked_at' => 'datetime',
             'is_active' => 'boolean',
+            'metadata' => 'array',
         ];
     }
 
     public function position(): BelongsTo { return $this->belongsTo(Position::class); }
     public function user(): BelongsTo { return $this->belongsTo(User::class); }
     public function generator(): BelongsTo { return $this->belongsTo(User::class, 'generated_by'); }
+    public function issuingCa(): BelongsTo { return $this->belongsTo(CertificateAuthority::class, 'issuing_ca_id'); }
 
     public function isUsable(): bool
     {
