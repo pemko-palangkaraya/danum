@@ -60,7 +60,7 @@ class PopulationLocationService
     private function tenant(string $tenantId): ?Tenant
     {
         return Tenant::query()
-            ->with('category')
+            ->with(['category', 'parent.category', 'parent.parent.category'])
             ->whereKey($tenantId)
             ->where('status', TenantStatus::ACTIVE)
             ->first();
@@ -135,7 +135,7 @@ class PopulationLocationService
             return $tenant;
         }
 
-        $parent = $tenant->relationLoaded('parent') ? $tenant->parent : $tenant->parent()->with('category')->first();
+        $parent = $tenant->parent;
         if ($parent?->category?->code === 'pemerintah-kota') {
             return $parent;
         }
