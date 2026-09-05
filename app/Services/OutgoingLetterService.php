@@ -74,9 +74,9 @@ class OutgoingLetterService
         return $restored;
     }
 
-    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null, ?string $pin = null, bool $signWithTte = true): OutgoingLetter
+    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null, ?string $pin = null, bool $signWithTte = true, ?string $issuanceMarker = null): OutgoingLetter
     {
-        return $this->issuanceService->issue($letter, $changedBy, $note, $pin, $signWithTte);
+        return $this->issuanceService->issue($letter, $changedBy, $note, $pin, $signWithTte, $issuanceMarker);
     }
 
     public function signIssued(OutgoingLetter $letter, int $changedBy, string $pin, ?string $note = null): OutgoingLetter
