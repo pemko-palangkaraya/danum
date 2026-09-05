@@ -31,6 +31,7 @@ class PopulationLocationService
             'cities' => $this->cityOptions($tenant, $province, $city),
             'districts' => $this->districtOptions($tenant, $province, $city, $district),
             'villages' => $this->villageOptions($tenant, $province, $city, $district),
+            'locks' => $this->locksForTenant($tenant),
         ];
     }
 
@@ -54,6 +55,12 @@ class PopulationLocationService
             'cities' => collect(),
             'districts' => collect(),
             'villages' => collect(),
+            'locks' => [
+                'province' => false,
+                'city' => false,
+                'district' => false,
+                'village' => false,
+            ],
         ];
     }
 
@@ -68,10 +75,6 @@ class PopulationLocationService
 
     private function provinceOptions(Tenant $tenant, string $province): Collection
     {
-        if ($tenant->category?->code === 'pemerintah-provinsi') {
-            return collect([$tenant->province])->filter()->values();
-        }
-
         return collect([$tenant->province])->filter()->values();
     }
 
@@ -163,6 +166,18 @@ class PopulationLocationService
         }
 
         return collect();
+    }
+
+    private function locksForTenant(Tenant $tenant): array
+    {
+        $categoryCode = $tenant->category?->code;
+
+        return [
+            'province' => true,
+            'city' => ! in_array($categoryCode, ['pemerintah-provinsi'], true),
+            'district' => in_array($categoryCode, ['kecamatan', 'kelurahan', 'desa'], true),
+            'village' => in_array($categoryCode, ['kelurahan', 'desa'], true),
+        ];
     }
 
     private function childrenByCategory(Tenant $parent, array $categories): Collection
