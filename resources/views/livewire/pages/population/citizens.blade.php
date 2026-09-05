@@ -6,11 +6,6 @@
         'tenantSelected' => $tenantSelected,
     ])
 
-    @include('livewire.pages.population.partials.citizens-filters', [
-        'isSuperAdmin' => $isSuperAdmin,
-        'tenants' => $tenants,
-    ])
-
     @if($tenantSelected)
         @if($showForm)
             @include('livewire.pages.population.partials.citizens-form')
@@ -19,6 +14,8 @@
         @include('livewire.pages.population.partials.citizens-table', [
             'canManage' => $canManage,
             'detailRoute' => $detailRoute,
+            'isSuperAdmin' => $isSuperAdmin,
+            'tenants' => $tenants,
         ])
     @endif
 </div>
