@@ -16,15 +16,18 @@ class DocxTteService
     private const REL_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';
     private const OFFICE_REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
     private const TTE_NAME = 'DANUM TTE QR';
+    private const QR_NAME = 'DANUM QR';
     private const TTE_MARKER = '{{tte}}';
+    private const QR_MARKER = '{{qr}}';
 
-    public function embed(string $docxPath, string $verificationUrl): void
+    public function embed(string $docxPath, string $verificationUrl, string $marker = 'tte'): void
     {
         if (! is_file($docxPath)) throw new RuntimeException('DOCX hasil surat tidak ditemukan.');
 
         $zip = new ZipArchive();
         if ($zip->open($docxPath) !== true) throw new RuntimeException('DOCX hasil surat tidak dapat dibuka.');
 
+        $markerConfig = $this->markerConfig($marker);
         $parts = $this->tteParts($zip);
         if ($parts === []) { $zip->close(); return; }
 
@@ -41,7 +44,7 @@ class DocxTteService
             throw new RuntimeException('Data QR verification tidak valid.');
         }
 
-        $mediaName = 'danum-tte-' . substr(hash('sha256', $verificationUrl), 0, 16) . '.png';
+        $mediaName = 'danum-' . $markerConfig['media_prefix'] . '-' . substr(hash('sha256', $verificationUrl), 0, 16) . '.png';
         $contentTypes = $zip->getFromName('[Content_Types].xml');
         if ($contentTypes === false) { $zip->close(); throw new RuntimeException('DOCX [Content_Types].xml tidak ditemukan.'); }
 
@@ -57,7 +60,7 @@ class DocxTteService
             $xpath = new DOMXPath($dom);
             $xpath->registerNamespace('w', self::WORD_NS);
 
-            $replacement = $this->replaceMarkerInDocument($dom, $xpath, $rels, $mediaName);
+            $replacement = $this->replaceMarkerInDocument($dom, $xpath, $rels, $mediaName, $markerConfig['marker'], $markerConfig['name']);
             if ($replacement === null) continue;
 
             [, $updatedRels] = $replacement;
@@ -73,18 +76,30 @@ class DocxTteService
         $zip->close();
     }
 
-    public function createIssuedCopy(string $sourcePath, string $verificationUrl): string
+    public function createIssuedCopy(string $sourcePath, string $verificationUrl, string $marker = 'tte'): string
     {
         $copy = $this->temporaryCopy($sourcePath, 'danum-issued-');
-        try { $this->embed($copy, $verificationUrl); } catch (\Throwable $e) { @unlink($copy); throw $e; }
+        try {
+            $this->removeMarkers($copy, [$marker === 'tte' ? self::QR_MARKER : self::TTE_MARKER]);
+            $this->embed($copy, $verificationUrl, $marker);
+        } catch (\Throwable $e) { @unlink($copy); throw $e; }
         return $copy;
     }
 
     public function createPreviewCopy(string $sourcePath): string
     {
         $copy = $this->temporaryCopy($sourcePath, 'danum-preview-');
-        try { $this->removeTte($copy); } catch (\Throwable $e) { @unlink($copy); throw $e; }
+        try { $this->removeMarkers($copy, [self::TTE_MARKER, self::QR_MARKER]); } catch (\Throwable $e) { @unlink($copy); throw $e; }
         return $copy;
+    }
+
+    private function markerConfig(string $marker): array
+    {
+        return match ($marker) {
+            'qr' => ['marker' => self::QR_MARKER, 'name' => self::QR_NAME, 'media_prefix' => 'qr'],
+            'tte' => ['marker' => self::TTE_MARKER, 'name' => self::TTE_NAME, 'media_prefix' => 'tte'],
+            default => throw new RuntimeException('Marker dokumen TTE tidak valid.'),
+        };
     }
 
     private function tteParts(ZipArchive $zip): array
@@ -95,12 +110,12 @@ class DocxTteService
             if (! is_string($name) || ! preg_match('#^word/(document|header\d+|footer\d+)\.xml$#', $name)) continue;
             $base = pathinfo($name, PATHINFO_FILENAME);
             $rels = 'word/_rels/' . $base . '.xml.rels';
-            if ($zip->locateName($rels) !== false) $parts[] = ['xml' => $name, 'rels' => $rels];
+            if (zip_entry_exists($zip, $rels)) $parts[] = ['xml' => $name, 'rels' => $rels];
         }
         return $parts;
     }
 
-    private function replaceMarkerInDocument(DOMDocument $dom, DOMXPath $xpath, string $rels, string $mediaName): ?array
+    private function replaceMarkerInDocument(DOMDocument $dom, DOMXPath $xpath, string $rels, string $mediaName, string $marker, string $name): ?array
     {
         $paragraphs = $xpath->query('//w:p');
         if (! $paragraphs) return null;
@@ -120,9 +135,9 @@ class DocxTteService
                 $items[] = ['node' => $node, 'start' => $start, 'length' => strlen($value)];
             }
 
-            $markerStart = strpos($text, self::TTE_MARKER);
+            $markerStart = strpos($text, $marker);
             if ($markerStart === false) continue;
-            $markerEnd = $markerStart + strlen(self::TTE_MARKER);
+            $markerEnd = $markerStart + strlen($marker);
 
             $first = null;
             $last = null;
@@ -134,7 +149,7 @@ class DocxTteService
             if ($first === null || $last === null) continue;
 
             $rid = $this->nextRelationshipId($rels);
-            $drawingXml = $this->drawingXml($rid, $mediaName);
+            $drawingXml = $this->drawingXml($rid, $mediaName, $name);
             $fragment = $dom->createDocumentFragment();
             if (! $fragment->appendXML($drawingXml)) continue;
 
@@ -193,12 +208,12 @@ class DocxTteService
         return $candidate;
     }
 
-    private function drawingXml(string $rid, string $mediaName): string
+    private function drawingXml(string $rid, string $mediaName, string $name): string
     {
         $cx = 1050000;
         $cy = 1050000;
         return '<w:drawing xmlns:w="' . self::WORD_NS . '" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:r="' . self::OFFICE_REL_NS . '">'
-            . '<wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' . $cx . '" cy="' . $cy . '"/><wp:docPr id="9002" name="' . self::TTE_NAME . '"/>'
+            . '<wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' . $cx . '" cy="' . $cy . '"/><wp:docPr id="9002" name="' . $name . '"/>'
             . '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="' . $mediaName . '"/><pic:cNvPicPr/></pic:nvPicPr>'
             . '<pic:blipFill><a:blip r:embed="' . $rid . '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' . $cx . '" cy="' . $cy . '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'
             . '</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>';
@@ -227,7 +242,7 @@ class DocxTteService
         return $tmp;
     }
 
-    private function removeTte(string $docxPath): void
+    private function removeMarkers(string $docxPath, array $markers): void
     {
         $zip = new ZipArchive();
         if ($zip->open($docxPath) !== true) throw new RuntimeException('DOCX hasil surat tidak dapat dibuka.');
@@ -238,12 +253,25 @@ class DocxTteService
             $dom->preserveWhiteSpace = true;
             if (! $dom->loadXML($xml, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) continue;
             $xpath = new DOMXPath($dom);
-            $xpath->registerNamespace('wp', 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing');
             $xpath->registerNamespace('w', self::WORD_NS);
-            $drawings = $xpath->query('//wp:docPr[@name="' . self::TTE_NAME . '"]/parent::wp:inline/parent::w:drawing');
-            if ($drawings) foreach ($drawings as $drawing) $drawing->parentNode?->removeChild($drawing);
+            $xpath->registerNamespace('wp', 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing');
+
+            foreach ($markers as $marker) {
+                foreach ($xpath->query('//w:t[contains(., "' . $marker . '")]') ?: [] as $node) $node->nodeValue = str_replace($marker, '', $node->textContent);
+            }
+
+            foreach ([self::TTE_NAME, self::QR_NAME] as $name) {
+                $drawings = $xpath->query('//wp:docPr[@name="' . $name . '"]/parent::wp:inline/parent::w:drawing');
+                if ($drawings) foreach ($drawings as $drawing) $drawing->parentNode?->removeChild($drawing);
+            }
+
             $zip->addFromString($part['xml'], $dom->saveXML() ?: $xml);
         }
         $zip->close();
     }
+}
+
+function zip_entry_exists(ZipArchive $zip, string $name): bool
+{
+    return $zip->locateName($name) !== false;
 }
