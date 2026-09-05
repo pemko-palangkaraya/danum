@@ -19,6 +19,8 @@ class PopulationDemoSeeder extends Seeder
         'Jekan Raya|Palangka' => '73112',
         'Bukit Batu|Banturung' => '73224',
         'Bukit Batu|Sei Gohong' => '73225',
+        'Rakumpit|Mungku Baru' => '73229',
+        'Rakumpit|Panjehang' => '73228',
         'Rakumpit|Petuk Bukit' => '73227',
     ];
 
