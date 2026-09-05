@@ -6,6 +6,7 @@ namespace App\Livewire\Population;
 
 use App\Models\Citizen;
 use App\Services\CitizenService;
+use App\Services\PopulationLocationService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -38,6 +39,27 @@ class CitizenShow extends Component
         $this->citizen = app(CitizenService::class)->loadDetail($citizen);
     }
 
+    public function updatedProvinsi(): void
+    {
+        $this->kabupaten_kota = '';
+        $this->kecamatan = '';
+        $this->kelurahan = '';
+        $this->kode_pos = '';
+    }
+
+    public function updatedKabupatenKota(): void
+    {
+        $this->kecamatan = '';
+        $this->kelurahan = '';
+        $this->kode_pos = '';
+    }
+
+    public function updatedKecamatan(): void
+    {
+        $this->kelurahan = '';
+        $this->kode_pos = '';
+    }
+
     public function saveAddress(): void
     {
         abort_unless(auth()->user()?->hasPermission('population.manage'), 403);
@@ -61,6 +83,7 @@ class CitizenShow extends Component
     {
         $user = auth()->user();
         $isSuperAdmin = $user->isSuperAdmin();
+        $locationService = app(PopulationLocationService::class);
 
         return view('livewire.pages.population.citizen-show', [
             'activeMembership' => $this->citizen->activeFamilyMembership,
@@ -71,6 +94,14 @@ class CitizenShow extends Component
             'familiesRoute' => $isSuperAdmin
                 ? 'population.admin.families.index'
                 : 'population.families.index',
+            'locationProvinces' => $locationService->provinces(),
+            'locationCities' => $this->provinsi !== '' ? $locationService->cities($this->provinsi) : collect(),
+            'locationDistricts' => $this->provinsi !== '' && $this->kabupaten_kota !== ''
+                ? $locationService->districts($this->provinsi, $this->kabupaten_kota)
+                : collect(),
+            'locationVillages' => $this->provinsi !== '' && $this->kabupaten_kota !== '' && $this->kecamatan !== ''
+                ? $locationService->villages($this->provinsi, $this->kabupaten_kota, $this->kecamatan)
+                : collect(),
         ]);
     }
 }
