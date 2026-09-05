@@ -153,7 +153,43 @@ class OutgoingLetterController extends Controller
 
     public function issue(Request $request, string $id): JsonResponse
     {
-        return $this->transition($request, $id, 'issue', fn (OutgoingLetter $letter) => $this->outgoingLetterService->issue($letter, $request->user()->id));
+        $signWithTte = $request->has('tte') ? $request->boolean('tte') : true;
+
+        return $this->transition(
+            $request,
+            $id,
+            'issue',
+            fn (OutgoingLetter $letter) => $this->outgoingLetterService->issue(
+                $letter,
+                $request->user()->id,
+                $request->string('note')->toString(),
+                $request->string('pin')->toString(),
+                $signWithTte,
+            ),
+        );
+    }
+
+    public function signIssued(Request $request, string $id): JsonResponse
+    {
+        $outgoingLetter = $this->findForTenant($id, $request);
+        if ($outgoingLetter === null) return $this->notFoundResponse();
+        $this->authorize('issue', $outgoingLetter);
+
+        try {
+            $request->validate([
+                'pin' => ['required', 'digits:6'],
+                'note' => ['nullable', 'string', 'max:2000'],
+            ]);
+            $letter = $this->outgoingLetterService->signIssued(
+                $outgoingLetter,
+                $request->user()->id,
+                $request->string('pin')->toString(),
+                $request->string('note')->toString() ?: null,
+            );
+            return response()->json(['data' => $letter]);
+        } catch (\DomainException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
     }
 
     public function reject(Request $request, string $id): JsonResponse
