@@ -23,14 +23,15 @@ class OutgoingLetterPdfPreviewService
         $filename = sprintf('surat-%s.pdf', str($letter->number)->slug());
 
         if ($letter->status === OutgoingLetterStatus::ISSUED) {
-            if (blank($letter->signed_pdf_path) || ! Storage::disk('local')->exists($letter->signed_pdf_path)) {
-                abort(422, 'PDF bertanda tangan elektronik belum tersedia.');
+            $pdfPath = $letter->signed_pdf_path ?: $letter->unsigned_pdf_path;
+            if (blank($pdfPath) || ! Storage::disk('local')->exists($pdfPath)) {
+                abort(422, 'PDF final surat belum tersedia.');
             }
 
             $disposition = $request->boolean('download') ? 'attachment' : 'inline';
 
             return response()->file(
-                Storage::disk('local')->path($letter->signed_pdf_path),
+                Storage::disk('local')->path($pdfPath),
                 [
                     'Content-Type' => 'application/pdf',
                     'Content-Disposition' => sprintf('%s; filename="%s"', $disposition, $filename),
