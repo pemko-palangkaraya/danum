@@ -64,12 +64,20 @@ class KalimantanTengahTenantSeederTest extends TestCase
         $this->assertCount(1, Tenant::query()->where('code', 'wilayah-62-71')->get());
         $this->assertCount(5, $districtTenants);
         $this->assertCount(30, $villageTenants);
-        $this->assertSame(5, $districtTenants->pluck('parent_tenant_id')->unique()->count());
-        $this->assertSame(5, $villageTenants->pluck('parent_tenant_id')->unique()->count());
+        $this->assertSame([$city->id], $districtTenants->pluck('parent_tenant_id')->unique()->values()->all());
+        $this->assertSame(5, $villageTenants->pluck('parent_tenant_id')->filter()->unique()->count());
 
-        foreach ($districtTenants as $district) {
-            $this->assertSame($city->id, $district->parent_tenant_id);
-            $this->assertSame(6, $district->children()->count());
+        foreach ($districts as $district) {
+            $districtTenant = Tenant::query()->where('code', 'wilayah-'.str_replace('.', '-', $district['code']))->firstOrFail();
+            $this->assertSame($city->id, $districtTenant->parent_tenant_id);
+            $this->assertSame($district['name'], $districtTenant->district);
+            $this->assertSame('Pusat Pemerintahan', $districtTenant->village);
+            $this->assertSame(6, $districtTenant->children()->count());
+
+            $this->assertSame(
+                6,
+                $villageTenants->where('parent_tenant_id', $districtTenant->id)->count(),
+            );
         }
     }
 }
