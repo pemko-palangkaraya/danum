@@ -9,8 +9,11 @@ use App\Models\LetterType;
 use App\Models\OutgoingLetter;
 use App\Models\Position;
 use App\Models\PositionHolder;
+use DOMDocument;
+use DOMXPath;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use ZipArchive;
 
 final class OutgoingLetterDraftService
 {
@@ -50,7 +53,7 @@ final class OutgoingLetterDraftService
         $generatedPath = $this->docx->renderToStorage($templatePath, $tenant, $data);
 
         try {
-            $content = $this->docx->extractText(Storage::disk('local')->path($generatedPath));
+            $content = $this->extractText(Storage::disk('local')->path($generatedPath));
 
             $attributes = [
                 'tenant_id' => $tenantId,
@@ -94,5 +97,44 @@ final class OutgoingLetterDraftService
             Storage::disk('local')->delete($generatedPath);
             throw $exception;
         }
+    }
+
+    private function extractText(string $path): string
+    {
+        $zip = new ZipArchive();
+        if ($zip->open($path) !== true) {
+            throw new \RuntimeException('File DOCX tidak dapat dibuka.');
+        }
+
+        $xml = $zip->getFromName('word/document.xml') ?: '';
+        $zip->close();
+
+        $dom = new DOMDocument();
+        $dom->preserveWhiteSpace = true;
+        if (! $dom->loadXML($xml, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) {
+            return '';
+        }
+
+        $xpath = new DOMXPath($dom);
+        $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+        $paragraphs = $xpath->query('//w:p');
+        $parts = [];
+
+        if ($paragraphs) {
+            foreach ($paragraphs as $paragraph) {
+                $nodes = $xpath->query('.//w:t', $paragraph);
+                $line = '';
+                if ($nodes) {
+                    foreach ($nodes as $node) {
+                        $line .= $node->textContent;
+                    }
+                }
+                if ($line !== '') {
+                    $parts[] = $line;
+                }
+            }
+        }
+
+        return trim(preg_replace("/\n{3,}/", "\n\n", implode("\n", $parts)) ?? implode("\n", $parts));
     }
 }
