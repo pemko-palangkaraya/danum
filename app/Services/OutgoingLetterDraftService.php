@@ -40,19 +40,14 @@ final class OutgoingLetterDraftService
     ): string {
         $version = $this->letterTypes->activeVersion($letterType);
         $templateRelativePath = $version?->template_path ?: $letterType->template_path;
-        if (! $templateRelativePath) {
-            throw new \DomainException('Template DOCX surat belum tersedia.');
-        }
+        if (! $templateRelativePath) throw new \DomainException('Template DOCX surat belum tersedia.');
 
         $templatePath = Storage::disk('local')->path($templateRelativePath);
-        if (! is_file($templatePath)) {
-            throw new \DomainException('File template DOCX tidak ditemukan di storage.');
-        }
+        if (! is_file($templatePath)) throw new \DomainException('File template DOCX tidak ditemukan di storage.');
 
         $verificationToken = $existing?->verification_token ?? Str::random(64);
         $signerName = (string) ($signerHolder->user?->name ?? '');
         $signerTitle = (string) ($signerPosition->name ?? '');
-
         $renderData = [
             ...$data,
             'tenant_head_name' => $signerName,
@@ -65,15 +60,14 @@ final class OutgoingLetterDraftService
 
         try {
             $content = $this->extractText(Storage::disk('local')->path($generatedPath));
-
             $attributes = [
                 'tenant_id' => $tenantId,
                 'letter_type_id' => $letterType->id,
                 'letter_type_version_id' => $version?->id,
                 'signer_position_id' => $signerPosition->id,
                 'signer_user_id' => $signerHolder->user_id,
-                'signer_name' => $signerHolder->user->name,
-                'signer_title' => $signerPosition->name,
+                'signer_name' => $signerName,
+                'signer_title' => $signerTitle,
                 'validator_position_id' => $validatorPosition->id,
                 'validator_user_id' => $validatorHolder->user_id,
                 'validator_name' => $validatorHolder->user->name,
@@ -92,17 +86,13 @@ final class OutgoingLetterDraftService
             if ($existing) {
                 $oldPath = $existing->generated_docx_path;
                 $this->letters->update($existing, $attributes);
-                if ($oldPath && $oldPath !== $generatedPath) {
-                    Storage::disk('local')->delete($oldPath);
-                }
-
+                if ($oldPath && $oldPath !== $generatedPath) Storage::disk('local')->delete($oldPath);
                 return 'Draft surat berhasil diperbarui.';
             }
 
             $attributes['created_by'] = $userId;
             $attributes['status'] = OutgoingLetterStatus::DRAFT;
             $this->letters->create($attributes, $userId);
-
             return 'Draft surat berhasil dibuat.';
         } catch (\Throwable $exception) {
             report($exception);
@@ -114,39 +104,23 @@ final class OutgoingLetterDraftService
     private function extractText(string $path): string
     {
         $zip = new ZipArchive();
-        if ($zip->open($path) !== true) {
-            throw new \RuntimeException('File DOCX tidak dapat dibuka.');
-        }
-
+        if ($zip->open($path) !== true) throw new \RuntimeException('File DOCX tidak dapat dibuka.');
         $xml = $zip->getFromName('word/document.xml') ?: '';
         $zip->close();
 
         $dom = new DOMDocument();
         $dom->preserveWhiteSpace = true;
-        if (! $dom->loadXML($xml, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) {
-            return '';
-        }
-
+        if (! $dom->loadXML($xml, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) return '';
         $xpath = new DOMXPath($dom);
         $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
         $paragraphs = $xpath->query('//w:p');
         $parts = [];
-
-        if ($paragraphs) {
-            foreach ($paragraphs as $paragraph) {
-                $nodes = $xpath->query('.//w:t', $paragraph);
-                $line = '';
-                if ($nodes) {
-                    foreach ($nodes as $node) {
-                        $line .= $node->textContent;
-                    }
-                }
-                if ($line !== '') {
-                    $parts[] = $line;
-                }
-            }
+        if ($paragraphs) foreach ($paragraphs as $paragraph) {
+            $nodes = $xpath->query('.//w:t', $paragraph);
+            $line = '';
+            if ($nodes) foreach ($nodes as $node) $line .= $node->textContent;
+            if ($line !== '') $parts[] = $line;
         }
-
         return trim(preg_replace("/\n{3,}/", "\n\n", implode("\n", $parts)) ?? implode("\n", $parts));
     }
 }
