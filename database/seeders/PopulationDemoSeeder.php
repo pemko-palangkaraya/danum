@@ -12,12 +12,14 @@ use Illuminate\Database\Seeder;
 
 class PopulationDemoSeeder extends Seeder
 {
-    private const LOCATIONS = [
-        ['kelurahan' => 'Palangka', 'kecamatan' => 'Jekan Raya', 'kode_pos' => '73112'],
-        ['kelurahan' => 'Langkai', 'kecamatan' => 'Pahandut', 'kode_pos' => '73111'],
-        ['kelurahan' => 'Menteng', 'kecamatan' => 'Jekan Raya', 'kode_pos' => '73111'],
-        ['kelurahan' => 'Bukit Tunggal', 'kecamatan' => 'Jekan Raya', 'kode_pos' => '73113'],
-        ['kelurahan' => 'Panarung', 'kecamatan' => 'Pahandut', 'kode_pos' => '73121'],
+    private const POSTAL_CODES = [
+        'Pahandut|Langkai' => '73111',
+        'Jekan Raya|Menteng' => '73111',
+        'Jekan Raya|Bukit Tunggal' => '73112',
+        'Jekan Raya|Palangka' => '73112',
+        'Bukit Batu|Banturung' => '73224',
+        'Bukit Batu|Sei Gohong' => '73225',
+        'Rakumpit|Petuk Bukit' => '73227',
     ];
 
     public function run(): void
@@ -30,7 +32,13 @@ class PopulationDemoSeeder extends Seeder
             throw new \RuntimeException('Demo tenant tidak ditemukan. Jalankan DatabaseSeeder terlebih dahulu.');
         }
 
-        $this->command?->info("Membuat data kependudukan demo untuk tenant {$tenant->name}...");
+        $location = $this->tenantLocation($tenant);
+        $this->command?->info(sprintf(
+            'Membuat data kependudukan demo untuk tenant %s (%s, %s)...',
+            $tenant->name,
+            $location['village'],
+            $location['district'],
+        ));
 
         foreach (range(1, 20) as $familyNumber) {
             $head = Citizen::factory()
@@ -42,16 +50,16 @@ class PopulationDemoSeeder extends Seeder
                 ])
                 ->create();
 
-            $location = fake()->randomElement(self::LOCATIONS);
-
             $family = Family::factory()
                 ->forTenant($tenant)
                 ->state([
                     'head_citizen_id' => $head->id,
                     'rt' => str_pad((string) fake()->numberBetween(1, 12), 3, '0', STR_PAD_LEFT),
                     'rw' => str_pad((string) fake()->numberBetween(1, 8), 3, '0', STR_PAD_LEFT),
-                    'kelurahan' => $location['kelurahan'],
-                    'kecamatan' => $location['kecamatan'],
+                    'kelurahan' => $location['village'],
+                    'kecamatan' => $location['district'],
+                    'kabupaten_kota' => $tenant->city,
+                    'provinsi' => $tenant->province,
                     'kode_pos' => $location['kode_pos'],
                 ])
                 ->create();
@@ -100,5 +108,21 @@ class PopulationDemoSeeder extends Seeder
         }
 
         $this->command?->info('Selesai: 20 KK demo beserta anggota keluarga berhasil dibuat.');
+    }
+
+    private function tenantLocation(Tenant $tenant): array
+    {
+        $district = trim((string) $tenant->district);
+        $village = trim((string) $tenant->village);
+
+        if ($district === '' || $village === '') {
+            throw new \RuntimeException('Tenant demo harus memiliki kecamatan dan kelurahan sebelum data kependudukan dibuat.');
+        }
+
+        return [
+            'district' => $district,
+            'village' => $village,
+            'kode_pos' => self::POSTAL_CODES[$district.'|'.$village] ?? null,
+        ];
     }
 }
