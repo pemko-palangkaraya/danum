@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Settings;
 
 use App\Services\UserPasswordService;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -39,14 +40,21 @@ class Password extends Component
             ],
         )->validate();
 
-        $passwordService->change(
-            auth()->user(),
-            $validated['currentPassword'],
-            $validated['newPassword'],
-        );
+        try {
+            $passwordService->change(
+                auth()->user(),
+                $validated['currentPassword'],
+                $validated['newPassword'],
+            );
+        } catch (ValidationException $exception) {
+            $this->setErrorBag($exception->validator?->errors() ?? collect());
+            $this->dispatch('toast', type: 'error', message: 'Password gagal diubah. Periksa password saat ini.');
+
+            return;
+        }
 
         $this->resetForm();
-        session()->flash('toast', ['type' => 'success', 'message' => 'Password berhasil diubah.']);
+        $this->dispatch('toast', type: 'success', message: 'Password berhasil diubah.');
     }
 
     public function resetForm(): void
