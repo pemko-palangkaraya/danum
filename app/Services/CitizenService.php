@@ -78,14 +78,15 @@ class CitizenService
             'berlaku_mulai' => ['nullable', 'date'],
         ])->validate();
 
-        if (! app(PopulationLocationService::class)->exists(
+        if (! app(PopulationLocationService::class)->existsForTenant(
+            (string) $citizen->tenant_id,
             $data['provinsi'],
             $data['kabupaten_kota'],
             $data['kecamatan'],
             $data['kelurahan'],
         )) {
             throw ValidationException::withMessages([
-                'kelurahan' => 'Kombinasi provinsi, kabupaten/kota, kecamatan, dan kelurahan tidak terdaftar pada master wilayah.',
+                'kelurahan' => 'Wilayah harus berada dalam cakupan tenant yang sedang digunakan.',
             ]);
         }
 
