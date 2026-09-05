@@ -19,28 +19,28 @@ class Password extends Component
 
     public function save(UserPasswordService $passwordService): void
     {
-        $validated = Validator::make(
-            [
-                'currentPassword' => $this->currentPassword,
-                'newPassword' => $this->newPassword,
-                'newPasswordConfirmation' => $this->newPasswordConfirmation,
-            ],
-            [
-                'currentPassword' => ['required', 'string'],
-                'newPassword' => ['required', 'string', 'min:8', 'different:currentPassword'],
-                'newPasswordConfirmation' => ['required', 'same:newPassword'],
-            ],
-            [
-                'currentPassword.required' => 'Password saat ini wajib diisi.',
-                'newPassword.required' => 'Password baru wajib diisi.',
-                'newPassword.min' => 'Password baru minimal 8 karakter.',
-                'newPassword.different' => 'Password baru harus berbeda dari password saat ini.',
-                'newPasswordConfirmation.required' => 'Konfirmasi password wajib diisi.',
-                'newPasswordConfirmation.same' => 'Konfirmasi password tidak sama.',
-            ],
-        )->validate();
-
         try {
+            $validated = Validator::make(
+                [
+                    'currentPassword' => $this->currentPassword,
+                    'newPassword' => $this->newPassword,
+                    'newPasswordConfirmation' => $this->newPasswordConfirmation,
+                ],
+                [
+                    'currentPassword' => ['required', 'string'],
+                    'newPassword' => ['required', 'string', 'min:8', 'different:currentPassword'],
+                    'newPasswordConfirmation' => ['required', 'same:newPassword'],
+                ],
+                [
+                    'currentPassword.required' => 'Password saat ini wajib diisi.',
+                    'newPassword.required' => 'Password baru wajib diisi.',
+                    'newPassword.min' => 'Password baru minimal 8 karakter.',
+                    'newPassword.different' => 'Password baru harus berbeda dari password saat ini.',
+                    'newPasswordConfirmation.required' => 'Konfirmasi password wajib diisi.',
+                    'newPasswordConfirmation.same' => 'Konfirmasi password tidak sama.',
+                ],
+            )->validate();
+
             $passwordService->change(
                 auth()->user(),
                 $validated['currentPassword'],
@@ -48,7 +48,7 @@ class Password extends Component
             );
         } catch (ValidationException $exception) {
             $this->setErrorBag($exception->errors());
-            $this->dispatch('toast', type: 'error', message: 'Password gagal diubah. Periksa password saat ini.');
+            $this->dispatch('toast', type: 'error', message: 'Password gagal diubah. Periksa kembali data yang diisi.');
 
             return;
         }
