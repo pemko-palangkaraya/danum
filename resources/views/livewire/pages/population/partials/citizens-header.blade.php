@@ -8,8 +8,8 @@
     <div class="flex flex-wrap gap-2">
         @if($tenantSelected)
             @if($canView)
-                <a href="{{ route('population.citizens.export', ['format' => 'xlsx', 'tenant_id' => $selectedTenantId]) }}" class="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">Export Excel</a>
-                <a href="{{ route('population.citizens.export', ['format' => 'csv', 'tenant_id' => $selectedTenantId]) }}" class="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">Export CSV</a>
+                <a href="{{ route('population.citizens.export', ['format' => 'xlsx', 'tenant_id' => $selectedTenantId ?? null]) }}" class="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">Export Excel</a>
+                <a href="{{ route('population.citizens.export', ['format' => 'csv', 'tenant_id' => $selectedTenantId ?? null]) }}" class="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">Export CSV</a>
             @endif
             @if($canManage)
                 <a href="{{ route('population.citizens.import') }}" class="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Import</a>
