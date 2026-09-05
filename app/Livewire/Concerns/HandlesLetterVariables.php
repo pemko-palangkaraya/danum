@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Concerns;
 
 use App\Models\Citizen;
+use App\Models\Family;
 use App\Models\PositionHolder;
 use App\Services\CitizenDeathService;
 use App\Support\LetterVariableSchema;
@@ -21,6 +22,26 @@ trait HandlesLetterVariables
         'citizen_pendidikan', 'citizen_pekerjaan', 'citizen_kewarganegaraan', 'citizen_no_passport',
         'citizen_no_kitap', 'citizen_nama_ayah', 'citizen_nik_ayah', 'citizen_nama_ibu', 'citizen_nik_ibu',
         'citizen_status_kependudukan',
+    ];
+
+    private const DEATH_VARIABLES = [
+        'tanggal_meninggal',
+        'waktu_meninggal',
+        'tempat_meninggal',
+        'sebab_meninggal',
+    ];
+
+    private const DEATH_AUTOFILLED_VARIABLES = [
+        'recipient_name',
+        'recipient_nik',
+        'recipient_gender',
+        'recipient_birth_place',
+        'recipient_birth_date',
+        'recipient_age',
+        'recipient_religion',
+        'recipient_occupation',
+        'recipient_address',
+        'nama_pasangan',
     ];
 
     public ?string $citizen_id = null;
@@ -102,16 +123,6 @@ trait HandlesLetterVariables
         $this->applyCitizenValues($citizen);
     }
 
-    private function addRepeaterDefaults(): void
-    {
-        foreach ($this->variables as $variable) {
-            $variable = (string) $variable;
-            if (($definition = LetterVariableSchema::parseRepeater($variable)) && ! isset($this->variableValues[$definition['key']])) {
-                $this->variableValues[$definition['key']] = [[]];
-            }
-        }
-    }
-
     private function initializeVariableValues(bool $newRows = false): void
     {
         foreach ($this->variables as $variable) {
@@ -128,7 +139,7 @@ trait HandlesLetterVariables
     {
         foreach ($this->variables as $variable) {
             $variable = (string) $variable;
-            if ($this->isSystemVariable($variable)) {
+            if ($this->isSystemVariable($variable) || $this->isDeathAutofilledVariable($variable)) {
                 continue;
             }
 
@@ -252,7 +263,60 @@ trait HandlesLetterVariables
             'citizen_nama_ibu' => $citizen->nama_ibu,
             'citizen_nik_ibu' => $citizen->nik_ibu,
             'citizen_status_kependudukan' => $citizen->status_kependudukan,
+            'recipient_name' => $citizen->nama_lengkap,
+            'recipient_nik' => $citizen->nik,
+            'recipient_gender' => $citizen->jenis_kelamin,
+            'recipient_birth_place' => $citizen->tempat_lahir,
+            'recipient_birth_date' => $date($citizen->tanggal_lahir),
+            'recipient_religion' => $citizen->agama,
+            'recipient_occupation' => $citizen->pekerjaan,
         ];
+
+        $deathDate = $this->variableValues['tanggal_meninggal'] ?? null;
+        if (filled($deathDate) && $citizen->tanggal_lahir) {
+            try {
+                $values['recipient_age'] = (string) Carbon::parse($citizen->tanggal_lahir)->diffInYears(Carbon::parse($deathDate), false);
+            } catch (\Throwable) {
+                $values['recipient_age'] = '';
+            }
+        }
+
+        $family = $this->familyForCitizen($citizen);
+        if ($family) {
+            $values['recipient_address'] = $this->formatFamilyAddress($family);
+
+            $members = $family->activeMembers
+                ->filter(fn ($member) => (string) $member->citizen_id !== (string) $citizen->id)
+                ->values();
+
+            $spouse = $members->first(function ($member): bool {
+                $relationship = mb_strtolower(trim((string) $member->hubungan_dalam_keluarga));
+                return in_array($relationship, ['suami', 'istri', 'pasangan'], true);
+            });
+
+            $values['nama_pasangan'] = (string) ($spouse?->citizen?->nama_lengkap ?? '');
+
+            foreach ($this->variables as $variable) {
+                $definition = is_string($variable) ? LetterVariableSchema::parseRepeater($variable) : null;
+                if (! $definition || $definition['key'] !== 'anak_ditinggalkan') {
+                    continue;
+                }
+
+                $children = $members
+                    ->filter(function ($member): bool {
+                        return mb_strtolower(trim((string) $member->hubungan_dalam_keluarga)) === 'anak';
+                    })
+                    ->values();
+
+                $this->variableValues[$definition['key']] = $children->map(function ($member, int $index): array {
+                    return [
+                        'nomor' => (string) ($index + 1),
+                        'nama' => (string) ($member->citizen?->nama_lengkap ?? ''),
+                    ];
+                })->all();
+                break;
+            }
+        }
 
         foreach ($this->variables as $variable) {
             $variable = (string) $variable;
@@ -260,8 +324,38 @@ trait HandlesLetterVariables
                 $this->variableValues[$variable] = (string) ($values[$variable] ?? '');
             }
         }
+    }
 
-        $this->variableValues['recipient_name'] = $citizen->nama_lengkap;
+    private function familyForCitizen(Citizen $citizen): ?Family
+    {
+        $membership = $citizen->activeFamilyMembership()->with('family.activeMembers.citizen')->first();
+        if ($membership?->family) {
+            return $membership->family;
+        }
+
+        return $citizen->headedFamilies()
+            ->where('status', 'active')
+            ->with('activeMembers.citizen')
+            ->first();
+    }
+
+    private function formatFamilyAddress(Family $family): string
+    {
+        return collect([
+            $family->alamat,
+            filled($family->rt) ? 'RT '.$family->rt : null,
+            filled($family->rw) ? 'RW '.$family->rw : null,
+            $family->kelurahan,
+            $family->kecamatan,
+            $family->kabupaten_kota,
+            $family->provinsi,
+            $family->kode_pos,
+        ])->filter(fn ($value) => filled($value))->implode(', ');
+    }
+
+    public function isReadOnlyVariable(string $variable): bool
+    {
+        return $this->isSystemVariable($variable) || $this->isDeathAutofilledVariable($variable);
     }
 
     private function isSystemVariable(string $variable): bool
@@ -269,13 +363,18 @@ trait HandlesLetterVariables
         return in_array($variable, self::SYSTEM_VARIABLES, true);
     }
 
+    private function isDeathAutofilledVariable(string $variable): bool
+    {
+        return $this->citizen_id !== null && in_array($variable, self::DEATH_AUTOFILLED_VARIABLES, true);
+    }
+
     private function isDateVariable(string $variable): bool
     {
-        return (bool) preg_match('/(^|_)date$/i', $variable);
+        return $variable === 'tanggal_meninggal' || (bool) preg_match('/(^|_)date$/i', $variable);
     }
 
     private function isBirthDateVariable(string $variable): bool
     {
-        return (bool) preg_match('/(^|_)birth_date$/i', $variable);
+        return $variable === 'recipient_birth_date' || (bool) preg_match('/(^|_)birth_date$/i', $variable);
     }
 }
