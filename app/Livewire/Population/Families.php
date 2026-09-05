@@ -265,5 +265,14 @@ class Families extends Component
         $this->status = 'active';
         $this->headSearch = '';
         $this->memberRelationship = '';
+
+        $tenantId = $this->tenantIdForQuery();
+        if ($tenantId !== '') {
+            $defaults = app(PopulationLocationService::class)->defaultsForTenant($tenantId);
+            $this->provinsi = $defaults['province'];
+            $this->kabupaten_kota = $defaults['city'];
+            $this->kecamatan = $defaults['district'];
+            $this->kelurahan = $defaults['village'];
+        }
     }
 }
