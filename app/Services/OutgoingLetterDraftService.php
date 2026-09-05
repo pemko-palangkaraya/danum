@@ -50,7 +50,14 @@ final class OutgoingLetterDraftService
         }
 
         $verificationToken = $existing?->verification_token ?? Str::random(64);
-        $generatedPath = $this->docx->renderToStorage($templatePath, $tenant, $data);
+
+        $renderData = [
+            ...$data,
+            'tenant_head_name' => (string) ($signerHolder->user?->name ?? ''),
+            'tenant_head_title' => (string) ($signerPosition->name ?? ''),
+        ];
+
+        $generatedPath = $this->docx->renderToStorage($templatePath, $tenant, $renderData);
 
         try {
             $content = $this->extractText(Storage::disk('local')->path($generatedPath));
