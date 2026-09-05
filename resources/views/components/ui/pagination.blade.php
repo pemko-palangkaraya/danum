@@ -11,7 +11,7 @@
             ->values();
     @endphp
 
-    <nav class="flex min-w-0 items-center gap-1" aria-label="Pagination">
+    <nav class="flex min-w-max items-center gap-1" aria-label="Pagination">
         <button
             type="button"
             wire:click="previousPage('{{ $pageName }}')"
