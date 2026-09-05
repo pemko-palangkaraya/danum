@@ -12,7 +12,7 @@ trait HandlesLetterVariables
     private const SYSTEM_VARIABLES = [
         'letterhead', 'tenant_name', 'tenant_city', 'tenant_district', 'tenant_village',
         'tenant_province', 'tenant_address', 'tenant_phone', 'tenant_email',
-        'tenant_head_name', 'tenant_head_title', 'tte',
+        'tenant_head_name', 'tenant_head_title', 'jabatan_ttd', 'nama_ttd', 'tte',
     ];
 
     public function addRepeaterRow(string $key): void
@@ -140,6 +140,8 @@ trait HandlesLetterVariables
             return;
         }
 
+        $signerName = (string) ($holder?->user?->name ?? $tenant->head_name ?? '');
+        $signerTitle = (string) ($holder?->position?->name ?? $tenant->head_title ?? '');
         $values = [
             'tenant_name' => $tenant->name,
             'tenant_city' => $tenant->city,
@@ -149,8 +151,10 @@ trait HandlesLetterVariables
             'tenant_address' => $tenant->address,
             'tenant_phone' => $tenant->phone,
             'tenant_email' => $tenant->email,
-            'tenant_head_name' => $holder?->user?->name ?? $tenant->head_name,
-            'tenant_head_title' => $holder?->position?->name ?? $tenant->head_title,
+            'tenant_head_name' => $signerName,
+            'tenant_head_title' => $signerTitle,
+            'nama_ttd' => $signerName,
+            'jabatan_ttd' => $signerTitle,
         ];
 
         foreach ($this->variables as $variable) {
