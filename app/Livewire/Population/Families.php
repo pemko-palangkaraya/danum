@@ -140,7 +140,7 @@ class Families extends Component
             $status,
         );
 
-        $this->.memberSearch = '';
+        $this->memberSearch = '';
         $this->memberRelationship = '';
         $this->dispatch('toast', type: 'success', message: 'Anggota keluarga berhasil ditambahkan.');
     }
