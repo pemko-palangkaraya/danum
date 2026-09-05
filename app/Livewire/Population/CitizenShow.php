@@ -6,6 +6,7 @@ namespace App\Livewire\Population;
 
 use App\Models\Citizen;
 use App\Services\CitizenService;
+use App\Services\PopulationLocationService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -82,10 +83,18 @@ class CitizenShow extends Component
     {
         $user = auth()->user();
         $isSuperAdmin = $user->isSuperAdmin();
+        $locationService = app(PopulationLocationService::class);
+        $locationOptions = $locationService->optionsForTenant(
+            (string) $this->citizen->tenant_id,
+            $this->provinsi,
+            $this->kabupaten_kota,
+            $this->kecamatan,
+        );
 
         return view('livewire.pages.population.citizen-show', [
             'activeMembership' => $this->citizen->activeFamilyMembership,
             'canManage' => $user->hasPermission('population.manage'),
+            'locationOptions' => $locationOptions,
             'citizensRoute' => $isSuperAdmin
                 ? 'population.admin.citizens.index'
                 : 'population.citizens.index',
