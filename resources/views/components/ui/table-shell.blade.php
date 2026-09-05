@@ -10,7 +10,7 @@
         {{ $slot }}
     </div>
     @isset($footer)
-        <div class="min-w-0 border-t border-slate-200 px-4 py-3 sm:px-5">
+        <div class="min-w-0 overflow-x-auto border-t border-slate-200 px-4 py-3 sm:px-5">
             {{ $footer }}
         </div>
     @endisset
