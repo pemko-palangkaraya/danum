@@ -9,6 +9,7 @@ use App\Models\Tenant;
 use Database\Seeders\PopulationDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class PopulationDemoSeederTest extends TestCase
@@ -26,7 +27,7 @@ class PopulationDemoSeederTest extends TestCase
             'status' => TenantStatus::ACTIVE,
         ]);
 
-        Artisan::call(PopulationDemoSeeder::class);
+        Artisan::call('db:seed', ['--class' => PopulationDemoSeeder::class]);
 
         $this->assertDatabaseCount('families', 20);
         $this->assertDatabaseHas('families', [
@@ -37,8 +38,8 @@ class PopulationDemoSeederTest extends TestCase
             'provinsi' => 'Kalimantan Tengah',
         ]);
 
-        $this->assertSame(1, \DB::table('families')->distinct('kelurahan')->count('kelurahan'));
-        $this->assertSame(1, \DB::table('families')->distinct('kecamatan')->count('kecamatan'));
-        $this->assertSame(1, \DB::table('families')->distinct('tenant_id')->count('tenant_id'));
+        $this->assertSame(1, DB::table('families')->distinct()->count('kelurahan'));
+        $this->assertSame(1, DB::table('families')->distinct()->count('kecamatan'));
+        $this->assertSame(1, DB::table('families')->distinct()->count('tenant_id'));
     }
 }
