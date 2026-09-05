@@ -45,7 +45,10 @@
                             @if(! $readOnly && ! $definition)
                                 <div class="{{ $wide ? 'sm:col-span-2' : '' }}">
                                     <label class="text-sm font-medium text-slate-700">{{ $label }}</label>
-                                    @if($dateVariable)
+                                    @if($dateVariable && $this->citizen_id && $variable === 'tanggal_meninggal')
+                                        <input type="text" wire:model.blur="variableValues.{{ $variable }}" class="form-control mt-1" placeholder="dd mmm yyyy, contoh: 06 Sep 2026" inputmode="numeric" autocomplete="off">
+                                        <p class="mt-1 text-xs text-slate-400">Gunakan format tanggal: dd mmm yyyy, misalnya 06 Sep 2026.</p>
+                                    @elseif($dateVariable)
                                         <input type="date" max="{{ now()->toDateString() }}" wire:model="variableValues.{{ $variable }}" class="form-control mt-1">
                                     @elseif($variable === 'recipient_address')
                                         <textarea wire:model="variableValues.{{ $variable }}" rows="2" class="form-textarea mt-1"></textarea>
@@ -57,7 +60,7 @@
                             @elseif($readOnly && ! $definition && $this->citizen_id)
                                 <div class="{{ $wide ? 'sm:col-span-2' : '' }}">
                                     <label class="text-sm font-medium text-slate-700">{{ $label }}</label>
-                                    <input value="{{ $variableValues[$variable] ?? '' }}" readonly class="form-control mt-1 bg-slate-50 text-slate-600">
+                                    <input value="{{ $dateVariable ? $this->formatIndonesianDate($variableValues[$variable] ?? '') : ($variableValues[$variable] ?? '') }}" readonly class="form-control mt-1 bg-slate-50 text-slate-600">
                                 </div>
                             @endif
                         @endforeach
