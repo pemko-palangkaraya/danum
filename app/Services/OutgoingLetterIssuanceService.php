@@ -26,7 +26,7 @@ class OutgoingLetterIssuanceService
         private readonly SignerPinService $signerPinService,
     ) {}
 
-    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null, ?string $pin = null, bool $signWithTte = true): OutgoingLetter
+    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null, ?string $pin = null, bool $signWithTte = true, ?string $issuanceMarker = null): OutgoingLetter
     {
         $note = trim((string) ($note ?? request()->input('note', '')));
         if ($note === '') throw new \DomainException('Catatan penandatanganan wajib diisi.');
@@ -70,6 +70,8 @@ class OutgoingLetterIssuanceService
 
         $sourceDocxPath = Storage::disk('local')->path($letter->generated_docx_path);
         $verificationUrl = url('/verify/' . $letter->verification_token);
+        $marker = $issuanceMarker ?? ($signWithTte ? 'tte' : 'qr');
+        if (! in_array($marker, ['qr', 'tte'], true)) throw new \DomainException('Marker penerbitan surat tidak valid.');
         $temporaryDocx = null;
         $unsignedPdfPath = null;
         $signedPdfPath = null;
@@ -78,7 +80,7 @@ class OutgoingLetterIssuanceService
             $temporaryDocx = $this->docxTteService->createIssuedCopy(
                 $sourceDocxPath,
                 $verificationUrl,
-                $signWithTte ? 'tte' : 'qr',
+                $marker,
             );
             $unsignedPdfPath = $this->docxPdfService->convert($temporaryDocx);
 
