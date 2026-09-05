@@ -15,6 +15,7 @@ class PopulationLocation extends Component
         public Collection $cities,
         public Collection $districts,
         public Collection $villages,
+        public array $locks = [],
         public string $province = '',
         public string $city = '',
         public string $district = '',
