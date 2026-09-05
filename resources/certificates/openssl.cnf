@@ -12,7 +12,6 @@ activate = 1
 
 [ req ]
 distinguished_name = req_distinguished_name
-req_extensions = v3_signer
 prompt = no
 
 [ req_distinguished_name ]
