@@ -44,25 +44,28 @@ class DatabaseSeeder extends Seeder
             'tenant_id' => null,
         ]);
 
-        $tenantCategoryId = TenantCategory::query()->where('code', 'lainnya')->value('id');
+        $tenantCategoryId = TenantCategory::query()->where('code', 'kelurahan')->value('id');
         if ($tenantCategoryId === null) {
-            throw new \RuntimeException('Master tenant category "lainnya" tidak ditemukan.');
+            throw new \RuntimeException('Master tenant category "kelurahan" tidak ditemukan.');
         }
 
-        $tenant = Tenant::firstOrCreate(['code' => env('DANUM_DEMO_TENANT_CODE', 'DEMO001')], [
-            'name' => env('DANUM_DEMO_TENANT_NAME', 'Demo Tenant'),
-            'tenant_category_id' => $tenantCategoryId,
-            'province' => 'Kalimantan Tengah',
-            'city' => 'Palangka Raya',
-            'district' => 'Demo',
-            'village' => 'Demo',
-            'address' => 'Demo',
-            'phone' => null,
-            'email' => 'demo@example.com',
-            'head_name' => 'Demo Head',
-            'head_title' => 'Kepala Unit',
-            'status' => TenantStatus::ACTIVE,
-        ]);
+        $tenant = Tenant::updateOrCreate(
+            ['code' => env('DANUM_DEMO_TENANT_CODE', 'DEMO001')],
+            [
+                'name' => env('DANUM_DEMO_TENANT_NAME', 'Demo Tenant - Kelurahan Langkai'),
+                'tenant_category_id' => $tenantCategoryId,
+                'province' => 'Kalimantan Tengah',
+                'city' => 'Palangka Raya',
+                'district' => 'Pahandut',
+                'village' => 'Langkai',
+                'address' => 'Kelurahan Langkai, Kecamatan Pahandut, Palangka Raya',
+                'phone' => null,
+                'email' => 'demo@example.com',
+                'head_name' => 'Demo Head',
+                'head_title' => 'Lurah',
+                'status' => TenantStatus::ACTIVE,
+            ],
+        );
 
         $permissionService = app(SystemRolePermissionService::class);
 
