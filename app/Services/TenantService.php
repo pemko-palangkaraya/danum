@@ -11,6 +11,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class TenantService
 {
@@ -69,6 +70,7 @@ class TenantService
 
     public function create(array $data): Tenant
     {
+        $this->validateParentHierarchy($data);
         $tenant = $this->tenantRepository->create($this->withDefaultCategory($data));
 
         $this->auditLogService->record(
@@ -84,6 +86,8 @@ class TenantService
 
     public function createWithInitialUser(array $tenantData, array $userData): Tenant
     {
+        $this->validateParentHierarchy($tenantData);
+
         return DB::transaction(function () use ($tenantData, $userData): Tenant {
             $tenant = $this->tenantRepository->create($this->withDefaultCategory($tenantData));
             $administratorData = $this->roleAssignmentService->normalize([
@@ -123,6 +127,7 @@ class TenantService
 
     public function update(Tenant $tenant, array $data): Tenant
     {
+        $this->validateParentHierarchy($data, $tenant->id);
         $administrator = $tenant->administrator;
         $oldTenantValues = $this->tenantAuditValues($tenant);
 
@@ -210,6 +215,66 @@ class TenantService
         return $this->tenantRepository->getAllWithTrashed();
     }
 
+    private function validateParentHierarchy(array $data, ?string $tenantId = null): void
+    {
+        $categoryCode = TenantCategory::query()->whereKey($data['tenant_category_id'] ?? null)->value('code');
+        $parentId = $data['parent_tenant_id'] ?? null;
+
+        $requiredParentCategories = match ($categoryCode) {
+            'kecamatan' => ['pemerintah-kota'],
+            'kelurahan', 'desa' => ['kecamatan'],
+            default => [],
+        };
+
+        if ($requiredParentCategories === []) {
+            if ($parentId !== null && $parentId !== '') {
+                throw ValidationException::withMessages([
+                    'parent_tenant_id' => 'Kategori tenant ini tidak menggunakan parent wilayah.',
+                ]);
+            }
+
+            return;
+        }
+
+        if ($parentId === null || $parentId === '') {
+            throw ValidationException::withMessages([
+                'parent_tenant_id' => 'Parent tenant wajib dipilih untuk kategori wilayah ini.',
+            ]);
+        }
+
+        if ($tenantId !== null && $parentId === $tenantId) {
+            throw ValidationException::withMessages([
+                'parent_tenant_id' => 'Tenant tidak dapat menjadi parent untuk dirinya sendiri.',
+            ]);
+        }
+
+        $parent = Tenant::query()
+            ->with('category')
+            ->whereKey($parentId)
+            ->where('status', TenantStatus::ACTIVE)
+            ->first();
+
+        if (! $parent || ! in_array($parent->category?->code, $requiredParentCategories, true)) {
+            throw ValidationException::withMessages([
+                'parent_tenant_id' => 'Parent tenant tidak sesuai dengan hierarki kategori wilayah.',
+            ]);
+        }
+
+        if ((string) ($data['province'] ?? '') !== (string) $parent->province
+            || (string) ($data['city'] ?? '') !== (string) $parent->city) {
+            throw ValidationException::withMessages([
+                'parent_tenant_id' => 'Provinsi dan kota tenant harus mengikuti parent wilayah.',
+            ]);
+        }
+
+        if ($categoryCode !== 'kecamatan'
+            && (string) ($data['district'] ?? '') !== (string) $parent->district) {
+            throw ValidationException::withMessages([
+                'parent_tenant_id' => 'Kecamatan tenant harus mengikuti parent wilayah.',
+            ]);
+        }
+    }
+
     private function withDefaultCategory(array $data): array
     {
         if (! empty($data['tenant_category_id'])) {
@@ -239,6 +304,8 @@ class TenantService
             'name' => $tenant->name,
             'tenant_category_id' => $tenant->tenant_category_id,
             'tenant_category' => $tenant->category?->name,
+            'parent_tenant_id' => $tenant->parent_tenant_id,
+            'parent_tenant' => $tenant->parent?->name,
             'province' => $tenant->province,
             'city' => $tenant->city,
             'district' => $tenant->district,
