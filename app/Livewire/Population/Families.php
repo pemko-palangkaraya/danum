@@ -242,7 +242,7 @@ class Families extends Component
         return ['alamat', 'rt', 'rw', 'kelurahan', 'kecamatan', 'kabupaten_kota', 'provinsi', 'kode_pos'];
     }
 
-    private function resetForm(): void
+    public function resetForm(): void
     {
         $this->editingId = null;
         $this->showForm = false;
