@@ -126,11 +126,7 @@ new #[Layout('layouts.app')] class extends Component {
         <div class="relative p-6 sm:p-8">
             <div class="flex flex-col gap-7 xl:flex-row xl:items-center xl:justify-between">
                 <div class="max-w-2xl">
-                    <div class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
-                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                        Data live
-                    </div>
-                    <h2 class="mt-4 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                    <h2 class=" text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                         {{ $isSuperAdmin ? 'Pusat kendali platform DANUM.' : 'Pusat kendali '.$tenantName.'.' }}
                     </h2>
                     <p class="mt-3 max-w-xl text-sm leading-6 text-slate-600">
@@ -138,36 +134,36 @@ new #[Layout('layouts.app')] class extends Component {
                     </p>
 
                     @can('viewAny', App\Models\OutgoingLetter::class)
-                        <a
-                            href="{{ route('outgoing-letters.index') }}"
-                            class="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                            Kelola surat keluar
-                            <span aria-hidden="true">→</span>
-                        </a>
+                    <a
+                        href="{{ route('outgoing-letters.index') }}"
+                        class="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        Kelola surat keluar
+                        <span aria-hidden="true">→</span>
+                    </a>
                     @endcan
                 </div>
 
                 @php
-                    $controlCards = $isSuperAdmin ? [
-                        ['label'=>'Organisasi','value'=>$stats['tenants'],'hint'=>$stats['active_tenants'].' aktif'],
-                        ['label'=>'Pengguna','value'=>$stats['users'],'hint'=>'Seluruh platform'],
-                        ['label'=>'Surat Terbit','value'=>$stats['issued'],'hint'=>$stats['active'].' masih aktif'],
-                        ['label'=>'Perlu Perhatian','value'=>$stats['submitted'] + $stats['validated'],'hint'=>$stats['submitted'].' verifikasi · '.$stats['validated'].' siap TTE'],
-                    ] : [
-                        ['label'=>'Total Surat','value'=>$stats['letters'],'hint'=>$stats['my_letters'].' dibuat Anda'],
-                        ['label'=>'Anggota','value'=>$stats['users'],'hint'=>'Dalam organisasi'],
-                        ['label'=>'Surat Aktif','value'=>$stats['active'],'hint'=>$stats['issued'].' telah terbit'],
-                        ['label'=>'Perlu Tindakan','value'=>$stats['submitted'] + $stats['validated'],'hint'=>$stats['submitted'].' verifikasi · '.$stats['validated'].' siap TTE'],
-                    ];
+                $controlCards = $isSuperAdmin ? [
+                ['label'=>'Organisasi','value'=>$stats['tenants'],'hint'=>$stats['active_tenants'].' aktif'],
+                ['label'=>'Pengguna','value'=>$stats['users'],'hint'=>'Seluruh platform'],
+                ['label'=>'Surat Terbit','value'=>$stats['issued'],'hint'=>$stats['active'].' masih aktif'],
+                ['label'=>'Perlu Perhatian','value'=>$stats['submitted'] + $stats['validated'],'hint'=>$stats['submitted'].' verifikasi · '.$stats['validated'].' siap TTE'],
+                ] : [
+                ['label'=>'Total Surat','value'=>$stats['letters'],'hint'=>$stats['my_letters'].' dibuat Anda'],
+                ['label'=>'Anggota','value'=>$stats['users'],'hint'=>'Dalam organisasi'],
+                ['label'=>'Surat Aktif','value'=>$stats['active'],'hint'=>$stats['issued'].' telah terbit'],
+                ['label'=>'Perlu Tindakan','value'=>$stats['submitted'] + $stats['validated'],'hint'=>$stats['submitted'].' verifikasi · '.$stats['validated'].' siap TTE'],
+                ];
                 @endphp
 
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:w-[520px] xl:shrink-0">
                     @foreach($controlCards as $card)
-                        <div class="rounded-2xl border border-white/80 bg-white/75 p-4 shadow-sm backdrop-blur-sm">
-                            <p class="text-2xl font-bold tracking-tight text-slate-900">{{ number_format($card['value']) }}</p>
-                            <p class="mt-1 text-[11px] font-semibold text-slate-600">{{ $card['label'] }}</p>
-                            <p class="mt-2 text-[10px] leading-4 text-slate-400">{{ $card['hint'] }}</p>
-                        </div>
+                    <div class="rounded-2xl border border-white/80 bg-white/75 p-4 shadow-sm backdrop-blur-sm">
+                        <p class="text-2xl font-bold tracking-tight text-slate-900">{{ number_format($card['value']) }}</p>
+                        <p class="mt-1 text-[11px] font-semibold text-slate-600">{{ $card['label'] }}</p>
+                        <p class="mt-2 text-[10px] leading-4 text-slate-400">{{ $card['hint'] }}</p>
+                    </div>
                     @endforeach
                 </div>
             </div>
@@ -176,161 +172,187 @@ new #[Layout('layouts.app')] class extends Component {
 
     {{-- Statistik warga --}}
     @if($canViewPopulation && $population)
-        <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Kependudukan</p>
-                    <h2 class="mt-1 text-xl font-bold tracking-tight text-slate-900">Ringkasan warga</h2>
-                    <p class="mt-1 text-sm text-slate-500">Data penduduk dan kartu keluarga {{ $isSuperAdmin ? 'seluruh platform' : 'di '.$tenantName }}.</p>
-                </div>
-                <a
-                    href="{{ $isSuperAdmin ? route('population.admin.statistics') : route('population.statistics') }}"
-                    class="inline-flex h-10 items-center justify-center gap-2 self-start rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:self-auto">
-                    Lihat statistik warga
-                    <span aria-hidden="true">→</span>
-                </a>
+    <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Kependudukan</p>
+                <h2 class="mt-1 text-xl font-bold tracking-tight text-slate-900">Ringkasan warga</h2>
+                <p class="mt-1 text-sm text-slate-500">Data penduduk dan kartu keluarga {{ $isSuperAdmin ? 'seluruh platform' : 'di '.$tenantName }}.</p>
             </div>
+            <a
+                href="{{ $isSuperAdmin ? route('population.admin.statistics') : route('population.statistics') }}"
+                class="inline-flex h-10 items-center justify-center gap-2 self-start rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:self-auto">
+                Lihat statistik warga
+                <span aria-hidden="true">→</span>
+            </a>
+        </div>
 
-            <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-5">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total penduduk</p>
-                            <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($population['totalCitizens']) }}</p>
-                            <p class="mt-1 text-xs text-slate-400">Warga terdata</p>
-                        </div>
-                        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m8-6a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm6-3a3 3 0 1 0-2.83-4m5.83 13v-2a4 4 0 0 0-3-3.87" /></svg>
-                        </div>
+        <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-5">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total penduduk</p>
+                        <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($population['totalCitizens']) }}</p>
+                        <p class="mt-1 text-xs text-slate-400">Warga terdata</p>
                     </div>
-                </div>
-
-                <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-violet-50/60 to-white p-5">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total KK</p>
-                            <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($population['totalFamilies']) }}</p>
-                            <p class="mt-1 text-xs text-slate-400">Kartu keluarga</p>
-                        </div>
-                        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-7h6v7M9 10h.01M15 10h.01" /></svg>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-cyan-50/60 to-white p-5">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Laki-laki</p>
-                            <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($population['male']) }}</p>
-                            <p class="mt-1 text-xs text-cyan-600">{{ $population['totalCitizens'] > 0 ? number_format(($population['male'] / $population['totalCitizens']) * 100, 1) : '0.0' }}% dari penduduk</p>
-                        </div>
-                        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600">
-                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10" cy="14" r="5"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 9V3m0 0H7m3 0h3"/></svg>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-pink-50/60 to-white p-5">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Perempuan</p>
-                            <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($population['female']) }}</p>
-                            <p class="mt-1 text-xs text-pink-600">{{ $population['totalCitizens'] > 0 ? number_format(($population['female'] / $population['totalCitizens']) * 100, 1) : '0.0' }}% dari penduduk</p>
-                        </div>
-                        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-50 text-pink-600">
-                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="9" r="5"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 14v7m-3 0h6"/></svg>
-                        </div>
+                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m8-6a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm6-3a3 3 0 1 0-2.83-4m5.83 13v-2a4 4 0 0 0-3-3.87" />
+                        </svg>
                     </div>
                 </div>
             </div>
-        </section>
+
+            <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-violet-50/60 to-white p-5">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total KK</p>
+                        <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($population['totalFamilies']) }}</p>
+                        <p class="mt-1 text-xs text-slate-400">Kartu keluarga</p>
+                    </div>
+                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-7h6v7M9 10h.01M15 10h.01" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-cyan-50/60 to-white p-5">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Laki-laki</p>
+                        <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($population['male']) }}</p>
+                        <p class="mt-1 text-xs text-cyan-600">{{ $population['totalCitizens'] > 0 ? number_format(($population['male'] / $population['totalCitizens']) * 100, 1) : '0.0' }}% dari penduduk</p>
+                    </div>
+                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <circle cx="10" cy="14" r="5" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10 9V3m0 0H7m3 0h3" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-pink-50/60 to-white p-5">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Perempuan</p>
+                        <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($population['female']) }}</p>
+                        <p class="mt-1 text-xs text-pink-600">{{ $population['totalCitizens'] > 0 ? number_format(($population['female'] / $population['totalCitizens']) * 100, 1) : '0.0' }}% dari penduduk</p>
+                    </div>
+                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-50 text-pink-600">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <circle cx="12" cy="9" r="5" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 14v7m-3 0h6" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
     @endif
 
+    @if($isSuperAdmin)
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div class="flex items-center justify-between">
             <div>
-                <h2 class="font-semibold text-slate-900">Status workflow</h2>
-                <p class="mt-1 text-xs text-slate-500">Status surat bersifat berurutan: Draft → Verifikasi → Siap TTE → Terbit.</p>
-            </div>
-            <span class="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700">Live</span>
+                <h2 class="font-semibold text-slate-900">Kondisi organisasi</h2>
+                <p class="mt-1 text-xs text-slate-500">Ringkasan tenant terbaru di platform.</p>
+            </div>@if(Route::has('tenants.index'))<a href="{{ route('tenants.index') }}" class="text-xs font-semibold text-slate-700 hover:text-slate-900">Kelola →</a>@endif
         </div>
-        <div class="mt-6 grid gap-3 sm:grid-cols-4">
-            @foreach ([['label'=>'Draft','value'=>$stats['drafts']],['label'=>'Verifikasi','value'=>$stats['submitted']],['label'=>'Siap TTE','value'=>$stats['validated']],['label'=>'Terbit','value'=>$stats['issued']]] as $step)
-                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <p class="text-xs font-medium text-slate-500">{{ $step['label'] }}</p>
-                    <p class="mt-2 text-2xl font-semibold text-slate-900">{{ number_format($step['value']) }}</p>
-                </div>
-            @endforeach
+        <div class="mt-5 overflow-x-auto">
+            <table class="min-w-full text-left text-sm">
+                <thead class="border-b border-slate-200 text-xs text-slate-400">
+                    <tr>
+                        <th class="pb-3 pr-4 font-medium">Organisasi</th>
+                        <th class="pb-3 pr-4 font-medium">Status</th>
+                        <th class="pb-3 pr-4 font-medium">Pengguna</th>
+                        <th class="pb-3 font-medium">Surat Terbit</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @forelse($tenantBreakdown as $row)
+                    <tr>
+                        <td class="py-3 pr-4 font-medium text-slate-800">{{ $row['name'] }}</td>
+                        <td class="py-3 pr-4 text-slate-500">{{ $row['status'] }}</td>
+                        <td class="py-3 pr-4 text-slate-600">{{ number_format($row['users']) }}</td>
+                        <td class="py-3 text-slate-600">{{ number_format($row['issued']) }}</td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="4" class="py-8 text-center text-sm text-slate-400">Belum ada organisasi.</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
-        @if($stats['letters'] > 0)
-            <div class="mt-5 flex h-2 overflow-hidden rounded-full bg-slate-100">
-                @foreach ([['value'=>$stats['drafts']],['value'=>$stats['submitted']],['value'=>$stats['validated']],['value'=>$stats['issued']]] as $segment)
-                    <span class="h-full bg-slate-900" style="width: {{ min(100, ($segment['value'] / $stats['letters']) * 100) }}%"></span>
-                @endforeach
-            </div>
-        @endif
     </section>
-
-    @if($isSuperAdmin)
-        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div class="flex items-center justify-between"><div><h2 class="font-semibold text-slate-900">Kondisi organisasi</h2><p class="mt-1 text-xs text-slate-500">Ringkasan tenant terbaru di platform.</p></div>@if(Route::has('tenants.index'))<a href="{{ route('tenants.index') }}" class="text-xs font-semibold text-slate-700 hover:text-slate-900">Kelola →</a>@endif</div>
-            <div class="mt-5 overflow-x-auto"><table class="min-w-full text-left text-sm"><thead class="border-b border-slate-200 text-xs text-slate-400"><tr><th class="pb-3 pr-4 font-medium">Organisasi</th><th class="pb-3 pr-4 font-medium">Status</th><th class="pb-3 pr-4 font-medium">Pengguna</th><th class="pb-3 font-medium">Surat Terbit</th></tr></thead><tbody class="divide-y divide-slate-100">
-                @forelse($tenantBreakdown as $row)
-                    <tr><td class="py-3 pr-4 font-medium text-slate-800">{{ $row['name'] }}</td><td class="py-3 pr-4 text-slate-500">{{ $row['status'] }}</td><td class="py-3 pr-4 text-slate-600">{{ number_format($row['users']) }}</td><td class="py-3 text-slate-600">{{ number_format($row['issued']) }}</td></tr>
-                @empty
-                    <tr><td colspan="4" class="py-8 text-center text-sm text-slate-400">Belum ada organisasi.</td></tr>
-                @endforelse
-            </tbody></table></div>
-        </section>
     @endif
 
     <div class="grid gap-6 lg:grid-cols-2">
         <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div class="flex items-center justify-between"><div><h2 class="font-semibold text-slate-900">Surat terbaru</h2><p class="mt-1 text-xs text-slate-500">{{ $isSuperAdmin ? 'Aktivitas surat seluruh platform.' : 'Aktivitas surat dalam organisasi ini.' }}</p></div>@can('viewAny', App\Models\OutgoingLetter::class)<a href="{{ route('outgoing-letters.index') }}" class="text-xs font-semibold text-slate-700">Lihat semua →</a>@endcan</div>
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="font-semibold text-slate-900">Surat terbaru</h2>
+                    <p class="mt-1 text-xs text-slate-500">{{ $isSuperAdmin ? 'Aktivitas surat seluruh platform.' : 'Aktivitas surat dalam organisasi ini.' }}</p>
+                </div>@can('viewAny', App\Models\OutgoingLetter::class)<a href="{{ route('outgoing-letters.index') }}" class="text-xs font-semibold text-slate-700">Lihat semua →</a>@endcan
+            </div>
             <div class="mt-5 space-y-2">
                 @forelse($recentLetters as $letter)
-                    @php
-                        $submitted = $letter->submitted_at !== null;
-                        $rejected = filled($letter->rejection_reason);
-                        $statusKey = $letter->status->value;
-                        $effectiveState = $statusKey === 'issued' && $letter->isExpired() ? 'expired' : $statusKey;
-                        $statusLabel = $submitted && $statusKey === 'draft' ? 'Menunggu Verifikasi' : ($rejected ? 'Ditolak' : match ($effectiveState) {
-                            'withdrawn' => 'Ditarik',
-                            'expired' => 'Kedaluwarsa',
-                            'issued' => 'Issued',
-                            'validated' => 'Validated',
-                            'cancelled' => 'Cancelled',
-                            default => 'Draft',
-                        });
-                        $statusClass = match ($effectiveState) {
-                            'issued' => 'bg-emerald-100 text-emerald-700',
-                            'validated', 'expired' => 'bg-amber-100 text-amber-800',
-                            'withdrawn', 'cancelled' => 'bg-red-100 text-red-700',
-                            'draft' => $submitted ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-600',
-                            default => 'bg-slate-100 text-slate-600',
-                        };
-                        if ($rejected) {
-                            $statusClass = 'bg-red-100 text-red-700';
-                        }
-                    @endphp
-                    <a href="{{ route('outgoing-letters.show', $letter->id) }}" class="flex items-center justify-between gap-4 rounded-xl border border-slate-100 px-4 py-3 hover:bg-slate-50">
-                        <div class="min-w-0"><p class="truncate text-sm font-medium text-slate-800">{{ $letter->subject ?: 'Tanpa perihal' }}</p><p class="mt-1 truncate text-xs text-slate-400">{{ $letter->number ?: 'Nomor belum tersedia' }} · {{ $isSuperAdmin ? ($letter->tenant?->name ?? 'Tanpa organisasi') : ($letter->creator?->name ?? 'Pengguna') }}</p></div>
-                        <span class="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase {{ $statusClass }}">{{ $statusLabel }}</span>
-                    </a>
+                @php
+                $submitted = $letter->submitted_at !== null;
+                $rejected = filled($letter->rejection_reason);
+                $statusKey = $letter->status->value;
+                $effectiveState = $statusKey === 'issued' && $letter->isExpired() ? 'expired' : $statusKey;
+                $statusLabel = $submitted && $statusKey === 'draft' ? 'Menunggu Verifikasi' : ($rejected ? 'Ditolak' : match ($effectiveState) {
+                'withdrawn' => 'Ditarik',
+                'expired' => 'Kedaluwarsa',
+                'issued' => 'Issued',
+                'validated' => 'Validated',
+                'cancelled' => 'Cancelled',
+                default => 'Draft',
+                });
+                $statusClass = match ($effectiveState) {
+                'issued' => 'bg-emerald-100 text-emerald-700',
+                'validated', 'expired' => 'bg-amber-100 text-amber-800',
+                'withdrawn', 'cancelled' => 'bg-red-100 text-red-700',
+                'draft' => $submitted ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-600',
+                default => 'bg-slate-100 text-slate-600',
+                };
+                if ($rejected) {
+                $statusClass = 'bg-red-100 text-red-700';
+                }
+                @endphp
+                <a href="{{ route('outgoing-letters.show', $letter->id) }}" class="flex items-center justify-between gap-4 rounded-xl border border-slate-100 px-4 py-3 hover:bg-slate-50">
+                    <div class="min-w-0">
+                        <p class="truncate text-sm font-medium text-slate-800">{{ $letter->subject ?: 'Tanpa perihal' }}</p>
+                        <p class="mt-1 truncate text-xs text-slate-400">{{ $letter->number ?: 'Nomor belum tersedia' }} · {{ $isSuperAdmin ? ($letter->tenant?->name ?? 'Tanpa organisasi') : ($letter->creator?->name ?? 'Pengguna') }}</p>
+                    </div>
+                    <span class="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase {{ $statusClass }}">{{ $statusLabel }}</span>
+                </a>
                 @empty
-                    <div class="rounded-xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">Belum ada surat.</div>
+                <div class="rounded-xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">Belum ada surat.</div>
                 @endforelse
             </div>
         </section>
 
         <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div><h2 class="font-semibold text-slate-900">Aktivitas terbaru</h2><p class="mt-1 text-xs text-slate-500">Audit log sesuai scope akun.</p></div>
+            <div>
+                <h2 class="font-semibold text-slate-900">Aktivitas terbaru</h2>
+                <p class="mt-1 text-xs text-slate-500">Audit log sesuai scope akun.</p>
+            </div>
             <div class="mt-5 space-y-2">
                 @forelse($activities as $activity)
-                    <div class="flex gap-3 rounded-xl border border-slate-100 px-4 py-3"><div class="mt-1 h-2 w-2 shrink-0 rounded-full bg-slate-400"></div><div class="min-w-0"><p class="text-sm font-medium text-slate-700">{{ str_replace('_', ' ', ucfirst($activity->action)) }}</p><p class="mt-1 text-xs text-slate-400">{{ $activity->user?->name ?? 'Sistem' }} · {{ $activity->created_at?->diffForHumans() }}</p></div></div>
+                <div class="flex gap-3 rounded-xl border border-slate-100 px-4 py-3">
+                    <div class="mt-1 h-2 w-2 shrink-0 rounded-full bg-slate-400"></div>
+                    <div class="min-w-0">
+                        <p class="text-sm font-medium text-slate-700">{{ str_replace('_', ' ', ucfirst($activity->action)) }}</p>
+                        <p class="mt-1 text-xs text-slate-400">{{ $activity->user?->name ?? 'Sistem' }} · {{ $activity->created_at?->diffForHumans() }}</p>
+                    </div>
+                </div>
                 @empty
-                    <div class="rounded-xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">Belum ada aktivitas.</div>
+                <div class="rounded-xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">Belum ada aktivitas.</div>
                 @endforelse
             </div>
         </section>
