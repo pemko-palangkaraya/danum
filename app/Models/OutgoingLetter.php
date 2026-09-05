@@ -24,7 +24,7 @@ class OutgoingLetter extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'tenant_id','created_by','letter_type_id','letter_type_version_id',
+        'tenant_id','created_by','citizen_id','letter_type_id','letter_type_version_id',
         'signer_position_id','signer_user_id','signer_name','signer_title',
         'validator_position_id','validator_user_id','validator_name','validator_title',
         'number','recipient_name','recipient_address','subject','content','input_data','issued_at','valid_from','valid_until','letter_date','generated_docx_path','unsigned_pdf_path','signed_pdf_path','signature_certificate_id','signature_profile','signed_at','status','submitted_at','verification_token',
@@ -59,6 +59,7 @@ class OutgoingLetter extends Model
 
     public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
     public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
+    public function citizen(): BelongsTo { return $this->belongsTo(Citizen::class); }
     public function rejectedBy(): BelongsTo { return $this->belongsTo(User::class, 'rejected_by'); }
     public function letterType(): BelongsTo { return $this->belongsTo(LetterType::class); }
     public function letterTypeVersion(): BelongsTo { return $this->belongsTo(LetterTypeVersion::class); }
