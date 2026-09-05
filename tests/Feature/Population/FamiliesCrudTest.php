@@ -9,6 +9,7 @@ use App\Models\Citizen;
 use App\Models\Family;
 use App\Models\FamilyMember;
 use App\Models\Tenant;
+use App\Models\TenantCategory;
 use App\Models\User;
 use App\Services\PopulationLocationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,12 +22,10 @@ class FamiliesCrudTest extends TestCase
 
     public function test_tenant_user_with_population_manage_can_create_family(): void
     {
-        $tenant = Tenant::factory()->create([
-            'province' => 'Kalimantan Tengah',
-            'city' => 'Palangka Raya',
-            'district' => 'Pahandut',
-            'village' => 'Pahandut',
-        ]);
+        $this->seedLocationCategories();
+
+        $tenant = Tenant::factory()->kecamatanPalangkaRaya('Pahandut')->create();
+        Tenant::factory()->kelurahanPalangkaRaya('Pahandut', 'Pahandut')->create();
         $user = User::factory()->tenantAdmin($tenant)->create();
 
         Livewire::actingAs($user)
@@ -53,32 +52,39 @@ class FamiliesCrudTest extends TestCase
         ]);
     }
 
-    public function test_location_component_is_scoped_to_tenant_area(): void
+    public function test_location_component_uses_registered_tenant_hierarchy(): void
     {
-        $tenant = Tenant::factory()->create([
-            'province' => 'Kalimantan Tengah',
-            'city' => 'Palangka Raya',
-            'district' => 'Rakumpit',
-            'village' => 'Mungku Baru',
-        ]);
-        Tenant::factory()->create([
-            'province' => 'Kalimantan Tengah',
-            'city' => 'Palangka Raya',
-            'district' => 'Jekan Raya',
-            'village' => 'Menteng',
-        ]);
+        $this->seedLocationCategories();
+
+        $districts = ['Pahandut', 'Jekan Raya', 'Bukit Batu', 'Rakumpit', 'Sabangau'];
+        foreach ($districts as $district) {
+            Tenant::factory()->kecamatanPalangkaRaya($district)->create();
+        }
+
+        Tenant::factory()->kelurahanPalangkaRaya('Rakumpit', 'Mungku Baru')->create();
+        Tenant::factory()->kelurahanPalangkaRaya('Jekan Raya', 'Menteng')->create();
+
+        $tenant = Tenant::query()
+            ->where('district', 'Rakumpit')
+            ->whereHas('category', fn ($query) => $query->where('code', 'kecamatan'))
+            ->firstOrFail();
         $user = User::factory()->tenantAdmin($tenant)->create();
 
         $options = app(PopulationLocationService::class)->optionsForTenant($tenant->id);
 
         $this->assertSame(['Kalimantan Tengah'], $options['provinces']->all());
         $this->assertSame(['Palangka Raya'], $options['cities']->all());
-        $this->assertSame(['Rakumpit'], $options['districts']->all());
+        $this->assertSame($districts, $options['districts']->all());
         $this->assertSame(['Mungku Baru'], $options['villages']->all());
 
         Livewire::actingAs($user)
             ->test(Families::class)
             ->call('create')
+            ->assertSee('Pahandut')
+            ->assertSee('Jekan Raya')
+            ->assertSee('Bukit Batu')
+            ->assertSee('Rakumpit')
+            ->assertSee('Sabangau')
             ->assertSee('Mungku Baru')
             ->assertDontSee('Menteng');
     }
@@ -175,5 +181,23 @@ class FamiliesCrudTest extends TestCase
             ->assertStatus(403);
 
         $this->assertDatabaseCount('families', 0);
+    }
+
+    private function seedLocationCategories(): void
+    {
+        TenantCategory::updateOrCreate(
+            ['code' => 'kecamatan'],
+            ['name' => 'Kecamatan', 'is_active' => true],
+        );
+
+        TenantCategory::updateOrCreate(
+            ['code' => 'kelurahan'],
+            ['name' => 'Kelurahan', 'is_active' => true],
+        );
+
+        TenantCategory::updateOrCreate(
+            ['code' => 'desa'],
+            ['name' => 'Pemerintahan Desa', 'is_active' => true],
+        );
     }
 }
