@@ -26,12 +26,15 @@ class Citizen extends Model
         'jenis_kelamin', 'golongan_darah', 'agama', 'status_perkawinan',
         'pendidikan', 'pekerjaan', 'kewarganegaraan', 'no_passport', 'no_kitap',
         'nama_ayah', 'nik_ayah', 'nama_ibu', 'nik_ibu', 'status_kependudukan',
-        'created_by', 'updated_by',
+        'tanggal_meninggal', 'created_by', 'updated_by',
     ];
 
     protected function casts(): array
     {
-        return ['tanggal_lahir' => 'date'];
+        return [
+            'tanggal_lahir' => 'date',
+            'tanggal_meninggal' => 'date',
+        ];
     }
 
     public function tenant(): BelongsTo
@@ -62,6 +65,11 @@ class Citizen extends Model
     public function populationEvents(): HasMany
     {
         return $this->hasMany(PopulationEvent::class);
+    }
+
+    public function outgoingLetters(): HasMany
+    {
+        return $this->hasMany(OutgoingLetter::class);
     }
 
     public function creator(): BelongsTo
