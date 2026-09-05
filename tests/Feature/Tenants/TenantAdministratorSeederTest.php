@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Tenants;
 
+use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\TenantAdministratorSeeder;
@@ -21,16 +22,17 @@ class TenantAdministratorSeederTest extends TestCase
         $this->seed(TenantAdministratorSeeder::class);
 
         $tenants = Tenant::query()->get();
+        $role = Role::query()
+            ->where('slug', 'tenant_admin')
+            ->whereNull('tenant_id')
+            ->where('is_system', true)
+            ->firstOrFail();
 
         $this->assertNotEmpty($tenants);
-        $this->assertCount($tenants->count(), User::query()->where('custom_role_id', function ($query) {
-            $query->select('id')
-                ->from('roles')
-                ->where('slug', 'tenant_admin')
-                ->whereNull('tenant_id')
-                ->where('is_system', true)
-                ->limit(1);
-        })->get());
+        $this->assertSame(
+            $tenants->count(),
+            User::query()->where('custom_role_id', $role->id)->count(),
+        );
 
         foreach ($tenants as $tenant) {
             $administrator = $tenant->administrator;
