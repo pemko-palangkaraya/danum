@@ -47,7 +47,7 @@ class CitizenFactory extends Factory
             'tempat_lahir' => $this->faker->randomElement(self::BIRTH_PLACES),
             'tanggal_lahir' => $birthDate->format('Y-m-d'),
             'jenis_kelamin' => $gender,
-            'golongan_darah' => $this->faker->randomElement(['A', 'B', 'AB', 'O', 'unknown']),
+            'golongan_darah' => $this->faker->randomElement(['A', 'B', 'AB', 'O', null]),
             'agama' => $this->faker->randomElement(['islam', 'christian', 'catholic', 'hindu', 'buddhist', 'confucian']),
             'status_perkawinan' => 'single',
             'pendidikan' => 'Tidak/Belum Sekolah',
