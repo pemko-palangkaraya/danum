@@ -11,14 +11,14 @@
         <x-ui.field label="Kategori Organisasi" for="tenant-category" error="{{ $errors->first('tenant_category_id') }}" required>
             <select id="tenant-category" wire:model.live="tenant_category_id" class="form-select w-full">
                 <option value="">Pilih kategori</option>
-                @foreach (\App\Models\TenantCategory::query()->where('is_active', true)->orderBy('sort_order')->get() as $category)
+                @foreach ($categories as $category)
                     <option value="{{ $category->id }}">{{ $category->name }}</option>
                 @endforeach
             </select>
         </x-ui.field>
 
         <x-ui.field label="Parent Tenant" for="tenant-parent" error="{{ $errors->first('parent_tenant_id') }}">
-            <select id="tenant-parent" wire:model="parent_tenant_id" @disabled($tenant_category_id === '' || $parentTenants->isEmpty()) class="form-select w-full disabled:bg-slate-50 disabled:text-slate-400">
+            <select id="tenant-parent" wire:model.live="parent_tenant_id" @disabled($tenant_category_id === '' || $parentTenants->isEmpty()) class="form-select w-full disabled:bg-slate-50 disabled:text-slate-400">
                 <option value="">
                     @if($tenant_category_id === '')
                         Pilih kategori dahulu
@@ -35,7 +35,7 @@
                 @endforeach
             </select>
             @if($tenant_category_id !== '' && $parentTenants->isNotEmpty())
-                <p class="mt-1.5 text-xs text-slate-500">Parent menentukan hubungan wilayah. Kecamatan berada di bawah Pemerintah Kota; Kelurahan/Desa berada di bawah Kecamatan.</p>
+                <p class="mt-1.5 text-xs text-slate-500">Kecamatan berada di bawah Pemerintah Kota; Kelurahan/Desa berada di bawah Kecamatan.</p>
             @endif
         </x-ui.field>
     </div>
