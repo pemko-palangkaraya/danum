@@ -28,7 +28,7 @@ class UpdateTenantRequest extends FormRequest
             ],
             'name' => ['sometimes', 'required', 'string', 'max:150'],
             'tenant_category_id' => ['sometimes', 'required', 'integer', Rule::exists('tenant_categories', 'id')->where('is_active', true)],
-            'parent_tenant_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('tenants', 'id')->where('status', true)],
+            'parent_tenant_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('tenants', 'id')->where('status', TenantStatus::ACTIVE->value)],
             'province' => ['sometimes', 'required', 'string', 'max:100'],
             'city' => ['sometimes', 'required', 'string', 'max:100'],
             'district' => ['sometimes', 'required', 'string', 'max:100'],
