@@ -6,6 +6,7 @@ namespace App\Livewire\Population;
 
 use App\Livewire\Concerns\WithStandardTablePagination;
 use App\Services\CitizenService;
+use App\Services\PopulationReferenceService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -154,15 +155,18 @@ class Citizens extends Component
         $canManage = $user->hasPermission('population.manage');
         $tenantSelected = (bool) ($this->selectedTenantId || $user->tenant_id);
         $service = app(CitizenService::class);
+        $referenceService = app(PopulationReferenceService::class);
 
         return view('livewire.pages.population.citizens', [
             'citizens' => $tenantSelected
                 ? $service->paginate($this->tenantId(), $this->search, $this->perPage)
                 : collect(),
             'tenants' => $isSuperAdmin ? $service->tenants() : collect(),
+            'references' => $referenceService->all(),
             'isSuperAdmin' => $isSuperAdmin,
             'canManage' => $canManage,
             'tenantSelected' => $tenantSelected,
+            'selectedTenantId' => $this->selectedTenantId,
             'detailRoute' => $isSuperAdmin
                 ? 'population.admin.citizens.show'
                 : 'population.citizens.show',
