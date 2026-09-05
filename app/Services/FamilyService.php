@@ -8,6 +8,9 @@ use App\Models\Citizen;
 use App\Models\Family;
 use App\Models\FamilyMember;
 use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -105,15 +108,38 @@ class FamilyService
         $data['tenant_id'] = $tenantId;
         $data['updated_by'] = $userId;
 
-        if ($editingId !== null) {
-            $family = $this->findForTenant($tenantId, $editingId);
-            $family->update($data);
-            return $family->refresh();
-        }
+        return DB::transaction(function () use ($tenantId, $data, $editingId, $userId): Family {
+            if ($editingId !== null) {
+                $family = $this->findForTenant($tenantId, $editingId);
+                $oldValues = $this->familyAuditValues($family);
+                $family->update($data);
+                $family = $family->refresh();
 
-        $data['created_by'] = $userId;
+                $this->auditLogService()->record(
+                    action: 'population.family.updated',
+                    user: $this->actor($userId),
+                    auditable: $family,
+                    oldValues: $oldValues,
+                    newValues: $this->familyAuditValues($family),
+                    tenantId: $tenantId,
+                );
 
-        return Family::create($data);
+                return $family;
+            }
+
+            $data['created_by'] = $userId;
+            $family = Family::create($data);
+
+            $this->auditLogService()->record(
+                action: 'population.family.created',
+                user: $this->actor($userId),
+                auditable: $family,
+                newValues: $this->familyAuditValues($family),
+                tenantId: $tenantId,
+            );
+
+            return $family;
+        });
     }
 
     public function addMember(
@@ -143,23 +169,59 @@ class FamilyService
             ]);
         }
 
-        FamilyMember::updateOrCreate(
-            ['family_id' => $family->id, 'citizen_id' => $citizen->id],
-            [
-                'hubungan_dalam_keluarga' => $data['hubungan_dalam_keluarga'],
-                'status' => $data['status'],
-            ]
-        );
+        DB::transaction(function () use ($tenantId, $family, $citizen, $data): void {
+            $member = FamilyMember::query()
+                ->where('family_id', $family->id)
+                ->where('citizen_id', $citizen->id)
+                ->first();
+            $oldValues = $member ? $this->familyMemberAuditValues($member) : null;
+
+            $member = FamilyMember::updateOrCreate(
+                ['family_id' => $family->id, 'citizen_id' => $citizen->id],
+                [
+                    'hubungan_dalam_keluarga' => $data['hubungan_dalam_keluarga'],
+                    'status' => $data['status'],
+                ]
+            );
+
+            $this->auditLogService()->record(
+                action: $oldValues === null
+                    ? 'population.family_member.created'
+                    : 'population.family_member.updated',
+                user: $this->actor(),
+                auditable: $member,
+                oldValues: $oldValues,
+                newValues: $this->familyMemberAuditValues($member->refresh()),
+                tenantId: $tenantId,
+            );
+        });
     }
 
     public function removeMember(string $tenantId, string $familyId, string $citizenId): void
     {
         $family = $this->findForTenant($tenantId, $familyId);
 
-        FamilyMember::query()
-            ->where('family_id', $family->id)
-            ->where('citizen_id', $citizenId)
-            ->delete();
+        DB::transaction(function () use ($tenantId, $family, $citizenId): void {
+            $member = FamilyMember::query()
+                ->where('family_id', $family->id)
+                ->where('citizen_id', $citizenId)
+                ->first();
+
+            if ($member === null) {
+                return;
+            }
+
+            $oldValues = $this->familyMemberAuditValues($member);
+            $member->delete();
+
+            $this->auditLogService()->record(
+                action: 'population.family_member.deleted',
+                user: $this->actor(),
+                auditable: $member,
+                oldValues: $oldValues,
+                tenantId: $tenantId,
+            );
+        });
     }
 
     private function query(string $tenantId)
@@ -230,6 +292,50 @@ class FamilyService
             'provinsi' => ['required', 'string', 'max:100'],
             'kode_pos' => ['nullable', 'string', 'max:10'],
             'status' => ['required', 'string', 'max:30'],
+        ];
+    }
+
+    private function auditLogService(): AuditLogService
+    {
+        return app(AuditLogService::class);
+    }
+
+    private function actor(int|string|null $userId = null): ?User
+    {
+        $user = Auth::user();
+
+        if ($user instanceof User) {
+            return $user;
+        }
+
+        return $userId !== null ? User::query()->find($userId) : null;
+    }
+
+    private function familyAuditValues(Family $family): array
+    {
+        return [
+            'no_kk' => $family->no_kk,
+            'head_citizen_id' => $family->head_citizen_id,
+            'alamat' => $family->alamat,
+            'rt' => $family->rt,
+            'rw' => $family->rw,
+            'kelurahan' => $family->kelurahan,
+            'kecamatan' => $family->kecamatan,
+            'kabupaten_kota' => $family->kabupaten_kota,
+            'provinsi' => $family->provinsi,
+            'kode_pos' => $family->kode_pos,
+            'status' => $family->status,
+            'tenant_id' => $family->tenant_id,
+        ];
+    }
+
+    private function familyMemberAuditValues(FamilyMember $member): array
+    {
+        return [
+            'family_id' => $member->family_id,
+            'citizen_id' => $member->citizen_id,
+            'hubungan_dalam_keluarga' => $member->hubungan_dalam_keluarga,
+            'status' => $member->status,
         ];
     }
 }
