@@ -52,13 +52,13 @@ class DatabaseSeeder extends Seeder
         $tenant = Tenant::updateOrCreate(
             ['code' => env('DANUM_DEMO_TENANT_CODE', 'DEMO001')],
             [
-                'name' => env('DANUM_DEMO_TENANT_NAME', 'Demo Tenant - Kelurahan Langkai'),
+                'name' => env('DANUM_DEMO_TENANT_NAME', 'Demo Tenant - Kelurahan Mungku Baru'),
                 'tenant_category_id' => $tenantCategoryId,
                 'province' => 'Kalimantan Tengah',
                 'city' => 'Palangka Raya',
-                'district' => 'Pahandut',
-                'village' => 'Langkai',
-                'address' => 'Kelurahan Langkai, Kecamatan Pahandut, Palangka Raya',
+                'district' => 'Rakumpit',
+                'village' => 'Mungku Baru',
+                'address' => 'Kelurahan Mungku Baru, Kecamatan Rakumpit, Palangka Raya',
                 'phone' => null,
                 'email' => 'demo@example.com',
                 'head_name' => 'Demo Head',
