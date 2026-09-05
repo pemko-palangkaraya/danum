@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\TenantStatus;
 use App\Models\Tenant;
 use Illuminate\Support\Collection;
 
@@ -41,14 +42,10 @@ class PopulationLocationService
         string $district,
         string $village,
     ): bool {
-        $tenant = $this->tenant($tenantId);
+        $options = $this->optionsForTenant($tenantId, $province, $city, $district);
 
-        if (! $tenant) {
-            return false;
-        }
-
-        return $this->optionsForTenant($tenantId, $province, $city, $district)['villages']->contains($village)
-            && $this->optionsForTenant($tenantId, $province, $city, $district)['districts']->contains($district);
+        return $options['districts']->contains($district)
+            && $options['villages']->contains($village);
     }
 
     public function provinces(): Collection
@@ -112,7 +109,7 @@ class PopulationLocationService
         return Tenant::query()
             ->with('category')
             ->whereKey($tenantId)
-            ->where('status', 'active')
+            ->where('status', TenantStatus::ACTIVE)
             ->first();
     }
 
@@ -170,7 +167,7 @@ class PopulationLocationService
     private function baseQuery()
     {
         return Tenant::query()
-            ->where('status', 'active')
+            ->where('status', TenantStatus::ACTIVE)
             ->whereNotNull('village')
             ->where('village', '<>', '')
             ->where('village', '<>', 'Pusat Pemerintahan')
