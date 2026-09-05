@@ -70,7 +70,10 @@
                     @endforeach
 
                     <x-ui.population-location
-                        :tenant-id="$selectedTenantId ?? ''"
+                        :provinces="$locationOptions['provinces']"
+                        :cities="$locationOptions['cities']"
+                        :districts="$locationOptions['districts']"
+                        :villages="$locationOptions['villages']"
                         :province="$provinsi"
                         :city="$kabupaten_kota"
                         :district="$kecamatan"
@@ -79,7 +82,7 @@
             </div>
 
             <div class="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
-                <p class="text-xs text-slate-500">Pilihan wilayah mengikuti cakupan wilayah tenant yang sedang digunakan.</p>
+                <p class="text-xs text-slate-500">Pilihan wilayah mengikuti tenant yang sedang digunakan dan hanya menampilkan child tenant yang aktif.</p>
                 <div class="flex gap-3">
                     <button type="button" wire:click="resetForm" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Batal</button>
                     <button type="submit" wire:loading.attr="disabled" wire:target="save" class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">
