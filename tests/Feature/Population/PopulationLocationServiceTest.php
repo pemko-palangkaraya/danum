@@ -115,6 +115,12 @@ class PopulationLocationServiceTest extends TestCase
 
         $this->assertSame(['Rakumpit'], $cityOptions['districts']->all());
         $this->assertSame(['Bukit Sua', 'Mungku Baru'], $cityOptions['villages']->all());
+        $this->assertSame([
+            'province' => true,
+            'city' => true,
+            'district' => false,
+            'village' => false,
+        ], $cityOptions['locks']);
 
         $districtOptions = $service->optionsForTenant(
             $rakumpit->id,
@@ -125,8 +131,35 @@ class PopulationLocationServiceTest extends TestCase
 
         $this->assertSame(['Rakumpit'], $districtOptions['districts']->all());
         $this->assertSame(['Bukit Sua', 'Mungku Baru'], $districtOptions['villages']->all());
+        $this->assertSame([
+            'province' => true,
+            'city' => true,
+            'district' => true,
+            'village' => false,
+        ], $districtOptions['locks']);
         $this->assertNotContains('Pager', $districtOptions['villages']);
         $this->assertNotContains('Petuk Barunai', $districtOptions['villages']);
         $this->assertSame('Mungku Baru', $mungkuBaru->village);
+
+        $villageOptions = $service->optionsForTenant(
+            $mungkuBaru->id,
+            'Kalimantan Tengah',
+            'Palangka Raya',
+            'Rakumpit',
+        );
+
+        $this->assertSame(['Mungku Baru'], $villageOptions['villages']->all());
+        $this->assertSame([
+            'province' => true,
+            'city' => true,
+            'district' => true,
+            'village' => true,
+        ], $villageOptions['locks']);
+        $this->assertSame([
+            'province' => 'Kalimantan Tengah',
+            'city' => 'Palangka Raya',
+            'district' => 'Rakumpit',
+            'village' => 'Mungku Baru',
+        ], $service->defaultsForTenant($mungkuBaru->id));
     }
 }
