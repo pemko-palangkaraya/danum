@@ -42,7 +42,7 @@ class PopulationDemoSeeder extends Seeder
             $location['district'],
         ));
 
-        foreach (range(1, 20) as $familyNumber) {
+        foreach (range(1, 200) as $familyNumber) {
             $head = Citizen::factory()
                 ->forTenant($tenant)
                 ->male()
@@ -77,7 +77,7 @@ class PopulationDemoSeeder extends Seeder
                 ->forTenant($tenant)
                 ->female()
                 ->state([
-                    'tanggal_lahir' => fake()->dateTimeBetween('-60 years', '-25 years')->format('Y-m-d'),
+                    'tanggal_lahir' => fake()->dateTimeBetween('-90 years', '-25 years')->format('Y-m-d'),
                     'status_perkawinan' => 'married',
                 ])
                 ->create();
@@ -109,7 +109,7 @@ class PopulationDemoSeeder extends Seeder
             }
         }
 
-        $this->command?->info('Selesai: 20 KK demo beserta anggota keluarga berhasil dibuat.');
+        $this->command?->info('Selesai: 200 KK demo beserta anggota keluarga berhasil dibuat.');
     }
 
     private function tenantLocation(Tenant $tenant): array
@@ -124,7 +124,7 @@ class PopulationDemoSeeder extends Seeder
         return [
             'district' => $district,
             'village' => $village,
-            'kode_pos' => self::POSTAL_CODES[$district.'|'.$village] ?? null,
+            'kode_pos' => self::POSTAL_CODES[$district . '|' . $village] ?? null,
         ];
     }
 }
