@@ -11,8 +11,7 @@ class PopulationLocationService
 {
     public function provinces(): Collection
     {
-        return Tenant::query()
-            ->where('status', 'active')
+        return $this->baseQuery()
             ->whereNotNull('province')
             ->where('province', '<>', '')
             ->distinct()
@@ -48,8 +47,7 @@ class PopulationLocationService
         string $district,
         string $village,
     ): bool {
-        return Tenant::query()
-            ->where('status', 'active')
+        return $this->baseQuery()
             ->where('province', $province)
             ->where('city', $city)
             ->where('district', $district)
@@ -59,13 +57,24 @@ class PopulationLocationService
 
     private function values(string $column, array $filters): Collection
     {
-        return Tenant::query()
-            ->where('status', 'active')
+        return $this->baseQuery()
             ->whereNotNull($column)
             ->where($column, '<>', '')
             ->where($filters)
             ->distinct()
             ->orderBy($column)
             ->pluck($column);
+    }
+
+    private function baseQuery()
+    {
+        return Tenant::query()
+            ->where('status', 'active')
+            ->whereNotNull('village')
+            ->where('village', '<>', '')
+            ->where('village', '<>', 'Pusat Pemerintahan')
+            ->whereNotNull('district')
+            ->where('district', '<>', '')
+            ->where('district', '<>', 'Pusat Pemerintahan');
     }
 }
