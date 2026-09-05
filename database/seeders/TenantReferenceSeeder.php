@@ -46,8 +46,10 @@ class TenantReferenceSeeder extends Seeder
             );
         }
 
+        // Tenant wilayah administratif tidak dibuat di sini.
+        // KalimantanTengahTenantSeeder adalah sumber master untuk:
+        // Pemerintah Kota -> Kecamatan -> Kelurahan.
         $tenants = [
-            ['pemkot-palangka-raya', 'Pemerintah Kota Palangka Raya', 'pemerintah-kota', 'Kalimantan Tengah', 'Palangka Raya', 'Pahandut', 'Langkai', 'Wali Kota Palangka Raya', 'Wali Kota'],
             ['setda-palangka-raya', 'Sekretariat Daerah Kota Palangka Raya', 'sekretariat-daerah', 'Kalimantan Tengah', 'Palangka Raya', 'Jekan Raya', 'Menteng', 'Sekretaris Daerah', 'Sekretaris Daerah'],
             ['dprd-palangka-raya', 'Sekretariat DPRD Kota Palangka Raya', 'sekretariat-dprd', 'Kalimantan Tengah', 'Palangka Raya', 'Pahandut', 'Langkai', 'Sekretaris DPRD', 'Sekretaris DPRD'],
             ['inspektorat-palangka-raya', 'Inspektorat Kota Palangka Raya', 'inspektorat', 'Kalimantan Tengah', 'Palangka Raya', 'Jekan Raya', 'Menteng', 'Inspektur', 'Inspektur'],
@@ -58,13 +60,6 @@ class TenantReferenceSeeder extends Seeder
             ['bappeda-palangka-raya', 'Badan Perencanaan Pembangunan Daerah Kota Palangka Raya', 'badan', 'Kalimantan Tengah', 'Palangka Raya', 'Jekan Raya', 'Menteng', 'Kepala Bappeda', 'Kepala Badan'],
             ['bpkad-palangka-raya', 'Badan Pengelola Keuangan dan Aset Daerah Kota Palangka Raya', 'badan', 'Kalimantan Tengah', 'Palangka Raya', 'Jekan Raya', 'Menteng', 'Kepala BPKAD', 'Kepala Badan'],
             ['satpolpp-palangka-raya', 'Satuan Polisi Pamong Praja Kota Palangka Raya', 'satpol-pp', 'Kalimantan Tengah', 'Palangka Raya', 'Pahandut', 'Langkai', 'Kepala Satpol PP', 'Kepala Satuan'],
-            ['kecamatan-pahandut', 'Kecamatan Pahandut', 'kecamatan', 'Kalimantan Tengah', 'Palangka Raya', 'Pahandut', 'Langkai', 'Camat Pahandut', 'Camat'],
-            ['kecamatan-jekan-raya', 'Kecamatan Jekan Raya', 'kecamatan', 'Kalimantan Tengah', 'Palangka Raya', 'Jekan Raya', 'Menteng', 'Camat Jekan Raya', 'Camat'],
-            ['kecamatan-bukit-batu', 'Kecamatan Bukit Batu', 'kecamatan', 'Kalimantan Tengah', 'Palangka Raya', 'Bukit Batu', 'Banturung', 'Camat Bukit Batu', 'Camat'],
-            ['kecamatan-rakumpit', 'Kecamatan Rakumpit', 'kecamatan', 'Kalimantan Tengah', 'Palangka Raya', 'Rakumpit', 'Petuk Bukit', 'Camat Rakumpit', 'Camat'],
-            ['kecamatan-sabangau', 'Kecamatan Sabangau', 'kecamatan', 'Kalimantan Tengah', 'Palangka Raya', 'Sabangau', 'Kereng Bangkirai', 'Camat Sabangau', 'Camat'],
-            ['kelurahan-langkai', 'Kelurahan Langkai', 'kelurahan', 'Kalimantan Tengah', 'Palangka Raya', 'Pahandut', 'Langkai', 'Lurah Langkai', 'Lurah'],
-            ['kelurahan-menteng', 'Kelurahan Menteng', 'kelurahan', 'Kalimantan Tengah', 'Palangka Raya', 'Jekan Raya', 'Menteng', 'Lurah Menteng', 'Lurah'],
             ['rsud-doris-sylvanus', 'RSUD dr. Doris Sylvanus', 'rumah-sakit-daerah', 'Kalimantan Tengah', 'Palangka Raya', 'Jekan Raya', 'Palangka', 'Direktur RSUD dr. Doris Sylvanus', 'Direktur'],
             ['puskesmas-pahandut', 'UPT Puskesmas Pahandut', 'puskesmas', 'Kalimantan Tengah', 'Palangka Raya', 'Pahandut', 'Pahandut', 'Kepala Puskesmas Pahandut', 'Kepala Puskesmas'],
             ['smkn-1-palangka-raya', 'SMK Negeri 1 Palangka Raya', 'satuan-pendidikan', 'Kalimantan Tengah', 'Palangka Raya', 'Jekan Raya', 'Bukit Tunggal', 'Kepala SMK Negeri 1 Palangka Raya', 'Kepala Sekolah'],
