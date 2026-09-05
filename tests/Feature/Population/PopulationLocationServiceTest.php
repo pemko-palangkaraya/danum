@@ -104,25 +104,27 @@ class PopulationLocationServiceTest extends TestCase
             'status' => TenantStatus::INACTIVE,
         ]);
 
-        $options = app(PopulationLocationService::class)->optionsForTenant(
+        $service = app(PopulationLocationService::class);
+
+        $cityOptions = $service->optionsForTenant(
             $city->id,
             'Kalimantan Tengah',
             'Palangka Raya',
             'Rakumpit',
         );
 
-        $this->assertSame(['Rakumpit'], $options['districts']->all());
+        $this->assertSame(['Rakumpit'], $cityOptions['districts']->all());
+        $this->assertSame(['Bukit Sua', 'Mungku Baru'], $cityOptions['villages']->all());
 
-        $districtOptions = app(PopulationLocationService::class)->optionsForTenant(
+        $districtOptions = $service->optionsForTenant(
             $rakumpit->id,
             'Kalimantan Tengah',
             'Palangka Raya',
             'Rakumpit',
         );
 
-        $this->assertSame(['Mungku Baru', 'Bukit Sua'], $districtOptions['villages']->all());
-        $this->assertContains('Mungku Baru', $districtOptions['villages']);
-        $this->assertContains('Bukit Sua', $districtOptions['villages']);
+        $this->assertSame(['Rakumpit'], $districtOptions['districts']->all());
+        $this->assertSame(['Bukit Sua', 'Mungku Baru'], $districtOptions['villages']->all());
         $this->assertNotContains('Pager', $districtOptions['villages']);
         $this->assertNotContains('Petuk Barunai', $districtOptions['villages']);
         $this->assertSame('Mungku Baru', $mungkuBaru->village);
