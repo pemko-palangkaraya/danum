@@ -94,6 +94,7 @@ final class OutgoingLetterDraftService
 
             return 'Draft surat berhasil dibuat.';
         } catch (\Throwable $exception) {
+            report($exception);
             Storage::disk('local')->delete($generatedPath);
             throw $exception;
         }
