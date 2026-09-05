@@ -7,7 +7,7 @@ namespace App\Services;
 use App\Models\Citizen;
 use App\Models\OutgoingLetter;
 use App\Models\PopulationEvent;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 use RuntimeException;
 
 final class CitizenDeathService
@@ -36,6 +36,10 @@ final class CitizenDeathService
         }
 
         $citizen = Citizen::query()->where('tenant_id', $letter->tenant_id)->findOrFail($citizenId);
+
+        if ($citizen->tanggal_lahir && Carbon::parse((string) $tanggalMeninggal)->lt($citizen->tanggal_lahir)) {
+            throw new RuntimeException('Tanggal meninggal tidak boleh lebih awal dari tanggal lahir warga.');
+        }
 
         if ($citizen->status_kependudukan === 'meninggal') {
             if ($citizen->tanggal_meninggal?->toDateString() !== (string) $tanggalMeninggal) {
