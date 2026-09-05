@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Models\Citizen;
 use App\Models\Tenant;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<Citizen> */
@@ -29,34 +30,28 @@ class CitizenFactory extends Factory
         'Purnama', 'Kusuma',
     ];
 
+    private const BIRTH_PLACES = [
+        'Palangka Raya', 'Sampit', 'Banjarmasin', 'Pangkalan Bun',
+        'Kuala Kapuas', 'Muara Teweh', 'Kasongan',
+    ];
+
     public function definition(): array
     {
         $gender = $this->faker->randomElement(['male', 'female']);
         $birthDate = $this->faker->dateTimeBetween('-80 years', '-1 year');
-        $age = now()->diffInYears($birthDate);
-
-        $givenNames = $gender === 'male' ? self::MALE_NAMES : self::FEMALE_NAMES;
-        $name = $this->faker->randomElement($givenNames).' '.$this->faker->randomElement(self::LAST_NAMES);
-
-        [$education, $job, $maritalStatus] = $this->profileForAge($age, $gender);
 
         return [
             'tenant_id' => Tenant::factory(),
-            // Valid 16-digit Indonesian NIK-shaped demo value. Real regional NIKs
-            // should come from authoritative population data, not generated data.
-            'nik' => $this->faker->unique()->numerify('62##############'),
-            'nama_lengkap' => $name,
-            'tempat_lahir' => $this->faker->randomElement([
-                'Palangka Raya', 'Sampit', 'Banjarmasin', 'Pangkalan Bun',
-                'Kuala Kapuas', 'Muara Teweh', 'Kasongan',
-            ]),
+            'nik' => $this->nikFor($birthDate, $gender),
+            'nama_lengkap' => $this->randomName($gender),
+            'tempat_lahir' => $this->faker->randomElement(self::BIRTH_PLACES),
             'tanggal_lahir' => $birthDate->format('Y-m-d'),
             'jenis_kelamin' => $gender,
             'golongan_darah' => $this->faker->randomElement(['A', 'B', 'AB', 'O', 'unknown']),
             'agama' => $this->faker->randomElement(['islam', 'christian', 'catholic', 'hindu', 'buddhist', 'confucian']),
-            'status_perkawinan' => $maritalStatus,
-            'pendidikan' => $education,
-            'pekerjaan' => $job,
+            'status_perkawinan' => 'single',
+            'pendidikan' => 'Tidak/Belum Sekolah',
+            'pekerjaan' => 'Tidak/Belum Bekerja',
             'kewarganegaraan' => 'WNI',
             'no_passport' => null,
             'no_kitap' => null,
@@ -66,6 +61,26 @@ class CitizenFactory extends Factory
             'nik_ibu' => null,
             'status_kependudukan' => 'active',
         ];
+    }
+
+    public function configure(): static
+    {
+        return $this->afterMaking(function (Citizen $citizen): void {
+            $gender = $citizen->jenis_kelamin;
+            $birthDate = $citizen->tanggal_lahir instanceof \DateTimeInterface
+                ? $citizen->tanggal_lahir
+                : Carbon::parse($citizen->tanggal_lahir);
+            $age = Carbon::instance($birthDate)->age;
+
+            [$education, $job, $maritalStatus] = $this->profileForAge($age, $gender);
+
+            $citizen->forceFill([
+                'nik' => $this->nikFor($birthDate, $gender),
+                'pendidikan' => $education,
+                'pekerjaan' => $job,
+                'status_perkawinan' => $maritalStatus,
+            ]);
+        });
     }
 
     public function forTenant(Tenant|string $tenant): static
@@ -103,6 +118,16 @@ class CitizenFactory extends Factory
         return $this->faker->randomElement($givenNames).' '.$this->faker->randomElement(self::LAST_NAMES);
     }
 
+    private function nikFor(\DateTimeInterface $birthDate, string $gender): string
+    {
+        $date = Carbon::instance($birthDate);
+        $day = $date->day + ($gender === 'female' ? 40 : 0);
+        $datePart = str_pad((string) $day, 2, '0', STR_PAD_LEFT).$date->format('my');
+        $serial = str_pad((string) $this->faker->numberBetween(0, 9999), 4, '0', STR_PAD_LEFT);
+
+        return '627101'.$datePart.$serial;
+    }
+
     private function profileForAge(int $age, string $gender): array
     {
         if ($age < 6) {
@@ -118,7 +143,7 @@ class CitizenFactory extends Factory
         }
 
         if ($age < 19) {
-            return [$this->faker->randomElement(['SMP', 'SMA']), 'Pelajar/Mahasiswa', 'single'];
+            return [$this->faker->randomElement(['SMA', 'SMP']), 'Pelajar/Mahasiswa', 'single'];
         }
 
         if ($age < 22) {
