@@ -25,7 +25,7 @@ class OutgoingLetterIssuanceService
         private readonly SignerPinService $signerPinService,
     ) {}
 
-    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null, ?string $pin = null): OutgoingLetter
+    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null, ?string $pin = null, bool $signWithTte = true): OutgoingLetter
     {
         $note = trim((string) ($note ?? request()->input('note', '')));
         if ($note === '') throw new \DomainException('Catatan penandatanganan wajib diisi.');
@@ -33,17 +33,22 @@ class OutgoingLetterIssuanceService
         if ($letter->signer_user_id !== $changedBy) throw new \DomainException('Hanya penanda tangan yang ditentukan untuk surat ini yang dapat menerbitkan surat.');
 
         $signer = User::query()->findOrFail($changedBy);
-        if (blank($pin)) throw new \DomainException('PIN penandatangan wajib diisi.');
-        $this->signerPinService->verify($signer, $pin);
+        if (blank($letter->generated_docx_path)) throw new \DomainException('Dokumen DOCX surat belum tersedia untuk diterbitkan.');
+        if (! Storage::disk('local')->exists($letter->generated_docx_path)) throw new \DomainException('Dokumen DOCX surat tidak ditemukan. Buat ulang draft surat terlebih dahulu.');
+
+        if ($signWithTte) {
+            if (blank($pin)) throw new \DomainException('PIN penandatangan wajib diisi.');
+            $this->signerPinService->verify($signer, $pin);
+        }
 
         $letterType = $letter->letterType()->first();
-        $signerCertificate = $this->resolveSignerCertificate($letter);
         $issuedAt = now();
         $attributes = [
             'issued_at' => $issuedAt->toDateString(),
             'valid_from' => $issuedAt,
             'valid_until' => null,
             'signing_note' => $note,
+            'status' => OutgoingLetterStatus::ISSUED,
         ];
         $period = $letterType?->validity_period ?? 'none';
         if ($period !== 'none') {
@@ -57,34 +62,94 @@ class OutgoingLetterIssuanceService
                 default => throw new \DomainException('Masa berlaku jenis surat tidak valid.'),
             };
         }
-        if (blank($letter->generated_docx_path)) throw new \DomainException('Dokumen DOCX surat belum tersedia untuk ditandatangani.');
 
         $unsignedPdfPath = $this->docxPdfService->convert((string) $letter->generated_docx_path);
         $signedPdfPath = null;
+
         try {
-            $signedPdfPath = $this->pdfSigningService->sign(
-                sourcePdfPath: $unsignedPdfPath,
-                certificate: $signerCertificate,
-                signerName: (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $signerCertificate->user()->value('name')),
-                reason: $note,
-            );
-            $oldValues = $this->auditValues($letter);
-            $letter = DB::transaction(function () use ($letter, $changedBy, $note, $attributes, $signerCertificate, $signedPdfPath, $oldValues): OutgoingLetter {
-                $letter = $this->repository->update($letter, [
+            if ($signWithTte) {
+                $signerCertificate = $this->resolveSignerCertificate($letter);
+                $signedPdfPath = $this->pdfSigningService->sign(
+                    sourcePdfPath: $unsignedPdfPath,
+                    certificate: $signerCertificate,
+                    signerName: (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $signerCertificate->user()->value('name')),
+                    reason: $note,
+                );
+
+                $attributes = [
                     ...$attributes,
+                    'unsigned_pdf_path' => $unsignedPdfPath,
                     'signed_pdf_path' => $signedPdfPath,
                     'signature_certificate_id' => $signerCertificate->id,
                     'signature_profile' => 'pades-b-b',
                     'signed_at' => now(),
-                ]);
-                $this->recordHistory($letter, 'signed', $changedBy, $note);
-                $this->recordAudit('outgoing_letter.signed', $letter, $changedBy, $oldValues, $this->auditValues($letter));
-                $letter = $this->repository->update($letter, ['status' => OutgoingLetterStatus::ISSUED]);
+                ];
+            } else {
+                $attributes['unsigned_pdf_path'] = $unsignedPdfPath;
+            }
+
+            $oldValues = $this->auditValues($letter);
+            $letter = DB::transaction(function () use ($letter, $changedBy, $note, $attributes, $oldValues, $signWithTte): OutgoingLetter {
+                $letter = $this->repository->update($letter, $attributes);
                 $this->recordHistory($letter, 'issued', $changedBy, $note);
                 $this->recordAudit('outgoing_letter.issued', $letter, $changedBy, $oldValues, $this->auditValues($letter));
+
+                if ($signWithTte) {
+                    $this->recordHistory($letter, 'signed', $changedBy, $note);
+                    $this->recordAudit('outgoing_letter.signed', $letter, $changedBy, $oldValues, $this->auditValues($letter));
+                }
+
                 return $letter;
             });
+
             return $letter;
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete($unsignedPdfPath);
+            if ($signedPdfPath !== null) Storage::disk('local')->delete($signedPdfPath);
+            throw $e;
+        }
+    }
+
+    public function signIssued(OutgoingLetter $letter, int $changedBy, string $pin, ?string $note = null): OutgoingLetter
+    {
+        $note = trim((string) ($note ?? $letter->signing_note ?? ''));
+        if ($note === '') throw new \DomainException('Catatan penandatanganan wajib diisi.');
+        if ($letter->status !== OutgoingLetterStatus::ISSUED) throw new \DomainException('Hanya surat yang sudah diterbitkan yang dapat ditandatangani secara elektronik.');
+        if ($letter->signer_user_id !== $changedBy) throw new \DomainException('Hanya penanda tangan yang ditentukan untuk surat ini yang dapat menandatangani surat.');
+        if (blank($pin)) throw new \DomainException('PIN penandatangan wajib diisi.');
+        if (blank($letter->unsigned_pdf_path) || ! Storage::disk('local')->exists($letter->unsigned_pdf_path)) {
+            throw new \DomainException('PDF final surat belum tersedia untuk TTE.');
+        }
+        if (filled($letter->signed_pdf_path) && Storage::disk('local')->exists($letter->signed_pdf_path)) {
+            throw new \DomainException('Surat ini sudah memiliki tanda tangan elektronik.');
+        }
+
+        $signer = User::query()->findOrFail($changedBy);
+        $this->signerPinService->verify($signer, $pin);
+        $certificate = $this->resolveSignerCertificate($letter);
+        $signedPdfPath = null;
+
+        try {
+            $signedPdfPath = $this->pdfSigningService->sign(
+                sourcePdfPath: Storage::disk('local')->path($letter->unsigned_pdf_path),
+                certificate: $certificate,
+                signerName: (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $certificate->user()->value('name')),
+                reason: $note,
+            );
+
+            $oldValues = $this->auditValues($letter);
+            return DB::transaction(function () use ($letter, $changedBy, $note, $certificate, $signedPdfPath, $oldValues): OutgoingLetter {
+                $updated = $this->repository->update($letter, [
+                    'signed_pdf_path' => $signedPdfPath,
+                    'signature_certificate_id' => $certificate->id,
+                    'signature_profile' => 'pades-b-b',
+                    'signed_at' => now(),
+                    'signing_note' => $note,
+                ]);
+                $this->recordHistory($updated, 'signed', $changedBy, $note);
+                $this->recordAudit('outgoing_letter.signed', $updated, $changedBy, $oldValues, $this->auditValues($updated));
+                return $updated;
+            });
         } catch (\Throwable $e) {
             if ($signedPdfPath !== null) Storage::disk('local')->delete($signedPdfPath);
             throw $e;
@@ -150,6 +215,7 @@ class OutgoingLetterIssuanceService
             'issued_at' => $letter->issued_at?->toDateString(),
             'valid_from' => $letter->valid_from?->toIso8601String(),
             'valid_until' => $letter->valid_until?->toIso8601String(),
+            'unsigned_pdf_path' => $letter->unsigned_pdf_path,
             'signed_pdf_path' => $letter->signed_pdf_path,
             'signature_certificate_id' => $letter->signature_certificate_id,
             'signature_profile' => $letter->signature_profile,
