@@ -20,7 +20,12 @@ class FamiliesCrudTest extends TestCase
 
     public function test_tenant_user_with_population_manage_can_create_family(): void
     {
-        $tenant = Tenant::factory()->create();
+        $tenant = Tenant::factory()->create([
+            'province' => 'Kalimantan Tengah',
+            'city' => 'Palangka Raya',
+            'district' => 'Pahandut',
+            'village' => 'Pahandut',
+        ]);
         $user = User::factory()->tenantAdmin($tenant)->create();
 
         Livewire::actingAs($user)
@@ -45,6 +50,42 @@ class FamiliesCrudTest extends TestCase
             'status' => 'active',
             'created_by' => $user->id,
         ]);
+    }
+
+    public function test_location_dropdowns_are_cascaded_from_registered_tenants(): void
+    {
+        Tenant::factory()->create([
+            'province' => 'Kalimantan Tengah',
+            'city' => 'Palangka Raya',
+            'district' => 'Rakumpit',
+            'village' => 'Mungku Baru',
+        ]);
+        Tenant::factory()->create([
+            'province' => 'Kalimantan Tengah',
+            'city' => 'Palangka Raya',
+            'district' => 'Jekan Raya',
+            'village' => 'Menteng',
+        ]);
+        $tenant = Tenant::factory()->create([
+            'province' => 'Kalimantan Selatan',
+            'city' => 'Banjarmasin',
+            'district' => 'Banjarmasin Tengah',
+            'village' => 'Kertak Baru Ilir',
+        ]);
+        $user = User::factory()->tenantAdmin($tenant)->create();
+
+        $component = Livewire::actingAs($user)->test(Families::class)->call('create');
+
+        $this->assertSame(['Kalimantan Selatan', 'Kalimantan Tengah'], $component->viewData('locationProvinces')->all());
+
+        $component->set('provinsi', 'Kalimantan Tengah');
+        $this->assertSame(['Palangka Raya'], $component->viewData('locationCities')->all());
+
+        $component->set('kabupaten_kota', 'Palangka Raya');
+        $this->assertSame(['Jekan Raya', 'Rakumpit'], $component->viewData('locationDistricts')->all());
+
+        $component->set('kecamatan', 'Rakumpit');
+        $this->assertSame(['Mungku Baru'], $component->viewData('locationVillages')->all());
     }
 
     public function test_tenant_user_with_population_manage_can_add_family_member(): void
