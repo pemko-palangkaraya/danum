@@ -16,6 +16,7 @@ new #[Layout('layouts.app')] class extends Component {
     public string $code = '';
     public string $name = '';
     public string $tenant_category_id = '';
+    public string $parent_tenant_id = '';
     public string $province = '';
     public string $city = '';
     public string $district = '';
@@ -34,6 +35,41 @@ new #[Layout('layouts.app')] class extends Component {
     public string $admin_password = '';
     public string $admin_password_confirmation = '';
 
+    public function updatedTenantCategoryId(): void
+    {
+        $this->parent_tenant_id = '';
+        $this->province = '';
+        $this->city = '';
+        $this->district = '';
+        $this->village = '';
+    }
+
+    public function updatedParentTenantId(TenantService $tenantService): void
+    {
+        if ($this->parent_tenant_id === '') {
+            return;
+        }
+
+        $parent = $tenantService->find($this->parent_tenant_id);
+        if (! $parent) {
+            return;
+        }
+
+        $this->province = (string) $parent->province;
+        $this->city = (string) $parent->city;
+
+        if ($parent->district !== 'Pusat Pemerintahan') {
+            $this->district = (string) $parent->district;
+        }
+    }
+
+    public function with(TenantService $tenantService): array
+    {
+        return [
+            'parentTenants' => $tenantService->parentOptions($this->tenant_category_id),
+        ];
+    }
+
     public function save(TenantService $tenantService): void
     {
         $this->authorize('create', Tenant::class);
@@ -42,6 +78,7 @@ new #[Layout('layouts.app')] class extends Component {
             'code' => $this->code,
             'name' => $this->name,
             'tenant_category_id' => $this->tenant_category_id,
+            'parent_tenant_id' => $this->parent_tenant_id ?: null,
             'province' => $this->province,
             'city' => $this->city,
             'district' => $this->district,
