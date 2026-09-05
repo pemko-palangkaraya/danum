@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Livewire\Settings;
 
 use App\Services\UserPasswordService;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -47,7 +47,7 @@ class Password extends Component
                 $validated['newPassword'],
             );
         } catch (ValidationException $exception) {
-            $this->setErrorBag($exception->validator?->errors() ?? collect());
+            $this->setErrorBag($exception->errors());
             $this->dispatch('toast', type: 'error', message: 'Password gagal diubah. Periksa password saat ini.');
 
             return;
