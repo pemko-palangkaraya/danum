@@ -154,7 +154,7 @@ class CitizenService
     private function normalizeInput(array $data): array
     {
         foreach ([
-            'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin', 'golongan_darah', 'agama',
+            'tempat_lahir', 'tanggal_lahir', 'tanggal_meninggal', 'jenis_kelamin', 'golongan_darah', 'agama',
             'status_perkawinan', 'pendidikan', 'pekerjaan', 'no_passport', 'no_kitap',
             'nama_ayah', 'nik_ayah', 'nama_ibu', 'nik_ibu',
         ] as $field) {
@@ -178,7 +178,8 @@ class CitizenService
         return [
             'nik' => ['required', 'digits:16', Rule::unique('citizens', 'nik')->where(fn ($query) => $query->where('tenant_id', $tenantId))->ignore($editingId)],
             'nama_lengkap' => ['required', 'string', 'max:255'], 'tempat_lahir' => ['nullable', 'string', 'max:255'],
-            'tanggal_lahir' => ['nullable', 'date'], 'jenis_kelamin' => ['nullable', 'in:male,female'],
+            'tanggal_lahir' => ['nullable', 'date'], 'tanggal_meninggal' => ['nullable', 'date', 'after_or_equal:tanggal_lahir', 'before_or_equal:today'],
+            'jenis_kelamin' => ['nullable', 'in:male,female'],
             'golongan_darah' => ['nullable', 'in:A,B,AB,O'], 'agama' => ['nullable', 'string', 'max:40'],
             'status_perkawinan' => ['nullable', 'string', 'max:30'], 'pendidikan' => ['nullable', 'string', 'max:100'],
             'pekerjaan' => ['nullable', 'string', 'max:150'], 'kewarganegaraan' => ['required', 'string', 'max:50'],
@@ -212,6 +213,7 @@ class CitizenService
             'nama_lengkap' => $citizen->nama_lengkap,
             'tempat_lahir' => $citizen->tempat_lahir,
             'tanggal_lahir' => $citizen->tanggal_lahir?->format('Y-m-d'),
+            'tanggal_meninggal' => $citizen->tanggal_meninggal?->format('Y-m-d'),
             'jenis_kelamin' => $citizen->jenis_kelamin,
             'golongan_darah' => $citizen->golongan_darah,
             'agama' => $citizen->agama,
