@@ -36,7 +36,7 @@ class KalimantanTengahTenantSeederTest extends TestCase
         Http::fake([
             '*/regencies/62.json' => Http::response([
                 'data' => [
-                    ['code' => '62.71', 'name' => 'Palangka Raya'],
+                    ['code' => '62.71', 'name' => 'Kota Palangkaraya'],
                 ],
             ]),
             '*/districts/62.71.json' => Http::response(['data' => $districts]),
@@ -61,11 +61,15 @@ class KalimantanTengahTenantSeederTest extends TestCase
             ->whereHas('category', fn ($query) => $query->where('code', 'kelurahan'))
             ->get();
 
+        $this->assertSame('Palangka Raya', $city->city);
+        $this->assertSame('Kalimantan Tengah', $city->province);
         $this->assertCount(1, Tenant::query()->where('code', 'wilayah-62-71')->get());
         $this->assertCount(5, $districtTenants);
         $this->assertCount(30, $villageTenants);
         $this->assertSame([$city->id], $districtTenants->pluck('parent_tenant_id')->unique()->values()->all());
         $this->assertSame(5, $villageTenants->pluck('parent_tenant_id')->filter()->unique()->count());
+        $this->assertSame(['Palangka Raya'], $districtTenants->pluck('city')->unique()->values()->all());
+        $this->assertSame(['Palangka Raya'], $villageTenants->pluck('city')->unique()->values()->all());
 
         foreach ($districts as $district) {
             $districtTenant = Tenant::query()->where('code', 'wilayah-'.str_replace('.', '-', $district['code']))->firstOrFail();
