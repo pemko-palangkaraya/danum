@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CitizenService
 {
@@ -68,14 +69,25 @@ class CitizenService
             'alamat' => ['nullable', 'string'],
             'rt' => ['nullable', 'string', 'max:3'],
             'rw' => ['nullable', 'string', 'max:3'],
-            'kelurahan' => ['nullable', 'string', 'max:255'],
-            'kecamatan' => ['nullable', 'string', 'max:255'],
-            'kabupaten_kota' => ['nullable', 'string', 'max:255'],
-            'provinsi' => ['nullable', 'string', 'max:255'],
+            'kelurahan' => ['required', 'string', 'max:255'],
+            'kecamatan' => ['required', 'string', 'max:255'],
+            'kabupaten_kota' => ['required', 'string', 'max:255'],
+            'provinsi' => ['required', 'string', 'max:255'],
             'kode_pos' => ['nullable', 'string', 'max:10'],
             'jenis_alamat' => ['required', 'string', 'max:30'],
             'berlaku_mulai' => ['nullable', 'date'],
         ])->validate();
+
+        if (! app(PopulationLocationService::class)->exists(
+            $data['provinsi'],
+            $data['kabupaten_kota'],
+            $data['kecamatan'],
+            $data['kelurahan'],
+        )) {
+            throw ValidationException::withMessages([
+                'kelurahan' => 'Kombinasi provinsi, kabupaten/kota, kecamatan, dan kelurahan tidak terdaftar pada master wilayah.',
+            ]);
+        }
 
         $data['citizen_id'] = $citizen->id;
 
