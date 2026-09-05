@@ -6,6 +6,7 @@ namespace App\Livewire\Population;
 
 use App\Livewire\Concerns\WithStandardTablePagination;
 use App\Services\FamilyService;
+use App\Services\PopulationLocationService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -56,6 +57,27 @@ class Families extends Component
     public function updatedSearch(): void
     {
         $this->resetPage();
+    }
+
+    public function updatedProvinsi(): void
+    {
+        $this->kabupaten_kota = '';
+        $this->kecamatan = '';
+        $this->kelurahan = '';
+        $this->kode_pos = '';
+    }
+
+    public function updatedKabupatenKota(): void
+    {
+        $this->kecamatan = '';
+        $this->kelurahan = '';
+        $this->kode_pos = '';
+    }
+
+    public function updatedKecamatan(): void
+    {
+        $this->kelurahan = '';
+        $this->kode_pos = '';
     }
 
     public function create(): void
@@ -150,6 +172,7 @@ class Families extends Component
     public function render(): View
     {
         $service = app(FamilyService::class);
+        $locationService = app(PopulationLocationService::class);
         $tenantId = $this->tenantIdForQuery();
         $user = auth()->user();
         $isSuperAdmin = $user?->isSuperAdmin() ?? false;
@@ -173,17 +196,25 @@ class Families extends Component
             ? $service->selectedHead($tenantId, $this->head_citizen_id)
             : null;
 
-        return view('livewire.population.families', compact(
-            'families',
-            'tenants',
-            'detail',
-            'memberCandidates',
-            'selectedHead',
-            'headCitizens',
-            'canManage',
-            'isSuperAdmin',
-            'hasTenant',
-        ));
+        return view('livewire.population.families', [
+            'families' => $families,
+            'tenants' => $tenants,
+            'detail' => $detail,
+            'memberCandidates' => $memberCandidates,
+            'selectedHead' => $selectedHead,
+            'headCitizens' => $headCitizens,
+            'canManage' => $canManage,
+            'isSuperAdmin' => $isSuperAdmin,
+            'hasTenant' => $hasTenant,
+            'locationProvinces' => $this->showForm ? $locationService->provinces() : collect(),
+            'locationCities' => $this->showForm && $this->provinsi !== '' ? $locationService->cities($this->provinsi) : collect(),
+            'locationDistricts' => $this->showForm && $this->provinsi !== '' && $this->kabupaten_kota !== ''
+                ? $locationService->districts($this->provinsi, $this->kabupaten_kota)
+                : collect(),
+            'locationVillages' => $this->showForm && $this->provinsi !== '' && $this->kabupaten_kota !== '' && $this->kecamatan !== ''
+                ? $locationService->villages($this->provinsi, $this->kabupaten_kota, $this->kecamatan)
+                : collect(),
+        ]);
     }
 
     private function authorizeManage(): void
