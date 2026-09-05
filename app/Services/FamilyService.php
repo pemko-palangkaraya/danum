@@ -86,14 +86,15 @@ class FamilyService
 
         $data = Validator::make($input, $this->rules($tenantId, $editingId))->validate();
 
-        if (! app(PopulationLocationService::class)->exists(
+        if (! app(PopulationLocationService::class)->existsForTenant(
+            $tenantId,
             $data['provinsi'],
             $data['kabupaten_kota'],
             $data['kecamatan'],
             $data['kelurahan'],
         )) {
             throw ValidationException::withMessages([
-                'kelurahan' => 'Kombinasi provinsi, kabupaten/kota, kecamatan, dan kelurahan tidak terdaftar pada master wilayah.',
+                'kelurahan' => 'Wilayah harus berada dalam cakupan tenant yang sedang digunakan.',
             ]);
         }
 
