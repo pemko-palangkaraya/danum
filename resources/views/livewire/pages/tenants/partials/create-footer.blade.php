@@ -3,7 +3,7 @@
         <x-ui.field label="Status" for="tenant-status" error="{{ $errors->first('status') }}">
             <select id="tenant-status" wire:model="status" class="form-select w-full sm:min-w-64">
                 <option value="">Select status</option>
-                @foreach (TenantStatus::cases() as $tenantStatus)
+                @foreach (\App\Enums\TenantStatus::cases() as $tenantStatus)
                     <option value="{{ $tenantStatus->value }}">{{ $tenantStatus->label() }}</option>
                 @endforeach
             </select>
