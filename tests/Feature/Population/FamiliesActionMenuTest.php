@@ -20,7 +20,7 @@ class FamiliesActionMenuTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $user = User::factory()->tenantAdmin($tenant)->create();
-        $family = Family::factory()->forTenant($tenant)->create();
+        Family::factory()->forTenant($tenant)->create();
 
         Livewire::actingAs($user)
             ->test(Families::class)
@@ -28,8 +28,6 @@ class FamiliesActionMenuTest extends TestCase
             ->assertSee('Detail')
             ->assertSee('Cetak KK')
             ->assertSee('Edit');
-
-        $this->assertNotNull($family);
     }
 
     public function test_family_action_menu_hides_edit_without_population_manage_permission(): void
