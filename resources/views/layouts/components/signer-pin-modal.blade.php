@@ -1,6 +1,6 @@
 <div
     x-data="{ open: false, action: '', id: '', note: '', title: '', description: '', pin: '', error: '', submit() { const pin = this.pin.trim(); if (!/^\d{6}$/.test(pin)) { this.error = 'PIN harus terdiri dari 6 digit.'; return; } Livewire.dispatch('signer-pin-submitted', { action: this.action, id: this.id, note: this.note, pin }); this.open = false; this.pin = ''; this.error = ''; } }"
-    x-on:signer-pin-required.window="action = $event.detail.action; id = $event.detail.id; note = $event.detail.note; title = $event.detail.title; description = $event.detail.description; pin = ''; error = ''; open = true; $nextTick(() => $refs.pin?.focus())"
+    x-on:signer-pin-required.window="action = $event.detail.action; id = $event.detail.id; note = $event.detail.note; title = $event.detail.title; description = action === 'issue' ? 'Masukkan PIN untuk menerbitkan dan menandatangani surat secara elektronik.' : $event.detail.description; pin = ''; error = ''; open = true; $nextTick(() => $refs.pin?.focus())"
     x-on:signer-pin-invalid.window="error = 'PIN tanda tangan tidak valid.'; open = true; $nextTick(() => $refs.pin?.focus())"
     x-show="open" x-cloak class="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/40 p-4"
     x-on:keydown.escape.window="open = false; pin = ''; error = ''" x-on:click.self="open = false; pin = ''; error = ''"
