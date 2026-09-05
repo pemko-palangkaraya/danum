@@ -24,13 +24,6 @@ trait HandlesLetterVariables
         'citizen_status_kependudukan',
     ];
 
-    private const DEATH_VARIABLES = [
-        'tanggal_meninggal',
-        'waktu_meninggal',
-        'tempat_meninggal',
-        'sebab_meninggal',
-    ];
-
     private const DEATH_AUTOFILLED_VARIABLES = [
         'recipient_name',
         'recipient_nik',
@@ -121,6 +114,30 @@ trait HandlesLetterVariables
         $this->showForm = true;
         $this->updatedLetterTypeId();
         $this->applyCitizenValues($citizen);
+    }
+
+    public function updatedVariableValues($value, string $key): void
+    {
+        if ($key !== 'tanggal_meninggal' || ! $this->citizen_id) {
+            return;
+        }
+
+        $citizen = Citizen::query()
+            ->where('tenant_id', auth()->user()?->tenant_id)
+            ->whereKey($this->citizen_id)
+            ->first();
+
+        if (! $citizen || ! $citizen->tanggal_lahir || blank($value)) {
+            $this->variableValues['recipient_age'] = '';
+            return;
+        }
+
+        try {
+            $age = Carbon::parse($citizen->tanggal_lahir)->diffInYears(Carbon::parse((string) $value), false);
+            $this->variableValues['recipient_age'] = $age >= 0 ? (string) $age : '';
+        } catch (\Throwable) {
+            $this->variableValues['recipient_age'] = '';
+        }
     }
 
     private function initializeVariableValues(bool $newRows = false): void
@@ -275,7 +292,8 @@ trait HandlesLetterVariables
         $deathDate = $this->variableValues['tanggal_meninggal'] ?? null;
         if (filled($deathDate) && $citizen->tanggal_lahir) {
             try {
-                $values['recipient_age'] = (string) Carbon::parse($citizen->tanggal_lahir)->diffInYears(Carbon::parse($deathDate), false);
+                $age = Carbon::parse($citizen->tanggal_lahir)->diffInYears(Carbon::parse($deathDate), false);
+                $values['recipient_age'] = $age >= 0 ? (string) $age : '';
             } catch (\Throwable) {
                 $values['recipient_age'] = '';
             }
@@ -303,9 +321,7 @@ trait HandlesLetterVariables
                 }
 
                 $children = $members
-                    ->filter(function ($member): bool {
-                        return mb_strtolower(trim((string) $member->hubungan_dalam_keluarga)) === 'anak';
-                    })
+                    ->filter(fn ($member): bool => mb_strtolower(trim((string) $member->hubungan_dalam_keluarga)) === 'anak')
                     ->values();
 
                 $this->variableValues[$definition['key']] = $children->map(function ($member, int $index): array {
