@@ -35,6 +35,25 @@ class PopulationLocationService
         ];
     }
 
+    public function defaultsForTenant(string $tenantId): array
+    {
+        $tenant = $this->tenant($tenantId);
+
+        return $tenant
+            ? [
+                'province' => (string) ($tenant->province ?? ''),
+                'city' => (string) ($tenant->city ?? ''),
+                'district' => (string) ($tenant->district ?? ''),
+                'village' => (string) ($tenant->village ?? ''),
+            ]
+            : [
+                'province' => '',
+                'city' => '',
+                'district' => '',
+                'village' => '',
+            ];
+    }
+
     public function existsForTenant(
         string $tenantId,
         string $province,
