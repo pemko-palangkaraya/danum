@@ -17,36 +17,17 @@
             this.busy = false;
             this.open = true;
         },
-        continueToTte() {
-            if (!this.confirmed || this.busy) return;
-            Livewire.dispatch('signer-pin-required', {
-                action: 'issue',
-                id: this.id,
-                note: this.note,
-                title: 'PIN Tanda Tangan',
-                description: 'Surat akan diterbitkan sekaligus ditandatangani secara elektronik.',
-            });
-            this.close();
-        },
-        async issueWet() {
+        submitReview(tte) {
             if (!this.confirmed || this.busy) return;
             this.busy = true;
             this.error = '';
-            try {
-                const response = await fetch(`/api/outgoing-letters/${this.id}/issue`, {
-                    method: 'POST',
-                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({ note: this.note, tte: false }),
-                });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.message || 'Surat gagal diterbitkan.');
-                this.open = false;
-                window.location.reload();
-            } catch (exception) {
-                this.error = exception.message;
-                this.busy = false;
-            }
+            Livewire.dispatch('issue-review-submitted', {
+                id: this.id,
+                note: this.note,
+                tte,
+            });
+            this.open = false;
+            this.busy = false;
         },
     }"
     x-on:issue-review-required.window="openReview($event)"
@@ -83,8 +64,8 @@
                 <p x-show="error" x-text="error" class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700"></p>
 
                 <div class="mt-auto flex flex-col gap-2 pt-4">
-                    <button type="button" x-on:click="continueToTte()" :disabled="!confirmed || busy" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">Issue &amp; Lanjut TTE</button>
-                    <button type="button" x-on:click="issueWet()" :disabled="!confirmed || busy" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">Issue &amp; Selesai</button>
+                    <button type="button" x-on:click="submitReview(true)" :disabled="!confirmed || busy" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">Issue &amp; Lanjut TTE</button>
+                    <button type="button" x-on:click="submitReview(false)" :disabled="!confirmed || busy" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">Issue &amp; Selesai</button>
                     <button type="button" x-on:click="close()" :disabled="busy" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50">Batal</button>
                 </div>
             </div>
