@@ -114,6 +114,10 @@ class CitizenService
             }
         }
 
+        if (($data['golongan_darah'] ?? null) === 'unknown') {
+            $data['golongan_darah'] = null;
+        }
+
         return $data;
     }
 
@@ -123,7 +127,7 @@ class CitizenService
             'nik' => ['required', 'digits:16', Rule::unique('citizens', 'nik')->where(fn ($query) => $query->where('tenant_id', $tenantId))->ignore($editingId)],
             'nama_lengkap' => ['required', 'string', 'max:255'], 'tempat_lahir' => ['nullable', 'string', 'max:255'],
             'tanggal_lahir' => ['nullable', 'date'], 'jenis_kelamin' => ['nullable', 'in:male,female'],
-            'golongan_darah' => ['nullable', 'in:A,B,AB,O,unknown'], 'agama' => ['nullable', 'string', 'max:40'],
+            'golongan_darah' => ['nullable', 'in:A,B,AB,O'], 'agama' => ['nullable', 'string', 'max:40'],
             'status_perkawinan' => ['nullable', 'string', 'max:30'], 'pendidikan' => ['nullable', 'string', 'max:100'],
             'pekerjaan' => ['nullable', 'string', 'max:150'], 'kewarganegaraan' => ['required', 'string', 'max:50'],
             'no_passport' => ['nullable', 'string', 'max:50'], 'no_kitap' => ['nullable', 'string', 'max:50'],
