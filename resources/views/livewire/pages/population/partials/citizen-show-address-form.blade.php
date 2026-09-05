@@ -23,9 +23,11 @@
                 :cities="$locationOptions['cities']"
                 :districts="$locationOptions['districts']"
                 :villages="$locationOptions['villages']"
+                :locks="$locationOptions['locks']"
                 :province="$provinsi"
                 :city="$kabupaten_kota"
                 :district="$kecamatan"
+                :village="$kelurahan"
             />
 
             <x-ui.field label="Berlaku Mulai" :error="$errors->first('berlaku_mulai')">
