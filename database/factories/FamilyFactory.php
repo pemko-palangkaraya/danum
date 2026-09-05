@@ -13,30 +13,35 @@ class FamilyFactory extends Factory
 {
     protected $model = Family::class;
 
+    private const LOCATIONS = [
+        ['kelurahan' => 'Langkai', 'kecamatan' => 'Pahandut', 'kode_pos' => '73111'],
+        ['kelurahan' => 'Pahandut', 'kecamatan' => 'Pahandut', 'kode_pos' => '73112'],
+        ['kelurahan' => 'Panarung', 'kecamatan' => 'Pahandut', 'kode_pos' => '73121'],
+        ['kelurahan' => 'Menteng', 'kecamatan' => 'Jekan Raya', 'kode_pos' => '73111'],
+        ['kelurahan' => 'Palangka', 'kecamatan' => 'Jekan Raya', 'kode_pos' => '73112'],
+        ['kelurahan' => 'Bukit Tunggal', 'kecamatan' => 'Jekan Raya', 'kode_pos' => '73113'],
+        ['kelurahan' => 'Kereng Bangkirai', 'kecamatan' => 'Sabangau', 'kode_pos' => '73126'],
+        ['kelurahan' => 'Sabaru', 'kecamatan' => 'Sabangau', 'kode_pos' => '73123'],
+        ['kelurahan' => 'Tangkiling', 'kecamatan' => 'Bukit Batu', 'kode_pos' => '73127'],
+        ['kelurahan' => 'Banturung', 'kecamatan' => 'Bukit Batu', 'kode_pos' => '73113'],
+    ];
+
+    private const STREET_NAMES = [
+        'Antang Kalang', 'Cilik Riwut', 'Rajawali', 'G. Obos', 'Yos Sudarso',
+        'Diponegoro', 'RTA Milono', 'Adonis Samad', 'Tjilik Riwut',
+    ];
+
     public function definition(): array
     {
-        $locations = [
-            ['kelurahan' => 'Langkai', 'kecamatan' => 'Pahandut', 'kode_pos' => '73111'],
-            ['kelurahan' => 'Pahandut', 'kecamatan' => 'Pahandut', 'kode_pos' => '73112'],
-            ['kelurahan' => 'Menteng', 'kecamatan' => 'Jekan Raya', 'kode_pos' => '73111'],
-            ['kelurahan' => 'Palangka', 'kecamatan' => 'Jekan Raya', 'kode_pos' => '73112'],
-            ['kelurahan' => 'Panarung', 'kecamatan' => 'Pahandut', 'kode_pos' => '73121'],
-            ['kelurahan' => 'Bukit Tunggal', 'kecamatan' => 'Jekan Raya', 'kode_pos' => '73113'],
-            ['kelurahan' => 'Kereng Bangkirai', 'kecamatan' => 'Sabangau', 'kode_pos' => '73126'],
-            ['kelurahan' => 'Sabaru', 'kecamatan' => 'Sabangau', 'kode_pos' => '73123'],
-            ['kelurahan' => 'Tangkiling', 'kecamatan' => 'Bukit Batu', 'kode_pos' => '73127'],
-            ['kelurahan' => 'Banturung', 'kecamatan' => 'Bukit Batu', 'kode_pos' => '73113'],
-        ];
-        $location = $this->faker->randomElement($locations);
+        $location = $this->faker->randomElement(self::LOCATIONS);
 
         return [
             'tenant_id' => Tenant::factory(),
+            // Demo-only KK number shaped like a Palangka Raya administrative number.
             'no_kk' => $this->faker->unique()->numerify('6271############'),
             'head_citizen_id' => null,
-            'alamat' => 'Jl. '.$this->faker->randomElement([
-                'Antang Kalang', 'Cilik Riwut', 'Rajawali', 'G. Obos', 'Yos Sudarso',
-                'Diponegoro', 'RTA Milono', 'Adonis Samad', 'Tjilik Riwut',
-            ]).' No. '.$this->faker->numberBetween(1, 180),
+            'alamat' => 'Jl. '.$this->faker->randomElement(self::STREET_NAMES)
+                .' No. '.$this->faker->numberBetween(1, 180),
             'rt' => str_pad((string) $this->faker->numberBetween(1, 30), 3, '0', STR_PAD_LEFT),
             'rw' => str_pad((string) $this->faker->numberBetween(1, 15), 3, '0', STR_PAD_LEFT),
             'kelurahan' => $location['kelurahan'],
