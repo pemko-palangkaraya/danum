@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 use App\Livewire\Dashboard;
+use App\Livewire\TenantProfile;
 use App\Livewire\AuditLogs\Index as AuditLogIndex;
 use App\Livewire\Settings\Password as SettingsPassword;
 use App\Livewire\Tenants\Index as TenantIndex;
@@ -65,7 +66,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('permission:positions.view')->group(function () { Route::get('/tenant/positions', PositionIndex::class)->name('positions.index'); Route::get('/tenant/organization-structure', PositionStructure::class)->name('positions.structure'); Route::get('/tenant/organization-structure/pdf', [OrganizationStructureController::class, 'pdf'])->name('positions.structure.pdf.tenant'); });
         Route::middleware('permission:tenant-users.view')->group(function () { Volt::route('/tenant/users', 'pages.tenant-users')->name('tenant-users.index'); });
         Route::middleware('permission:population.view')->group(function () { Route::get('/tenant/population/citizens', PopulationCitizens::class)->name('population.citizens.index'); Route::get('/tenant/population/citizens/{citizen}', PopulationCitizenShow::class)->name('population.citizens.show'); Route::get('/tenant/population/families', PopulationFamilies::class)->name('population.families.index'); Route::get('/tenant/population/statistics', PopulationStatistics::class)->name('population.statistics'); });
-        Route::middleware('permission:tenant-profile.view')->group(function () { Volt::route('/tenant-profile', 'pages.tenant-profile')->name('tenant-profile'); });
+        Route::middleware('permission:tenant-profile.view')->group(function () { Route::get('/tenant-profile', TenantProfile::class)->name('tenant-profile'); });
     });
     Route::middleware('permission:population.view')->group(function () { Route::get('/population/citizens/export', [PopulationExportController::class, 'citizens'])->name('population.citizens.export'); Route::get('/population/families/{id}/pdf', [FamilyCardController::class, 'pdf'])->name('population.families.pdf'); });
     Route::get('/population/citizens/template', [PopulationExportController::class, 'template'])->middleware('permission:population.manage')->name('population.citizens.template');
