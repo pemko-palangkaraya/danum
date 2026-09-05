@@ -135,12 +135,41 @@ class Index extends Component
         if ($action === 'validate') $this->validateLetter($id, $workflow, $note);
     }
 
+    #[On('issue-review-submitted')]
+    public function handleIssueReview(string $id, string $note, bool $tte, OutgoingLetterService $service): void
+    {
+        $note = trim($note);
+        if ($note === '') { $this->toastError('Catatan penerbitan wajib diisi.'); return; }
+
+        try {
+            $letter = $this->tenantQuery()->findOrFail($id);
+            $this->authorize('issue', $letter);
+            $service->issue($letter, auth()->id(), $note, null, false);
+
+            if ($tte) {
+                $this->dispatch('signer-pin-required',
+                    action: 'issue',
+                    id: $letter->id,
+                    note: $note,
+                    title: 'PIN Tanda Tangan',
+                    description: 'Surat sudah diterbitkan. Masukkan PIN untuk melanjutkan tanda tangan elektronik.',
+                );
+                return;
+            }
+
+            $this->dispatch('toast', type: 'success', message: 'Surat berhasil diterbitkan. PDF final siap dicetak dan ditandatangani basah.');
+        } catch (\Throwable $exception) {
+            report($exception);
+            $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat gagal diterbitkan. Silakan coba lagi.');
+        }
+    }
+
     #[On('signer-pin-submitted')]
     public function handleSignerPin(string $action, string $id, string $note, string $pin, OutgoingLetterService $service): void
     {
         if ($action !== 'issue') return;
         $pin = trim($pin); if (! preg_match('/^\d{6}$/', $pin)) { $this->dispatch('signer-pin-invalid'); return; }
-        try { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('issue', $letter); $service->issue($letter, auth()->id(), trim($note), $pin, true); $this->dispatch('toast', type: 'success', message: 'Surat berhasil diterbitkan dan ditandatangani secara elektronik.'); }
+        try { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('issue', $letter); $service->signIssued($letter, auth()->id(), $pin, trim($note)); $this->dispatch('toast', type: 'success', message: 'Surat berhasil ditandatangani secara elektronik.'); }
         catch (\Throwable $exception) { report($exception); $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'TTE gagal diproses. Silakan coba lagi.'); }
     }
 
