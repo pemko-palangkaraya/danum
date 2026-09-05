@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 use App\Livewire\AuditLogs\Index as AuditLogIndex;
 use App\Livewire\Tenants\Index as TenantIndex;
+use App\Livewire\Tenants\Create as TenantCreate;
+use App\Livewire\Tenants\Edit as TenantEdit;
 use App\Livewire\LetterTypes\Index as LetterTypeIndex;
 use App\Livewire\LetterTypes\Permissions as LetterTypePermissions;
 use App\Livewire\LetterTypes\Versions as LetterTypeVersions;
@@ -44,7 +46,13 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['superadmin', 'permission:users.view'])->group(function () { Volt::route('/users', 'pages.users.index')->name('users.index'); });
     Route::middleware('superadmin')->group(function () {
         Volt::route('/tenant-categories', 'pages.tenant-categories.index')->name('tenant-categories.index');
-        Route::middleware('permission:tenants.view')->group(function () { Route::get('/tenants', TenantIndex::class)->name('tenants.index'); Volt::route('/tenants/create', 'pages.tenants.create')->name('tenants.create'); Volt::route('/tenants/{tenant}/edit', 'pages.tenants.edit')->name('tenants.edit'); Volt::route('/tenants/{tenant}/users', 'pages.tenants.users')->name('tenants.users'); Volt::route('/tenants/{tenant}', 'pages.tenants.show')->name('tenants.show'); });
+        Route::middleware('permission:tenants.view')->group(function () {
+            Route::get('/tenants', TenantIndex::class)->name('tenants.index');
+            Route::get('/tenants/create', TenantCreate::class)->name('tenants.create');
+            Route::get('/tenants/{tenant}/edit', TenantEdit::class)->name('tenants.edit');
+            Volt::route('/tenants/{tenant}/users', 'pages.tenants.users')->name('tenants.users');
+            Volt::route('/tenants/{tenant}', 'pages.tenants.show')->name('tenants.show');
+        });
         Route::middleware('permission:letter-types.view')->group(function () { Route::get('/letter-types', LetterTypeIndex::class)->name('letter-types.index'); Route::get('/letter-types/{letterType}/permissions', LetterTypePermissions::class)->name('letter-types.permissions'); Route::get('/letter-types/{letterType}/versions', LetterTypeVersions::class)->name('letter-types.versions'); });
         Route::middleware('permission:positions.view')->group(function () { Route::get('/positions', PositionIndex::class)->name('positions.admin.index'); Route::get('/organization-structure', PositionStructure::class)->name('positions.structure.admin'); Route::get('/organization-structure/{tenant}', PositionStructure::class)->name('positions.structure.admin.tenant'); Route::get('/organization-structure/{tenant}/pdf', [OrganizationStructureController::class, 'pdf'])->name('positions.structure.pdf'); });
         Route::middleware('permission:population.view')->group(function () { Route::get('/population/citizens', PopulationCitizens::class)->name('population.admin.citizens.index'); Route::get('/population/citizens/{citizen}', PopulationCitizenShow::class)->name('population.admin.citizens.show'); Route::get('/population/families', PopulationFamilies::class)->name('population.admin.families.index'); Route::get('/population/statistics', PopulationStatistics::class)->name('population.admin.statistics'); });
