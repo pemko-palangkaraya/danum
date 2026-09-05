@@ -15,13 +15,14 @@ class KalimantanTengahTenantSeeder extends Seeder
 {
     private const PROVINCE_CODE = '62';
     private const PALANGKA_RAYA_CODE = '62.71';
+    private const PALANGKA_RAYA_NAME = 'Palangka Raya';
     private const API = 'https://wilayah.id/api';
 
     public function run(): void
     {
         $categories = $this->categories();
 
-        // Struktur master wilayah:
+        // Kalimantan Tengah seed ini adalah sumber master tenant wilayah:
         // Pemerintah Kota -> Kecamatan -> Kelurahan.
         $regency = collect($this->get('/regencies/'.self::PROVINCE_CODE.'.json'))
             ->firstWhere('code', self::PALANGKA_RAYA_CODE);
@@ -31,16 +32,16 @@ class KalimantanTengahTenantSeeder extends Seeder
         }
 
         $regencyCode = (string) $regency['code'];
-        $regencyName = (string) $regency['name'];
+        $cityName = self::PALANGKA_RAYA_NAME;
 
         $cityTenant = $this->seedTenant(
             $this->tenantCode($regencyCode),
-            "Pemerintah {$regencyName}",
+            'Pemerintah Kota '.self::PALANGKA_RAYA_NAME,
             $categories['pemerintah-kota'],
-            $regencyName,
+            $cityName,
             'Pusat Pemerintahan',
             'Pusat Pemerintahan',
-            "Wali Kota {$regencyName}",
+            'Wali Kota '.self::PALANGKA_RAYA_NAME,
             'Wali Kota',
             null,
         );
@@ -59,7 +60,7 @@ class KalimantanTengahTenantSeeder extends Seeder
                 $this->tenantCode($districtCode),
                 "Kecamatan {$districtName}",
                 $categories['kecamatan'],
-                $regencyName,
+                $cityName,
                 $districtName,
                 'Pusat Pemerintahan',
                 "Camat {$districtName}",
@@ -72,8 +73,8 @@ class KalimantanTengahTenantSeeder extends Seeder
                 $villageCode = (string) $village['code'];
                 $villageName = (string) $village['name'];
 
-                // Palangka Raya berada pada wilayah perkotaan, sehingga
-                // hanya entitas kelurahan yang dijadikan tenant wilayah.
+                // Palangka Raya adalah wilayah perkotaan, sehingga tenant
+                // tingkat wilayah di bawah kecamatan menggunakan kategori kelurahan.
                 $suffix = substr(strrchr($villageCode, '.'), 1);
                 if (!str_starts_with($suffix, '1')) {
                     continue;
@@ -83,7 +84,7 @@ class KalimantanTengahTenantSeeder extends Seeder
                     $this->tenantCode($villageCode),
                     "Kelurahan {$villageName}",
                     $categories['kelurahan'],
-                    $regencyName,
+                    $cityName,
                     $districtName,
                     $villageName,
                     "Lurah {$villageName}",
