@@ -4,20 +4,17 @@ declare(strict_types=1);
 
 namespace App\View\Components\Ui;
 
-use App\Services\PopulationLocationService;
 use Illuminate\Contracts\View\View;
-use Illuminate\View\Component;
 use Illuminate\Support\Collection;
+use Illuminate\View\Component;
 
 class PopulationLocation extends Component
 {
-    public Collection $provinces;
-    public Collection $cities;
-    public Collection $districts;
-    public Collection $villages;
-
     public function __construct(
-        public string $tenantId,
+        public Collection $provinces,
+        public Collection $cities,
+        public Collection $districts,
+        public Collection $villages,
         public string $province = '',
         public string $city = '',
         public string $district = '',
@@ -27,17 +24,7 @@ class PopulationLocation extends Component
         public string $villageModel = 'kelurahan',
         public string $postalModel = 'kode_pos',
         public bool $showPostalCode = true,
-    ) {
-        $service = app(PopulationLocationService::class);
-        $options = $tenantId !== ''
-            ? $service->optionsForTenant($tenantId, $province, $city, $district)
-            : $service->emptyOptions();
-
-        $this->provinces = $options['provinces'];
-        $this->cities = $options['cities'];
-        $this->districts = $options['districts'];
-        $this->villages = $options['villages'];
-    }
+    ) {}
 
     public function render(): View
     {
