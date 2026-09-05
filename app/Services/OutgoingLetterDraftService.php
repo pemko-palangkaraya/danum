@@ -17,7 +17,6 @@ final class OutgoingLetterDraftService
     public function __construct(
         private readonly OutgoingLetterService $letters,
         private readonly DocxTemplateService $docx,
-        private readonly DocxTteService $tte,
         private readonly LetterTypeService $letterTypes,
     ) {}
 
@@ -51,10 +50,6 @@ final class OutgoingLetterDraftService
         $generatedPath = $this->docx->renderToStorage($templatePath, $tenant, $data);
 
         try {
-            $this->tte->embed(
-                Storage::disk('local')->path($generatedPath),
-                url('/verify/' . $verificationToken),
-            );
             $content = $this->docx->extractText(Storage::disk('local')->path($generatedPath));
 
             $attributes = [
