@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Models\OutgoingLetter;
+use App\Observers\OutgoingLetterObserver;
 use App\Repositories\Contracts\TenantRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Repositories\Contracts\LetterTypeRepositoryInterface;
@@ -22,52 +24,19 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
-        $this->app->bind(
-            TenantRepositoryInterface::class,
-            TenantRepository::class,
-        );
-
-        $this->app->bind(
-            UserRepositoryInterface::class,
-            UserRepository::class,
-        );
-
-        $this->app->bind(
-            LetterTypeRepositoryInterface::class,
-            LetterTypeRepository::class,
-        );
-
-        $this->app->bind(
-            OutgoingLetterRepositoryInterface::class,
-            OutgoingLetterRepository::class,
-        );
-
-        $this->app->bind(
-            OutgoingLetterStatusHistoryRepositoryInterface::class,
-            OutgoingLetterStatusHistoryRepository::class,
-        );
-
-        $this->app->bind(
-            PositionRepositoryInterface::class,
-            PositionRepository::class,
-        );
-
-        $this->app->bind(
-            PositionHolderRepositoryInterface::class,
-            PositionHolderRepository::class,
-        );
+        $this->app->bind(TenantRepositoryInterface::class, TenantRepository::class);
+        $this->app->bind(UserRepositoryInterface::class, UserRepository::class);
+        $this->app->bind(LetterTypeRepositoryInterface::class, LetterTypeRepository::class);
+        $this->app->bind(OutgoingLetterRepositoryInterface::class, OutgoingLetterRepository::class);
+        $this->app->bind(OutgoingLetterStatusHistoryRepositoryInterface::class, OutgoingLetterStatusHistoryRepository::class);
+        $this->app->bind(PositionRepositoryInterface::class, PositionRepository::class);
+        $this->app->bind(PositionHolderRepositoryInterface::class, PositionHolderRepository::class);
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        //
+        OutgoingLetter::observe(OutgoingLetterObserver::class);
     }
 }
