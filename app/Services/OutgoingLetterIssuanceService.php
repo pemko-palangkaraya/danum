@@ -99,7 +99,7 @@ class OutgoingLetterIssuanceService
                     'unsigned_pdf_path' => $unsignedPdfPath,
                     'signed_pdf_path' => $signedPdfPath,
                     'signature_certificate_id' => $signerCertificate->id,
-                    'signature_profile' => 'pades-b-b',
+                    'signature_profile' => 'pades-b-t',
                     'signed_at' => now(),
                 ];
             } else {
@@ -169,7 +169,7 @@ class OutgoingLetterIssuanceService
                 $updated = $this->repository->update($letter, [
                     'signed_pdf_path' => $signedPdfPath,
                     'signature_certificate_id' => $certificate->id,
-                    'signature_profile' => 'pades-b-b',
+                    'signature_profile' => 'pades-b-t',
                     'signed_at' => now(),
                     'signing_note' => $note,
                 ]);
@@ -188,7 +188,8 @@ class OutgoingLetterIssuanceService
                 'exception_line' => $e->getLine(),
             ]);
             if ($signedPdfPath !== null) Storage::disk('local')->delete($signedPdfPath);
-            throw $e;
+            if ($e instanceof \DomainException) throw $e;
+            throw new \DomainException('TTE gagal: ' . $e->getMessage(), previous: $e);
         }
     }
 
