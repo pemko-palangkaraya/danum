@@ -48,6 +48,8 @@ final class OutgoingLetterDraftService
         $verificationToken = $existing?->verification_token ?? Str::random(64);
         $signerName = (string) ($signerHolder->user?->name ?? '');
         $signerTitle = (string) ($signerPosition->name ?? '');
+        $citizenId = $data['_citizen_id'] ?? null;
+        unset($data['_citizen_id']);
         $renderData = [
             ...$data,
             'tenant_head_name' => $signerName,
@@ -81,6 +83,7 @@ final class OutgoingLetterDraftService
                 'verification_token' => $verificationToken,
                 'content' => $content,
                 'input_data' => $data,
+                'citizen_id' => $citizenId,
             ];
 
             if ($existing) {
