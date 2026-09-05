@@ -6,7 +6,6 @@ namespace App\Livewire\Population;
 
 use App\Livewire\Concerns\WithStandardTablePagination;
 use App\Services\FamilyService;
-use App\Services\PopulationLocationService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -141,7 +140,7 @@ class Families extends Component
             $status,
         );
 
-        $this->memberSearch = '';
+        $this->.memberSearch = '';
         $this->memberRelationship = '';
         $this->dispatch('toast', type: 'success', message: 'Anggota keluarga berhasil ditambahkan.');
     }
@@ -172,7 +171,6 @@ class Families extends Component
     public function render(): View
     {
         $service = app(FamilyService::class);
-        $locationService = app(PopulationLocationService::class);
         $tenantId = $this->tenantIdForQuery();
         $user = auth()->user();
         $isSuperAdmin = $user?->isSuperAdmin() ?? false;
@@ -206,14 +204,6 @@ class Families extends Component
             'canManage' => $canManage,
             'isSuperAdmin' => $isSuperAdmin,
             'hasTenant' => $hasTenant,
-            'locationProvinces' => $this->showForm ? $locationService->provinces() : collect(),
-            'locationCities' => $this->showForm && $this->provinsi !== '' ? $locationService->cities($this->provinsi) : collect(),
-            'locationDistricts' => $this->showForm && $this->provinsi !== '' && $this->kabupaten_kota !== ''
-                ? $locationService->districts($this->provinsi, $this->kabupaten_kota)
-                : collect(),
-            'locationVillages' => $this->showForm && $this->provinsi !== '' && $this->kabupaten_kota !== '' && $this->kecamatan !== ''
-                ? $locationService->villages($this->provinsi, $this->kabupaten_kota, $this->kecamatan)
-                : collect(),
         ]);
     }
 
