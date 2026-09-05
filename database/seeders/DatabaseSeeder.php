@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
             TenantReferenceSeeder::class,
             PopulationReferenceSeeder::class,
             PositionSeeder::class,
+            KalimantanTengahTenantSeeder::class,
         ]);
 
         $superAdminEmail = env('DANUM_SUPER_ADMIN_EMAIL', 'admin@danum.local');
@@ -49,11 +50,21 @@ class DatabaseSeeder extends Seeder
             throw new \RuntimeException('Master tenant category "kelurahan" tidak ditemukan.');
         }
 
+        $parentTenantId = Tenant::query()
+            ->where('code', 'wilayah-62-71-04')
+            ->whereHas('category', fn ($query) => $query->where('code', 'kecamatan'))
+            ->value('id');
+
+        if ($parentTenantId === null) {
+            throw new \RuntimeException('Tenant Kecamatan Rakumpit belum tersedia untuk parent demo tenant.');
+        }
+
         $tenant = Tenant::updateOrCreate(
             ['code' => env('DANUM_DEMO_TENANT_CODE', 'DEMO001')],
             [
                 'name' => env('DANUM_DEMO_TENANT_NAME', 'Demo Tenant - Kelurahan Mungku Baru'),
                 'tenant_category_id' => $tenantCategoryId,
+                'parent_tenant_id' => $parentTenantId,
                 'province' => 'Kalimantan Tengah',
                 'city' => 'Palangka Raya',
                 'district' => 'Rakumpit',
@@ -98,8 +109,6 @@ class DatabaseSeeder extends Seeder
             'status' => UserStatus::ACTIVE,
             'tenant_id' => $tenant->id,
         ]);
-
-        $this->call(KalimantanTengahTenantSeeder::class);
     }
 
     private function ensureSystemRole(string $slug, string $name): Role
