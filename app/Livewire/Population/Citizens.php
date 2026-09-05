@@ -155,14 +155,16 @@ class Citizens extends Component
         $canManage = $user->hasPermission('population.manage');
         $tenantSelected = (bool) ($this->selectedTenantId || $user->tenant_id);
         $service = app(CitizenService::class);
-        $referenceService = app(PopulationReferenceService::class);
+        $references = $this->showForm
+            ? app(PopulationReferenceService::class)->all()
+            : [];
 
         return view('livewire.pages.population.citizens', [
             'citizens' => $tenantSelected
                 ? $service->paginate($this->tenantId(), $this->search, $this->perPage)
                 : collect(),
             'tenants' => $isSuperAdmin ? $service->tenants() : collect(),
-            'references' => $referenceService->all(),
+            'references' => $references,
             'isSuperAdmin' => $isSuperAdmin,
             'canManage' => $canManage,
             'tenantSelected' => $tenantSelected,
