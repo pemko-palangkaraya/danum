@@ -14,6 +14,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('position_id')->constrained('positions')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->uuid('issuing_ca_id')->nullable();
             $table->string('type', 30)->default('self_signed');
             $table->string('serial_number', 128)->nullable();
             $table->string('fingerprint_sha256', 64)->unique();
@@ -24,9 +25,16 @@ return new class extends Migration
             $table->timestampTz('revoked_at')->nullable();
             $table->boolean('is_active')->default(true);
             $table->foreignId('generated_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->jsonb('metadata')->nullable();
             $table->timestampsTz();
+
+            $table->foreign('issuing_ca_id')
+                ->references('id')
+                ->on('certificate_authorities')
+                ->nullOnDelete();
             $table->index(['position_id', 'user_id', 'is_active']);
             $table->index(['valid_until', 'is_active']);
+            $table->index('issuing_ca_id');
         });
     }
 
