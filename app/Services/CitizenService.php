@@ -84,6 +84,7 @@ class CitizenService
 
     public function save(string $tenantId, array $data, ?string $editingId, int|string $userId): Citizen
     {
+        $data = $this->normalizeInput($data);
         $validated = Validator::make($data, $this->rules($tenantId, $editingId))->validate();
         $validated['tenant_id'] = $tenantId;
         $validated['updated_by'] = $userId;
@@ -96,6 +97,24 @@ class CitizenService
 
         $validated['created_by'] = $userId;
         return Citizen::create($validated);
+    }
+
+    private function normalizeInput(array $data): array
+    {
+        foreach ([
+            'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin', 'golongan_darah', 'agama',
+            'status_perkawinan', 'pendidikan', 'pekerjaan', 'no_passport', 'no_kitap',
+            'nama_ayah', 'nik_ayah', 'nama_ibu', 'nik_ibu',
+        ] as $field) {
+            if (array_key_exists($field, $data) && is_string($data[$field])) {
+                $data[$field] = trim($data[$field]);
+                if ($data[$field] === '') {
+                    $data[$field] = null;
+                }
+            }
+        }
+
+        return $data;
     }
 
     public function rules(string $tenantId, ?string $editingId = null): array
