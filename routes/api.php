@@ -32,6 +32,7 @@ Route::middleware('auth')->as('api.')->group(function () {
     Route::post('outgoing-letters/{id}/validate', [OutgoingLetterController::class, 'validateLetter'])->name('outgoing-letters.validate');
     Route::post('outgoing-letters/{id}/reject', [OutgoingLetterController::class, 'reject'])->name('outgoing-letters.reject');
     Route::post('outgoing-letters/{id}/issue', [OutgoingLetterController::class, 'issue'])->name('outgoing-letters.issue');
+    Route::post('outgoing-letters/{id}/sign', [OutgoingLetterController::class, 'signIssued'])->name('outgoing-letters.sign');
     Route::post('outgoing-letters/{id}/cancel', [OutgoingLetterController::class, 'cancel'])->name('outgoing-letters.cancel');
     Route::post('outgoing-letters/{id}/withdraw', [OutgoingLetterWithdrawalController::class, 'store'])->name('outgoing-letters.withdraw');
     Route::post('outgoing-letter-withdrawals/{request}/approve', [OutgoingLetterWithdrawalController::class, 'approve'])->name('outgoing-letter-withdrawals.approve');
