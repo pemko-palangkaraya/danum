@@ -27,7 +27,7 @@ class OutgoingLetter extends Model
         'tenant_id','created_by','letter_type_id','letter_type_version_id',
         'signer_position_id','signer_user_id','signer_name','signer_title',
         'validator_position_id','validator_user_id','validator_name','validator_title',
-        'number','recipient_name','recipient_address','subject','content','input_data','issued_at','valid_from','valid_until','letter_date','generated_docx_path','signed_pdf_path','signature_certificate_id','signature_profile','signed_at','status','submitted_at','verification_token',
+        'number','recipient_name','recipient_address','subject','content','input_data','issued_at','valid_from','valid_until','letter_date','generated_docx_path','unsigned_pdf_path','signed_pdf_path','signature_certificate_id','signature_profile','signed_at','status','submitted_at','verification_token',
         'rejection_reason','rejected_by','rejected_at','verification_note','signing_note',
     ];
 
