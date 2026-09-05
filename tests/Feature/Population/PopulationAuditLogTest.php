@@ -115,8 +115,8 @@ class PopulationAuditLogTest extends TestCase
         $citizen = Citizen::factory()->forTenant($tenant)->create();
         $service = app(FamilyService::class);
 
-        $service->addMember($tenant->id, $family->id, $citizen->id, 'Anak');
-        $service->addMember($tenant->id, $family->id, $citizen->id, 'Istri');
+        $service->addMember($tenant->id, $family->id, $citizen->id, 'Anak', 'inactive');
+        $service->addMember($tenant->id, $family->id, $citizen->id, 'Anak', 'active');
         $service->removeMember($tenant->id, $family->id, $citizen->id);
 
         $this->assertDatabaseHas('audit_logs', [
