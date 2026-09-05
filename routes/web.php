@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 use App\Livewire\AuditLogs\Index as AuditLogIndex;
+use App\Livewire\Settings\Password as SettingsPassword;
 use App\Livewire\Tenants\Index as TenantIndex;
 use App\Livewire\Tenants\Create as TenantCreate;
 use App\Livewire\Tenants\Edit as TenantEdit;
@@ -40,6 +41,7 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
+    Route::get('/settings/password', SettingsPassword::class)->name('settings.password');
     Route::get('/population/citizens/import', PopulationCitizenImport::class)->name('population.citizens.import');
     Route::middleware('permission:dashboard.view')->group(function () { Volt::route('/dashboard', 'pages.dashboard')->name('dashboard'); });
     Route::middleware('permission:rbac.view')->group(function () { Volt::route('/rbac', 'pages.rbac.index')->name('rbac.index'); });
