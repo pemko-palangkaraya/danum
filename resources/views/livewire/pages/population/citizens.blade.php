@@ -6,16 +6,15 @@
         'tenantSelected' => $tenantSelected,
     ])
 
-    @if($tenantSelected)
-        @if($showForm)
-            @include('livewire.pages.population.partials.citizens-form')
-        @endif
-
-        @include('livewire.pages.population.partials.citizens-table', [
-            'canManage' => $canManage,
-            'detailRoute' => $detailRoute,
-            'isSuperAdmin' => $isSuperAdmin,
-            'tenants' => $tenants,
-        ])
+    @if($showForm)
+        @include('livewire.pages.population.partials.citizens-form')
     @endif
+
+    @include('livewire.pages.population.partials.citizens-table', [
+        'canManage' => $canManage,
+        'detailRoute' => $detailRoute,
+        'isSuperAdmin' => $isSuperAdmin,
+        'tenants' => $tenants,
+        'tenantSelected' => $tenantSelected,
+    ])
 </div>
