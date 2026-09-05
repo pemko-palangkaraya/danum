@@ -22,7 +22,7 @@ class Tenant extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'code', 'name', 'tenant_category_id', 'province', 'city', 'district', 'village', 'address',
+        'code', 'name', 'tenant_category_id', 'parent_tenant_id', 'province', 'city', 'district', 'village', 'address',
         'phone', 'email', 'logo', 'letterhead_path', 'head_name', 'head_title',
         'status', 'administrator_user_id',
     ];
@@ -37,6 +37,16 @@ class Tenant extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(TenantCategory::class, 'tenant_category_id');
+    }
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_tenant_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_tenant_id');
     }
 
     public function users(): HasMany
