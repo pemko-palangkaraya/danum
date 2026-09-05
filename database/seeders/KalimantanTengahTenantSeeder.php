@@ -21,9 +21,8 @@ class KalimantanTengahTenantSeeder extends Seeder
     {
         $categories = $this->categories();
 
-        // Seeder ini khusus untuk wilayah yang berada di bawah
-        // Pemerintah Kota Palangka Raya: 1 kota, 5 kecamatan,
-        // dan seluruh kelurahan di dalamnya.
+        // Struktur master wilayah:
+        // Pemerintah Kota -> Kecamatan -> Kelurahan.
         $regency = collect($this->get('/regencies/'.self::PROVINCE_CODE.'.json'))
             ->firstWhere('code', self::PALANGKA_RAYA_CODE);
 
@@ -34,7 +33,7 @@ class KalimantanTengahTenantSeeder extends Seeder
         $regencyCode = (string) $regency['code'];
         $regencyName = (string) $regency['name'];
 
-        $this->seedTenant(
+        $cityTenant = $this->seedTenant(
             $this->tenantCode($regencyCode),
             "Pemerintah {$regencyName}",
             $categories['pemerintah-kota'],
@@ -43,6 +42,7 @@ class KalimantanTengahTenantSeeder extends Seeder
             'Pusat Pemerintahan',
             "Wali Kota {$regencyName}",
             'Wali Kota',
+            null,
         );
 
         $counts = [
@@ -55,7 +55,7 @@ class KalimantanTengahTenantSeeder extends Seeder
             $districtCode = (string) $district['code'];
             $districtName = (string) $district['name'];
 
-            $this->seedTenant(
+            $districtTenant = $this->seedTenant(
                 $this->tenantCode($districtCode),
                 "Kecamatan {$districtName}",
                 $categories['kecamatan'],
@@ -64,6 +64,7 @@ class KalimantanTengahTenantSeeder extends Seeder
                 'Pusat Pemerintahan',
                 "Camat {$districtName}",
                 'Camat',
+                $cityTenant->id,
             );
             $counts['districts']++;
 
@@ -72,7 +73,7 @@ class KalimantanTengahTenantSeeder extends Seeder
                 $villageName = (string) $village['name'];
 
                 // Palangka Raya berada pada wilayah perkotaan, sehingga
-                // tenant tingkat desa yang tidak relevan tidak ikut dibuat.
+                // hanya entitas kelurahan yang dijadikan tenant wilayah.
                 $suffix = substr(strrchr($villageCode, '.'), 1);
                 if (!str_starts_with($suffix, '1')) {
                     continue;
@@ -87,6 +88,7 @@ class KalimantanTengahTenantSeeder extends Seeder
                     $villageName,
                     "Lurah {$villageName}",
                     'Lurah',
+                    $districtTenant->id,
                 );
                 $counts['villages']++;
             }
@@ -147,12 +149,14 @@ class KalimantanTengahTenantSeeder extends Seeder
         string $village,
         string $headName,
         string $headTitle,
-    ): void {
-        Tenant::query()->updateOrCreate(
+        ?string $parentTenantId,
+    ): Tenant {
+        return Tenant::query()->updateOrCreate(
             ['code' => $code],
             [
                 'name' => $name,
                 'tenant_category_id' => $categoryId,
+                'parent_tenant_id' => $parentTenantId,
                 'province' => 'Kalimantan Tengah',
                 'city' => $city,
                 'district' => $district,
