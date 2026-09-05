@@ -6,8 +6,10 @@ namespace App\Services;
 
 use App\Models\Citizen;
 use App\Models\Tenant;
+use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -129,7 +131,9 @@ class CitizenImportService
                     ->keyBy('nik');
 
             $creates = [];
-            $count = 0;
+            $createdCount = 0;
+            $updatedCount = 0;
+            $skippedCount = 0;
             $now = now();
 
             foreach ($rows as $row) {
@@ -144,7 +148,9 @@ class CitizenImportService
                 if ($citizen) {
                     if ($duplicateMode === 'update') {
                         $citizen->update($this->cleanRow($row, $tenantId) + ['updated_by' => $userId]);
-                        $count++;
+                        $updatedCount++;
+                    } else {
+                        $skippedCount++;
                     }
 
                     continue;
@@ -157,11 +163,29 @@ class CitizenImportService
                 $data['created_at'] = $now;
                 $data['updated_at'] = $now;
                 $creates[] = $data;
-                $count++;
+                $createdCount++;
             }
 
             foreach (array_chunk($creates, 500) as $chunk) {
                 Citizen::insert($chunk);
+            }
+
+            $count = $createdCount + $updatedCount;
+
+            if ($count > 0) {
+                $this->auditLogService()->record(
+                    action: 'population.citizens.imported',
+                    user: $this->actor($userId),
+                    newValues: [
+                        'tenant_id' => $tenantId,
+                        'duplicate_mode' => $duplicateMode,
+                        'created_count' => $createdCount,
+                        'updated_count' => $updatedCount,
+                        'skipped_count' => $skippedCount,
+                        'total_changed' => $count,
+                    ],
+                    tenantId: $tenantId,
+                );
             }
 
             return $count;
@@ -338,5 +362,21 @@ class CitizenImportService
             'nik ibu' => 'nik_ibu',
             'status kependudukan' => 'status_kependudukan',
         ];
+    }
+
+    private function auditLogService(): AuditLogService
+    {
+        return app(AuditLogService::class);
+    }
+
+    private function actor(int|string|null $userId = null): ?User
+    {
+        $user = Auth::user();
+
+        if ($user instanceof User) {
+            return $user;
+        }
+
+        return $userId !== null ? User::query()->find($userId) : null;
     }
 }
