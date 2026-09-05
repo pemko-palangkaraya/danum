@@ -38,6 +38,14 @@ class OutgoingLetterIssuanceService
         if (blank($letter->generated_docx_path)) throw new \DomainException('Dokumen DOCX surat belum tersedia untuk diterbitkan.');
         if (! Storage::disk('local')->exists($letter->generated_docx_path)) throw new \DomainException('Dokumen DOCX surat tidak ditemukan. Buat ulang draft surat terlebih dahulu.');
 
+        $marker = $issuanceMarker ?? ($signWithTte ? 'tte' : 'qr');
+        if (! in_array($marker, ['qr', 'tte'], true)) throw new \DomainException('Marker penerbitan surat tidak valid.');
+
+        // The review modal requests the PIN before the TTE path may issue the letter.
+        // Keep the letter VALIDATED until handleSignerPin submits the PIN and this
+        // method is called again with $signWithTte=true.
+        if (! $signWithTte && $marker === 'tte') return $letter;
+
         if ($signWithTte) {
             if (blank($pin)) throw new \DomainException('PIN penanda tangan wajib diisi.');
             $this->signerPinService->verify($signer, $pin);
@@ -71,8 +79,6 @@ class OutgoingLetterIssuanceService
 
         $sourceDocxPath = Storage::disk('local')->path($letter->generated_docx_path);
         $verificationUrl = url('/verify/' . $letter->verification_token);
-        $marker = $issuanceMarker ?? ($signWithTte ? 'tte' : 'qr');
-        if (! in_array($marker, ['qr', 'tte'], true)) throw new \DomainException('Marker penerbitan surat tidak valid.');
         $temporaryDocx = null;
         $unsignedPdfPath = null;
         $signedPdfPath = null;
@@ -144,6 +150,13 @@ class OutgoingLetterIssuanceService
     {
         $note = trim((string) ($note ?? $letter->signing_note ?? ''));
         if ($note === '') throw new \DomainException('Catatan penandatanganan wajib diisi.');
+
+        // TTE selected from the review modal must sign before the letter becomes
+        // ISSUED. Re-enter the normal issuance pipeline with the verified PIN.
+        if ($letter->status === OutgoingLetterStatus::VALIDATED) {
+            return $this->issue($letter, $changedBy, $note, $pin, true, 'tte');
+        }
+
         if ($letter->status !== OutgoingLetterStatus::ISSUED) throw new \DomainException('Hanya surat yang sudah diterbitkan yang dapat ditandatangani secara elektronik.');
         if ($letter->signer_user_id !== $changedBy) throw new \DomainException('Hanya penanda tangan yang ditentukan untuk surat ini yang dapat menandatangani surat.');
         if (blank($pin)) throw new \DomainException('PIN penanda tangan wajib diisi.');
