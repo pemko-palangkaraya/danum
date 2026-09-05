@@ -26,6 +26,7 @@ return new class extends Migration
             $table->jsonb('metadata')->nullable();
             $table->timestampsTz();
 
+            $table->unique('id');
             $table->foreign('parent_id')
                 ->references('id')
                 ->on('certificate_authorities')
