@@ -71,10 +71,11 @@ class FamiliesCrudTest extends TestCase
         $user = User::factory()->tenantAdmin($tenant)->create();
 
         $options = app(PopulationLocationService::class)->optionsForTenant($tenant->id);
+        $expectedDistricts = collect($districts)->sort()->values()->all();
 
         $this->assertSame(['Kalimantan Tengah'], $options['provinces']->all());
         $this->assertSame(['Palangka Raya'], $options['cities']->all());
-        $this->assertSame($districts, $options['districts']->all());
+        $this->assertSame($expectedDistricts, $options['districts']->all());
         $this->assertSame(['Mungku Baru'], $options['villages']->all());
 
         Livewire::actingAs($user)
