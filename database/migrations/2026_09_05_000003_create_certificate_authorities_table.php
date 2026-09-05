@@ -26,7 +26,11 @@ return new class extends Migration
             $table->jsonb('metadata')->nullable();
             $table->timestampsTz();
 
-            $table->foreign('parent_id')->references('id')->on('certificate_authorities')->nullOnDelete();
+            $table->unique('id');
+            $table->foreign('parent_id')
+                ->references('id')
+                ->on('certificate_authorities')
+                ->nullOnDelete();
             $table->unique(['type', 'name']);
             $table->index(['type', 'is_active']);
         });
