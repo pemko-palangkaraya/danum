@@ -33,7 +33,7 @@ final class UserPasswordService
     private function set(User $user, string $newPassword, string $action): User
     {
         $user->forceFill([
-            'password' => Hash::make($newPassword),
+            'password' => $newPassword,
         ])->save();
 
         $this->auditLogService->record(
