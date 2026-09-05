@@ -33,6 +33,11 @@ class PdfSigningService
         $privateKeyPem = '';
 
         try {
+            $stage = 'resolve-certificate-chain';
+            $certificate->loadMissing('issuingCa.parent');
+            if (! $certificate->issuingCa) throw new RuntimeException('Sertifikat penanda tangan belum memiliki DANUM Issuing CA. Buat ulang sertifikat penanda tangan.');
+            $extraCertificatesPem = app(CertificateAuthorityService::class)->chainForSigner($certificate->issuingCa);
+
             $stage = 'decrypt-private-key';
             $privateKeyPem = Crypt::decryptString((string) $certificate->private_key_encrypted);
             if ($certificatePem === '' || $privateKeyPem === '') throw new RuntimeException('Material sertifikat TTE tidak lengkap.');
@@ -85,6 +90,7 @@ class PdfSigningService
                         'cert_type' => 2,
                         'signcert' => $certificatePem,
                         'privkey' => $privateKeyPem,
+                        'extracerts' => $extraCertificatesPem,
                         'password' => '',
                         'info' => [
                             'Name' => $signerName,
@@ -126,6 +132,7 @@ class PdfSigningService
                 'certificate_id' => $certificate->id,
                 'signer_user_id' => $certificate->user_id,
                 'signer_position_id' => $certificate->position_id,
+                'issuing_ca_id' => $certificate->issuing_ca_id,
                 'tsa_host' => (string) config('services.tsa.url', 'https://freetsa.org/tsr'),
                 'exception_class' => $exception::class,
                 'exception_message' => $exception->getMessage(),
