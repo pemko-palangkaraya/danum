@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Livewire\OutgoingLetters;
 
 use App\Enums\LetterTypeStatus;
-use App\Enums\OutgoingLetterStatus;
 use App\Livewire\Concerns\HandlesLetterVariables;
 use App\Livewire\Concerns\WithStandardTablePagination;
 use App\Models\OutgoingLetter;
@@ -126,6 +125,14 @@ class Index extends Component
         if (blank($note)) { $this->dispatch('workflow-note-required', action: 'issue', id: $id, title: 'Catatan Penerbitan', description: 'Periksa PDF surat, lalu berikan catatan sebelum menerbitkan surat.'); return; }
         try { $letter = $this->tenantQuery()->findOrFail($id); $this->authorize('issue', $letter); $this->dispatch('issue-review-required', id: $letter->id, note: trim($note), pdfUrl: route('outgoing-letters.pdf', ['id' => $letter->id])); }
         catch (\Throwable $exception) { $this->toastError($exception instanceof \DomainException ? $exception->getMessage() : 'Surat tidak dapat dipersiapkan untuk diterbitkan.'); }
+    }
+
+    #[On('workflow-note-submitted')]
+    public function handleWorkflowNote(string $action, string $id, string $note, OutgoingLetterWorkflowService $workflow): void
+    {
+        $note = trim($note);
+        if ($note === '') { $this->dispatch('workflow-note-required', action: $action, id: $id, title: $action === 'validate' ? 'Catatan Verifikasi' : 'Catatan Penerbitan', description: 'Catatan wajib diisi.'); return; }
+        if ($action === 'validate') $this->validateLetter($id, $workflow, $note);
     }
 
     #[On('signer-pin-submitted')]
