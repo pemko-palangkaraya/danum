@@ -19,6 +19,7 @@ class PopulationLocation extends Component
         public string $province = '',
         public string $city = '',
         public string $district = '',
+        public string $village = '',
         public string $provinceModel = 'provinsi',
         public string $cityModel = 'kabupaten_kota',
         public string $districtModel = 'kecamatan',
