@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\OutgoingLetter;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\PopulationStatisticsService;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -17,6 +18,8 @@ new #[Layout('layouts.app')] class extends Component {
     {
         $user = auth()->user();
         $isSuperAdmin = $user->isSuperAdmin();
+        $canViewPopulation = $user->hasPermission('population.view');
+        $tenantName = $user->tenant?->name ?? 'Seluruh Tenant';
 
         $letters = OutgoingLetter::query();
         if (! $isSuperAdmin) {
@@ -53,6 +56,13 @@ new #[Layout('layouts.app')] class extends Component {
             $stats['my_validated'] = (clone $base)->where('created_by', $user->id)->where('status', OutgoingLetterStatus::VALIDATED)->count();
         }
 
+        $population = null;
+        if ($canViewPopulation) {
+            $population = app(PopulationStatisticsService::class)->summarize(
+                $isSuperAdmin ? null : $user->tenant_id
+            );
+        }
+
         $recentLetters = (clone $base)->with(['creator', 'tenant'])->latest('updated_at')->limit(6)->get();
 
         $activityQuery = AuditLog::query()->with(['user', 'tenant'])->latest('created_at');
@@ -79,23 +89,28 @@ new #[Layout('layouts.app')] class extends Component {
                 });
         }
 
-        return compact('isSuperAdmin', 'stats', 'recentLetters', 'activities', 'tenantBreakdown');
+        return compact(
+            'isSuperAdmin',
+            'canViewPopulation',
+            'tenantName',
+            'stats',
+            'population',
+            'recentLetters',
+            'activities',
+            'tenantBreakdown'
+        );
     }
 };
 ?>
 
-<div>
-    @php
-        $user = auth()->user();
-        $tenant = $user->tenant;
-        $tenantName = $tenant?->name ?? 'Seluruh Tenant';
-    @endphp
-
-    <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+<div class="space-y-6">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
             <p class="text-sm font-medium text-slate-400">{{ $isSuperAdmin ? 'Platform Administration' : 'Workspace' }}</p>
             <h1 class="mt-1 text-3xl font-semibold tracking-tight text-slate-900">Dashboard</h1>
-            <p class="mt-2 text-sm text-slate-500">Selamat datang, {{ $user->name }}. Ringkasan ini diperbarui dari kondisi {{ $isSuperAdmin ? 'platform DANUM' : 'organisasi '.$tenantName }}.</p>
+            <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                Selamat datang, {{ auth()->user()->name }}. Ringkasan kondisi {{ $isSuperAdmin ? 'platform DANUM' : 'organisasi '.$tenantName }}.
+            </p>
         </div>
         <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{{ $isSuperAdmin ? 'Scope' : 'Organisasi' }}</p>
@@ -103,13 +118,33 @@ new #[Layout('layouts.app')] class extends Component {
         </div>
     </div>
 
-    <div class="overflow-hidden rounded-3xl bg-slate-900 shadow-xl">
-        <div class="p-6 sm:p-8">
-            <div class="flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
+    {{-- Surat keluar: panel utama dashboard --}}
+    <section class="relative overflow-hidden rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 shadow-sm">
+        <div class="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-indigo-200/40 blur-3xl"></div>
+        <div class="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-cyan-200/30 blur-3xl"></div>
+
+        <div class="relative p-6 sm:p-8">
+            <div class="flex flex-col gap-7 xl:flex-row xl:items-center xl:justify-between">
                 <div class="max-w-2xl">
-                    <div class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>Data live</div>
-                    <h2 class="mt-4 text-2xl font-semibold tracking-tight text-white sm:text-3xl">{{ $isSuperAdmin ? 'Pusat kendali platform DANUM.' : 'Pusat kendali '.$tenantName.'.' }}</h2>
-                    <p class="mt-3 text-sm leading-6 text-slate-300">{{ $isSuperAdmin ? 'Pantau organisasi, pengguna, dan seluruh alur surat dari satu dashboard.' : 'Pantau surat, pekerjaan workflow, anggota, dan aktivitas organisasi Anda.' }}</p>
+                    <div class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
+                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                        Data live
+                    </div>
+                    <h2 class="mt-4 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                        {{ $isSuperAdmin ? 'Pusat kendali platform DANUM.' : 'Pusat kendali '.$tenantName.'.' }}
+                    </h2>
+                    <p class="mt-3 max-w-xl text-sm leading-6 text-slate-600">
+                        {{ $isSuperAdmin ? 'Pantau organisasi, pengguna, dan seluruh alur surat dari satu tempat.' : 'Pantau surat keluar, pekerjaan workflow, anggota, dan aktivitas organisasi Anda.' }}
+                    </p>
+
+                    @can('viewAny', App\Models\OutgoingLetter::class)
+                        <a
+                            href="{{ route('outgoing-letters.index') }}"
+                            class="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                            Kelola surat keluar
+                            <span aria-hidden="true">→</span>
+                        </a>
+                    @endcan
                 </div>
 
                 @php
@@ -126,20 +161,93 @@ new #[Layout('layouts.app')] class extends Component {
                     ];
                 @endphp
 
-                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:w-[500px] lg:shrink-0">
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:w-[520px] xl:shrink-0">
                     @foreach($controlCards as $card)
-                        <div class="rounded-2xl bg-white/10 p-4 backdrop-blur-sm">
-                            <p class="text-2xl font-semibold text-white">{{ number_format($card['value']) }}</p>
-                            <p class="mt-1 text-[11px] font-medium text-slate-300">{{ $card['label'] }}</p>
-                            <p class="mt-2 text-[10px] leading-4 text-slate-500">{{ $card['hint'] }}</p>
+                        <div class="rounded-2xl border border-white/80 bg-white/75 p-4 shadow-sm backdrop-blur-sm">
+                            <p class="text-2xl font-bold tracking-tight text-slate-900">{{ number_format($card['value']) }}</p>
+                            <p class="mt-1 text-[11px] font-semibold text-slate-600">{{ $card['label'] }}</p>
+                            <p class="mt-2 text-[10px] leading-4 text-slate-400">{{ $card['hint'] }}</p>
                         </div>
                     @endforeach
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    {{-- Statistik warga --}}
+    @if($canViewPopulation && $population)
+        <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Kependudukan</p>
+                    <h2 class="mt-1 text-xl font-bold tracking-tight text-slate-900">Ringkasan warga</h2>
+                    <p class="mt-1 text-sm text-slate-500">Data penduduk dan kartu keluarga {{ $isSuperAdmin ? 'seluruh platform' : 'di '.$tenantName }}.</p>
+                </div>
+                <a
+                    href="{{ $isSuperAdmin ? route('population.admin.statistics') : route('population.statistics') }}"
+                    class="inline-flex h-10 items-center justify-center gap-2 self-start rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:self-auto">
+                    Lihat statistik warga
+                    <span aria-hidden="true">→</span>
+                </a>
+            </div>
+
+            <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-5">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total penduduk</p>
+                            <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($population['totalCitizens']) }}</p>
+                            <p class="mt-1 text-xs text-slate-400">Warga terdata</p>
+                        </div>
+                        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m8-6a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm6-3a3 3 0 1 0-2.83-4m5.83 13v-2a4 4 0 0 0-3-3.87" /></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-violet-50/60 to-white p-5">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Total KK</p>
+                            <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($population['totalFamilies']) }}</p>
+                            <p class="mt-1 text-xs text-slate-400">Kartu keluarga</p>
+                        </div>
+                        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-7h6v7M9 10h.01M15 10h.01" /></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-cyan-50/60 to-white p-5">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Laki-laki</p>
+                            <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($population['male']) }}</p>
+                            <p class="mt-1 text-xs text-cyan-600">{{ $population['totalCitizens'] > 0 ? number_format(($population['male'] / $population['totalCitizens']) * 100, 1) : '0.0' }}% dari penduduk</p>
+                        </div>
+                        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600">
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10" cy="14" r="5"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 9V3m0 0H7m3 0h3"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-pink-50/60 to-white p-5">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Perempuan</p>
+                            <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($population['female']) }}</p>
+                            <p class="mt-1 text-xs text-pink-600">{{ $population['totalCitizens'] > 0 ? number_format(($population['female'] / $population['totalCitizens']) * 100, 1) : '0.0' }}% dari penduduk</p>
+                        </div>
+                        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-50 text-pink-600">
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="9" r="5"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 14v7m-3 0h6"/></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    @endif
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="font-semibold text-slate-900">Status workflow</h2>
@@ -165,7 +273,7 @@ new #[Layout('layouts.app')] class extends Component {
     </section>
 
     @if($isSuperAdmin)
-        <section class="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div class="flex items-center justify-between"><div><h2 class="font-semibold text-slate-900">Kondisi organisasi</h2><p class="mt-1 text-xs text-slate-500">Ringkasan tenant terbaru di platform.</p></div>@if(Route::has('tenants.index'))<a href="{{ route('tenants.index') }}" class="text-xs font-semibold text-slate-700 hover:text-slate-900">Kelola →</a>@endif</div>
             <div class="mt-5 overflow-x-auto"><table class="min-w-full text-left text-sm"><thead class="border-b border-slate-200 text-xs text-slate-400"><tr><th class="pb-3 pr-4 font-medium">Organisasi</th><th class="pb-3 pr-4 font-medium">Status</th><th class="pb-3 pr-4 font-medium">Pengguna</th><th class="pb-3 font-medium">Surat Terbit</th></tr></thead><tbody class="divide-y divide-slate-100">
                 @forelse($tenantBreakdown as $row)
@@ -177,7 +285,7 @@ new #[Layout('layouts.app')] class extends Component {
         </section>
     @endif
 
-    <div class="mt-6 grid gap-6 lg:grid-cols-2">
+    <div class="grid gap-6 lg:grid-cols-2">
         <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div class="flex items-center justify-between"><div><h2 class="font-semibold text-slate-900">Surat terbaru</h2><p class="mt-1 text-xs text-slate-500">{{ $isSuperAdmin ? 'Aktivitas surat seluruh platform.' : 'Aktivitas surat dalam organisasi ini.' }}</p></div>@can('viewAny', App\Models\OutgoingLetter::class)<a href="{{ route('outgoing-letters.index') }}" class="text-xs font-semibold text-slate-700">Lihat semua →</a>@endcan</div>
             <div class="mt-5 space-y-2">
