@@ -12,6 +12,14 @@ use Illuminate\Database\Seeder;
 
 class PopulationDemoSeeder extends Seeder
 {
+    private const LOCATIONS = [
+        ['kelurahan' => 'Palangka', 'kecamatan' => 'Jekan Raya', 'kode_pos' => '73112'],
+        ['kelurahan' => 'Langkai', 'kecamatan' => 'Pahandut', 'kode_pos' => '73111'],
+        ['kelurahan' => 'Menteng', 'kecamatan' => 'Jekan Raya', 'kode_pos' => '73111'],
+        ['kelurahan' => 'Bukit Tunggal', 'kecamatan' => 'Jekan Raya', 'kode_pos' => '73113'],
+        ['kelurahan' => 'Panarung', 'kecamatan' => 'Pahandut', 'kode_pos' => '73121'],
+    ];
+
     public function run(): void
     {
         $tenant = Tenant::query()
@@ -34,15 +42,17 @@ class PopulationDemoSeeder extends Seeder
                 ])
                 ->create();
 
+            $location = fake()->randomElement(self::LOCATIONS);
+
             $family = Family::factory()
                 ->forTenant($tenant)
                 ->state([
                     'head_citizen_id' => $head->id,
                     'rt' => str_pad((string) fake()->numberBetween(1, 12), 3, '0', STR_PAD_LEFT),
                     'rw' => str_pad((string) fake()->numberBetween(1, 8), 3, '0', STR_PAD_LEFT),
-                    'kelurahan' => fake()->randomElement(['Palangka', 'Langkai', 'Menteng', 'Bukit Tunggal', 'Panarung']),
-                    'kecamatan' => fake()->randomElement(['Jekan Raya', 'Pahandut', 'Sabangau', 'Bukit Batu']),
-                    'kode_pos' => fake()->randomElement(['73111', '73112', '73113', '73114', '73115']),
+                    'kelurahan' => $location['kelurahan'],
+                    'kecamatan' => $location['kecamatan'],
+                    'kode_pos' => $location['kode_pos'],
                 ])
                 ->create();
 
