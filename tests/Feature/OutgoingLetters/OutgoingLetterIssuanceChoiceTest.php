@@ -53,4 +53,37 @@ class OutgoingLetterIssuanceChoiceTest extends TestCase
             'action' => 'signed',
         ]);
     }
+
+    public function test_tte_selection_does_not_issue_before_pin(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->superAdmin()->create();
+        $letter = OutgoingLetter::factory()->create([
+            'status' => OutgoingLetterStatus::VALIDATED,
+            'signer_user_id' => $user->id,
+            'generated_docx_path' => 'outgoing-letters/test/source.docx',
+        ]);
+
+        Storage::disk('local')->put($letter->generated_docx_path, 'test docx');
+        $pdf = $this->mock(DocxPdfService::class);
+        $pdf->shouldNotReceive('convert');
+
+        $prepared = app(OutgoingLetterService::class)->issue(
+            $letter,
+            $user->id,
+            'Surat akan ditandatangani secara elektronik.',
+            null,
+            false,
+            'tte',
+        );
+
+        $prepared->refresh();
+        $this->assertSame(OutgoingLetterStatus::VALIDATED, $prepared->status);
+        $this->assertNull($prepared->unsigned_pdf_path);
+        $this->assertNull($prepared->signed_pdf_path);
+        $this->assertDatabaseMissing('outgoing_letter_status_histories', [
+            'outgoing_letter_id' => $prepared->id,
+            'action' => 'issued',
+        ]);
+    }
 }
