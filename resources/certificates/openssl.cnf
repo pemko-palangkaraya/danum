@@ -1,7 +1,4 @@
-# DANUM self-signed signer certificate profile
-# Keep this configuration self-contained so Windows OpenSSL does not fall back
-# to a machine-level configuration or an invalid random-state file.
-
+# DANUM certificate hierarchy: Root CA -> Issuing CA -> signer certificate
 openssl_conf = openssl_init
 
 [openssl_init]
@@ -15,13 +12,26 @@ activate = 1
 
 [ req ]
 distinguished_name = req_distinguished_name
-req_extensions = v3_req
+req_extensions = v3_signer
 prompt = no
 
 [ req_distinguished_name ]
 C = ID
 
-[ v3_req ]
-basicConstraints = critical,CA:FALSE
-keyUsage = critical,digitalSignature,nonRepudiation,keyEncipherment
+[ v3_root_ca ]
+basicConstraints = critical,CA:TRUE,pathlen:1
+keyUsage = critical,keyCertSign,cRLSign
 subjectKeyIdentifier = hash
+
+[ v3_issuing_ca ]
+basicConstraints = critical,CA:TRUE,pathlen:0
+keyUsage = critical,keyCertSign,cRLSign
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+
+[ v3_signer ]
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature,nonRepudiation
+extendedKeyUsage = critical,emailProtection
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
