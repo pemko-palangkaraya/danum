@@ -6,6 +6,7 @@ namespace App\Livewire\Population;
 
 use App\Livewire\Concerns\WithStandardTablePagination;
 use App\Services\FamilyService;
+use App\Services\PopulationLocationService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -171,6 +172,7 @@ class Families extends Component
     public function render(): View
     {
         $service = app(FamilyService::class);
+        $locationService = app(PopulationLocationService::class);
         $tenantId = $this->tenantIdForQuery();
         $user = auth()->user();
         $isSuperAdmin = $user?->isSuperAdmin() ?? false;
@@ -193,6 +195,9 @@ class Families extends Component
         $selectedHead = $hasTenant && $this->head_citizen_id !== ''
             ? $service->selectedHead($tenantId, $this->head_citizen_id)
             : null;
+        $locationOptions = $hasTenant && $this->showForm
+            ? $locationService->optionsForTenant($tenantId, $this->provinsi, $this->kabupaten_kota, $this->kecamatan)
+            : $locationService->emptyOptions();
 
         return view('livewire.population.families', [
             'families' => $families,
@@ -201,6 +206,7 @@ class Families extends Component
             'memberCandidates' => $memberCandidates,
             'selectedHead' => $selectedHead,
             'headCitizens' => $headCitizens,
+            'locationOptions' => $locationOptions,
             'canManage' => $canManage,
             'isSuperAdmin' => $isSuperAdmin,
             'hasTenant' => $hasTenant,

@@ -27,9 +27,9 @@ class PopulationLocationService
         $district = $district !== '' ? $district : (string) ($tenant->district ?? '');
 
         return [
-            'provinces' => collect([$tenant->province])->filter()->values(),
-            'cities' => collect([$tenant->city])->filter()->values(),
-            'districts' => $this->districtOptions($tenant, $province, $city),
+            'provinces' => $this->provinceOptions($tenant, $province),
+            'cities' => $this->cityOptions($tenant, $province, $city),
+            'districts' => $this->districtOptions($tenant, $province, $city, $district),
             'villages' => $this->villageOptions($tenant, $province, $city, $district),
         ];
     }
@@ -66,31 +66,59 @@ class PopulationLocationService
             ->first();
     }
 
-    private function districtOptions(Tenant $tenant, string $province, string $city): Collection
+    private function provinceOptions(Tenant $tenant, string $province): Collection
     {
+        if ($tenant->category?->code === 'pemerintah-provinsi') {
+            return collect([$tenant->province])->filter()->values();
+        }
+
+        return collect([$tenant->province])->filter()->values();
+    }
+
+    private function cityOptions(Tenant $tenant, string $province, string $city): Collection
+    {
+        if ($province !== (string) $tenant->province) {
+            return collect();
+        }
+
+        if ($tenant->category?->code === 'pemerintah-provinsi') {
+            return $this->childrenByCategory($tenant, ['pemerintah-kota', 'pemerintah-kabupaten'])
+                ->pluck('city')
+                ->filter()
+                ->unique()
+                ->sort()
+                ->values();
+        }
+
+        return collect([$tenant->city])->filter()->values();
+    }
+
+    private function districtOptions(
+        Tenant $tenant,
+        string $province,
+        string $city,
+        string $district,
+    ): Collection {
         if ($province !== (string) $tenant->province || $city !== (string) $tenant->city) {
             return collect();
         }
 
-        $cityTenant = $this->cityTenant($tenant);
+        $categoryCode = $tenant->category?->code;
 
-        if ($cityTenant) {
-            $children = $this->childrenByCategory($cityTenant, ['kecamatan']);
-            if ($children->isNotEmpty()) {
-                return $children->pluck('district')->filter()->unique()->sort()->values();
-            }
+        if (in_array($categoryCode, ['pemerintah-kota', 'pemerintah-kabupaten'], true)) {
+            return $this->childrenByCategory($tenant, ['kecamatan'])
+                ->pluck('district')
+                ->filter()
+                ->unique()
+                ->sort()
+                ->values();
         }
 
-        // Backward-compatible fallback for tenants created before the
-        // explicit parent_tenant_id hierarchy existed.
-        return $this->hierarchyTenantQuery(['kecamatan'])
-            ->where('province', $province)
-            ->where('city', $city)
-            ->whereNotNull('district')
-            ->where('district', '<>', '')
-            ->distinct()
-            ->orderBy('district')
-            ->pluck('district');
+        if (in_array($categoryCode, ['kecamatan', 'kelurahan', 'desa'], true)) {
+            return collect([$tenant->district])->filter()->values();
+        }
+
+        return collect();
     }
 
     private function villageOptions(
@@ -103,58 +131,38 @@ class PopulationLocationService
             return collect();
         }
 
-        $cityTenant = $this->cityTenant($tenant);
+        $categoryCode = $tenant->category?->code;
 
-        if ($cityTenant) {
-            $districtTenant = $this->childrenByCategory($cityTenant, ['kecamatan'])
+        if (in_array($categoryCode, ['pemerintah-kota', 'pemerintah-kabupaten'], true)) {
+            $districtTenant = $this->childrenByCategory($tenant, ['kecamatan'])
                 ->firstWhere('district', $district);
 
-            if ($districtTenant) {
-                $children = $this->childrenByCategory($districtTenant, ['kelurahan', 'desa']);
-                if ($children->isNotEmpty()) {
-                    return $children->pluck('village')->filter()->unique()->sort()->values();
-                }
-            }
+            return $districtTenant
+                ? $this->childrenByCategory($districtTenant, ['kelurahan', 'desa'])
+                    ->pluck('village')
+                    ->filter()
+                    ->unique()
+                    ->sort()
+                    ->values()
+                : collect();
         }
 
-        // Backward-compatible fallback for old/reference tenant rows.
-        return $this->hierarchyTenantQuery(['kelurahan', 'desa'])
-            ->where('province', $province)
-            ->where('city', $city)
-            ->where('district', $district)
-            ->whereNotNull('village')
-            ->where('village', '<>', '')
-            ->distinct()
-            ->orderBy('village')
-            ->pluck('village');
-    }
-
-    private function cityTenant(Tenant $tenant): ?Tenant
-    {
-        if ($tenant->category?->code === 'pemerintah-kota') {
-            return $tenant;
+        if ($categoryCode === 'kecamatan') {
+            return $this->childrenByCategory($tenant, ['kelurahan', 'desa'])
+                ->pluck('village')
+                ->filter()
+                ->unique()
+                ->sort()
+                ->values();
         }
 
-        $parent = $tenant->parent;
-        if ($parent?->category?->code === 'pemerintah-kota') {
-            return $parent;
+        if (in_array($categoryCode, ['kelurahan', 'desa'], true)) {
+            return $district === (string) $tenant->district
+                ? collect([$tenant->village])->filter()->values()
+                : collect();
         }
 
-        $grandParent = $parent?->parent;
-        if ($grandParent?->category?->code === 'pemerintah-kota') {
-            return $grandParent;
-        }
-
-        return Tenant::query()
-            ->with('category')
-            ->where('status', TenantStatus::ACTIVE)
-            ->whereHas('category', fn ($query) => $query
-                ->where('code', 'pemerintah-kota')
-                ->where('is_active', true))
-            ->where('province', $tenant->province)
-            ->where('city', $tenant->city)
-            ->orderBy('id')
-            ->first();
+        return collect();
     }
 
     private function childrenByCategory(Tenant $parent, array $categories): Collection
@@ -168,14 +176,5 @@ class PopulationLocationService
                 ->where('is_active', true))
             ->orderBy('name')
             ->get(['id', 'name', 'district', 'village', 'province', 'city']);
-    }
-
-    private function hierarchyTenantQuery(array $categories)
-    {
-        return Tenant::query()
-            ->where('status', TenantStatus::ACTIVE)
-            ->whereHas('category', fn ($query) => $query
-                ->whereIn('code', $categories)
-                ->where('is_active', true));
     }
 }
