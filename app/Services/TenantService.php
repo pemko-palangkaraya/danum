@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Services;
 
 use App\Models\Tenant;
@@ -39,6 +37,33 @@ class TenantService
     public function search(?string $search = null, bool $onlyDeleted = false, int $perPage = 5): LengthAwarePaginator
     {
         return $this->tenantRepository->search($search, $onlyDeleted, $perPage);
+    }
+
+    public function parentOptions(?string $categoryId = null, ?string $excludeTenantId = null): Collection
+    {
+        $categoryCode = $categoryId !== null && $categoryId !== ''
+            ? TenantCategory::query()->whereKey($categoryId)->value('code')
+            : null;
+
+        $parentCategoryCodes = match ($categoryCode) {
+            'kecamatan' => ['pemerintah-kota'],
+            'kelurahan', 'desa' => ['kecamatan'],
+            default => [],
+        };
+
+        if ($parentCategoryCodes === []) {
+            return Tenant::query()->whereRaw('1 = 0')->get();
+        }
+
+        return Tenant::query()
+            ->with('category')
+            ->where('status', \App\Enums\TenantStatus::ACTIVE)
+            ->whereHas('category', fn ($query) => $query
+                ->whereIn('code', $parentCategoryCodes)
+                ->where('is_active', true))
+            ->when($excludeTenantId, fn ($query) => $query->whereKeyNot($excludeTenantId))
+            ->orderBy('name')
+            ->get(['id', 'name', 'province', 'city', 'district', 'village']);
     }
 
     public function create(array $data): Tenant
