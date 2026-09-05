@@ -37,6 +37,7 @@ class CitizenShow extends Component
         );
 
         $this->citizen = app(CitizenService::class)->loadDetail($citizen);
+        $this->resetAddressLocation();
     }
 
     public function updatedProvinsi(): void
@@ -72,10 +73,10 @@ class CitizenShow extends Component
 
         $this->citizen = $service->loadAddresses($this->citizen);
         $this->reset([
-            'alamat', 'rt', 'rw', 'kelurahan', 'kecamatan', 'kabupaten_kota',
-            'provinsi', 'kode_pos', 'berlaku_mulai',
+            'alamat', 'rt', 'rw', 'kode_pos', 'berlaku_mulai',
         ]);
         $this->jenis_alamat = 'domisili';
+        $this->resetAddressLocation();
         $this->dispatch('toast', type: 'success', message: 'Alamat warga berhasil ditambahkan.');
     }
 
@@ -102,5 +103,14 @@ class CitizenShow extends Component
                 ? 'population.admin.families.index'
                 : 'population.families.index',
         ]);
+    }
+
+    private function resetAddressLocation(): void
+    {
+        $defaults = app(PopulationLocationService::class)->defaultsForTenant((string) $this->citizen->tenant_id);
+        $this->provinsi = $defaults['province'];
+        $this->kabupaten_kota = $defaults['city'];
+        $this->kecamatan = $defaults['district'];
+        $this->kelurahan = $defaults['village'];
     }
 }
