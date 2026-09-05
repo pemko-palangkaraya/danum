@@ -5,8 +5,6 @@
 
     @include('livewire.pages.dashboard.partials.population')
 
-    @include('livewire.pages.dashboard.partials.workflow')
-
     @include('livewire.pages.dashboard.partials.tenant-breakdown')
 
     <div class="grid gap-6 lg:grid-cols-2">
