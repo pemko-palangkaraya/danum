@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Enums\TenantStatus;
+use App\Models\TenantCategory;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,6 +22,7 @@ class StoreTenantRequest extends FormRequest
             'code' => ['required', 'string', 'max:50', Rule::unique('tenants', 'code')],
             'name' => ['required', 'string', 'max:150'],
             'tenant_category_id' => ['required', 'integer', Rule::exists('tenant_categories', 'id')->where('is_active', true)],
+            'parent_tenant_id' => ['nullable', 'uuid', Rule::exists('tenants', 'id')->where('status', true)],
             'province' => ['required', 'string', 'max:100'],
             'city' => ['required', 'string', 'max:100'],
             'district' => ['required', 'string', 'max:100'],
@@ -33,5 +35,16 @@ class StoreTenantRequest extends FormRequest
             'head_title' => ['nullable', 'string', 'max:100'],
             'status' => ['required', Rule::enum(TenantStatus::class)],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $categoryCode = $this->tenant_category_id
+            ? TenantCategory::query()->whereKey($this->tenant_category_id)->value('code')
+            : null;
+
+        if (! in_array($categoryCode, ['kecamatan', 'kelurahan', 'desa'], true)) {
+            $this->merge(['parent_tenant_id' => null]);
+        }
     }
 }
