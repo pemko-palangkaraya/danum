@@ -153,7 +153,9 @@ class Citizens extends Component
         $user = auth()->user();
         $isSuperAdmin = $user->isSuperAdmin();
         $canManage = $user->hasPermission('population.manage');
-        $tenantSelected = (bool) ($this->selectedTenantId || $user->tenant_id);
+        $tenantSelected = $isSuperAdmin
+            ? (bool) $this->selectedTenantId
+            : (bool) $user->tenant_id;
         $service = app(CitizenService::class);
         $references = $this->showForm
             ? app(PopulationReferenceService::class)->all()
