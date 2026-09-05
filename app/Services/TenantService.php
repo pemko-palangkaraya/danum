@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\TenantStatus;
 use App\Models\Tenant;
 use App\Models\TenantCategory;
 use App\Models\User;
@@ -57,11 +58,11 @@ class TenantService
 
         return Tenant::query()
             ->with('category')
-            ->where('status', \App\Enums\TenantStatus::ACTIVE)
+            ->where('status', TenantStatus::ACTIVE)
             ->whereHas('category', fn ($query) => $query
                 ->whereIn('code', $parentCategoryCodes)
                 ->where('is_active', true))
-            ->when($excludeTenantId, fn ($query) => $query->whereKeyNot($excludeTenantId))
+            ->when($excludeTenantId, fn ($query) => $query->whereKey('<>', $excludeTenantId))
             ->orderBy('name')
             ->get(['id', 'name', 'province', 'city', 'district', 'village']);
     }
