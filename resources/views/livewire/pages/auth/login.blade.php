@@ -104,13 +104,31 @@ $login = function (): void {
                 <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
                 <a href="{{ route('password.request') }}" class="shrink-0 text-xs font-medium text-yellow-600 hover:text-yellow-500 dark:text-yellow-400">Lupa password?</a>
             </div>
-            <input
-                wire:model="password"
-                id="password"
-                type="password"
-                autocomplete="current-password"
-                class="block h-11 w-full rounded-xl border border-gray-300 bg-white px-3.5 text-sm text-gray-900 shadow-sm outline-none transition placeholder:text-gray-400 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500"
-                placeholder="Masukkan password">
+
+            <div x-data="{ showPassword: false }" class="relative">
+                <input
+                    wire:model="password"
+                    id="password"
+                    x-bind:type="showPassword ? 'text' : 'password'"
+                    autocomplete="current-password"
+                    class="block h-11 w-full rounded-xl border border-gray-300 bg-white px-3.5 pr-12 text-sm text-gray-900 shadow-sm outline-none transition placeholder:text-gray-400 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500"
+                    placeholder="Masukkan password">
+
+                <button
+                    type="button"
+                    x-on:click="showPassword = !showPassword"
+                    x-bind:aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'"
+                    class="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl text-gray-500 transition hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-yellow-400 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                    <svg x-show="!showPassword" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-5 w-5" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.644C3.423 7.51 7.36 5 12 5c4.64 0 8.577 2.51 9.964 6.678.07.21.07.434 0 .644C20.577 16.49 16.64 19 12 19c-4.64 0-8.577-2.51-9.964-6.678ZM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    </svg>
+                    <svg x-show="showPassword" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-5 w-5" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m3 3 18 18M10.584 10.587a2 2 0 0 0 2.829 2.829M9.88 5.09A9.953 9.953 0 0 1 12 5c4.64 0 8.577 2.51 9.964 6.678a1.012 1.012 0 0 1 0 .644 10.035 10.035 0 0 1-4.132 5.27M6.228 6.228A10.052 10.052 0 0 0 2.036 11.678a1.012 1.012 0 0 0 0 .644C3.423 16.49 7.36 19 12 19c1.04 0 2.052-.15 3-.43" />
+                    </svg>
+                </button>
+            </div>
+
             @error('password')
                 <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
             @enderror
