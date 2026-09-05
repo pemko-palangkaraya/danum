@@ -32,6 +32,5 @@ authorityKeyIdentifier = keyid,issuer
 [ v3_signer ]
 basicConstraints = critical,CA:FALSE
 keyUsage = critical,digitalSignature,nonRepudiation
-extendedKeyUsage = critical,emailProtection
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid,issuer
