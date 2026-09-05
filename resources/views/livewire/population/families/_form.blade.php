@@ -61,18 +61,68 @@
                         @error('alamat') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
 
-                    @foreach([['rt','RT'],['rw','RW'],['kelurahan','Kelurahan'],['kecamatan','Kecamatan'],['kabupaten_kota','Kabupaten/Kota'],['provinsi','Provinsi'],['kode_pos','Kode Pos']] as [$field, $label])
+                    @foreach([['rt','RT'],['rw','RW']] as [$field, $label])
                         <div>
                             <label class="text-sm font-medium text-slate-700">{{ $label }}</label>
                             <input wire:model="{{ $field }}" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">
                             @error($field) <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
                     @endforeach
+
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Provinsi</label>
+                        <select wire:model.live="provinsi" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">
+                            <option value="">Pilih provinsi</option>
+                            @foreach($locationProvinces as $location)
+                                <option value="{{ $location }}">{{ $location }}</option>
+                            @endforeach
+                        </select>
+                        @error('provinsi') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Kabupaten/Kota</label>
+                        <select wire:model.live="kabupaten_kota" @disabled($provinsi === '') class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm disabled:bg-slate-50 disabled:text-slate-400">
+                            <option value="">{{ $provinsi === '' ? 'Pilih provinsi dahulu' : 'Pilih kabupaten/kota' }}</option>
+                            @foreach($locationCities as $location)
+                                <option value="{{ $location }}">{{ $location }}</option>
+                            @endforeach
+                        </select>
+                        @error('kabupaten_kota') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Kecamatan</label>
+                        <select wire:model.live="kecamatan" @disabled($kabupaten_kota === '') class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm disabled:bg-slate-50 disabled:text-slate-400">
+                            <option value="">{{ $kabupaten_kota === '' ? 'Pilih kabupaten/kota dahulu' : 'Pilih kecamatan' }}</option>
+                            @foreach($locationDistricts as $location)
+                                <option value="{{ $location }}">{{ $location }}</option>
+                            @endforeach
+                        </select>
+                        @error('kecamatan') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Kelurahan/Desa</label>
+                        <select wire:model.live="kelurahan" @disabled($kecamatan === '') class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm disabled:bg-slate-50 disabled:text-slate-400">
+                            <option value="">{{ $kecamatan === '' ? 'Pilih kecamatan dahulu' : 'Pilih kelurahan/desa' }}</option>
+                            @foreach($locationVillages as $location)
+                                <option value="{{ $location }}">{{ $location }}</option>
+                            @endforeach
+                        </select>
+                        @error('kelurahan') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Kode Pos</label>
+                        <input wire:model="kode_pos" inputmode="numeric" maxlength="10" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">
+                        @error('kode_pos') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
                 </div>
             </div>
 
             <div class="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
-                <p class="text-xs text-slate-500">Pastikan No. KK dan alamat sudah benar sebelum menyimpan.</p>
+                <p class="text-xs text-slate-500">Pilihan wilayah mengikuti master wilayah yang terdaftar pada sistem.</p>
                 <div class="flex gap-3">
                     <button type="button" wire:click="resetForm" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Batal</button>
                     <button type="submit" wire:loading.attr="disabled" wire:target="save" class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">
