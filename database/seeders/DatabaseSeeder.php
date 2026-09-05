@@ -109,6 +109,10 @@ class DatabaseSeeder extends Seeder
             'status' => UserStatus::ACTIVE,
             'tenant_id' => $tenant->id,
         ]);
+
+        // Every seeded tenant must have an administrator so the tenant edit
+        // form can expose its Initial Administrator section consistently.
+        $this->call(TenantAdministratorSeeder::class);
     }
 
     private function ensureSystemRole(string $slug, string $name): Role
