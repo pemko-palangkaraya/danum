@@ -19,7 +19,10 @@
             @endforeach
 
             <x-ui.population-location
-                :tenant-id="$citizen->tenant_id"
+                :provinces="$locationOptions['provinces']"
+                :cities="$locationOptions['cities']"
+                :districts="$locationOptions['districts']"
+                :villages="$locationOptions['villages']"
                 :province="$provinsi"
                 :city="$kabupaten_kota"
                 :district="$kecamatan"
