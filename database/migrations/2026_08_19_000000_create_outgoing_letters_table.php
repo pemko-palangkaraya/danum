@@ -21,6 +21,7 @@ return new class extends Migration
             $table->text('content');
             $table->date('issued_at')->nullable();
             $table->string('status', 20);
+            $table->string('unsigned_pdf_path')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
