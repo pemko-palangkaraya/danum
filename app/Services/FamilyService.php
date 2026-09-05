@@ -86,6 +86,17 @@ class FamilyService
 
         $data = Validator::make($input, $this->rules($tenantId, $editingId))->validate();
 
+        if (! app(PopulationLocationService::class)->exists(
+            $data['provinsi'],
+            $data['kabupaten_kota'],
+            $data['kecamatan'],
+            $data['kelurahan'],
+        )) {
+            throw ValidationException::withMessages([
+                'kelurahan' => 'Kombinasi provinsi, kabupaten/kota, kecamatan, dan kelurahan tidak terdaftar pada master wilayah.',
+            ]);
+        }
+
         if (! empty($data['head_citizen_id'])) {
             $this->findCitizen($tenantId, $data['head_citizen_id']);
         }
