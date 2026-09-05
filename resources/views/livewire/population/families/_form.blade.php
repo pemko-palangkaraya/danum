@@ -74,9 +74,11 @@
                         :cities="$locationOptions['cities']"
                         :districts="$locationOptions['districts']"
                         :villages="$locationOptions['villages']"
+                        :locks="$locationOptions['locks']"
                         :province="$provinsi"
                         :city="$kabupaten_kota"
                         :district="$kecamatan"
+                        :village="$kelurahan"
                     />
                 </div>
             </div>
