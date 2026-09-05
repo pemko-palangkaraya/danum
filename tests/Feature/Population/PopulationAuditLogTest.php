@@ -6,6 +6,7 @@ namespace Tests\Feature\Population;
 
 use App\Models\AuditLog;
 use App\Models\Citizen;
+use App\Models\CitizenAddress;
 use App\Models\Family;
 use App\Models\FamilyMember;
 use App\Models\Tenant;
@@ -60,6 +61,39 @@ class PopulationAuditLogTest extends TestCase
 
         $this->assertSame('Warga Audit', $updateLog->old_values['nama_lengkap']);
         $this->assertSame('Warga Audit Updated', $updateLog->new_values['nama_lengkap']);
+    }
+
+    public function test_citizen_address_creation_is_audited(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->tenantAdmin($tenant)->create();
+        Auth::login($user);
+        $citizen = Citizen::factory()->forTenant($tenant)->create();
+
+        $mock = $this->mock(PopulationLocationService::class);
+        $mock->shouldReceive('existsForTenant')->andReturnTrue();
+        $this->app->instance(PopulationLocationService::class, $mock);
+
+        $address = app(CitizenService::class)->addAddress($citizen, [
+            'alamat' => 'Jl. Audit',
+            'rt' => '001',
+            'rw' => '002',
+            'kelurahan' => 'Pahandut',
+            'kecamatan' => 'Pahandut',
+            'kabupaten_kota' => 'Palangka Raya',
+            'provinsi' => 'Kalimantan Tengah',
+            'kode_pos' => '73111',
+            'jenis_alamat' => 'domisili',
+            'berlaku_mulai' => '2026-09-01',
+        ]);
+
+        $this->assertInstanceOf(CitizenAddress::class, $address);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'population.citizen_address.created',
+            'auditable_type' => CitizenAddress::class,
+            'auditable_id' => $address->id,
+            'tenant_id' => $tenant->id,
+        ]);
     }
 
     public function test_family_create_and_update_are_audited(): void
