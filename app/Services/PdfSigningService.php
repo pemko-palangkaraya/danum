@@ -51,9 +51,6 @@ class PdfSigningService
             $certificate->loadMissing('user.tenant');
             $tenantName = trim((string) $certificate->user?->tenant?->name);
 
-            // tc-lib-pdf keeps these metadata timestamps protected. Set them from an
-            // anonymous subclass so the signing instant is controlled without relying
-            // on a version-specific public setter.
             $previousTimezone = date_default_timezone_get();
             $applicationTimezone = (string) config('app.timezone', 'UTC');
             date_default_timezone_set($applicationTimezone);
@@ -136,7 +133,8 @@ class PdfSigningService
                 'exception_line' => $exception->getLine(),
             ]);
 
-            throw $exception;
+            if ($exception instanceof \DomainException) throw $exception;
+            throw new \DomainException('TTE gagal pada tahap ' . $stage . ': ' . $exception->getMessage(), previous: $exception);
         } finally {
             unset($privateKeyPem);
         }
