@@ -20,7 +20,6 @@ class DashboardService
         $isSuperAdmin = $user->isSuperAdmin();
         $tenantId = $isSuperAdmin ? null : $user->tenant_id;
         $tenantName = $user->tenant?->name ?? 'Seluruh Tenant';
-
         $letters = OutgoingLetter::query()->when($tenantId, fn (Builder $query) => $query->where('tenant_id', $tenantId));
         $stats = $this->letterStats($letters, $user, $isSuperAdmin);
         $population = $user->hasPermission('population.view')
@@ -108,10 +107,10 @@ class DashboardService
         $percent = static fn (int $value): string => $total > 0 ? number_format(($value / $total) * 100, 1).'%' : '0.0%';
 
         return [
-            ['label' => 'Total penduduk', 'value' => $population['totalCitizens'], 'hint' => 'Warga terdata', 'tone' => 'indigo'],
-            ['label' => 'Total KK', 'value' => $population['totalFamilies'], 'hint' => 'Kartu keluarga', 'tone' => 'violet'],
-            ['label' => 'Laki-laki', 'value' => $population['male'], 'hint' => $percent((int) $population['male']).' dari penduduk', 'tone' => 'cyan'],
-            ['label' => 'Perempuan', 'value' => $population['female'], 'hint' => $percent((int) $population['female']).' dari penduduk', 'tone' => 'pink'],
+            ['label' => 'Total penduduk', 'value' => $population['totalCitizens'], 'hint' => 'Warga terdata', 'class' => 'bg-gradient-to-br from-indigo-50/60 to-white', 'accent' => 'text-indigo-600'],
+            ['label' => 'Total KK', 'value' => $population['totalFamilies'], 'hint' => 'Kartu keluarga', 'class' => 'bg-gradient-to-br from-violet-50/60 to-white', 'accent' => 'text-violet-600'],
+            ['label' => 'Laki-laki', 'value' => $population['male'], 'hint' => $percent((int) $population['male']).' dari penduduk', 'class' => 'bg-gradient-to-br from-cyan-50/60 to-white', 'accent' => 'text-cyan-600'],
+            ['label' => 'Perempuan', 'value' => $population['female'], 'hint' => $percent((int) $population['female']).' dari penduduk', 'class' => 'bg-gradient-to-br from-pink-50/60 to-white', 'accent' => 'text-pink-600'],
         ];
     }
 
