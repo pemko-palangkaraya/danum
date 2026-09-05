@@ -71,7 +71,7 @@ class TenantService
             ->whereHas('category', fn ($query) => $query
                 ->whereIn('code', $parentCategoryCodes)
                 ->where('is_active', true))
-            ->when($excludeTenantId, fn ($query) => $query->whereKey('<>', $excludeTenantId))
+            ->when($excludeTenantId, fn ($query) => $query->where('id', '<>', $excludeTenantId))
             ->orderBy('name')
             ->get(['id', 'name', 'province', 'city', 'district', 'village']);
     }
