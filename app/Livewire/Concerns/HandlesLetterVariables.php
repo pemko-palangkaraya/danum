@@ -37,6 +37,11 @@ trait HandlesLetterVariables
         'nama_pasangan',
     ];
 
+    private const INDONESIAN_MONTHS = [
+        1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr', 5 => 'Mei', 6 => 'Jun',
+        7 => 'Jul', 8 => 'Agu', 9 => 'Sep', 10 => 'Okt', 11 => 'Nov', 12 => 'Des',
+    ];
+
     public ?string $citizen_id = null;
 
     public function addRepeaterRow(string $key): void
@@ -122,18 +127,23 @@ trait HandlesLetterVariables
             return;
         }
 
+        $normalized = $this->normalizeIndonesianDate($value);
+        if ($normalized !== null) {
+            $this->variableValues[$key] = $normalized;
+        }
+
         $citizen = Citizen::query()
             ->where('tenant_id', auth()->user()?->tenant_id)
             ->whereKey($this->citizen_id)
             ->first();
 
-        if (! $citizen || ! $citizen->tanggal_lahir || blank($value)) {
+        if (! $citizen || ! $citizen->tanggal_lahir || $normalized === null) {
             $this->variableValues['recipient_age'] = '';
             return;
         }
 
         try {
-            $age = Carbon::parse($citizen->tanggal_lahir)->diffInYears(Carbon::parse((string) $value), false);
+            $age = Carbon::parse($citizen->tanggal_lahir)->diffInYears(Carbon::parse($normalized), false);
             $this->variableValues['recipient_age'] = $age >= 0 ? (string) $age : '';
         } catch (\Throwable) {
             $this->variableValues['recipient_age'] = '';
@@ -198,7 +208,7 @@ trait HandlesLetterVariables
             }
 
             if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $value)) {
-                $this->addError('variableValues.' . $variable, 'Format tanggal tidak valid.');
+                $this->addError('variableValues.' . $variable, 'Format tanggal tidak valid. Gunakan dd mmm yyyy, misalnya 06 Sep 2026.');
                 continue;
             }
 
@@ -266,7 +276,7 @@ trait HandlesLetterVariables
             'citizen_nama_lengkap' => $citizen->nama_lengkap,
             'citizen_tempat_lahir' => $citizen->tempat_lahir,
             'citizen_tanggal_lahir' => $date($citizen->tanggal_lahir),
-            'citizen_jenis_kelamin' => $citizen->jenis_kelamin,
+            'citizen_jenis_kelamin' => $this->formatGender($citizen->jenis_kelamin),
             'citizen_golongan_darah' => $citizen->golongan_darah,
             'citizen_agama' => $citizen->agama,
             'citizen_status_perkawinan' => $citizen->status_perkawinan,
@@ -282,7 +292,7 @@ trait HandlesLetterVariables
             'citizen_status_kependudukan' => $citizen->status_kependudukan,
             'recipient_name' => $citizen->nama_lengkap,
             'recipient_nik' => $citizen->nik,
-            'recipient_gender' => $citizen->jenis_kelamin,
+            'recipient_gender' => $this->formatGender($citizen->jenis_kelamin),
             'recipient_birth_place' => $citizen->tempat_lahir,
             'recipient_birth_date' => $date($citizen->tanggal_lahir),
             'recipient_religion' => $citizen->agama,
@@ -300,6 +310,19 @@ trait HandlesLetterVariables
         }
 
         $family = $this->familyForCitizen($citizen);
+        $values['nama_pasangan'] = '-';
+
+        foreach ($this->variables as $variable) {
+            $definition = is_string($variable) ? LetterVariableSchema::parseRepeater($variable) : null;
+            if ($definition && $definition['key'] === 'anak_ditinggalkan') {
+                $this->variableValues[$definition['key']] = [[
+                    'nomor' => '1',
+                    'nama' => '-',
+                ]];
+                break;
+            }
+        }
+
         if ($family) {
             $values['recipient_address'] = $this->formatFamilyAddress($family);
 
@@ -312,7 +335,7 @@ trait HandlesLetterVariables
                 return in_array($relationship, ['suami', 'istri', 'pasangan'], true);
             });
 
-            $values['nama_pasangan'] = (string) ($spouse?->citizen?->nama_lengkap ?? '');
+            $values['nama_pasangan'] = (string) ($spouse?->citizen?->nama_lengkap ?: '-');
 
             foreach ($this->variables as $variable) {
                 $definition = is_string($variable) ? LetterVariableSchema::parseRepeater($variable) : null;
@@ -324,12 +347,14 @@ trait HandlesLetterVariables
                     ->filter(fn ($member): bool => mb_strtolower(trim((string) $member->hubungan_dalam_keluarga)) === 'anak')
                     ->values();
 
-                $this->variableValues[$definition['key']] = $children->map(function ($member, int $index): array {
-                    return [
-                        'nomor' => (string) ($index + 1),
-                        'nama' => (string) ($member->citizen?->nama_lengkap ?? ''),
-                    ];
-                })->all();
+                $this->variableValues[$definition['key']] = $children->isEmpty()
+                    ? [['nomor' => '1', 'nama' => '-']]
+                    : $children->map(function ($member, int $index): array {
+                        return [
+                            'nomor' => (string) ($index + 1),
+                            'nama' => (string) ($member->citizen?->nama_lengkap ?: '-'),
+                        ];
+                    })->all();
                 break;
             }
         }
@@ -372,6 +397,69 @@ trait HandlesLetterVariables
     public function isReadOnlyVariable(string $variable): bool
     {
         return $this->isSystemVariable($variable) || $this->isDeathAutofilledVariable($variable);
+    }
+
+    public function formatIndonesianDate($value): string
+    {
+        if (blank($value)) {
+            return '';
+        }
+
+        try {
+            $date = Carbon::parse((string) $value);
+            return $date->format('d').' '.self::INDONESIAN_MONTHS[(int) $date->format('n')].' '.$date->format('Y');
+        } catch (\Throwable) {
+            return (string) $value;
+        }
+    }
+
+    private function normalizeIndonesianDate($value): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return $value;
+        }
+
+        if (! preg_match('/^(\d{1,2})\s+([A-Za-z]{3,4})\s+(\d{4})$/u', $value, $matches)) {
+            return null;
+        }
+
+        $monthMap = array_change_key_case(array_flip(self::INDONESIAN_MONTHS), CASE_LOWER);
+        $month = $monthMap[mb_strtolower($matches[2])]
+            ?? $this->englishMonthNumber($matches[2]);
+
+        if (! $month) {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('!j-n-Y', $matches[1].'-'.$month.'-'.$matches[3])->format('Y-m-d');
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function englishMonthNumber(string $month): ?int
+    {
+        $months = [
+            'jan' => 1, 'feb' => 2, 'mar' => 3, 'apr' => 4, 'may' => 5, 'jun' => 6,
+            'jul' => 7, 'aug' => 8, 'sep' => 9, 'oct' => 10, 'nov' => 11, 'dec' => 12,
+        ];
+
+        return $months[mb_strtolower(substr(trim($month), 0, 3))] ?? null;
+    }
+
+    private function formatGender($value): string
+    {
+        return match (mb_strtolower(trim((string) $value))) {
+            'male', 'laki-laki', 'laki laki', 'l' => 'Laki-laki',
+            'female', 'perempuan', 'p' => 'Perempuan',
+            default => (string) $value,
+        };
     }
 
     private function isSystemVariable(string $variable): bool
