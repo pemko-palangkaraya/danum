@@ -43,12 +43,16 @@ class PopulationDemoSeeder extends Seeder
         ));
 
         foreach (range(1, 200) as $familyNumber) {
+            // Setiap KK ke-10 sengaja dibuat tanpa pasangan dan anak agar
+            // alur Surat Keterangan Kematian juga teruji untuk data kosong.
+            $withoutFamilyMembers = $familyNumber % 10 === 0;
+
             $head = Citizen::factory()
                 ->forTenant($tenant)
                 ->male()
                 ->state([
                     'tanggal_lahir' => fake()->dateTimeBetween('-65 years', '-30 years')->format('Y-m-d'),
-                    'status_perkawinan' => 'married',
+                    'status_perkawinan' => $withoutFamilyMembers ? 'single' : 'married',
                 ])
                 ->create();
 
@@ -72,6 +76,10 @@ class PopulationDemoSeeder extends Seeder
                 ->relation('head')
                 ->state(['urutan' => 1])
                 ->create();
+
+            if ($withoutFamilyMembers) {
+                continue;
+            }
 
             $spouse = Citizen::factory()
                 ->forTenant($tenant)
@@ -109,7 +117,7 @@ class PopulationDemoSeeder extends Seeder
             }
         }
 
-        $this->command?->info('Selesai: 200 KK demo beserta anggota keluarga berhasil dibuat.');
+        $this->command?->info('Selesai: 200 KK demo beserta anggota keluarga berhasil dibuat. Setiap KK ke-10 tanpa pasangan dan anak untuk pengujian isian "-".');
     }
 
     private function tenantLocation(Tenant $tenant): array
