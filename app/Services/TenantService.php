@@ -41,6 +41,14 @@ class TenantService
         return $this->tenantRepository->search($search, $onlyDeleted, $perPage);
     }
 
+    public function categories(): Collection
+    {
+        return TenantCategory::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get(['id', 'name', 'code']);
+    }
+
     public function parentOptions(?string $categoryId = null, ?string $excludeTenantId = null): Collection
     {
         $categoryCode = $categoryId !== null && $categoryId !== ''
