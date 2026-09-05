@@ -21,6 +21,7 @@ class OutgoingLetterIssuanceService
         private readonly OutgoingLetterStatusHistoryRepositoryInterface $historyRepository,
         private readonly AuditLogService $auditLogService,
         private readonly DocxPdfService $docxPdfService,
+        private readonly DocxTteService $docxTteService,
         private readonly PdfSigningService $pdfSigningService,
         private readonly SignerPinService $signerPinService,
     ) {}
@@ -49,6 +50,10 @@ class OutgoingLetterIssuanceService
             'valid_until' => null,
             'signing_note' => $note,
             'status' => OutgoingLetterStatus::ISSUED,
+            'signed_pdf_path' => null,
+            'signature_certificate_id' => null,
+            'signature_profile' => null,
+            'signed_at' => null,
         ];
         $period = $letterType?->validity_period ?? 'none';
         if ($period !== 'none') {
@@ -63,14 +68,24 @@ class OutgoingLetterIssuanceService
             };
         }
 
-        $unsignedPdfPath = $this->docxPdfService->convert((string) $letter->generated_docx_path);
+        $sourceDocxPath = Storage::disk('local')->path($letter->generated_docx_path);
+        $verificationUrl = url('/verify/' . $letter->verification_token);
+        $temporaryDocx = null;
+        $unsignedPdfPath = null;
         $signedPdfPath = null;
 
         try {
+            $temporaryDocx = $this->docxTteService->createIssuedCopy(
+                $sourceDocxPath,
+                $verificationUrl,
+                $signWithTte ? 'tte' : 'qr',
+            );
+            $unsignedPdfPath = $this->docxPdfService->convert($temporaryDocx);
+
             if ($signWithTte) {
                 $signerCertificate = $this->resolveSignerCertificate($letter);
                 $signedPdfPath = $this->pdfSigningService->sign(
-                    sourcePdfPath: $unsignedPdfPath,
+                    sourcePdfPath: Storage::disk('local')->path($unsignedPdfPath),
                     certificate: $signerCertificate,
                     signerName: (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $signerCertificate->user()->value('name')),
                     reason: $note,
@@ -104,9 +119,11 @@ class OutgoingLetterIssuanceService
 
             return $letter;
         } catch (\Throwable $e) {
-            Storage::disk('local')->delete($unsignedPdfPath);
+            if ($unsignedPdfPath !== null) Storage::disk('local')->delete($unsignedPdfPath);
             if ($signedPdfPath !== null) Storage::disk('local')->delete($signedPdfPath);
             throw $e;
+        } finally {
+            if ($temporaryDocx !== null) @unlink($temporaryDocx);
         }
     }
 
@@ -117,12 +134,8 @@ class OutgoingLetterIssuanceService
         if ($letter->status !== OutgoingLetterStatus::ISSUED) throw new \DomainException('Hanya surat yang sudah diterbitkan yang dapat ditandatangani secara elektronik.');
         if ($letter->signer_user_id !== $changedBy) throw new \DomainException('Hanya penanda tangan yang ditentukan untuk surat ini yang dapat menandatangani surat.');
         if (blank($pin)) throw new \DomainException('PIN penandatangan wajib diisi.');
-        if (blank($letter->unsigned_pdf_path) || ! Storage::disk('local')->exists($letter->unsigned_pdf_path)) {
-            throw new \DomainException('PDF final surat belum tersedia untuk TTE.');
-        }
-        if (filled($letter->signed_pdf_path) && Storage::disk('local')->exists($letter->signed_pdf_path)) {
-            throw new \DomainException('Surat ini sudah memiliki tanda tangan elektronik.');
-        }
+        if (blank($letter->unsigned_pdf_path) || ! Storage::disk('local')->exists($letter->unsigned_pdf_path)) throw new \DomainException('PDF final surat belum tersedia untuk TTE.');
+        if (filled($letter->signed_pdf_path) && Storage::disk('local')->exists($letter->signed_pdf_path)) throw new \DomainException('Surat ini sudah memiliki tanda tangan elektronik.');
 
         $signer = User::query()->findOrFail($changedBy);
         $this->signerPinService->verify($signer, $pin);
@@ -161,9 +174,7 @@ class OutgoingLetterIssuanceService
         $certificate = null;
         if ($letter->signature_certificate_id !== null) {
             $certificate = SignerCertificate::query()->find($letter->signature_certificate_id);
-            if ($certificate && ($certificate->position_id !== $letter->signer_position_id || $certificate->user_id !== $letter->signer_user_id)) {
-                throw new \DomainException('Sertifikat TTE tidak sesuai dengan penanda tangan surat.');
-            }
+            if ($certificate && ($certificate->position_id !== $letter->signer_position_id || $certificate->user_id !== $letter->signer_user_id)) throw new \DomainException('Sertifikat TTE tidak sesuai dengan penanda tangan surat.');
         }
         if ($certificate === null || ! $certificate->isUsable()) {
             $certificate = SignerCertificate::query()
@@ -176,21 +187,13 @@ class OutgoingLetterIssuanceService
                 ->latest('created_at')
                 ->first();
         }
-        if (! $certificate || ! $certificate->isUsable()) {
-            throw new \DomainException('Sertifikat TTE aktif penanda tangan belum tersedia atau sudah tidak berlaku.');
-        }
+        if (! $certificate || ! $certificate->isUsable()) throw new \DomainException('Sertifikat TTE aktif penanda tangan belum tersedia atau sudah tidak berlaku.');
         return $certificate;
     }
 
     private function recordHistory(OutgoingLetter $letter, string $action, int $changedBy, ?string $note = null): void
     {
-        $this->historyRepository->create([
-            'outgoing_letter_id' => $letter->id,
-            'changed_by' => $changedBy,
-            'status' => $letter->status,
-            'action' => $action,
-            'note' => $note,
-        ]);
+        $this->historyRepository->create(['outgoing_letter_id' => $letter->id, 'changed_by' => $changedBy, 'status' => $letter->status, 'action' => $action, 'note' => $note]);
     }
 
     private function recordAudit(string $action, OutgoingLetter $letter, ?int $actorId, ?array $oldValues, ?array $newValues): void
