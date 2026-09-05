@@ -13,10 +13,10 @@
 
         <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             @foreach ($populationCards as $card)
-                <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-{{ $card['tone'] }}-50/60 to-white p-5">
+                <div class="rounded-2xl border border-slate-200 {{ $card['class'] }} p-5">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $card['label'] }}</p>
                     <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ number_format($card['value']) }}</p>
-                    <p class="mt-1 text-xs text-{{ $card['tone'] }}-600">{{ $card['hint'] }}</p>
+                    <p class="mt-1 text-xs {{ $card['accent'] }}">{{ $card['hint'] }}</p>
                 </div>
             @endforeach
         </div>
