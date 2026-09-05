@@ -44,10 +44,26 @@ class PasswordChangeUiTest extends TestCase
             ->set('newPasswordConfirmation', 'new-password')
             ->call('save')
             ->assertHasErrors(['currentPassword'])
-            ->assertDispatched('toast', type: 'error', message: 'Password gagal diubah. Periksa password saat ini.');
+            ->assertDispatched('toast', type: 'error', message: 'Password gagal diubah. Periksa kembali data yang diisi.');
 
         $storedPassword = $user->fresh()->password;
         $this->assertTrue(Hash::check('old-password', $storedPassword));
         $this->assertFalse(Hash::check('new-password', $storedPassword));
+    }
+
+    public function test_authenticated_user_sees_error_toast_for_form_validation_failure(): void
+    {
+        $user = User::factory()->create(['password' => 'old-password']);
+
+        Livewire::actingAs($user)
+            ->test(Password::class)
+            ->set('currentPassword', 'old-password')
+            ->set('newPassword', 'short')
+            ->set('newPasswordConfirmation', 'short')
+            ->call('save')
+            ->assertHasErrors(['newPassword'])
+            ->assertDispatched('toast', type: 'error', message: 'Password gagal diubah. Periksa kembali data yang diisi.');
+
+        $this->assertTrue(Hash::check('old-password', $user->fresh()->password));
     }
 }
