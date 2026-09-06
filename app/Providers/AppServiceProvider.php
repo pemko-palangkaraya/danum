@@ -20,7 +20,9 @@ use App\Repositories\OutgoingLetterRepository;
 use App\Repositories\OutgoingLetterStatusHistoryRepository;
 use App\Repositories\PositionRepository;
 use App\Repositories\PositionHolderRepository;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -37,6 +39,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Livewire::setUpdateRoute(function ($handle, ?string $path = null) {
+            return Route::post($path ?? '/livewire/update', $handle)->middleware('web');
+        });
+
         OutgoingLetter::observe(OutgoingLetterObserver::class);
     }
 }
