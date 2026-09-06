@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 class PopulationStatisticsService
 {
+    public function __construct(private readonly PopulationReferenceService $references) {}
+
     public function tenants(): Collection
     {
         return Tenant::query()->orderBy('name')->get(['id', 'name', 'code']);
@@ -30,6 +32,14 @@ class PopulationStatisticsService
         $ageGroups = $this->buildAgeGroups($livingCitizens);
         $classifiedAge = (int) $ageGroups->sum('total');
 
+        $marital = (clone $livingCitizens)
+            ->select('status_perkawinan', DB::raw('count(*) as total'))
+            ->groupBy('status_perkawinan')
+            ->pluck('total', 'status_perkawinan')
+            ->mapWithKeys(fn ($total, $code) => [
+                $this->references->label('marital_status', $code, (string) $code) => (int) $total,
+            ]);
+
         return [
             'totalCitizens' => $totalCitizens,
             'totalFamilies' => (clone $families)->count(),
@@ -42,7 +52,7 @@ class PopulationStatisticsService
             'male' => $this->genderCount($gender, 'male'),
             'female' => $this->genderCount($gender, 'female'),
             'gender' => $gender,
-            'marital' => (clone $livingCitizens)->select('status_perkawinan', DB::raw('count(*) as total'))->groupBy('status_perkawinan')->pluck('total', 'status_perkawinan'),
+            'marital' => $marital,
             'occupations' => (clone $livingCitizens)->select('pekerjaan', DB::raw('count(*) as total'))->whereNotNull('pekerjaan')->whereRaw("TRIM(pekerjaan) <> ''")->groupBy('pekerjaan')->orderByDesc('total')->limit(8)->pluck('total', 'pekerjaan'),
             'ageGroups' => $ageGroups,
             'toddlers' => $this->countAgeRange($livingCitizens, 0, 5),
