@@ -21,8 +21,18 @@ class CitizenImportService
 {
     private const DUPLICATE_MODES = ['skip', 'update'];
 
+    private const REFERENCE_FIELDS = [
+        'jenis_kelamin' => 'gender',
+        'golongan_darah' => 'blood_type',
+        'agama' => 'religion',
+        'status_perkawinan' => 'marital_status',
+        'kewarganegaraan' => 'citizenship',
+        'status_kependudukan' => 'population_status',
+    ];
+
     public function __construct(
         private readonly AuditLogService $auditLogService,
+        private readonly PopulationReferenceService $references,
     ) {}
 
     public function tenantExists(string $tenantId): bool
@@ -76,6 +86,7 @@ class CitizenImportService
         }
 
         $rows = $this->normalizeRows($raw, $headerMap);
+        $this->normalizeReferenceValues($rows);
         $this->markFileDuplicates($rows);
 
         $niks = array_values(array_unique(array_filter(array_column($rows, 'nik'))));
@@ -118,6 +129,7 @@ class CitizenImportService
     {
         $this->validateTenant($tenantId);
         $this->validateDuplicateMode($duplicateMode);
+        $this->normalizeReferenceValues($rows);
 
         if ($rows === []) {
             return 0;
@@ -217,8 +229,13 @@ class CitizenImportService
             'tanggal_lahir' => ['nullable', 'date'],
             'jenis_kelamin' => ['nullable', 'in:male,female'],
             'golongan_darah' => ['nullable', 'in:A,B,AB,O,unknown'],
+            'agama' => ['nullable', 'string', 'max:40'],
+            'status_perkawinan' => ['nullable', 'string', 'max:30'],
+            'kewarganegaraan' => ['nullable', 'string', 'max:50'],
+            'status_kependudukan' => ['nullable', 'string', 'max:30'],
             'nik_ayah' => ['nullable', 'digits:16'],
             'nik_ibu' => ['nullable', 'digits:16'],
+            'tanggal_meninggal' => ['nullable', 'date', 'after_or_equal:tanggal_lahir', 'before_or_equal:today'],
         ];
     }
 
@@ -309,6 +326,23 @@ class CitizenImportService
         return $rows;
     }
 
+    private function normalizeReferenceValues(array &$rows): void
+    {
+        foreach ($rows as &$row) {
+            foreach (self::REFERENCE_FIELDS as $field => $group) {
+                if (! array_key_exists($field, $row) || trim((string) $row[$field]) === '') {
+                    continue;
+                }
+
+                $code = $this->references->codeForValue($group, (string) $row[$field]);
+                if ($code !== null) {
+                    $row[$field] = $code;
+                }
+            }
+        }
+        unset($row);
+    }
+
     private function markFileDuplicates(array &$rows): void
     {
         $seen = [];
@@ -358,6 +392,7 @@ class CitizenImportService
             'nama ibu' => 'nama_ibu',
             'nik ibu' => 'nik_ibu',
             'status kependudukan' => 'status_kependudukan',
+            'tanggal meninggal' => 'tanggal_meninggal',
         ];
     }
 }
