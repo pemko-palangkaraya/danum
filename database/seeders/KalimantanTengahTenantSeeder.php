@@ -18,12 +18,19 @@ class KalimantanTengahTenantSeeder extends Seeder
     private const PALANGKA_RAYA_NAME = 'Palangka Raya';
     private const API = 'https://wilayah.id/api';
 
+    /** @var array<string, string> */
+    private const DISTRICT_CODES = [
+        'Pahandut' => 'PHD',
+        'Jekan Raya' => 'JKR',
+        'Sabangau' => 'SBG',
+        'Bukit Batu' => 'BKB',
+        'Rakumpit' => 'RKP',
+    ];
+
     public function run(): void
     {
         $categories = $this->categories();
 
-        // Kalimantan Tengah seed ini adalah sumber master tenant wilayah:
-        // Pemerintah Kota -> Kecamatan -> Kelurahan.
         $regency = collect($this->get('/regencies/'.self::PROVINCE_CODE.'.json'))
             ->firstWhere('code', self::PALANGKA_RAYA_CODE);
 
@@ -35,7 +42,7 @@ class KalimantanTengahTenantSeeder extends Seeder
         $cityName = self::PALANGKA_RAYA_NAME;
 
         $cityTenant = $this->seedTenant(
-            $this->tenantCode($regencyCode),
+            'PLK',
             'Pemerintah Kota '.self::PALANGKA_RAYA_NAME,
             $categories['pemerintah-kota'],
             $cityName,
@@ -46,18 +53,15 @@ class KalimantanTengahTenantSeeder extends Seeder
             null,
         );
 
-        $counts = [
-            'city' => 1,
-            'districts' => 0,
-            'villages' => 0,
-        ];
+        $counts = ['city' => 1, 'districts' => 0, 'villages' => 0];
 
         foreach ($this->get('/districts/'.$regencyCode.'.json') as $district) {
             $districtCode = (string) $district['code'];
             $districtName = (string) $district['name'];
+            $shortDistrictCode = self::DISTRICT_CODES[$districtName] ?? 'K'.substr(str_replace('.', '', $districtCode), -2);
 
             $districtTenant = $this->seedTenant(
-                $this->tenantCode($districtCode),
+                $shortDistrictCode,
                 "Kecamatan {$districtName}",
                 $categories['kecamatan'],
                 $cityName,
@@ -73,15 +77,12 @@ class KalimantanTengahTenantSeeder extends Seeder
                 $villageCode = (string) $village['code'];
                 $villageName = (string) $village['name'];
 
-                // Palangka Raya adalah wilayah perkotaan, sehingga tenant
-                // tingkat wilayah di bawah kecamatan menggunakan kategori kelurahan.
                 $suffix = substr(strrchr($villageCode, '.'), 1);
-                if (!str_starts_with($suffix, '1')) {
-                    continue;
-                }
+                if (!str_starts_with($suffix, '1')) continue;
 
+                $shortVillageCode = $shortDistrictCode.'-'.substr($suffix, -2);
                 $this->seedTenant(
-                    $this->tenantCode($villageCode),
+                    $shortVillageCode,
                     "Kelurahan {$villageName}",
                     $categories['kelurahan'],
                     $cityName,
@@ -124,20 +125,10 @@ class KalimantanTengahTenantSeeder extends Seeder
 
     private function get(string $path): array
     {
-        $response = Http::acceptJson()
-            ->retry(3, 300)
-            ->timeout(30)
-            ->get(self::API.$path);
-
-        if ($response->failed()) {
-            throw new RuntimeException("Gagal mengambil data wilayah: {$response->status()} {$path}");
-        }
-
+        $response = Http::acceptJson()->retry(3, 300)->timeout(30)->get(self::API.$path);
+        if ($response->failed()) throw new RuntimeException("Gagal mengambil data wilayah: {$response->status()} {$path}");
         $data = $response->json('data');
-        if (!is_array($data)) {
-            throw new RuntimeException("Format response wilayah tidak valid: {$path}");
-        }
-
+        if (!is_array($data)) throw new RuntimeException("Format response wilayah tidak valid: {$path}");
         return $data;
     }
 
@@ -172,10 +163,5 @@ class KalimantanTengahTenantSeeder extends Seeder
                 'status' => TenantStatus::ACTIVE,
             ],
         );
-    }
-
-    private function tenantCode(string $regionCode): string
-    {
-        return 'wilayah-'.str_replace('.', '-', $regionCode);
     }
 }
