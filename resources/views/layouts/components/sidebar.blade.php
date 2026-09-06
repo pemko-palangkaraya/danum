@@ -4,7 +4,7 @@
     </div>
 
     <style>
-        /* Keep active navigation consistent across every sidebar entry. */
+        /* Keep section controls and nested navigation consistent. */
         aside nav > div > button {
             position: relative;
             border: 1px solid transparent;
@@ -33,27 +33,6 @@
 
         aside nav > div > button[aria-expanded="true"]::before {
             background: rgb(15 23 42);
-        }
-
-        aside nav a,
-        aside > div.border-t a {
-            transition: background-color .15s ease, border-color .15s ease, color .15s ease, padding-left .15s ease;
-        }
-
-        aside nav a:hover,
-        aside > div.border-t a:hover {
-            background: rgb(241 245 249);
-            color: rgb(15 23 42);
-        }
-
-        aside nav a[href="{{ url()->current() }}"],
-        aside nav a[aria-current="page"],
-        aside > div.border-t a[href="{{ url()->current() }}"],
-        aside > div.border-t a[aria-current="page"] {
-            background: rgb(241 245 249) !important;
-            color: rgb(15 23 42) !important;
-            font-weight: 600;
-            box-shadow: inset 3px 0 0 rgb(15 23 42);
         }
 
         aside nav > div > div {
