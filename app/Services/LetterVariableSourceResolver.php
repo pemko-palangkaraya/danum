@@ -110,7 +110,7 @@ final class LetterVariableSourceResolver
 
         try {
             $age = Carbon::parse($citizen->tanggal_lahir)->diffInYears(Carbon::parse($normalized), false);
-            return $age >= 0 ? (string) $age : '';
+            return $age >= 0 ? (string) floor((float) $age) : '';
         } catch (\Throwable) {
             return '';
         }
