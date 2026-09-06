@@ -36,6 +36,7 @@ class OutgoingLetterAuditLogTest extends TestCase
         $position = Position::factory()->signatory()->create();
         $holder = PositionHolder::factory()->create(['position_id' => $position->id, 'tenant_id' => $letter->tenant_id, 'user_id' => $actor->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
         $letter->update(['signer_position_id' => $position->id, 'signer_user_id' => $holder->user_id, 'generated_docx_path' => 'outgoing-letters/test.docx']);
+        Storage::disk('local')->put('outgoing-letters/test.docx', 'test docx content');
         app(SignerCertificateService::class)->generate($position, $holder, $actor);
 
         $this->app->instance(DocxPdfService::class, Mockery::mock(DocxPdfService::class, function ($mock): void {
