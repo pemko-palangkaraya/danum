@@ -87,10 +87,9 @@
 
                 <x-ui.field label="Status Kependudukan" for="citizen-status-kependudukan" error="{{ $errors->first('status_kependudukan') }}" required>
                     <select id="citizen-status-kependudukan" wire:model="status_kependudukan" class="form-select w-full">
-                        <option value="active">Aktif</option>
-                        <option value="inactive">Tidak Aktif</option>
-                        <option value="deceased">Meninggal</option>
-                        <option value="moved">Pindah</option>
+                        @foreach($references['population_status'] as $reference)
+                            <option value="{{ $reference->code }}">{{ $reference->label }}</option>
+                        @endforeach
                     </select>
                 </x-ui.field>
             </div>
