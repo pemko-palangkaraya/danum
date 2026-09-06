@@ -19,6 +19,7 @@ class LetterVariableDateServiceTest extends TestCase
 
     public function test_it_normalizes_indonesian_date(): void
     {
+        $this->assertSame('2026-09-06', $this->dates->normalize('06 September 2026'));
         $this->assertSame('2026-09-06', $this->dates->normalize('06 Sep 2026'));
         $this->assertSame('2026-05-06', $this->dates->normalize('06 Mei 2026'));
     }
@@ -30,13 +31,14 @@ class LetterVariableDateServiceTest extends TestCase
 
     public function test_it_rejects_invalid_date(): void
     {
-        $this->assertNull($this->dates->normalize('31 Feb 2026'));
+        $this->assertNull($this->dates->normalize('31 Februari 2026'));
         $this->assertNull($this->dates->normalize('tanggal tidak valid'));
     }
 
-    public function test_it_formats_indonesian_date(): void
+    public function test_it_formats_full_indonesian_date(): void
     {
-        $this->assertSame('06 Sep 2026', $this->dates->format('2026-09-06'));
+        $this->assertSame('06 September 2026', $this->dates->format('2026-09-06'));
         $this->assertSame('06 Mei 2026', $this->dates->format('2026-05-06'));
+        $this->assertSame('31 Agustus 2026', $this->dates->format('31 Agu 2026'));
     }
 }
