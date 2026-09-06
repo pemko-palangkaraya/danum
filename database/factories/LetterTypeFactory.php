@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use App\Enums\LetterTypeStatus;
+use App\Models\LetterClassification;
 use App\Models\Tenant;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -15,6 +18,7 @@ class LetterTypeFactory extends Factory
     {
         return [
             'tenant_id' => Tenant::factory(),
+            'letter_classification_id' => LetterClassification::factory(),
             'code' => fake()->unique()->regexify('[A-Z]{2,5}'),
             'name' => fake()->sentence(3),
             'description' => fake()->optional()->paragraph(),
