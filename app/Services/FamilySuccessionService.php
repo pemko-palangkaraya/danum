@@ -33,25 +33,23 @@ final class FamilySuccessionService
 
         $family = $membership->family;
 
-        DB::transaction(function () use ($citizen, $eventDate, $actorId, $family): void {
-            if ($family->head_citizen_id !== $citizen->id) {
-                return;
+        DB::transaction(function () use ($citizen, $eventDate, $actorId, $family, $membership): void {
+            if ($family->head_citizen_id === $citizen->id) {
+                $replacement = $this->findLivingSpouse($family, $citizen->id);
+                if ($replacement !== null) {
+                    $this->promoteSpouse($family, $replacement, $eventDate, $actorId);
+                } elseif ($this->bothParentsAreDead($family, $citizen->id)) {
+                    $child = $this->findOldestLivingChild($family);
+                    if ($child !== null) {
+                        $this->promoteChild($family, $child, $eventDate, $actorId);
+                    }
+                }
             }
 
-            $replacement = $this->findLivingSpouse($family, $citizen->id);
-            if ($replacement !== null) {
-                $this->promoteSpouse($family, $replacement, $eventDate, $actorId);
-                return;
-            }
-
-            if (! $this->bothParentsAreDead($family, $citizen->id)) {
-                return;
-            }
-
-            $child = $this->findOldestLivingChild($family);
-            if ($child !== null) {
-                $this->promoteChild($family, $child, $eventDate, $actorId);
-            }
+            $membership->update([
+                'status' => 'inactive',
+                'tanggal_selesai' => $eventDate,
+            ]);
         });
     }
 
@@ -74,8 +72,9 @@ final class FamilySuccessionService
             return false;
         }
 
-        $spouse = $family->activeMembers()
+        $spouse = $family->members()
             ->where('hubungan_dalam_keluarga', self::SPOUSE)
+            ->whereHas('citizen', fn ($query) => $query->where('tenant_id', $family->tenant_id))
             ->with('citizen')
             ->get()
             ->pluck('citizen')
