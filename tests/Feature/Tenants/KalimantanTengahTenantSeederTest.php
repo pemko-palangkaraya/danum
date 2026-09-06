@@ -41,7 +41,9 @@ class KalimantanTengahTenantSeederTest extends TestCase
             ]),
             '*/districts/62.71.json' => Http::response(['data' => $districts]),
             '*/villages/*' => function ($request) use ($villageResponses) {
-                $code = basename(parse_url($request->url(), PHP_URL_PATH));
+                $path = basename(parse_url($request->url(), PHP_URL_PATH));
+                $code = pathinfo($path, PATHINFO_FILENAME);
+
                 return Http::response(['data' => $villageResponses[$code] ?? []]);
             },
         ]);
