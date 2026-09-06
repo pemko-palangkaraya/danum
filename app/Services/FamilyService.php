@@ -9,6 +9,7 @@ use App\Models\Family;
 use App\Models\FamilyMember;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\PopulationReferenceService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -20,6 +21,7 @@ class FamilyService
     public function __construct(
         private readonly PopulationLocationService $populationLocationService,
         private readonly AuditLogService $auditLogService,
+        private readonly PopulationReferenceService $references,
     ) {}
 
     public function tenants()
@@ -150,6 +152,7 @@ class FamilyService
     {
         $family = $this->findForTenant($tenantId, $familyId);
         $citizen = $this->findCitizen($tenantId, $citizenId);
+        $relationship = $this->references->codeForValue('family_relationship', $relationship) ?? $relationship;
 
         $data = Validator::make(
             ['hubungan_dalam_keluarga' => $relationship, 'status' => $status],
