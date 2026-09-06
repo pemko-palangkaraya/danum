@@ -49,7 +49,10 @@ class OutgoingLetterWorkflowService
 
     public function validate(OutgoingLetter $letter, int $changedBy, ?string $note = null): OutgoingLetter
     {
-        $note = $this->requiredNote($note, 'Catatan verifikasi wajib diisi.');
+        $note = trim((string) $note);
+        if ($note === '') {
+            throw new \DomainException('Catatan verifikasi wajib diisi.');
+        }
 
         if ($letter->status !== OutgoingLetterStatus::DRAFT || $letter->submitted_at === null) {
             throw new \DomainException('Surat belum dikirim untuk verifikasi.');
@@ -121,16 +124,6 @@ class OutgoingLetterWorkflowService
         $this->recordAudit('outgoing_letter.cancelled', $letter, $changedBy, $oldValues, $this->auditValues($letter));
 
         return $letter;
-    }
-
-    private function requiredNote(?string $note, string $message): string
-    {
-        $note = trim((string) ($note ?? request()->input('note', '')));
-        if ($note === '') {
-            throw new \DomainException($message);
-        }
-
-        return $note;
     }
 
     private function recordHistory(OutgoingLetter $letter, string $action, int $changedBy, ?string $note = null): void
