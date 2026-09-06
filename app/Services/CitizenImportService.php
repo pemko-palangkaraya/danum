@@ -227,16 +227,22 @@ class CitizenImportService
             'nik' => ['required', 'digits:16'],
             'nama_lengkap' => ['required', 'string', 'max:255'],
             'tanggal_lahir' => ['nullable', 'date'],
-            'jenis_kelamin' => ['nullable', 'in:male,female'],
-            'golongan_darah' => ['nullable', 'in:A,B,AB,O,unknown'],
-            'agama' => ['nullable', 'string', 'max:40'],
-            'status_perkawinan' => ['nullable', 'string', 'max:30'],
-            'kewarganegaraan' => ['nullable', 'string', 'max:50'],
-            'status_kependudukan' => ['nullable', 'string', 'max:30'],
+            'tanggal_meninggal' => ['nullable', 'date', 'after_or_equal:tanggal_lahir', 'before_or_equal:today'],
+            'jenis_kelamin' => ['nullable', $this->referenceRule('gender')],
+            'golongan_darah' => ['nullable', $this->referenceRule('blood_type')],
+            'agama' => ['nullable', $this->referenceRule('religion')],
+            'status_perkawinan' => ['nullable', $this->referenceRule('marital_status')],
+            'kewarganegaraan' => ['required', $this->referenceRule('citizenship')],
+            'status_kependudukan' => ['required', $this->referenceRule('population_status')],
             'nik_ayah' => ['nullable', 'digits:16'],
             'nik_ibu' => ['nullable', 'digits:16'],
-            'tanggal_meninggal' => ['nullable', 'date', 'after_or_equal:tanggal_lahir', 'before_or_equal:today'],
         ];
+    }
+
+    private function referenceRule(string $group)
+    {
+        return Rule::exists('population_reference_data', 'code')
+            ->where(fn ($query) => $query->where('group', $group)->where('is_active', true));
     }
 
     private function readSpreadsheetRows(string $path): array
