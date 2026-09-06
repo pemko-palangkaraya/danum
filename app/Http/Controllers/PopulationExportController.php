@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Citizen;
 use App\Models\Tenant;
 use App\Services\LibreOfficeSpreadsheetService;
+use App\Services\PopulationReferenceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use RuntimeException;
@@ -20,17 +21,11 @@ class PopulationExportController extends Controller
         'Nama Ibu', 'NIK Ibu', 'Status Kependudukan',
     ];
 
-    private function tenantId(Request $request): string
-    {
-        $user = $request->user();
-        $id = $user->isSuperAdmin() ? $request->query('tenant_id') : $user->tenant_id;
-        abort_unless($id && Tenant::whereKey($id)->exists(), 422, 'Tenant belum dipilih.');
-
-        return (string) $id;
-    }
-
-    public function citizens(Request $request, LibreOfficeSpreadsheetService $spreadsheet)
-    {
+    public function citizens(
+        Request $request,
+        LibreOfficeSpreadsheetService $spreadsheet,
+        PopulationReferenceService $references,
+    ) {
         abort_unless($request->user()->hasPermission('population.view'), 403);
         $tenantId = $this->tenantId($request);
         $rows = Citizen::where('tenant_id', $tenantId)->orderBy('nama_lengkap')->get();
@@ -38,12 +33,12 @@ class PopulationExportController extends Controller
         $format = strtolower((string) $request->query('format', 'xlsx'));
 
         if ($format === 'csv') {
-            return $this->downloadCsv($rows, self::HEADERS, $filename . '.csv');
+            return $this->downloadCsv($rows, self::HEADERS, $filename . '.csv', $references);
         }
 
         abort_unless($format === 'xlsx', 422, 'Format export tidak didukung.');
 
-        $tmp = $this->writeCsv($rows, self::HEADERS, $filename);
+        $tmp = $this->writeCsv($rows, self::HEADERS, $filename, null, $references);
         $outputDir = storage_path('app/temp/population-export');
         $xlsx = null;
 
@@ -86,21 +81,39 @@ class PopulationExportController extends Controller
         }
     }
 
-    private function downloadCsv($rows, array $headers, string $filename)
+    private function tenantId(Request $request): string
     {
-        return Response::streamDownload(function () use ($rows, $headers): void {
+        $user = $request->user();
+        $id = $user->isSuperAdmin() ? $request->query('tenant_id') : $user->tenant_id;
+        abort_unless($id && Tenant::whereKey($id)->exists(), 422, 'Tenant belum dipilih.');
+
+        return (string) $id;
+    }
+
+    private function downloadCsv(
+        $rows,
+        array $headers,
+        string $filename,
+        PopulationReferenceService $references,
+    ) {
+        return Response::streamDownload(function () use ($rows, $headers, $references): void {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, $headers, ';');
-            foreach ($rows as $c) {
-                fputcsv($out, $this->citizenRow($c), ';');
+            foreach ($rows as $citizen) {
+                fputcsv($out, $this->citizenRow($citizen, $references), ';');
             }
             fclose($out);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
-    private function writeCsv($rows, array $headers, string $filename, ?array $extraRows = null): string
-    {
+    private function writeCsv(
+        $rows,
+        array $headers,
+        string $filename,
+        ?array $extraRows = null,
+        ?PopulationReferenceService $references = null,
+    ): string {
         $dir = storage_path('app/temp/population-export');
         if (! is_dir($dir) && ! mkdir($dir, 0777, true) && ! is_dir($dir)) {
             throw new RuntimeException('Direktori sementara export tidak dapat dibuat.');
@@ -114,8 +127,8 @@ class PopulationExportController extends Controller
 
         fwrite($out, "\xEF\xBB\xBF");
         fputcsv($out, $headers, ';');
-        foreach ($rows ?? [] as $c) {
-            fputcsv($out, $this->citizenRow($c), ';');
+        foreach ($rows ?? [] as $citizen) {
+            fputcsv($out, $this->citizenRow($citizen, $references), ';');
         }
         foreach ($extraRows ?? [] as $row) {
             fputcsv($out, $row, ';');
@@ -125,14 +138,27 @@ class PopulationExportController extends Controller
         return $path;
     }
 
-    private function citizenRow(Citizen $c): array
+    private function citizenRow(Citizen $citizen, ?PopulationReferenceService $references): array
     {
         return [
-            $c->nik, $c->nama_lengkap, $c->tempat_lahir, $c->tanggal_lahir?->format('Y-m-d'),
-            $c->jenis_kelamin, $c->golongan_darah, $c->agama, $c->status_perkawinan,
-            $c->pendidikan, $c->pekerjaan, $c->kewarganegaraan, $c->no_passport,
-            $c->no_kitap, $c->nama_ayah, $c->nik_ayah, $c->nama_ibu, $c->nik_ibu,
-            $c->status_kependudukan,
+            $citizen->nik,
+            $citizen->nama_lengkap,
+            $citizen->tempat_lahir,
+            $citizen->tanggal_lahir?->format('Y-m-d'),
+            $references?->label('gender', $citizen->jenis_kelamin) ?? $citizen->jenis_kelamin,
+            $citizen->golongan_darah,
+            $references?->label('religion', $citizen->agama) ?? $citizen->agama,
+            $references?->label('marital_status', $citizen->status_perkawinan) ?? $citizen->status_perkawinan,
+            $citizen->pendidikan,
+            $citizen->pekerjaan,
+            $references?->label('citizenship', $citizen->kewarganegaraan, $citizen->kewarganegaraan) ?? $citizen->kewarganegaraan,
+            $citizen->no_passport,
+            $citizen->no_kitap,
+            $citizen->nama_ayah,
+            $citizen->nik_ayah,
+            $citizen->nama_ibu,
+            $citizen->nik_ibu,
+            $citizen->status_kependudukan,
         ];
     }
 }
