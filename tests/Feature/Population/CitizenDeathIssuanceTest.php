@@ -7,6 +7,8 @@ namespace Tests\Feature\Population;
 use App\Enums\LetterTypeStatus;
 use App\Enums\OutgoingLetterStatus;
 use App\Models\Citizen;
+use App\Models\Family;
+use App\Models\FamilyMember;
 use App\Models\LetterType;
 use App\Models\OutgoingLetter;
 use App\Models\Position;
@@ -46,7 +48,7 @@ class CitizenDeathIssuanceTest extends TestCase
         });
     }
 
-    public function test_issuing_death_letter_updates_citizen_and_records_population_event(): void
+    public function test_issuing_death_letter_updates_citizen_and_removes_active_family_membership(): void
     {
         $tenant = Tenant::factory()->create();
         $signer = User::factory()->tenantAdmin($tenant)->create();
@@ -55,6 +57,14 @@ class CitizenDeathIssuanceTest extends TestCase
             'status_kependudukan' => 'aktif',
             'tanggal_meninggal' => null,
         ]);
+        $family = Family::factory()->forTenant($tenant)->create([
+            'head_citizen_id' => $citizen->id,
+        ]);
+        $membership = FamilyMember::factory()
+            ->forFamily($family)
+            ->forCitizen($citizen)
+            ->relation('head')
+            ->create();
         $type = LetterType::factory()->create([
             'tenant_id' => $tenant->id,
             'code' => 'SURAT_KETERANGAN_KEMATIAN',
@@ -79,9 +89,12 @@ class CitizenDeathIssuanceTest extends TestCase
         );
 
         $citizen->refresh();
+        $membership->refresh();
 
         $this->assertSame('meninggal', $citizen->status_kependudukan);
         $this->assertSame('2025-12-12', $citizen->tanggal_meninggal->toDateString());
+        $this->assertSame('inactive', $membership->status);
+        $this->assertSame('2025-12-12', $membership->tanggal_selesai->toDateString());
         $this->assertDatabaseHas('population_events', [
             'tenant_id' => $tenant->id,
             'citizen_id' => $citizen->id,
