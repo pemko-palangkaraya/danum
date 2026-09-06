@@ -9,14 +9,14 @@
             ['Nama Lengkap', $citizen->nama_lengkap],
             ['Tempat Lahir', $citizen->tempat_lahir ?: '-'],
             ['Tanggal Lahir', $citizen->tanggal_lahir?->format('d/m/Y') ?: '-'],
-            ['Jenis Kelamin', $references['gender']->firstWhere('code', $citizen->jenis_kelamin)?->label ?: '-'],
-            ['Golongan Darah', $citizen->golongan_darah ?: '-'],
-            ['Agama', $references['religion']->firstWhere('code', $citizen->agama)?->label ?: '-'],
-            ['Status Perkawinan', $references['marital_status']->firstWhere('code', $citizen->status_perkawinan)?->label ?: '-'],
+            ['Jenis Kelamin', $references['gender']->firstWhere('code', $citizen->jenis_kelamin)?->label ?: $citizen->jenis_kelamin ?: '-'],
+            ['Golongan Darah', $references['blood_type']->firstWhere('code', $citizen->golongan_darah)?->label ?: $citizen->golongan_darah ?: '-'],
+            ['Agama', $references['religion']->firstWhere('code', $citizen->agama)?->label ?: $citizen->agama ?: '-'],
+            ['Status Perkawinan', $references['marital_status']->firstWhere('code', $citizen->status_perkawinan)?->label ?: $citizen->status_perkawinan ?: '-'],
             ['Pendidikan', $citizen->pendidikan ?: '-'],
             ['Pekerjaan', $citizen->pekerjaan ?: '-'],
             ['Kewarganegaraan', $references['citizenship']->firstWhere('code', $citizen->kewarganegaraan)?->label ?: $citizen->kewarganegaraan ?: '-'],
-            ['Status Kependudukan', ucfirst($citizen->status_kependudukan)],
+            ['Status Kependudukan', $references['population_status']->firstWhere('code', $citizen->status_kependudukan)?->label ?: $citizen->status_kependudukan ?: '-'],
         ] as [$label, $value])
             <div>
                 <dt class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ $label }}</dt>
