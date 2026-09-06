@@ -260,7 +260,8 @@ class Index extends Component
         try {
             $letter = $this->tenantQuery()->findOrFail($id);
             $this->authorize('issue', $letter);
-            $service->issue($letter, auth()->id(), $note, null, false, $tte ? 'tte' : 'qr');
+            $verificationUrl = route('outgoing-letters.verify', ['token' => $letter->verification_token]);
+            $service->issue($letter, auth()->id(), $note, null, false, $tte ? 'tte' : 'qr', $verificationUrl);
 
             if ($tte) {
                 $this->dispatch('signer-pin-required', action: 'issue', id: $letter->id, note: $note, title: 'PIN Tanda Tangan', description: 'Surat sudah diterbitkan. Masukkan PIN untuk melanjutkan tanda tangan elektronik.');
@@ -286,7 +287,8 @@ class Index extends Component
         try {
             $letter = $this->tenantQuery()->findOrFail($id);
             $this->authorize('issue', $letter);
-            $service->signIssued($letter, auth()->id(), $pin, trim($note));
+            $verificationUrl = route('outgoing-letters.verify', ['token' => $letter->verification_token]);
+            $service->signIssued($letter, auth()->id(), $pin, trim($note), $verificationUrl);
             $this->dispatch('toast', type: 'success', message: 'Surat berhasil ditandatangani secara elektronik.');
         } catch (\Throwable $exception) {
             report($exception);
