@@ -23,6 +23,7 @@
         .name { width: 14%; }
         .sex { width: 6%; text-align: center; }
         .birth { width: 11%; }
+        .blood { width: 5%; text-align: center; }
         .religion { width: 7%; }
         .education { width: 9%; }
         .job { width: 11%; }
@@ -78,6 +79,7 @@
                 <th class="nik">NIK</th>
                 <th class="sex">Jenis<br>Kelamin</th>
                 <th class="birth">Tempat, Tanggal Lahir</th>
+                <th class="blood">Gol.<br>Darah</th>
                 <th class="religion">Agama</th>
                 <th class="education">Pendidikan</th>
                 <th class="job">Pekerjaan</th>
@@ -95,6 +97,7 @@
                     <td class="nik">{{ $citizen?->nik ?? '-' }}</td>
                     <td class="sex">{{ $referenceLabels['gender'][$citizen?->jenis_kelamin] ?? ($citizen?->jenis_kelamin ?: '-') }}</td>
                     <td class="birth">{{ $citizen?->tempat_lahir ?? '-' }}, {{ $citizen?->tanggal_lahir?->format('d-m-Y') ?? '-' }}</td>
+                    <td class="blood">{{ $referenceLabels['blood_type'][$citizen?->golongan_darah] ?? ($citizen?->golongan_darah ?: '-') }}</td>
                     <td class="religion">{{ $referenceLabels['religion'][$citizen?->agama] ?? ($citizen?->agama ?: '-') }}</td>
                     <td class="education">{{ $citizen?->pendidikan ?? '-' }}</td>
                     <td class="job">{{ $citizen?->pekerjaan ?? '-' }}</td>
@@ -104,7 +107,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="11" style="text-align:center; padding:10px;">Belum ada anggota keluarga aktif.</td>
+                    <td colspan="12" style="text-align:center; padding:10px;">Belum ada anggota keluarga aktif.</td>
                 </tr>
             @endforelse
         </tbody>
