@@ -40,7 +40,7 @@
     @if($showForm)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" wire:click.self="$set('showForm', false)">
             <div class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl">
-                <div class="border-b border-slate-100 px-6 py-5"><h2 class="text-lg font-semibold text-slate-900">{{ $editingId ? 'Edit Variabel' : 'Tambah Variabel' }}</h2><p class="mt-1 text-sm text-slate-500">Key ini digunakan langsung pada template DOCX sebagai <code class="rounded bg-slate-100 px-1">{{ '{{key}}' }}</code>.</p></div>
+                <div class="border-b border-slate-100 px-6 py-5"><h2 class="text-lg font-semibold text-slate-900">{{ $editingId ? 'Edit Variabel' : 'Tambah Variabel' }}</h2><p class="mt-1 text-sm text-slate-500">Key ini digunakan langsung pada template DOCX sebagai <code class="rounded bg-slate-100 px-1">@{{key}}</code>.</p></div>
                 <form wire:submit="save" class="space-y-5 p-6">
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div><label class="text-sm font-medium text-slate-700">Key</label><input wire:model="key" class="form-control mt-1 font-mono" placeholder="nama_saksi">@error('key')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror</div>
