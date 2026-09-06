@@ -192,17 +192,31 @@ class CitizenService
     {
         return [
             'nik' => ['required', 'digits:16', Rule::unique('citizens', 'nik')->where(fn ($query) => $query->where('tenant_id', $tenantId))->ignore($editingId)],
-            'nama_lengkap' => ['required', 'string', 'max:255'], 'tempat_lahir' => ['nullable', 'string', 'max:255'],
-            'tanggal_lahir' => ['nullable', 'date'], 'tanggal_meninggal' => ['nullable', 'date', 'after_or_equal:tanggal_lahir', 'before_or_equal:today'],
-            'jenis_kelamin' => ['nullable', 'in:male,female'],
-            'golongan_darah' => ['nullable', 'in:A,B,AB,O'], 'agama' => ['nullable', 'string', 'max:40'],
-            'status_perkawinan' => ['nullable', 'string', 'max:30'], 'pendidikan' => ['nullable', 'string', 'max:100'],
-            'pekerjaan' => ['nullable', 'string', 'max:150'], 'kewarganegaraan' => ['required', 'string', 'max:50'],
-            'no_passport' => ['nullable', 'string', 'max:50'], 'no_kitap' => ['nullable', 'string', 'max:50'],
-            'nama_ayah' => ['nullable', 'string', 'max:255'], 'nik_ayah' => ['nullable', 'digits:16'],
-            'nama_ibu' => ['nullable', 'string', 'max:255'], 'nik_ibu' => ['nullable', 'digits:16'],
-            'status_kependudukan' => ['required', 'string', 'max:30'],
+            'nama_lengkap' => ['required', 'string', 'max:255'],
+            'tempat_lahir' => ['nullable', 'string', 'max:255'],
+            'tanggal_lahir' => ['nullable', 'date'],
+            'tanggal_meninggal' => ['nullable', 'date', 'after_or_equal:tanggal_lahir', 'before_or_equal:today'],
+            'jenis_kelamin' => ['nullable', $this->referenceRule('gender')],
+            'golongan_darah' => ['nullable', $this->referenceRule('blood_type')],
+            'agama' => ['nullable', $this->referenceRule('religion')],
+            'status_perkawinan' => ['nullable', $this->referenceRule('marital_status')],
+            'pendidikan' => ['nullable', 'string', 'max:100'],
+            'pekerjaan' => ['nullable', 'string', 'max:150'],
+            'kewarganegaraan' => ['required', $this->referenceRule('citizenship')],
+            'no_passport' => ['nullable', 'string', 'max:50'],
+            'no_kitap' => ['nullable', 'string', 'max:50'],
+            'nama_ayah' => ['nullable', 'string', 'max:255'],
+            'nik_ayah' => ['nullable', 'digits:16'],
+            'nama_ibu' => ['nullable', 'string', 'max:255'],
+            'nik_ibu' => ['nullable', 'digits:16'],
+            'status_kependudukan' => ['required', $this->referenceRule('population_status')],
         ];
+    }
+
+    private function referenceRule(string $group): Rule
+    {
+        return Rule::exists('population_reference_data', 'code')
+            ->where(fn ($query) => $query->where('group', $group)->where('is_active', true));
     }
 
     private function actor(int|string|null $userId = null): ?User
