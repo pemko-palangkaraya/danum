@@ -19,10 +19,13 @@ final class LetterVariableDefinitionService
         'citizen_status_kependudukan',
     ];
 
+    /** @var array<string, LetterVariableDefinition>|null */
+    private static ?array $cache = null;
+
     /** @return array<string, LetterVariableDefinition> */
     public function active(): array
     {
-        return LetterVariableDefinition::query()
+        return self::$cache ??= LetterVariableDefinition::query()
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('key')
@@ -33,10 +36,7 @@ final class LetterVariableDefinitionService
 
     public function forKey(string $key): ?LetterVariableDefinition
     {
-        return LetterVariableDefinition::query()
-            ->where('key', $key)
-            ->where('is_active', true)
-            ->first();
+        return $this->active()[$key] ?? null;
     }
 
     public function isSystem(string $key): bool
