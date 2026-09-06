@@ -39,7 +39,7 @@ class StoreOutgoingLetterRequest extends FormRequest
                     $query->where('tenant_id', $this->user()->tenant_id)->where('status', PositionStatus::ACTIVE->value)->where('can_validate', true)->whereNull('deleted_at');
                 }),
             ],
-            'number' => ['required', 'string', 'max:100', Rule::unique('outgoing_letters', 'number')->where('tenant_id', $this->user()->tenant_id)],
+            'number' => ['prohibited'],
             'recipient_name' => ['required', 'string', 'max:150'],
             'recipient_address' => ['nullable', 'string'],
             'subject' => ['required', 'string', 'max:255'],
