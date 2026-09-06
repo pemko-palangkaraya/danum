@@ -17,6 +17,11 @@ use Illuminate\Validation\ValidationException;
 
 class FamilyService
 {
+    public function __construct(
+        private readonly PopulationLocationService $populationLocationService,
+        private readonly AuditLogService $auditLogService,
+    ) {}
+
     public function tenants()
     {
         return Tenant::query()->orderBy('name')->get(['id', 'name']);
@@ -38,9 +43,7 @@ class FamilyService
     {
         return $this->query($tenantId)
             ->with('headCitizen')
-            ->withCount([
-                'activeMembers as active_members_count',
-            ])
+            ->withCount(['activeMembers as active_members_count'])
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($q) use ($search): void {
                     $q->where('no_kk', 'like', '%'.$search.'%')
@@ -73,9 +76,7 @@ class FamilyService
 
     public function selectedHead(string $tenantId, string $citizenId): ?Citizen
     {
-        if ($tenantId === '' || $citizenId === '') {
-            return null;
-        }
+        if ($tenantId === '' || $citizenId === '') return null;
 
         return Citizen::query()
             ->whereKey($citizenId)
@@ -86,10 +87,9 @@ class FamilyService
     public function save(string $tenantId, array $input, ?string $editingId, int|string $userId): Family
     {
         $input['head_citizen_id'] = $input['head_citizen_id'] ?: null;
-
         $data = Validator::make($input, $this->rules($tenantId, $editingId))->validate();
 
-        if (! app(PopulationLocationService::class)->existsForTenant(
+        if (! $this->populationLocationService->existsForTenant(
             $tenantId,
             $data['provinsi'],
             $data['kabupaten_kota'],
@@ -101,10 +101,7 @@ class FamilyService
             ]);
         }
 
-        if (! empty($data['head_citizen_id'])) {
-            $this->findCitizen($tenantId, $data['head_citizen_id']);
-        }
-
+        if (! empty($data['head_citizen_id'])) $this->findCitizen($tenantId, $data['head_citizen_id']);
         $data['tenant_id'] = $tenantId;
         $data['updated_by'] = $userId;
 
@@ -115,7 +112,7 @@ class FamilyService
                 $family->update($data);
                 $family = $family->refresh();
 
-                $this->auditLogService()->record(
+                $this->auditLogService->record(
                     action: 'population.family.updated',
                     user: $this->actor($userId),
                     auditable: $family,
@@ -130,7 +127,7 @@ class FamilyService
             $data['created_by'] = $userId;
             $family = Family::create($data);
 
-            $this->auditLogService()->record(
+            $this->auditLogService->record(
                 action: 'population.family.created',
                 user: $this->actor($userId),
                 auditable: $family,
@@ -142,21 +139,13 @@ class FamilyService
         });
     }
 
-    public function addMember(
-        string $tenantId,
-        string $familyId,
-        string $citizenId,
-        string $relationship,
-        string $status = 'active'
-    ): void {
+    public function addMember(string $tenantId, string $familyId, string $citizenId, string $relationship, string $status = 'active'): void
+    {
         $family = $this->findForTenant($tenantId, $familyId);
         $citizen = $this->findCitizen($tenantId, $citizenId);
 
         $data = Validator::make(
-            [
-                'hubungan_dalam_keluarga' => $relationship,
-                'status' => $status,
-            ],
+            ['hubungan_dalam_keluarga' => $relationship, 'status' => $status],
             [
                 'hubungan_dalam_keluarga' => ['required', 'string', 'max:40'],
                 'status' => ['required', 'string', Rule::in(['active', 'inactive'])],
@@ -184,10 +173,8 @@ class FamilyService
                 ]
             );
 
-            $this->auditLogService()->record(
-                action: $oldValues === null
-                    ? 'population.family_member.created'
-                    : 'population.family_member.updated',
+            $this->auditLogService->record(
+                action: $oldValues === null ? 'population.family_member.created' : 'population.family_member.updated',
                 user: $this->actor(),
                 auditable: $member,
                 oldValues: $oldValues,
@@ -206,15 +193,12 @@ class FamilyService
                 ->where('family_id', $family->id)
                 ->where('citizen_id', $citizenId)
                 ->first();
-
-            if ($member === null) {
-                return;
-            }
+            if ($member === null) return;
 
             $oldValues = $this->familyMemberAuditValues($member);
             $member->delete();
 
-            $this->auditLogService()->record(
+            $this->auditLogService->record(
                 action: 'population.family_member.deleted',
                 user: $this->actor(),
                 auditable: $member,
@@ -295,19 +279,10 @@ class FamilyService
         ];
     }
 
-    private function auditLogService(): AuditLogService
-    {
-        return app(AuditLogService::class);
-    }
-
     private function actor(int|string|null $userId = null): ?User
     {
         $user = Auth::user();
-
-        if ($user instanceof User) {
-            return $user;
-        }
-
+        if ($user instanceof User) return $user;
         return $userId !== null ? User::query()->find($userId) : null;
     }
 
