@@ -43,7 +43,7 @@ class FamilySuccessionTest extends TestCase
         ]);
         $this->assertDatabaseHas('citizens', [
             'id' => $wife->id,
-            'status_perkawinan' => 'cerai mati',
+            'status_perkawinan' => 'widowed',
         ]);
         $this->assertDatabaseHas('family_members', [
             'family_id' => $family->id,
