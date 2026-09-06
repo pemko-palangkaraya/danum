@@ -42,7 +42,7 @@
 
         <x-ui.field label="Status" for="user-status" :error="$errors->first('status')">
             <select id="user-status" wire:model="status" class="form-select w-full">
-                @foreach (UserStatus::cases() as $userStatus)
+                @foreach (\App\Enums\UserStatus::cases() as $userStatus)
                     <option value="{{ $userStatus->value }}">{{ ucfirst($userStatus->value) }}</option>
                 @endforeach
             </select>
