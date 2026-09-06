@@ -58,6 +58,11 @@ class PopulationReferenceSeeder extends Seeder
             ['code' => 'WNI', 'label' => 'WNI', 'sort_order' => 1],
             ['code' => 'WNA', 'label' => 'WNA', 'sort_order' => 2],
         ]);
+
+        $this->upsert('population_status', [
+            ['code' => 'active', 'label' => 'Aktif', 'sort_order' => 1],
+            ['code' => 'meninggal', 'label' => 'Meninggal', 'sort_order' => 2],
+        ]);
     }
 
     private function upsert(string $group, array $rows): void
