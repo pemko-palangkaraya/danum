@@ -43,9 +43,6 @@ class PopulationStatisticsService
         return [
             'totalCitizens' => $totalCitizens,
             'totalFamilies' => (clone $families)->count(),
-            'activeCitizens' => $totalCitizens,
-            'inactiveCitizens' => (clone $citizens)->where('status_kependudukan', '!=', 'active')->count(),
-            'deceasedCitizens' => (clone $citizens)->where('status_kependudukan', 'meninggal')->count(),
             'deceasedThisYear' => (clone $citizens)->whereDate('tanggal_meninggal', '>=', $currentYear.'-01-01')->whereDate('tanggal_meninggal', '<=', $currentYear.'-12-31')->count(),
             'birthsThisYear' => (clone $citizens)->whereDate('tanggal_lahir', '>=', $currentYear.'-01-01')->whereDate('tanggal_lahir', '<=', $currentYear.'-12-31')->count(),
             'currentYear' => $currentYear,
