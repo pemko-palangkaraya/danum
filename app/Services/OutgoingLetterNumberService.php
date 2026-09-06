@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\LetterClassification;
-use App\Models\LetterNumberSequence;
 use App\Models\Tenant;
 use Carbon\Carbon;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 final class OutgoingLetterNumberService
 {
@@ -22,44 +21,32 @@ final class OutgoingLetterNumberService
         $date ??= now();
         $year = (int) $date->year;
 
-        return DB::transaction(function () use ($tenant, $classification, $date, $year): string {
-            $sequence = LetterNumberSequence::query()
-                ->where('tenant_id', $tenant->id)
-                ->where('letter_classification_id', $classification->id)
-                ->where('year', $year)
-                ->lockForUpdate()
-                ->first();
+        $row = DB::selectOne(
+            <<<'SQL'
+            INSERT INTO letter_number_sequences
+                (id, tenant_id, letter_classification_id, year, last_number, created_at, updated_at)
+            VALUES
+                (?, ?, ?, ?, 1, NOW(), NOW())
+            ON CONFLICT (tenant_id, letter_classification_id, year)
+            DO UPDATE SET
+                last_number = letter_number_sequences.last_number + 1,
+                updated_at = NOW()
+            RETURNING last_number
+            SQL,
+            [
+                (string) Str::uuid(),
+                $tenant->id,
+                $classification->id,
+                $year,
+            ],
+        );
 
-            if ($sequence === null) {
-                try {
-                    $sequence = LetterNumberSequence::query()->create([
-                        'tenant_id' => $tenant->id,
-                        'letter_classification_id' => $classification->id,
-                        'year' => $year,
-                        'last_number' => 1,
-                    ]);
-                } catch (QueryException $exception) {
-                    $sequence = LetterNumberSequence::query()
-                        ->where('tenant_id', $tenant->id)
-                        ->where('letter_classification_id', $classification->id)
-                        ->where('year', $year)
-                        ->lockForUpdate()
-                        ->first();
+        $number = (int) ($row->last_number ?? 0);
+        if ($number < 1) {
+            throw new \RuntimeException('Nomor surat gagal dibuat.');
+        }
 
-                    if ($sequence === null) {
-                        throw $exception;
-                    }
-
-                    $sequence->increment('last_number');
-                    $sequence->refresh();
-                }
-            } else {
-                $sequence->increment('last_number');
-                $sequence->refresh();
-            }
-
-            return $this->format($classification, $tenant, $sequence->last_number, $date);
-        });
+        return $this->format($classification, $tenant, $number, $date);
     }
 
     private function format(
