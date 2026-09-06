@@ -279,11 +279,10 @@ class FamilyService
     {
         $query = Family::query()
             ->where('tenant_id', $tenantId)
-            ->where('head_citizen_id', $citizenId)
-            ->when($editingId !== null, fn ($query) => $query->whereKey('!'.$editingId));
+            ->where('head_citizen_id', $citizenId);
 
         if ($editingId !== null) {
-            $query->whereKey('!'.$editingId);
+            $query->where('id', '!=', $editingId);
         }
 
         if ($query->exists()) {
