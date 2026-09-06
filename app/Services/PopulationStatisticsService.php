@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\Citizen;
 use App\Models\Family;
 use App\Models\Tenant;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -20,28 +21,34 @@ class PopulationStatisticsService
     public function summarize(?string $tenantId): array
     {
         $citizens = Citizen::query()->when($tenantId, fn ($query) => $query->where('tenant_id', $tenantId));
+        $livingCitizens = (clone $citizens)->where('status_kependudukan', '!=', 'meninggal');
         $families = Family::query()->when($tenantId, fn ($query) => $query->where('tenant_id', $tenantId));
+        $currentYear = Carbon::now()->year;
 
-        $totalCitizens = (clone $citizens)->count();
-        $gender = $this->gender($citizens);
-        $ageGroups = $this->buildAgeGroups($citizens);
+        $totalCitizens = (clone $livingCitizens)->count();
+        $gender = $this->gender($livingCitizens);
+        $ageGroups = $this->buildAgeGroups($livingCitizens);
         $classifiedAge = (int) $ageGroups->sum('total');
 
         return [
             'totalCitizens' => $totalCitizens,
             'totalFamilies' => (clone $families)->count(),
-            'activeCitizens' => (clone $citizens)->where('status_kependudukan', 'active')->count(),
+            'activeCitizens' => $totalCitizens,
             'inactiveCitizens' => (clone $citizens)->where('status_kependudukan', '!=', 'active')->count(),
+            'deceasedCitizens' => (clone $citizens)->where('status_kependudukan', 'meninggal')->count(),
+            'deceasedThisYear' => (clone $citizens)->whereDate('tanggal_meninggal', '>=', $currentYear.'-01-01')->whereDate('tanggal_meninggal', '<=', $currentYear.'-12-31')->count(),
+            'birthsThisYear' => (clone $citizens)->whereDate('tanggal_lahir', '>=', $currentYear.'-01-01')->whereDate('tanggal_lahir', '<=', $currentYear.'-12-31')->count(),
+            'currentYear' => $currentYear,
             'male' => $this->genderCount($gender, 'male'),
             'female' => $this->genderCount($gender, 'female'),
             'gender' => $gender,
-            'marital' => (clone $citizens)->select('status_perkawinan', DB::raw('count(*) as total'))->groupBy('status_perkawinan')->pluck('total', 'status_perkawinan'),
-            'occupations' => (clone $citizens)->select('pekerjaan', DB::raw('count(*) as total'))->whereNotNull('pekerjaan')->whereRaw("TRIM(pekerjaan) <> ''")->groupBy('pekerjaan')->orderByDesc('total')->limit(8)->pluck('total', 'pekerjaan'),
+            'marital' => (clone $livingCitizens)->select('status_perkawinan', DB::raw('count(*) as total'))->groupBy('status_perkawinan')->pluck('total', 'status_perkawinan'),
+            'occupations' => (clone $livingCitizens)->select('pekerjaan', DB::raw('count(*) as total'))->whereNotNull('pekerjaan')->whereRaw("TRIM(pekerjaan) <> ''")->groupBy('pekerjaan')->orderByDesc('total')->limit(8)->pluck('total', 'pekerjaan'),
             'ageGroups' => $ageGroups,
-            'toddlers' => $this->countAgeRange($citizens, 0, 5),
-            'children' => $this->countAgeRange($citizens, 6, 14),
-            'productiveAge' => $this->countAgeRange($citizens, 15, 64),
-            'elderly' => $this->countAgeRange($citizens, 65, null),
+            'toddlers' => $this->countAgeRange($livingCitizens, 0, 5),
+            'children' => $this->countAgeRange($livingCitizens, 6, 14),
+            'productiveAge' => $this->countAgeRange($livingCitizens, 15, 64),
+            'elderly' => $this->countAgeRange($livingCitizens, 65, null),
             'classifiedAge' => $classifiedAge,
             'unclassifiedAge' => max(0, $totalCitizens - $classifiedAge),
         ];
