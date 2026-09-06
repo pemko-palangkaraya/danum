@@ -48,7 +48,8 @@
             padding-left: .875rem;
         }
 
-        aside nav > div > div a[aria-current="page"] {
+        aside nav > div > div a[aria-current="page"],
+        aside nav > div > div a[href="{{ url()->current() }}"] {
             background: rgb(241 245 249);
             color: rgb(15 23 42);
             font-weight: 600;
