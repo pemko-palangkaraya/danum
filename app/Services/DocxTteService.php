@@ -30,6 +30,7 @@ class DocxTteService
         $markerConfig = $this->markerConfig($marker);
         $parts = $this->tteParts($zip);
         if ($parts === []) { $zip->close(); return; }
+        if (blank($verificationUrl)) { $zip->close(); throw new RuntimeException('URL verifikasi surat wajib tersedia.'); }
 
         $png = app(VerificationQrCodeService::class)->render($verificationUrl);
         $prefix = 'data:image/png;base64,';
