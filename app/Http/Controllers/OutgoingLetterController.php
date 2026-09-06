@@ -158,6 +158,7 @@ class OutgoingLetterController extends Controller
     public function issue(Request $request, string $id): JsonResponse
     {
         $signWithTte = $request->has('tte') ? $request->boolean('tte') : true;
+        $verificationUrl = url('/verify/' . $this->outgoingLetterService->find($id, $request->user()->tenant_id)?->verification_token);
 
         return $this->transition(
             $request,
@@ -169,6 +170,8 @@ class OutgoingLetterController extends Controller
                 $request->string('note')->toString(),
                 $request->string('pin')->toString(),
                 $signWithTte,
+                null,
+                url('/verify/' . $letter->verification_token),
             ),
         );
     }
@@ -189,6 +192,7 @@ class OutgoingLetterController extends Controller
                 $request->user()->id,
                 $request->string('pin')->toString(),
                 $request->string('note')->toString() ?: null,
+                url('/verify/' . $outgoingLetter->verification_token),
             );
             return response()->json(['data' => $letter]);
         } catch (\DomainException $exception) {
