@@ -11,15 +11,15 @@ use Illuminate\Support\Carbon;
 
 final class LetterVariableSourceResolver
 {
-    public function system(PositionHolder $holder): array
-    {
-        $tenant = $holder->user?->tenant;
-        if (! $tenant) {
-            return [];
-        }
+    public function __construct(private readonly LetterVariableDateService $date) {}
 
-        $name = (string) ($holder->user?->name ?? $tenant->head_name ?? '');
-        $title = (string) ($holder->position?->name ?? $tenant->head_title ?? '');
+    public function system(?PositionHolder $holder = null): array
+    {
+        $tenant = $holder?->user?->tenant ?? auth()->user()?->tenant;
+        if (! $tenant) return [];
+
+        $name = (string) ($holder?->user?->name ?? $tenant->head_name ?? '');
+        $title = (string) ($holder?->position?->name ?? $tenant->head_title ?? '');
 
         return [
             'tenant_name' => $tenant->name,
@@ -82,8 +82,7 @@ final class LetterVariableSourceResolver
 
         $spouse = $members->first(fn ($member) => in_array(
             mb_strtolower(trim((string) $member->hubungan_dalam_keluarga)),
-            ['suami', 'istri', 'pasangan'],
-            true
+            ['suami', 'istri', 'pasangan'], true
         ));
 
         $children = $members
@@ -107,9 +106,7 @@ final class LetterVariableSourceResolver
     public function age(Citizen $citizen, mixed $deathDate): string
     {
         $normalized = $this->date->normalize($deathDate);
-        if (! $citizen->tanggal_lahir || ! $normalized) {
-            return '';
-        }
+        if (! $citizen->tanggal_lahir || ! $normalized) return '';
 
         try {
             $age = Carbon::parse($citizen->tanggal_lahir)->diffInYears(Carbon::parse($normalized), false);
@@ -119,19 +116,12 @@ final class LetterVariableSourceResolver
         }
     }
 
-    public function __construct(private readonly LetterVariableDateService $date) {}
-
     private function familyFor(Citizen $citizen): ?Family
     {
         $membership = $citizen->activeFamilyMembership()->with('family.activeMembers.citizen')->first();
-        if ($membership?->family) {
-            return $membership->family;
-        }
+        if ($membership?->family) return $membership->family;
 
-        return $citizen->headedFamilies()
-            ->where('status', 'active')
-            ->with('activeMembers.citizen')
-            ->first();
+        return $citizen->headedFamilies()->where('status', 'active')->with('activeMembers.citizen')->first();
     }
 
     private function address(Family $family): string
