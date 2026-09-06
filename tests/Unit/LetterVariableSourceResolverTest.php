@@ -10,11 +10,42 @@ use App\Models\FamilyMember;
 use App\Models\Tenant;
 use App\Services\LetterVariableSourceResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class LetterVariableSourceResolverTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_citizen_variables_use_population_reference_labels(): void
+    {
+        $tenant = Tenant::factory()->create();
+
+        DB::table('population_reference_data')->insert([
+            ['group' => 'gender', 'code' => 'male', 'label' => 'Laki-laki', 'sort_order' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['group' => 'blood_type', 'code' => 'O', 'label' => 'O', 'sort_order' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['group' => 'marital_status', 'code' => 'married', 'label' => 'Kawin', 'sort_order' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['group' => 'religion', 'code' => 'buddhist', 'label' => 'Buddha', 'sort_order' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['group' => 'citizenship', 'code' => 'WNI', 'label' => 'WNI', 'sort_order' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $citizen = Citizen::factory()->forTenant($tenant)->create([
+            'jenis_kelamin' => 'male',
+            'golongan_darah' => 'O',
+            'status_perkawinan' => 'married',
+            'agama' => 'buddhist',
+            'kewarganegaraan' => 'WNI',
+        ]);
+
+        $data = app(LetterVariableSourceResolver::class)->citizen($citizen);
+
+        $this->assertSame('Laki-laki', $data['citizen_jenis_kelamin']);
+        $this->assertSame('O', $data['citizen_golongan_darah']);
+        $this->assertSame('Kawin', $data['citizen_status_perkawinan']);
+        $this->assertSame('Buddha', $data['citizen_agama']);
+        $this->assertSame('WNI', $data['citizen_kewarganegaraan']);
+        $this->assertSame('Buddha', $data['recipient_religion']);
+    }
 
     public function test_family_variables_are_resolved_from_real_kk_relationships(): void
     {
