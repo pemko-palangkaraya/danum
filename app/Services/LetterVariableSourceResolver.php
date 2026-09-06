@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Citizen;
 use App\Models\Family;
+use App\Models\FamilyMember;
 use App\Models\PositionHolder;
 use Illuminate\Support\Carbon;
 
@@ -31,10 +32,30 @@ final class LetterVariableSourceResolver
     {
         $family = $this->familyFor($citizen);
         if (! $family) return ['values'=>['recipient_address'=>'','nama_pasangan'=>'-'],'children'=>[['nomor'=>'1','nama'=>'-']]];
-        $members = $family->activeMembers->filter(fn($member)=>(string)$member->citizen_id !== (string)$citizen->id)->values();
-        $spouse = $members->first(fn($member)=>in_array(mb_strtolower(trim((string)$member->hubungan_dalam_keluarga)),['suami','istri','pasangan'],true));
-        $children = $members->filter(fn($member)=>mb_strtolower(trim((string)$member->hubungan_dalam_keluarga))==='anak')->values()->map(fn($member,int $index)=>['nomor'=>(string)($index+1),'nama'=>(string)($member->citizen?->nama_lengkap ?: '-')])->all();
-        return ['values'=>['recipient_address'=>$this->address($family),'nama_pasangan'=>(string)($spouse?->citizen?->nama_lengkap ?: '-')],'children'=>$children ?: [['nomor'=>'1','nama'=>'-']]];
+
+        $members = $family->activeMembers
+            ->filter(fn (FamilyMember $member) => (string) $member->citizen_id !== (string) $citizen->id)
+            ->values();
+
+        $subjectRelation = $this->relationType(
+            $family->activeMembers->first(fn (FamilyMember $member) => (string) $member->citizen_id === (string) $citizen->id)?->hubungan_dalam_keluarga
+        );
+
+        $spouse = $this->spouseFor($family, $citizen, $members, $subjectRelation);
+        $children = $this->childrenFor($members, $subjectRelation)
+            ->map(fn (FamilyMember $member, int $index) => [
+                'nomor' => (string) ($index + 1),
+                'nama' => (string) ($member->citizen?->nama_lengkap ?: '-'),
+            ])
+            ->all();
+
+        return [
+            'values' => [
+                'recipient_address' => $this->address($family),
+                'nama_pasangan' => (string) ($spouse?->citizen?->nama_lengkap ?: '-'),
+            ],
+            'children' => $children ?: [['nomor'=>'1','nama'=>'-']],
+        ];
     }
 
     public function age(Citizen $citizen, mixed $deathDate): string
@@ -52,6 +73,38 @@ final class LetterVariableSourceResolver
         $membership = $citizen->activeFamilyMembership()->with('family.activeMembers.citizen')->first();
         if ($membership?->family) return $membership->family;
         return $citizen->headedFamilies()->where('status','active')->with('activeMembers.citizen')->first();
+    }
+
+    private function spouseFor(Family $family, Citizen $citizen, $members, ?string $subjectRelation): ?FamilyMember
+    {
+        if ($subjectRelation === 'child') return null;
+
+        if ($subjectRelation === 'spouse') {
+            $head = $family->headCitizen;
+            return $head && (string) $head->id !== (string) $citizen->id
+                ? $members->first(fn (FamilyMember $member) => (string) $member->citizen_id === (string) $head->id)
+                    ?? new FamilyMember(['citizen' => $head])
+                : null;
+        }
+
+        return $members->first(fn (FamilyMember $member) => $this->relationType($member->hubungan_dalam_keluarga) === 'spouse');
+    }
+
+    private function childrenFor($members, ?string $subjectRelation)
+    {
+        return in_array($subjectRelation, [null, 'head', 'spouse'], true)
+            ? $members->filter(fn (FamilyMember $member) => $this->relationType($member->hubungan_dalam_keluarga) === 'child')->values()
+            : collect();
+    }
+
+    private function relationType(mixed $relation): ?string
+    {
+        return match (mb_strtolower(trim((string) $relation))) {
+            'head', 'kepala', 'kepala keluarga', 'kepala_keluarga' => 'head',
+            'spouse', 'suami', 'istri', 'pasangan' => 'spouse',
+            'child', 'anak' => 'child',
+            default => null,
+        };
     }
 
     private function address(Family $family): string
