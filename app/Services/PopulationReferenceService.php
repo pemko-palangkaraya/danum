@@ -12,6 +12,9 @@ class PopulationReferenceService
     /** @var array<string, array<string, string>> */
     private array $labelCache = [];
 
+    /** @var array<string, array<string, string>> */
+    private array $codeCache = [];
+
     public function all(): array
     {
         return [
@@ -55,5 +58,29 @@ class PopulationReferenceService
         }
 
         return $this->labels($group)[$code] ?? $fallback;
+    }
+
+    /**
+     * Resolve either a stored code or its human-readable label to the
+     * canonical active code. Matching is case-insensitive and whitespace-safe.
+     */
+    public function codeForValue(string $group, ?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+
+        $normalized = mb_strtolower(trim($value));
+
+        if (! isset($this->codeCache[$group])) {
+            $this->codeCache[$group] = [];
+
+            foreach ($this->group($group) as $reference) {
+                $this->codeCache[$group][mb_strtolower((string) $reference->code)] = (string) $reference->code;
+                $this->codeCache[$group][mb_strtolower((string) $reference->label)] = (string) $reference->code;
+            }
+        }
+
+        return $this->codeCache[$group][$normalized] ?? null;
     }
 }
