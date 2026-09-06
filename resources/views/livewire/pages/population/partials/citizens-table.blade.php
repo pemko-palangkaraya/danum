@@ -3,6 +3,7 @@
         @include('livewire.pages.population.partials.citizens-filters', [
             'isSuperAdmin' => $isSuperAdmin,
             'tenants' => $tenants,
+            'statusFilter' => $statusFilter,
         ])
     </x-slot:toolbar>
 
@@ -24,7 +25,16 @@
                             <td class="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-900">{{ $citizen->nama_lengkap }}</td>
                             <td class="whitespace-nowrap px-6 py-4 font-mono text-sm text-slate-600">{{ $citizen->nik }}</td>
                             <td class="hidden px-6 py-4 text-sm text-slate-600 md:table-cell">{{ $citizen->tempat_lahir ?: '-' }}, {{ $citizen->tanggal_lahir?->format('d/m/Y') ?: '-' }}</td>
-                            <td class="px-6 py-4"><x-ui.badge variant="success">{{ ucfirst($citizen->status_kependudukan) }}</x-ui.badge></td>
+                            <td class="px-6 py-4">
+                                @if($citizen->status_kependudukan === 'meninggal')
+                                    <div class="space-y-1">
+                                        <x-ui.badge variant="default">Meninggal</x-ui.badge>
+                                        <div class="text-xs text-slate-500">{{ $citizen->tanggal_meninggal?->format('d/m/Y') ?: '-' }}</div>
+                                    </div>
+                                @else
+                                    <x-ui.badge variant="success">Hidup</x-ui.badge>
+                                @endif
+                            </td>
                             <td class="px-6 py-4 text-right">
                                 <x-ui.citizen-actions
                                     :citizen="$citizen"
