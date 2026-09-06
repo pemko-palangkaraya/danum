@@ -7,6 +7,7 @@ namespace App\Livewire\Population;
 use App\Livewire\Concerns\WithStandardTablePagination;
 use App\Services\FamilyService;
 use App\Services\PopulationLocationService;
+use App\Services\PopulationReferenceService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -173,6 +174,7 @@ class Families extends Component
     {
         $service = app(FamilyService::class);
         $locationService = app(PopulationLocationService::class);
+        $referenceService = app(PopulationReferenceService::class);
         $tenantId = $this->tenantIdForQuery();
         $user = auth()->user();
         $isSuperAdmin = $user?->isSuperAdmin() ?? false;
@@ -210,6 +212,10 @@ class Families extends Component
             'canManage' => $canManage,
             'isSuperAdmin' => $isSuperAdmin,
             'hasTenant' => $hasTenant,
+            'referenceLabels' => [
+                'family_relationship' => $referenceService->labels('family_relationship'),
+            ],
+            'familyRelationships' => $referenceService->group('family_relationship'),
         ]);
     }
 
