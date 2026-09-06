@@ -74,14 +74,14 @@ class OutgoingLetterService
         return $restored;
     }
 
-    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null, ?string $pin = null, bool $signWithTte = true, ?string $issuanceMarker = null): OutgoingLetter
+    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null, ?string $pin = null, bool $signWithTte = true, ?string $issuanceMarker = null, ?string $verificationUrl = null): OutgoingLetter
     {
-        return $this->issuanceService->issue($letter, $changedBy, $note, $pin, $signWithTte, $issuanceMarker);
+        return $this->issuanceService->issue($letter, $changedBy, $note, $pin, $signWithTte, $issuanceMarker, $verificationUrl);
     }
 
-    public function signIssued(OutgoingLetter $letter, int $changedBy, string $pin, ?string $note = null): OutgoingLetter
+    public function signIssued(OutgoingLetter $letter, int $changedBy, string $pin, ?string $note = null, ?string $verificationUrl = null): OutgoingLetter
     {
-        return $this->issuanceService->signIssued($letter, $changedBy, $pin, $note);
+        return $this->issuanceService->signIssued($letter, $changedBy, $pin, $note, $verificationUrl);
     }
 
     public function requestWithdrawal(OutgoingLetter $letter, int $requestedBy, string $reason, string $statementPath) { return $this->withdrawalService->request($letter, $requestedBy, $reason, $statementPath); }
