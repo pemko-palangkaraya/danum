@@ -1,12 +1,47 @@
 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-    @if($isSuperAdmin)
-        <div class="w-full lg:max-w-md">
-            <x-ui.tenant-selector
-                :tenants="$tenants"
-                id="citizens-tenant"
-            />
+    <div class="flex flex-wrap items-center gap-2">
+        @if($isSuperAdmin)
+            <div class="w-full lg:w-auto lg:min-w-64">
+                <x-ui.tenant-selector
+                    :tenants="$tenants"
+                    id="citizens-tenant"
+                />
+            </div>
+        @endif
+
+        <div class="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+            <button
+                type="button"
+                wire:click="$set('statusFilter', 'active')"
+                @class([
+                    'rounded-lg px-3 py-2 text-sm font-medium transition',
+                    'bg-white text-slate-900 shadow-sm' => $statusFilter === 'active',
+                    'text-slate-500 hover:text-slate-900' => $statusFilter !== 'active',
+                ])>
+                Hidup
+            </button>
+            <button
+                type="button"
+                wire:click="$set('statusFilter', 'meninggal')"
+                @class([
+                    'rounded-lg px-3 py-2 text-sm font-medium transition',
+                    'bg-white text-slate-900 shadow-sm' => $statusFilter === 'meninggal',
+                    'text-slate-500 hover:text-slate-900' => $statusFilter !== 'meninggal',
+                ])>
+                Meninggal
+            </button>
+            <button
+                type="button"
+                wire:click="$set('statusFilter', '')"
+                @class([
+                    'rounded-lg px-3 py-2 text-sm font-medium transition',
+                    'bg-white text-slate-900 shadow-sm' => $statusFilter === '',
+                    'text-slate-500 hover:text-slate-900' => $statusFilter !== '',
+                ])>
+                Semua
+            </button>
         </div>
-    @endif
+    </div>
 
     <div class="relative w-full {{ $isSuperAdmin ? 'lg:max-w-md' : 'sm:max-w-md lg:ml-auto' }}">
         <svg
