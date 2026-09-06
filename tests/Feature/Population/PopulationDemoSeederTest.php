@@ -29,7 +29,7 @@ class PopulationDemoSeederTest extends TestCase
 
         Artisan::call('db:seed', ['--class' => PopulationDemoSeeder::class]);
 
-        $this->assertDatabaseCount('families', 20);
+        $this->assertDatabaseCount('families', 200);
         $this->assertDatabaseHas('families', [
             'tenant_id' => $tenant->id,
             'kelurahan' => 'Mungku Baru',
