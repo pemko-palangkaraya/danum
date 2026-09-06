@@ -1,6 +1,6 @@
 @php
     $submitted = $letter->submitted_at !== null;
-    $rejected = filled($letter->rejection_reason);
+    $rejected = $letter->status->value === 'draft' && filled($letter->rejection_reason);
     $effectiveState = $letter->status->value === 'withdrawn'
         ? 'withdrawn'
         : ($letter->status->value === 'issued' && $letter->isExpired() ? 'expired' : $letter->status->value);
