@@ -21,6 +21,7 @@ class PopulationReferenceService
             'religion' => $this->group('religion'),
             'citizenship' => $this->group('citizenship'),
             'family_relationship' => $this->group('family_relationship'),
+            'population_status' => $this->group('population_status'),
         ];
     }
 
