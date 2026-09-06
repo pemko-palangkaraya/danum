@@ -76,11 +76,14 @@ class FamilyService
 
     public function selectedHead(string $tenantId, string $citizenId): ?Citizen
     {
-        if ($tenantId === '' || $citizenId === '') return null;
+        if ($tenantId === '' || $citizenId === '') {
+            return null;
+        }
 
         return Citizen::query()
             ->whereKey($citizenId)
             ->where('tenant_id', $tenantId)
+            ->where('status_kependudukan', '!=', 'meninggal')
             ->first();
     }
 
@@ -101,7 +104,10 @@ class FamilyService
             ]);
         }
 
-        if (! empty($data['head_citizen_id'])) $this->findCitizen($tenantId, $data['head_citizen_id']);
+        if (! empty($data['head_citizen_id'])) {
+            $this->findAliveCitizen($tenantId, $data['head_citizen_id']);
+        }
+
         $data['tenant_id'] = $tenantId;
         $data['updated_by'] = $userId;
 
@@ -152,6 +158,12 @@ class FamilyService
             ]
         )->validate();
 
+        if ($citizen->status_kependudukan === 'meninggal') {
+            throw ValidationException::withMessages([
+                'hubungan_dalam_keluarga' => 'Warga yang berstatus meninggal tidak dapat menjadi anggota aktif atau kepala keluarga.',
+            ]);
+        }
+
         if ($this->isFamilyHead($citizen->id) || ($status === 'active' && $this->hasActiveMembership($citizen->id))) {
             throw ValidationException::withMessages([
                 'hubungan_dalam_keluarga' => 'Warga ini sudah menjadi anggota aktif KK lain atau merupakan kepala keluarga.',
@@ -193,7 +205,9 @@ class FamilyService
                 ->where('family_id', $family->id)
                 ->where('citizen_id', $citizenId)
                 ->first();
-            if ($member === null) return;
+            if ($member === null) {
+                return;
+            }
 
             $oldValues = $this->familyMemberAuditValues($member);
             $member->delete();
@@ -217,6 +231,7 @@ class FamilyService
     {
         return Citizen::query()
             ->where('tenant_id', $tenantId)
+            ->where('status_kependudukan', '!=', 'meninggal')
             ->when($search !== '', fn ($q) => $q->where(function ($query) use ($search): void {
                 $query->whereRaw('LOWER(nik) LIKE LOWER(?)', ['%'.$search.'%'])
                     ->orWhereRaw('LOWER(nama_lengkap) LIKE LOWER(?)', ['%'.$search.'%']);
@@ -230,6 +245,7 @@ class FamilyService
     {
         return Citizen::query()
             ->where('tenant_id', $tenantId)
+            ->where('status_kependudukan', '!=', 'meninggal')
             ->whereDoesntHave('activeFamilyMembership')
             ->whereDoesntHave('headedFamilies')
             ->when($search !== '', fn ($q) => $q->where(function ($query) use ($search): void {
@@ -239,6 +255,19 @@ class FamilyService
             ->orderBy('nama_lengkap')
             ->limit(10)
             ->get(['id', 'nik', 'nama_lengkap']);
+    }
+
+    private function findAliveCitizen(string $tenantId, string $citizenId): Citizen
+    {
+        $citizen = $this->findCitizen($tenantId, $citizenId);
+
+        if ($citizen->status_kependudukan === 'meninggal') {
+            throw ValidationException::withMessages([
+                'head_citizen_id' => 'Warga yang berstatus meninggal tidak dapat menjadi kepala keluarga.',
+            ]);
+        }
+
+        return $citizen;
     }
 
     private function isFamilyHead(string $citizenId): bool
