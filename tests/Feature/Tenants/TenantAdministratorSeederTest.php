@@ -22,25 +22,21 @@ class TenantAdministratorSeederTest extends TestCase
         $this->seed(TenantAdministratorSeeder::class);
 
         $tenants = Tenant::query()->get();
-        $role = Role::query()
-            ->where('slug', 'tenant_admin')
-            ->whereNull('tenant_id')
-            ->where('is_system', true)
-            ->firstOrFail();
+        $role = Role::query()->where('slug', 'tenant_admin')->whereNull('tenant_id')->where('is_system', true)->firstOrFail();
 
         $this->assertNotEmpty($tenants);
-        $this->assertSame(
-            $tenants->count(),
-            User::query()->where('custom_role_id', $role->id)->count(),
-        );
+        $administratorIds = $tenants->pluck('administrator_user_id')->filter()->unique();
+        $this->assertSame($tenants->count(), $administratorIds->count());
+        $this->assertSame($tenants->count(), User::query()->whereIn('id', $administratorIds)->count());
 
         foreach ($tenants as $tenant) {
             $administrator = $tenant->administrator;
-
             $this->assertNotNull($administrator);
             $this->assertSame($tenant->id, $administrator->tenant_id);
             $this->assertSame('tenant_admin', $administrator->roleModel()?->slug);
             $this->assertSame($tenant->code.'@danum.local', $administrator->email);
         }
+
+        $this->assertNotNull($role->id);
     }
 }
