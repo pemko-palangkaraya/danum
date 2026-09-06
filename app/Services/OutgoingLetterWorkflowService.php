@@ -111,6 +111,10 @@ class OutgoingLetterWorkflowService
         $oldValues = $this->auditValues($letter);
         $letter = $this->repository->update($letter, [
             'status' => OutgoingLetterStatus::CANCELLED,
+            'submitted_at' => null,
+            'rejection_reason' => null,
+            'rejected_by' => null,
+            'rejected_at' => null,
         ]);
 
         $this->recordHistory($letter, 'cancelled', $changedBy, $note);
