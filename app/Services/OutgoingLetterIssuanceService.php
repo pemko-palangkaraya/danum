@@ -85,12 +85,7 @@ class OutgoingLetterIssuanceService
 
             if ($signWithTte) {
                 $signerCertificate = $this->resolveSignerCertificate($letter);
-                $signedPdfPath = $this->pdfSigningService->sign(
-                    sourcePdfPath: Storage::disk('local')->path($unsignedPdfPath),
-                    certificate: $signerCertificate,
-                    signerName: (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $signerCertificate->user()->value('name')),
-                    reason: $note,
-                );
+                $signedPdfPath = $this->pdfSigningService->sign(sourcePdfPath: Storage::disk('local')->path($unsignedPdfPath), certificate: $signerCertificate, signerName: (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $signerCertificate->user()->value('name')), reason: $note);
                 $attributes = [...$attributes, 'unsigned_pdf_path' => $unsignedPdfPath, 'signed_pdf_path' => $signedPdfPath, 'signature_certificate_id' => $signerCertificate->id, 'signature_profile' => 'pades-b-t', 'signed_at' => now()];
             } else {
                 $attributes['unsigned_pdf_path'] = $unsignedPdfPath;
@@ -121,7 +116,7 @@ class OutgoingLetterIssuanceService
     public function signIssued(OutgoingLetter $letter, int $changedBy, string $pin, ?string $note = null, ?string $verificationUrl = null): OutgoingLetter
     {
         $note = trim((string) ($note ?? $letter->signing_note ?? ''));
-        if ($note === '') throw new \DomainException('Catatan penanda tangan wajib diisi.');
+        if ($note === '') throw new \DomainException('Catatan penandatanganan wajib diisi.');
         if (blank($verificationUrl)) throw new \DomainException('URL verifikasi surat wajib tersedia.');
 
         if ($letter->status === OutgoingLetterStatus::VALIDATED) return $this->issue($letter, $changedBy, $note, $pin, true, 'tte', $verificationUrl);
