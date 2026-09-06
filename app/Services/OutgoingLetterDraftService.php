@@ -13,6 +13,7 @@ use DOMDocument;
 use DOMXPath;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Carbon;
 use ZipArchive;
 
 final class OutgoingLetterDraftService
@@ -23,6 +24,7 @@ final class OutgoingLetterDraftService
         private readonly LetterTypeService $letterTypes,
         private readonly LetterVariableDateService $dates,
         private readonly LetterVariableDefinitionService $variableDefinitions,
+        private readonly OutgoingLetterNumberService $numberService,
     ) {}
 
     /**
@@ -53,6 +55,13 @@ final class OutgoingLetterDraftService
         $citizenId = $data['_citizen_id'] ?? null;
         unset($data['_citizen_id']);
 
+        $number = $existing?->number;
+        if (blank($number)) {
+            $letterDate = filled($data['date'] ?? null) ? Carbon::parse((string) $data['date']) : now();
+            $number = $this->numberService->generate($tenant, $letterType->classification()->firstOrFail(), $letterDate);
+        }
+        $data['number'] = $number;
+
         $renderData = [
             ...$this->formatDateVariablesForTemplate($data),
             'tenant_head_name' => $signerName,
@@ -77,7 +86,7 @@ final class OutgoingLetterDraftService
                 'validator_user_id' => $validatorHolder->user_id,
                 'validator_name' => $validatorHolder->user->name,
                 'validator_title' => $validatorPosition->name,
-                'number' => (string) ($data['number'] ?? ''),
+                'number' => $number,
                 'recipient_name' => (string) ($data['recipient_name'] ?? ''),
                 'recipient_address' => (string) ($data['recipient_address'] ?? ''),
                 'subject' => (string) ($data['subject'] ?? ''),
@@ -114,9 +123,7 @@ final class OutgoingLetterDraftService
             if (! is_string($key) || is_array($value) || blank($value)) continue;
 
             $definition = $this->variableDefinitions->forKey($key);
-            if ($this->dates->isDate($key, $definition?->type)) {
-                $data[$key] = $this->dates->format($value);
-            }
+            if ($this->dates->isDate($key, $definition?->type)) $data[$key] = $this->dates->format($value);
         }
 
         return $data;
