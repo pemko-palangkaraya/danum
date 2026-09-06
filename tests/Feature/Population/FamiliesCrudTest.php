@@ -40,10 +40,10 @@ class FamiliesCrudTest extends TestCase
             ->set('alamat', 'Jl. Contoh No. 1')
             ->set('rt', '001')
             ->set('rw', '002')
-            ->set('kelurahan', 'Pahandut')
-            ->set('kecamatan', 'Pahandut')
-            ->set('kabupaten_kota', 'Palangka Raya')
             ->set('provinsi', 'Kalimantan Tengah')
+            ->set('kabupaten_kota', 'Palangka Raya')
+            ->set('kecamatan', 'Pahandut')
+            ->set('kelurahan', 'Pahandut')
             ->set('kode_pos', '73111')
             ->call('save')
             ->assertHasNoErrors();
@@ -91,23 +91,20 @@ class FamiliesCrudTest extends TestCase
         $user = User::factory()->tenantAdmin($rakumpit)->create();
 
         $options = app(PopulationLocationService::class)->optionsForTenant($rakumpit->id);
-        $expectedDistricts = collect($districts)->sort()->values()->all();
 
         $this->assertSame(['Kalimantan Tengah'], $options['provinces']->all());
         $this->assertSame(['Palangka Raya'], $options['cities']->all());
-        $this->assertSame($expectedDistricts, $options['districts']->all());
+        $this->assertSame(['Rakumpit'], $options['districts']->all());
         $this->assertSame(['Mungku Baru', 'Pager'], $options['villages']->all());
 
         Livewire::actingAs($user)
             ->test(Families::class)
             ->call('create')
-            ->assertSee('Pahandut')
-            ->assertSee('Jekan Raya')
-            ->assertSee('Bukit Batu')
             ->assertSee('Rakumpit')
-            ->assertSee('Sabangau')
             ->assertSee('Mungku Baru')
             ->assertSee('Pager')
+            ->assertDontSee('Pahandut')
+            ->assertDontSee('Jekan Raya')
             ->assertDontSee('Menteng');
     }
 
