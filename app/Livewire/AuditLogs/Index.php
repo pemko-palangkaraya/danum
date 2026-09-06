@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace App\Livewire\AuditLogs;
 
-use App\Models\AuditLog;
-use App\Models\Tenant;
-use App\Models\User;
+use App\Livewire\Concerns\WithStandardTablePagination;
+use App\Services\AuditLogService;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Component;
-use App\Livewire\Concerns\WithStandardTablePagination;
 
 #[Layout('layouts.app')]
 class Index extends Component
@@ -29,7 +27,7 @@ class Index extends Component
     #[On('outgoing-letters-refresh')]
     public function refreshForRealtime(): void
     {
-        // The next render reloads the latest audit records using the active filters.
+        // Re-render with the current filters so newly recorded events appear immediately.
     }
 
     public function updatedSearch(): void
@@ -69,6 +67,7 @@ class Index extends Component
 
     public function updatedPerPage(): void
     {
+        $this->perPage = max(5, min($this->perPage, 50));
         $this->resetPage();
     }
 
@@ -87,65 +86,21 @@ class Index extends Component
         $this->resetPage();
     }
 
-    public function with(): array
+    public function with(AuditLogService $auditLogs): array
     {
-        $logs = AuditLog::query()
-            ->with([
-                'user:id,name,email,tenant_id',
-                'tenant:id,name,code',
-            ])
-            ->when($this->actor !== '', fn ($query) => $query->where('user_id', $this->actor))
-            ->when($this->tenant !== '', fn ($query) => $query->where('tenant_id', $this->tenant))
-            ->when($this->action !== '', fn ($query) => $query->where('action', $this->action))
-            ->when($this->object !== '', function ($query) {
-                $value = '%' . trim($this->object) . '%';
-
-                $query->where(function ($objectQuery) use ($value) {
-                    $objectQuery
-                        ->where('auditable_type', 'like', $value)
-                        ->orWhere('auditable_id', 'like', $value);
-                });
-            })
-            ->when($this->search !== '', function ($query) {
-                $value = '%' . trim($this->search) . '%';
-
-                $query->where(function ($searchQuery) use ($value) {
-                    $searchQuery
-                        ->where('action', 'like', $value)
-                        ->orWhere('auditable_type', 'like', $value)
-                        ->orWhere('auditable_id', 'like', $value)
-                        ->orWhere('ip_address', 'like', $value)
-                        ->orWhereHas('user', function ($userQuery) use ($value) {
-                            $userQuery
-                                ->where('name', 'like', $value)
-                                ->orWhere('email', 'like', $value);
-                        })
-                        ->orWhereHas('tenant', function ($tenantQuery) use ($value) {
-                            $tenantQuery
-                                ->where('name', 'like', $value)
-                                ->orWhere('code', 'like', $value);
-                        });
-                });
-            })
-            ->when($this->dateFrom !== '', fn ($query) => $query->whereDate('created_at', '>=', $this->dateFrom))
-            ->when($this->dateTo !== '', fn ($query) => $query->whereDate('created_at', '<=', $this->dateTo))
-            ->latest('created_at')
-            ->paginate($this->perPage);
-
         return [
-            'logs' => $logs,
-            'actors' => User::query()
-                ->orderBy('name')
-                ->get(['id', 'name', 'email']),
-            'tenants' => Tenant::query()
-                ->orderBy('name')
-                ->get(['id', 'name', 'code']),
-            'actions' => AuditLog::query()
-                ->select('action')
-                ->whereNotNull('action')
-                ->distinct()
-                ->orderBy('action')
-                ->pluck('action'),
+            'logs' => $auditLogs->paginate([
+                'search' => $this->search,
+                'actor' => $this->actor,
+                'tenant' => $this->tenant,
+                'action' => $this->action,
+                'object' => $this->object,
+                'dateFrom' => $this->dateFrom,
+                'dateTo' => $this->dateTo,
+            ], $this->perPage),
+            'actors' => $auditLogs->actors(),
+            'tenants' => $auditLogs->tenants(),
+            'actions' => $auditLogs->actions(),
         ];
     }
 
