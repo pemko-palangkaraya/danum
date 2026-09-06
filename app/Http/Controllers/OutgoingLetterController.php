@@ -148,7 +148,11 @@ class OutgoingLetterController extends Controller
 
     public function validateLetter(Request $request, string $id): JsonResponse
     {
-        return $this->transition($request, $id, 'validate', fn (OutgoingLetter $letter) => $this->workflowService->validate($letter, $request->user()->id));
+        return $this->transition($request, $id, 'validate', fn (OutgoingLetter $letter) => $this->workflowService->validate(
+            $letter,
+            $request->user()->id,
+            $request->string('note')->toString(),
+        ));
     }
 
     public function issue(Request $request, string $id): JsonResponse
