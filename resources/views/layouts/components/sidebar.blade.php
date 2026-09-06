@@ -3,6 +3,58 @@
         <a href="{{ route('dashboard') }}"><x-danum-logo class="h-9 w-auto text-yellow-400" /></a>
     </div>
 
+    <style>
+        /* Section navigation: keep groups visually distinct in both states. */
+        aside nav > div > button {
+            position: relative;
+            border: 1px solid transparent;
+            background: transparent;
+            transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+        }
+
+        aside nav > div > button::before {
+            content: '';
+            position: absolute;
+            left: -1px;
+            top: 7px;
+            bottom: 7px;
+            width: 3px;
+            border-radius: 9999px;
+            background: rgb(226 232 240);
+            transition: background-color .15s ease, transform .15s ease;
+        }
+
+        aside nav > div > button[aria-expanded="true"] {
+            border-color: rgb(226 232 240);
+            background: rgb(248 250 252);
+            color: rgb(15 23 42);
+        }
+
+        aside nav > div > button[aria-expanded="true"]::before {
+            background: rgb(15 23 42);
+        }
+
+        aside nav > div > div {
+            margin-left: .25rem;
+            padding: .25rem 0 .25rem .5rem;
+            border-left: 1px solid rgb(226 232 240);
+        }
+
+        aside nav > div > div a {
+            transition: background-color .15s ease, color .15s ease, padding-left .15s ease;
+        }
+
+        aside nav > div > div a:hover {
+            padding-left: .875rem;
+        }
+
+        aside nav > div > div a[aria-current="page"] {
+            background: rgb(241 245 249);
+            color: rgb(15 23 42);
+            font-weight: 600;
+        }
+    </style>
+
     @include('layouts.components.sidebar-navigation')
     @include('layouts.components.sidebar-footer')
 </aside>
