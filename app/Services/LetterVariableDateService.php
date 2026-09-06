@@ -9,22 +9,36 @@ use Illuminate\Support\Carbon;
 final class LetterVariableDateService
 {
     private const MONTHS = [
-        1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr', 5 => 'Mei', 6 => 'Jun',
-        7 => 'Jul', 8 => 'Agu', 9 => 'Sep', 10 => 'Okt', 11 => 'Nov', 12 => 'Des',
+        1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+        5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+        9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
+    ];
+
+    private const MONTH_ALIASES = [
+        'jan' => 1, 'januari' => 1,
+        'feb' => 2, 'februari' => 2,
+        'mar' => 3, 'maret' => 3,
+        'apr' => 4, 'april' => 4,
+        'mei' => 5, 'may' => 5,
+        'jun' => 6, 'juni' => 6,
+        'jul' => 7, 'juli' => 7,
+        'agu' => 8, 'aug' => 8, 'agustus' => 8,
+        'sep' => 9, 'september' => 9,
+        'okt' => 10, 'oct' => 10, 'oktober' => 10,
+        'nov' => 11, 'november' => 11,
+        'des' => 12, 'dec' => 12, 'desember' => 12,
     ];
 
     public function format(mixed $value): string
     {
-        if (blank($value)) {
-            return '';
+        $normalized = $this->normalize($value);
+        if ($normalized === null) {
+            return blank($value) ? '' : (string) $value;
         }
 
-        try {
-            $date = Carbon::parse((string) $value);
-            return $date->format('d').' '.self::MONTHS[(int) $date->format('n')].' '.$date->format('Y');
-        } catch (\Throwable) {
-            return (string) $value;
-        }
+        $date = Carbon::createFromFormat('!Y-m-d', $normalized);
+
+        return $date->format('d').' '.self::MONTHS[(int) $date->format('n')].' '.$date->format('Y');
     }
 
     public function normalize(mixed $value): ?string
@@ -38,22 +52,18 @@ final class LetterVariableDateService
             return $this->validDate($value);
         }
 
-        if (! preg_match('/^(\d{1,2})\s+([A-Za-z]{3,4})\s+(\d{4})$/u', $value, $matches)) {
+        if (! preg_match('/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/u', $value, $matches)) {
             return null;
         }
 
-        $month = array_search(mb_strtolower($matches[2]), array_map('mb_strtolower', self::MONTHS), true);
-        $month ??= $this->englishMonthNumber($matches[2]);
-
-        if (! $month) {
+        $month = self::MONTH_ALIASES[mb_strtolower($matches[2])] ?? null;
+        if ($month === null) {
             return null;
         }
 
-        try {
-            return Carbon::createFromFormat('!j-n-Y', $matches[1].'-'.$month.'-'.$matches[3])->format('Y-m-d');
-        } catch (\Throwable) {
-            return null;
-        }
+        $candidate = sprintf('%04d-%02d-%02d', (int) $matches[3], $month, (int) $matches[1]);
+
+        return $this->validDate($candidate);
     }
 
     public function isBirthDate(string $key): bool
@@ -73,13 +83,5 @@ final class LetterVariableDateService
         } catch (\Throwable) {
             return null;
         }
-    }
-
-    private function englishMonthNumber(string $month): ?int
-    {
-        return [
-            'jan' => 1, 'feb' => 2, 'mar' => 3, 'apr' => 4, 'may' => 5, 'jun' => 6,
-            'jul' => 7, 'aug' => 8, 'sep' => 9, 'oct' => 10, 'nov' => 11, 'dec' => 12,
-        ][mb_strtolower(substr(trim($month), 0, 3))] ?? null;
     }
 }
