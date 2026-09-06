@@ -42,7 +42,7 @@ class CitizenFactory extends Factory
 
         return [
             'tenant_id' => Tenant::factory(),
-            'nik' => $this->nikFor($birthDate, $gender),
+            'nik' => null,
             'nama_lengkap' => $this->randomName($gender),
             'tempat_lahir' => $this->faker->randomElement(self::BIRTH_PLACES),
             'tanggal_lahir' => $birthDate->format('Y-m-d'),
@@ -74,12 +74,17 @@ class CitizenFactory extends Factory
 
             [$education, $job, $maritalStatus] = $this->profileForAge($age, $gender);
 
-            $citizen->forceFill([
-                'nik' => $this->nikFor($birthDate, $gender),
+            $attributes = [
                 'pendidikan' => $education,
                 'pekerjaan' => $job,
                 'status_perkawinan' => $maritalStatus,
-            ]);
+            ];
+
+            if (blank($citizen->nik)) {
+                $attributes['nik'] = $this->nikFor($birthDate, $gender);
+            }
+
+            $citizen->forceFill($attributes);
         });
     }
 
@@ -130,48 +135,12 @@ class CitizenFactory extends Factory
 
     private function profileForAge(int $age, string $gender): array
     {
-        if ($age < 6) {
-            return ['Tidak/Belum Sekolah', 'Tidak/Belum Bekerja', 'single'];
-        }
-
-        if ($age < 13) {
-            return ['SD', 'Pelajar/Mahasiswa', 'single'];
-        }
-
-        if ($age < 16) {
-            return ['SMP', 'Pelajar/Mahasiswa', 'single'];
-        }
-
-        if ($age < 19) {
-            return [$this->faker->randomElement(['SMA', 'SMP']), 'Pelajar/Mahasiswa', 'single'];
-        }
-
-        if ($age < 22) {
-            return [
-                $this->faker->randomElement(['SMA', 'Diploma', 'Sarjana']),
-                $this->faker->randomElement(['Pelajar/Mahasiswa', 'Karyawan Swasta', 'Wiraswasta', 'Tidak/Belum Bekerja']),
-                'single',
-            ];
-        }
-
-        if ($age < 60) {
-            return [
-                $this->faker->randomElement(['SMA', 'Diploma', 'Sarjana']),
-                $gender === 'female' && $this->faker->boolean(25)
-                    ? 'Ibu Rumah Tangga'
-                    : $this->faker->randomElement([
-                        'Pegawai Negeri Sipil', 'Karyawan Swasta', 'Wiraswasta', 'Guru',
-                        'Petani', 'Pedagang', 'Perawat', 'Buruh Harian Lepas', 'Pengemudi',
-                        'Ibu Rumah Tangga',
-                    ]),
-                $this->faker->randomElement(['single', 'married', 'married', 'married', 'divorced', 'widowed']),
-            ];
-        }
-
-        return [
-            $this->faker->randomElement(['SD', 'SMP', 'SMA', 'Diploma', 'Sarjana']),
-            $this->faker->randomElement(['Pensiunan', 'Wiraswasta', 'Petani', 'Tidak/Belum Bekerja']),
-            $this->faker->randomElement(['married', 'married', 'widowed', 'divorced']),
-        ];
+        if ($age < 6) return ['Tidak/Belum Sekolah', 'Tidak/Belum Bekerja', 'single'];
+        if ($age < 13) return ['SD', 'Pelajar/Mahasiswa', 'single'];
+        if ($age < 16) return ['SMP', 'Pelajar/Mahasiswa', 'single'];
+        if ($age < 19) return [$this->faker->randomElement(['SMA', 'SMP']), 'Pelajar/Mahasiswa', 'single'];
+        if ($age < 22) return [$this->faker->randomElement(['SMA', 'Diploma', 'Sarjana']), $this->faker->randomElement(['Pelajar/Mahasiswa', 'Karyawan Swasta', 'Wiraswasta', 'Tidak/Belum Bekerja']), 'single'];
+        if ($age < 60) return [$this->faker->randomElement(['SMA', 'Diploma', 'Sarjana']), $gender === 'female' && $this->faker->boolean(25) ? 'Ibu Rumah Tangga' : $this->faker->randomElement(['Pegawai Negeri Sipil', 'Karyawan Swasta', 'Wiraswasta', 'Guru', 'Petani', 'Pedagang', 'Perawat', 'Buruh Harian Lepas', 'Pengemudi', 'Ibu Rumah Tangga']), $this->faker->randomElement(['single', 'married', 'married', 'married', 'divorced', 'widowed'])];
+        return [$this->faker->randomElement(['SD', 'SMP', 'SMA', 'Diploma', 'Sarjana']), $this->faker->randomElement(['Pensiunan', 'Wiraswasta', 'Petani', 'Tidak/Belum Bekerja']), $this->faker->randomElement(['married', 'married', 'widowed', 'divorced'])];
     }
 }
