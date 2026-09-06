@@ -15,6 +15,10 @@ use Illuminate\Support\Collection;
 
 class DashboardService
 {
+    public function __construct(
+        private readonly PopulationStatisticsService $populationStatisticsService,
+    ) {}
+
     public function summarize(User $user): array
     {
         $isSuperAdmin = $user->isSuperAdmin();
@@ -23,7 +27,7 @@ class DashboardService
         $letters = OutgoingLetter::query()->when($tenantId, fn (Builder $query) => $query->where('tenant_id', $tenantId));
         $stats = $this->letterStats($letters, $user, $isSuperAdmin);
         $population = $user->hasPermission('population.view')
-            ? app(PopulationStatisticsService::class)->summarize($tenantId)
+            ? $this->populationStatisticsService->summarize($tenantId)
             : null;
 
         return [
@@ -99,9 +103,7 @@ class DashboardService
 
     private function populationCards(?array $population): array
     {
-        if ($population === null) {
-            return [];
-        }
+        if ($population === null) return [];
 
         $total = (int) $population['totalCitizens'];
         $percent = static fn (int $value): string => $total > 0 ? number_format(($value / $total) * 100, 1).'%' : '0.0%';
