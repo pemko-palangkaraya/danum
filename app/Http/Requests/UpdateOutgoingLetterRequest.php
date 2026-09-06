@@ -38,7 +38,7 @@ class UpdateOutgoingLetterRequest extends FormRequest
                     $query->where('tenant_id', $this->user()->tenant_id)->where('status', PositionStatus::ACTIVE->value)->where('can_validate', true)->whereNull('deleted_at');
                 }),
             ],
-            'number' => ['sometimes', 'required', 'string', 'max:100', Rule::unique('outgoing_letters', 'number')->where('tenant_id', $this->user()->tenant_id)->ignore($this->route('outgoing_letter'))],
+            'number' => ['prohibited'],
             'recipient_name' => ['sometimes', 'required', 'string', 'max:150'],
             'recipient_address' => ['sometimes', 'nullable', 'string'],
             'subject' => ['sometimes', 'required', 'string', 'max:255'],
