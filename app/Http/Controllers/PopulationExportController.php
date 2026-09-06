@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use RuntimeException;
 
-class PopulationExportController
+class PopulationExportController extends Controller
 {
     private const HEADERS = [
         'NIK', 'Nama Lengkap', 'Tempat Lahir', 'Tanggal Lahir', 'Jenis Kelamin',
