@@ -40,7 +40,18 @@ class Citizens extends Component
     public string $nik_ibu = '';
     public string $status_kependudukan = 'active';
 
-    public function mount(CitizenService $citizenService): void
+    protected CitizenService $citizenService;
+    protected PopulationReferenceService $referenceService;
+
+    public function boot(
+        CitizenService $citizenService,
+        PopulationReferenceService $referenceService,
+    ): void {
+        $this->citizenService = $citizenService;
+        $this->referenceService = $referenceService;
+    }
+
+    public function mount(): void
     {
         abort_unless(auth()->user()?->hasPermission('population.view'), 403);
 
@@ -54,7 +65,7 @@ class Citizens extends Component
             $this->authorizeManage();
 
             if (auth()->user()->isSuperAdmin()) {
-                $citizen = $citizenService->find((string) $editId);
+                $citizen = $this->citizenService->find((string) $editId);
                 $this->selectedTenantId = $citizen->tenant_id;
             }
 
@@ -97,7 +108,7 @@ class Citizens extends Component
     public function edit(string $id): void
     {
         $this->authorizeManage();
-        $citizen = app(CitizenService::class)->findForTenant($this->tenantId(), $id);
+        $citizen = $this->citizenService->findForTenant($this->tenantId(), $id);
 
         foreach ($this->fields() as $field) {
             $this->{$field} = (string) ($citizen->{$field} ?? '');
@@ -113,7 +124,7 @@ class Citizens extends Component
     {
         $this->authorizeManage();
 
-        app(CitizenService::class)->save(
+        $this->citizenService->save(
             $this->tenantId(),
             $this->only($this->fields()),
             $this->editingId,
@@ -156,16 +167,15 @@ class Citizens extends Component
         $tenantSelected = $isSuperAdmin
             ? (bool) $this->selectedTenantId
             : (bool) $user->tenant_id;
-        $service = app(CitizenService::class);
         $references = $this->showForm
-            ? app(PopulationReferenceService::class)->all()
+            ? $this->referenceService->all()
             : [];
 
         return view('livewire.pages.population.citizens', [
             'citizens' => $tenantSelected
-                ? $service->paginate($this->tenantId(), $this->search, $this->perPage)
+                ? $this->citizenService->paginate($this->tenantId(), $this->search, $this->perPage)
                 : collect(),
-            'tenants' => $isSuperAdmin ? $service->tenants() : collect(),
+            'tenants' => $isSuperAdmin ? $this->citizenService->tenants() : collect(),
             'references' => $references,
             'isSuperAdmin' => $isSuperAdmin,
             'canManage' => $canManage,
