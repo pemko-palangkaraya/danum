@@ -7,9 +7,11 @@ namespace App\Livewire\Concerns;
 use App\Models\Citizen;
 use App\Models\OutgoingLetter;
 use App\Services\CitizenDeathService;
+use App\Services\CitizenService;
 use App\Services\LetterVariableDateService;
 use App\Services\LetterVariableDefinitionService;
 use App\Services\LetterVariableSourceResolver;
+use App\Services\OutgoingLetterService;
 use App\Services\OutgoingLetterWorkflowService;
 use App\Support\LetterVariableSchema;
 
@@ -18,6 +20,23 @@ trait HandlesLetterVariables
     public ?string $citizen_id = null;
     public string $deathTime = '';
     public string $deathTimeZone = 'WIB';
+
+    protected CitizenService $citizenService;
+    protected LetterVariableDateService $letterVariableDateService;
+    protected LetterVariableDefinitionService $letterVariableDefinitionService;
+    protected LetterVariableSourceResolver $letterVariableSourceResolver;
+
+    public function bootHandlesLetterVariables(
+        CitizenService $citizenService,
+        LetterVariableDateService $letterVariableDateService,
+        LetterVariableDefinitionService $letterVariableDefinitionService,
+        LetterVariableSourceResolver $letterVariableSourceResolver,
+    ): void {
+        $this->citizenService = $citizenService;
+        $this->letterVariableDateService = $letterVariableDateService;
+        $this->letterVariableDefinitionService = $letterVariableDefinitionService;
+        $this->letterVariableSourceResolver = $letterVariableSourceResolver;
+    }
 
     public function addRepeaterRow(string $key): void
     {
@@ -37,18 +56,31 @@ trait HandlesLetterVariables
         if ($this->variableValues[$key] === []) $this->addRepeaterRow($key);
     }
 
-    public function repeaterDefinitions(): array { return LetterVariableSchema::repeaters($this->variables); }
+    public function repeaterDefinitions(): array
+    {
+        return LetterVariableSchema::repeaters($this->variables);
+    }
 
     public function mountHandlesLetterVariables(): void
     {
         $citizenId = request()->query('citizen_id');
         $letterTypeCode = request()->query('letter_type_code');
         $tenantId = auth()->user()?->tenant_id;
+
         if (! is_string($citizenId) || ! is_string($letterTypeCode) || ! $tenantId || $letterTypeCode !== CitizenDeathService::LETTER_TYPE_CODE) return;
-        $citizen = Citizen::query()->where('tenant_id', $tenantId)->whereKey($citizenId)->where('status_kependudukan', '!=', 'meninggal')->first();
-        if (! $citizen) { $this->dispatch('toast', type: 'error', message: 'Data warga tidak ditemukan, sudah berstatus meninggal, atau bukan milik OPD Anda.'); return; }
-        $letterType = app(\App\Services\LetterTypeService::class)->getAvailableForTenant($tenantId)->firstWhere('code', $letterTypeCode);
-        if (! $letterType) { $this->dispatch('toast', type: 'error', message: 'Jenis Surat Keterangan Kematian belum tersedia untuk OPD Anda.'); return; }
+
+        $citizen = $this->citizenService->findAliveForTenant($tenantId, $citizenId);
+        if (! $citizen) {
+            $this->dispatch('toast', type: 'error', message: 'Data warga tidak ditemukan, sudah berstatus meninggal, atau bukan milik OPD Anda.');
+            return;
+        }
+
+        $letterType = $this->letterTypeService->getAvailableForTenant($tenantId)->firstWhere('code', $letterTypeCode);
+        if (! $letterType) {
+            $this->dispatch('toast', type: 'error', message: 'Jenis Surat Keterangan Kematian belum tersedia untuk OPD Anda.');
+            return;
+        }
+
         $this->citizen_id = $citizen->id;
         $this->deathTime = '';
         $this->deathTimeZone = 'WIB';
@@ -61,8 +93,14 @@ trait HandlesLetterVariables
     public function updatedVariableValues($value, string $key): void
     {
         if ($key !== 'tanggal_meninggal' || ! $this->citizen_id) return;
-        $citizen = Citizen::query()->where('tenant_id', auth()->user()?->tenant_id)->whereKey($this->citizen_id)->first();
-        $this->variableValues['recipient_age'] = $citizen ? app(LetterVariableSourceResolver::class)->age($citizen, $value) : '';
+
+        $tenantId = auth()->user()?->tenant_id;
+        if (! $tenantId) return;
+
+        $citizen = $this->citizenService->findAliveForTenant($tenantId, $this->citizen_id);
+        $this->variableValues['recipient_age'] = $citizen
+            ? $this->letterVariableSourceResolver->age($citizen, $value)
+            : '';
     }
 
     private function initializeVariableValues(bool $newRows = false): void
@@ -90,8 +128,6 @@ trait HandlesLetterVariables
 
     private function validateVariableValues(): void
     {
-        $definitions = app(LetterVariableDefinitionService::class);
-        $date = app(LetterVariableDateService::class);
         foreach ($this->variables as $variable) {
             $variable = (string) $variable;
             if ($this->isSystemVariable($variable) || $this->isDeathAutofilledVariable($variable)) continue;
@@ -103,24 +139,42 @@ trait HandlesLetterVariables
             }
             if ($repeater = LetterVariableSchema::parseRepeater($variable)) {
                 $rows = $this->variableValues[$repeater['key']] ?? [];
-                if (! is_array($rows) || $rows === []) { $this->addError('variableValues.'.$repeater['key'], 'Tambahkan minimal satu data.'); continue; }
-                foreach ($rows as $rowIndex => $row) foreach ($repeater['fields'] as $field) if (blank($row[$field['key']] ?? null)) $this->addError('variableValues.'.$repeater['key'].'.'.$rowIndex.'.'.$field['key'], 'Field ini wajib diisi.');
+                if (! is_array($rows) || $rows === []) {
+                    $this->addError('variableValues.'.$repeater['key'], 'Tambahkan minimal satu data.');
+                    continue;
+                }
+                foreach ($rows as $rowIndex => $row) {
+                    foreach ($repeater['fields'] as $field) {
+                        if (blank($row[$field['key']] ?? null)) $this->addError('variableValues.'.$repeater['key'].'.'.$rowIndex.'.'.$field['key'], 'Field ini wajib diisi.');
+                    }
+                }
                 continue;
             }
-            $definition = $definitions->forKey($variable);
+            $definition = $this->letterVariableDefinitionService->forKey($variable);
             $required = $definition?->required ?? true;
-            if ($required && blank($this->variableValues[$variable] ?? null)) { $this->addError('variableValues.'.$variable, 'Field ini wajib diisi.'); continue; }
-            if (blank($this->variableValues[$variable] ?? null) || ! $date->isDate($variable, $definition?->type)) continue;
-            $normalized = $date->normalize($this->variableValues[$variable]);
-            if ($normalized === null) { $this->addError('variableValues.'.$variable, 'Format tanggal tidak valid. Gunakan dd mmmm yyyy, misalnya 6 September 2026.'); continue; }
-            if ($normalized > now()->toDateString()) $this->addError('variableValues.'.$variable, $date->isBirthDate($variable) ? 'Tanggal lahir tidak boleh tanggal di masa depan.' : 'Tanggal tidak boleh melewati hari ini.');
+            if ($required && blank($this->variableValues[$variable] ?? null)) {
+                $this->addError('variableValues.'.$variable, 'Field ini wajib diisi.');
+                continue;
+            }
+            if (blank($this->variableValues[$variable] ?? null) || ! $this->letterVariableDateService->isDate($variable, $definition?->type)) continue;
+            $normalized = $this->letterVariableDateService->normalize($this->variableValues[$variable]);
+            if ($normalized === null) {
+                $this->addError('variableValues.'.$variable, 'Format tanggal tidak valid. Gunakan dd mmmm yyyy, misalnya 6 September 2026.');
+                continue;
+            }
+            if ($normalized > now()->toDateString()) $this->addError('variableValues.'.$variable, $this->letterVariableDateService->isBirthDate($variable) ? 'Tanggal lahir tidak boleh tanggal di masa depan.' : 'Tanggal tidak boleh melewati hari ini.');
         }
     }
 
-    public function cancelLetter(string $id, OutgoingLetterWorkflowService $workflow): void
+    public function cancelLetter(string $id, OutgoingLetterWorkflowService $workflow, OutgoingLetterService $letters): void
     {
         try {
-            $letter = OutgoingLetter::query()->where('tenant_id', auth()->user()?->tenant_id)->findOrFail($id);
+            $tenantId = auth()->user()?->tenant_id;
+            if (! $tenantId) throw new \DomainException('Akun platform tidak memiliki konteks tenant.');
+
+            $letter = $letters->find($id, $tenantId);
+            if (! $letter) throw new \DomainException('Surat tidak ditemukan dalam konteks tenant Anda.');
+
             $this->authorize('cancel', $letter);
             $workflow->cancel($letter, auth()->id());
             $this->dispatch('toast', type: 'success', message: 'Draft surat berhasil dibatalkan.');
@@ -132,12 +186,10 @@ trait HandlesLetterVariables
     private function normalizedVariableValues(): array
     {
         $data = $this->variableValues;
-        $date = app(LetterVariableDateService::class);
-        $definitions = app(LetterVariableDefinitionService::class);
         foreach ($data as $key => $value) {
             if (! is_string($key) || is_array($value)) continue;
-            $definition = $definitions->forKey($key);
-            if ($date->isDate($key, $definition?->type) && filled($value)) $data[$key] = $date->normalize($value) ?? $value;
+            $definition = $this->letterVariableDefinitionService->forKey($key);
+            if ($this->letterVariableDateService->isDate($key, $definition?->type) && filled($value)) $data[$key] = $this->letterVariableDateService->normalize($value) ?? $value;
         }
         if (filled($this->deathTime)) $data['waktu_meninggal'] = trim($this->deathTime).' '.strtoupper($this->deathTimeZone);
         foreach (['number', 'recipient_name', 'recipient_address', 'subject'] as $key) $data[$key] = (string) ($data[$key] ?? '');
@@ -147,33 +199,45 @@ trait HandlesLetterVariables
 
     private function applySystemValues(?\App\Models\PositionHolder $holder = null): void
     {
-        $values = app(LetterVariableSourceResolver::class)->system($holder);
-        $definitions = app(LetterVariableDefinitionService::class);
+        $values = $this->letterVariableSourceResolver->system($holder);
         foreach ($this->variables as $variable) {
             $variable = (string) $variable;
-            if ($definitions->isSystem($variable) && array_key_exists($variable, $values)) $this->variableValues[$variable] = (string) ($values[$variable] ?? '');
+            if ($this->letterVariableDefinitionService->isSystem($variable) && array_key_exists($variable, $values)) $this->variableValues[$variable] = (string) ($values[$variable] ?? '');
         }
     }
 
     private function applyCitizenValues(Citizen $citizen): void
     {
-        $definitions = app(LetterVariableDefinitionService::class);
-        $resolver = app(LetterVariableSourceResolver::class);
-        $values = $resolver->citizen($citizen);
-        $family = $resolver->family($citizen);
+        $values = $this->letterVariableSourceResolver->citizen($citizen);
+        $family = $this->letterVariableSourceResolver->family($citizen);
         $values += $family['values'];
         $deathDate = $this->variableValues['tanggal_meninggal'] ?? null;
-        $values['recipient_age'] = $resolver->age($citizen, $deathDate);
+        $values['recipient_age'] = $this->letterVariableSourceResolver->age($citizen, $deathDate);
         foreach ($this->variables as $variable) {
             $variable = (string) $variable;
-            $definition = $definitions->forKey($variable);
+            $definition = $this->letterVariableDefinitionService->forKey($variable);
             if (in_array($definition?->source, ['citizen', 'family', 'calculated'], true) && array_key_exists($variable, $values)) $this->variableValues[$variable] = (string) ($values[$variable] ?? '');
         }
         foreach ($this->repeaterDefinitions() as $repeater) if ($repeater['key'] === 'anak_ditinggalkan') $this->variableValues[$repeater['key']] = $family['children'];
     }
 
-    public function isReadOnlyVariable(string $variable): bool { return app(LetterVariableDefinitionService::class)->isReadonly($variable, $this->citizen_id !== null); }
-    public function formatIndonesianDate(mixed $value): string { return app(LetterVariableDateService::class)->format($value); }
-    private function isSystemVariable(string $variable): bool { return app(LetterVariableDefinitionService::class)->isSystem($variable); }
-    private function isDeathAutofilledVariable(string $variable): bool { return $this->citizen_id !== null && in_array($variable, ['recipient_name', 'recipient_nik', 'recipient_gender', 'recipient_birth_place', 'recipient_birth_date', 'recipient_age', 'recipient_religion', 'recipient_occupation', 'recipient_address', 'nama_pasangan'], true); }
+    public function isReadOnlyVariable(string $variable): bool
+    {
+        return $this->letterVariableDefinitionService->isReadonly($variable, $this->citizen_id !== null);
+    }
+
+    public function formatIndonesianDate(mixed $value): string
+    {
+        return $this->letterVariableDateService->format($value);
+    }
+
+    private function isSystemVariable(string $variable): bool
+    {
+        return $this->letterVariableDefinitionService->isSystem($variable);
+    }
+
+    private function isDeathAutofilledVariable(string $variable): bool
+    {
+        return $this->citizen_id !== null && in_array($variable, ['recipient_name', 'recipient_nik', 'recipient_gender', 'recipient_birth_place', 'recipient_birth_date', 'recipient_age', 'recipient_religion', 'recipient_occupation', 'recipient_address', 'nama_pasangan'], true);
+    }
 }
