@@ -16,34 +16,26 @@ class TenantFactory extends Factory
 {
     protected $model = Tenant::class;
 
-    /**
-     * Kota Palangka Raya terdiri dari 5 kecamatan dan 30 kelurahan.
-     * Data ini dipakai khusus untuk kebutuhan factory/test fixture.
-     *
-     * @var array<string, array<int, string>>
-     */
     private const PALANGKA_RAYA_AREAS = [
-        'Pahandut' => [
-            'Pahandut', 'Panarung', 'Langkai', 'Tumbang Rungan', 'Tanjung Pinang', 'Pahandut Seberang',
-        ],
-        'Jekan Raya' => [
-            'Menteng', 'Palangka', 'Bukit Tunggal', 'Petuk Katimpun',
-        ],
-        'Sabangau' => [
-            'Kereng Bangkirai', 'Sabaru', 'Kalampangan', 'Kameloh Baru', 'Danau Tundai', 'Bereng Bengkel',
-        ],
-        'Bukit Batu' => [
-            'Marang', 'Tumbang Tahai', 'Banturung', 'Tangkiling', 'Sei Gohong', 'Kanarakan', 'Habaring Hurung',
-        ],
-        'Rakumpit' => [
-            'Petuk Bukit', 'Pager', 'Panjehang', 'Gaung Baru', 'Petuk Berunai', 'Mungku Baru', 'Bukit Sua',
-        ],
+        'Pahandut' => ['Pahandut', 'Panarung', 'Langkai', 'Tumbang Rungan', 'Tanjung Pinang', 'Pahandut Seberang'],
+        'Jekan Raya' => ['Menteng', 'Palangka', 'Bukit Tunggal', 'Petuk Katimpun'],
+        'Sabangau' => ['Kereng Bangkirai', 'Sabaru', 'Kalampangan', 'Kameloh Baru', 'Danau Tundai', 'Bereng Bengkel'],
+        'Bukit Batu' => ['Marang', 'Tumbang Tahai', 'Banturung', 'Tangkiling', 'Sei Gohong', 'Kanarakan', 'Habaring Hurung'],
+        'Rakumpit' => ['Petuk Bukit', 'Pager', 'Panjehang', 'Gaung Baru', 'Petuk Berunai', 'Mungku Baru', 'Bukit Sua'],
+    ];
+
+    private const DISTRICT_CODES = [
+        'Pahandut' => 'PHD',
+        'Jekan Raya' => 'JKR',
+        'Sabangau' => 'SBG',
+        'Bukit Batu' => 'BKB',
+        'Rakumpit' => 'RKP',
     ];
 
     public function definition(): array
     {
         return [
-            'code' => fake()->unique()->regexify('[A-Z]{3}[0-9]{3}'),
+            'code' => fake()->unique()->regexify('TNT[0-9]{3}'),
             'name' => fake()->company(),
             'tenant_category_id' => TenantCategory::query()->where('code', 'lainnya')->value('id'),
             'province' => fake()->state(),
@@ -60,9 +52,6 @@ class TenantFactory extends Factory
         ];
     }
 
-    /**
-     * Generate a realistic tenant anywhere under Pemerintah Kota Palangka Raya.
-     */
     public function palangkaRaya(): static
     {
         return $this->state(function (): array {
@@ -70,7 +59,7 @@ class TenantFactory extends Factory
             $village = fake()->randomElement(self::PALANGKA_RAYA_AREAS[$district]);
 
             return [
-                'code' => fake()->unique()->regexify('PLK[0-9]{6}'),
+                'code' => $this->villageCode($district, $village),
                 'name' => "Kelurahan {$village}",
                 'tenant_category_id' => $this->categoryId('kelurahan'),
                 'province' => 'Kalimantan Tengah',
@@ -84,13 +73,10 @@ class TenantFactory extends Factory
         });
     }
 
-    /**
-     * Generate the Pemerintah Kota Palangka Raya tenant.
-     */
     public function pemerintahKotaPalangkaRaya(): static
     {
         return $this->state([
-            'code' => 'PEMKOT-PLK',
+            'code' => 'PLK',
             'name' => 'Pemerintah Kota Palangka Raya',
             'tenant_category_id' => $this->categoryId('pemerintah-kota'),
             'province' => 'Kalimantan Tengah',
@@ -102,16 +88,13 @@ class TenantFactory extends Factory
         ]);
     }
 
-    /**
-     * Generate a tenant for one of the five Palangka Raya kecamatan.
-     */
     public function kecamatanPalangkaRaya(?string $district = null): static
     {
         return $this->state(function () use ($district): array {
             $district ??= fake()->randomElement(array_keys(self::PALANGKA_RAYA_AREAS));
 
             return [
-                'code' => 'KEC-PLK-'.str()->upper(str()->slug($district)),
+                'code' => self::DISTRICT_CODES[$district] ?? 'K'.fake()->numerify('##'),
                 'name' => "Kecamatan {$district}",
                 'tenant_category_id' => $this->categoryId('kecamatan'),
                 'province' => 'Kalimantan Tengah',
@@ -124,9 +107,6 @@ class TenantFactory extends Factory
         });
     }
 
-    /**
-     * Generate a tenant for one of the 30 Palangka Raya kelurahan.
-     */
     public function kelurahanPalangkaRaya(?string $district = null, ?string $village = null): static
     {
         return $this->state(function () use ($district, $village): array {
@@ -134,7 +114,7 @@ class TenantFactory extends Factory
             $village ??= fake()->randomElement(self::PALANGKA_RAYA_AREAS[$district]);
 
             return [
-                'code' => 'KEL-PLK-'.str()->upper(str()->slug($district)).'-'.str()->upper(str()->slug($village)),
+                'code' => $this->villageCode($district, $village),
                 'name' => "Kelurahan {$village}",
                 'tenant_category_id' => $this->categoryId('kelurahan'),
                 'province' => 'Kalimantan Tengah',
@@ -148,15 +128,9 @@ class TenantFactory extends Factory
         });
     }
 
-    /**
-     * Return all 30 Palangka Raya kelurahan as simple location fixtures.
-     *
-     * @return array<int, array<string, string>>
-     */
     public static function palangkaRayaKelurahanData(): array
     {
         $rows = [];
-
         foreach (self::PALANGKA_RAYA_AREAS as $district => $villages) {
             foreach ($villages as $village) {
                 $rows[] = [
@@ -168,19 +142,23 @@ class TenantFactory extends Factory
                 ];
             }
         }
-
         return $rows;
     }
 
     public function inactive(): static
     {
-        return $this->state(fn (): array => [
-            'status' => TenantStatus::INACTIVE,
-        ]);
+        return $this->state(fn (): array => ['status' => TenantStatus::INACTIVE]);
     }
 
     private function categoryId(string $code): ?int
     {
         return TenantCategory::query()->where('code', $code)->value('id');
+    }
+
+    private function villageCode(string $district, string $village): string
+    {
+        $index = array_search($village, self::PALANGKA_RAYA_AREAS[$district], true);
+        $sequence = str_pad((string) (($index === false ? 0 : $index) + 1), 2, '0', STR_PAD_LEFT);
+        return (self::DISTRICT_CODES[$district] ?? 'KEL').'-'.$sequence;
     }
 }
