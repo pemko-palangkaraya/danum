@@ -213,7 +213,7 @@ class CitizenService
         ];
     }
 
-    private function referenceRule(string $group): Rule
+    private function referenceRule(string $group)
     {
         return Rule::exists('population_reference_data', 'code')
             ->where(fn ($query) => $query->where('group', $group)->where('is_active', true));
