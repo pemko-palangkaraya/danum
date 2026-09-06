@@ -18,6 +18,11 @@ use Illuminate\Validation\ValidationException;
 
 class CitizenService
 {
+    public function __construct(
+        private readonly PopulationLocationService $populationLocationService,
+        private readonly AuditLogService $auditLogService,
+    ) {}
+
     public function query(string $tenantId, string $search = ''): Builder
     {
         return Citizen::query()
@@ -90,7 +95,7 @@ class CitizenService
             'berlaku_mulai' => ['nullable', 'date'],
         ])->validate();
 
-        if (! app(PopulationLocationService::class)->existsForTenant(
+        if (! $this->populationLocationService->existsForTenant(
             (string) $citizen->tenant_id,
             $data['provinsi'],
             $data['kabupaten_kota'],
@@ -107,7 +112,7 @@ class CitizenService
         return DB::transaction(function () use ($citizen, $data): CitizenAddress {
             $address = CitizenAddress::create($data);
 
-            $this->auditLogService()->record(
+            $this->auditLogService->record(
                 action: 'population.citizen_address.created',
                 user: $this->actor(),
                 auditable: $address,
@@ -133,7 +138,7 @@ class CitizenService
                 $citizen->update($validated);
                 $citizen = $citizen->refresh();
 
-                $this->auditLogService()->record(
+                $this->auditLogService->record(
                     action: 'population.citizen.updated',
                     user: $this->actor($userId),
                     auditable: $citizen,
@@ -148,7 +153,7 @@ class CitizenService
             $validated['created_by'] = $userId;
             $citizen = Citizen::create($validated);
 
-            $this->auditLogService()->record(
+            $this->auditLogService->record(
                 action: 'population.citizen.created',
                 user: $this->actor($userId),
                 auditable: $citizen,
@@ -197,11 +202,6 @@ class CitizenService
             'nama_ibu' => ['nullable', 'string', 'max:255'], 'nik_ibu' => ['nullable', 'digits:16'],
             'status_kependudukan' => ['required', 'string', 'max:30'],
         ];
-    }
-
-    private function auditLogService(): AuditLogService
-    {
-        return app(AuditLogService::class);
     }
 
     private function actor(int|string|null $userId = null): ?User
