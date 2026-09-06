@@ -46,12 +46,12 @@ class OutgoingLetterNumberingTest extends TestCase
             ['name' => 'Lainnya', 'sort_order' => 99, 'is_active' => true],
         );
         $tenant = Tenant::factory()->create(['tenant_category_id' => $category->id, 'code' => 'SETDA']);
-        $firstClassification = LetterClassification::factory()->create(['code' => '100', 'number_format' => '{{number}}/{{tenant_code}}']);
-        $secondClassification = LetterClassification::factory()->create(['code' => '400', 'number_format' => '{{number}}/{{tenant_code}}']);
+        $firstClassification = LetterClassification::factory()->create(['code' => '100', 'number_format' => '{{number}}/{{classification_code}}/{{tenant_code}}']);
+        $secondClassification = LetterClassification::factory()->create(['code' => '400', 'number_format' => '{{number}}/{{classification_code}}/{{tenant_code}}']);
         $service = app(OutgoingLetterNumberService::class);
 
-        self::assertSame('001/SETDA', $service->generate($tenant, $firstClassification, Carbon::create(2026, 12, 31)));
-        self::assertSame('001/SETDA', $service->generate($tenant, $secondClassification, Carbon::create(2026, 12, 31)));
-        self::assertSame('001/SETDA', $service->generate($tenant, $firstClassification, Carbon::create(2027, 1, 1)));
+        self::assertSame('001/100/SETDA', $service->generate($tenant, $firstClassification, Carbon::create(2026, 12, 31)));
+        self::assertSame('001/400/SETDA', $service->generate($tenant, $secondClassification, Carbon::create(2026, 12, 31)));
+        self::assertSame('001/100/SETDA', $service->generate($tenant, $firstClassification, Carbon::create(2027, 1, 1)));
     }
 }
