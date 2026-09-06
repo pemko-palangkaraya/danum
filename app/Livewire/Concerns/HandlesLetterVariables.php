@@ -14,18 +14,15 @@ use App\Support\LetterVariableSchema;
 trait HandlesLetterVariables
 {
     public ?string $citizen_id = null;
+    public string $deathTime = '';
     public string $deathTimeZone = 'WIB';
 
     public function addRepeaterRow(string $key): void
     {
         $definition = collect($this->repeaterDefinitions())->firstWhere('key', $key);
         if (! $definition) return;
-
         $row = [];
-        foreach ($definition['fields'] as $field) {
-            $row[$field['key']] = '';
-        }
-
+        foreach ($definition['fields'] as $field) $row[$field['key']] = '';
         $this->variableValues[$key] ??= [];
         $this->variableValues[$key][] = $row;
     }
@@ -33,13 +30,9 @@ trait HandlesLetterVariables
     public function removeRepeaterRow(string $key, int $index): void
     {
         if (! isset($this->variableValues[$key][$index])) return;
-
         unset($this->variableValues[$key][$index]);
         $this->variableValues[$key] = array_values($this->variableValues[$key]);
-
-        if ($this->variableValues[$key] === []) {
-            $this->addRepeaterRow($key);
-        }
+        if ($this->variableValues[$key] === []) $this->addRepeaterRow($key);
     }
 
     /** @return list<array{key:string,label:string,fields:list<array{key:string,label:string}>}> */
@@ -78,6 +71,7 @@ trait HandlesLetterVariables
         }
 
         $this->citizen_id = $citizen->id;
+        $this->deathTime = '';
         $this->deathTimeZone = 'WIB';
         $this->letter_type_id = $letterType->id;
         $this->showForm = true;
@@ -103,13 +97,24 @@ trait HandlesLetterVariables
     {
         foreach ($this->variables as $variable) {
             $variable = (string) $variable;
-
             if ($definition = LetterVariableSchema::parseRepeater($variable)) {
                 $this->variableValues[$definition['key']] ??= $newRows ? [[]] : [];
                 continue;
             }
-
             $this->variableValues[$variable] ??= '';
+        }
+
+        $this->hydrateDeathTimeInput();
+    }
+
+    private function hydrateDeathTimeInput(): void
+    {
+        $value = trim((string) ($this->variableValues['waktu_meninggal'] ?? ''));
+        if ($value === '') return;
+
+        if (preg_match('/^(\d{1,2}:\d{2})(?::\d{2})?\s*(WIB|WITA|WIT)?$/i', $value, $matches)) {
+            $this->deathTime = $matches[1];
+            if (! empty($matches[2])) $this->deathTimeZone = strtoupper($matches[2]);
         }
     }
 
@@ -120,7 +125,6 @@ trait HandlesLetterVariables
 
         foreach ($this->variables as $variable) {
             $variable = (string) $variable;
-
             if ($this->isSystemVariable($variable) || $this->isDeathAutofilledVariable($variable)) continue;
 
             if ($repeater = LetterVariableSchema::parseRepeater($variable)) {
@@ -129,12 +133,9 @@ trait HandlesLetterVariables
                     $this->addError('variableValues.'.$repeater['key'], 'Tambahkan minimal satu data.');
                     continue;
                 }
-
                 foreach ($rows as $rowIndex => $row) {
                     foreach ($repeater['fields'] as $field) {
-                        if (blank($row[$field['key']] ?? null)) {
-                            $this->addError('variableValues.'.$repeater['key'].'.'.$rowIndex.'.'.$field['key'], 'Field ini wajib diisi.');
-                        }
+                        if (blank($row[$field['key']] ?? null)) $this->addError('variableValues.'.$repeater['key'].'.'.$rowIndex.'.'.$field['key'], 'Field ini wajib diisi.');
                     }
                 }
                 continue;
@@ -142,12 +143,10 @@ trait HandlesLetterVariables
 
             $definition = $definitions->forKey($variable);
             $required = $definition?->required ?? true;
-
             if ($required && blank($this->variableValues[$variable] ?? null)) {
                 $this->addError('variableValues.'.$variable, 'Field ini wajib diisi.');
                 continue;
             }
-
             if (blank($this->variableValues[$variable] ?? null) || ! $date->isDate($variable, $definition?->type)) continue;
 
             $normalized = $date->normalize($this->variableValues[$variable]);
@@ -155,13 +154,14 @@ trait HandlesLetterVariables
                 $this->addError('variableValues.'.$variable, 'Format tanggal tidak valid. Gunakan dd mmmm yyyy, misalnya 6 September 2026.');
                 continue;
             }
-
             if ($normalized > now()->toDateString()) {
-                $message = $date->isBirthDate($variable)
-                    ? 'Tanggal lahir tidak boleh tanggal di masa depan.'
-                    : 'Tanggal tidak boleh melewati hari ini.';
+                $message = $date->isBirthDate($variable) ? 'Tanggal lahir tidak boleh tanggal di masa depan.' : 'Tanggal tidak boleh melewati hari ini.';
                 $this->addError('variableValues.'.$variable, $message);
             }
+        }
+
+        if (array_key_exists('waktu_meninggal', $this->variableValues) && blank($this->deathTime)) {
+            $this->addError('variableValues.waktu_meninggal', 'Waktu meninggal wajib diisi.');
         }
     }
 
@@ -174,51 +174,26 @@ trait HandlesLetterVariables
 
         foreach ($data as $key => $value) {
             if (! is_string($key) || is_array($value)) continue;
-
             $definition = $definitions->forKey($key);
-            if ($date->isDate($key, $definition?->type) && filled($value)) {
-                $data[$key] = $date->normalize($value) ?? $value;
-            }
+            if ($date->isDate($key, $definition?->type) && filled($value)) $data[$key] = $date->normalize($value) ?? $value;
         }
 
-        $this->normalizeDeathTime($data);
-
-        foreach (['number', 'recipient_name', 'recipient_address', 'subject'] as $key) {
-            $data[$key] = (string) ($data[$key] ?? '');
+        if (filled($this->deathTime)) {
+            $data['waktu_meninggal'] = trim($this->deathTime).' '.strtoupper($this->deathTimeZone);
         }
 
-        if ($this->citizen_id) {
-            $data['_citizen_id'] = $this->citizen_id;
-        }
-
+        foreach (['number', 'recipient_name', 'recipient_address', 'subject'] as $key) $data[$key] = (string) ($data[$key] ?? '');
+        if ($this->citizen_id) $data['_citizen_id'] = $this->citizen_id;
         return $data;
-    }
-
-    private function normalizeDeathTime(array &$data): void
-    {
-        $value = trim((string) ($data['waktu_meninggal'] ?? ''));
-        if ($value === '') return;
-
-        if (preg_match('/^(\d{1,2}:\d{2})(?::\d{2})?\s*(WIB|WITA|WIT)$/i', $value, $matches)) {
-            $data['waktu_meninggal'] = $matches[1].' '.strtoupper($matches[2]);
-            return;
-        }
-
-        if (preg_match('/^(\d{1,2}:\d{2})(?::\d{2})?$/', $value, $matches)) {
-            $data['waktu_meninggal'] = $matches[1].' '.strtoupper($this->deathTimeZone);
-        }
     }
 
     private function applySystemValues(?\App\Models\PositionHolder $holder = null): void
     {
         $values = app(LetterVariableSourceResolver::class)->system($holder);
         $definitions = app(LetterVariableDefinitionService::class);
-
         foreach ($this->variables as $variable) {
             $variable = (string) $variable;
-            if ($definitions->isSystem($variable) && array_key_exists($variable, $values)) {
-                $this->variableValues[$variable] = (string) ($values[$variable] ?? '');
-            }
+            if ($definitions->isSystem($variable) && array_key_exists($variable, $values)) $this->variableValues[$variable] = (string) ($values[$variable] ?? '');
         }
     }
 
@@ -229,26 +204,17 @@ trait HandlesLetterVariables
         $values = $resolver->citizen($citizen);
         $family = $resolver->family($citizen);
         $values += $family['values'];
-
         $deathDate = $this->variableValues['tanggal_meninggal'] ?? null;
         $values['recipient_age'] = $resolver->age($citizen, $deathDate);
 
         foreach ($this->variables as $variable) {
             $variable = (string) $variable;
             $definition = $definitions->forKey($variable);
-            $source = $definition?->source;
-
-            if ($source === 'citizen' || $source === 'family' || $source === 'calculated') {
-                if (array_key_exists($variable, $values)) {
-                    $this->variableValues[$variable] = (string) ($values[$variable] ?? '');
-                }
-            }
+            if (in_array($definition?->source, ['citizen', 'family', 'calculated'], true) && array_key_exists($variable, $values)) $this->variableValues[$variable] = (string) ($values[$variable] ?? '');
         }
 
         foreach ($this->repeaterDefinitions() as $repeater) {
-            if ($repeater['key'] === 'anak_ditinggalkan') {
-                $this->variableValues[$repeater['key']] = $family['children'];
-            }
+            if ($repeater['key'] === 'anak_ditinggalkan') $this->variableValues[$repeater['key']] = $family['children'];
         }
     }
 
@@ -269,10 +235,6 @@ trait HandlesLetterVariables
 
     private function isDeathAutofilledVariable(string $variable): bool
     {
-        return $this->citizen_id !== null && in_array($variable, [
-            'recipient_name', 'recipient_nik', 'recipient_gender', 'recipient_birth_place',
-            'recipient_birth_date', 'recipient_age', 'recipient_religion', 'recipient_occupation',
-            'recipient_address', 'nama_pasangan',
-        ], true);
+        return $this->citizen_id !== null && in_array($variable, ['recipient_name', 'recipient_nik', 'recipient_gender', 'recipient_birth_place', 'recipient_birth_date', 'recipient_age', 'recipient_religion', 'recipient_occupation', 'recipient_address', 'nama_pasangan'], true);
     }
 }
