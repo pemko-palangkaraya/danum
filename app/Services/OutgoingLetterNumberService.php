@@ -14,9 +14,7 @@ final class OutgoingLetterNumberService
 {
     public function generate(Tenant $tenant, LetterClassification $classification, ?Carbon $date = null): string
     {
-        if (! $classification->is_active) {
-            throw new \DomainException('Klasifikasi surat tidak aktif.');
-        }
+        if (! $classification->is_active) throw new \DomainException('Klasifikasi surat tidak aktif.');
 
         $date ??= now();
         $year = (int) $date->year;
@@ -33,28 +31,17 @@ final class OutgoingLetterNumberService
                 updated_at = NOW()
             RETURNING last_number
             SQL,
-            [
-                (string) Str::uuid(),
-                $tenant->id,
-                $classification->id,
-                $year,
-            ],
+            [(string) Str::uuid(), $tenant->id, $classification->id, $year],
         );
 
         $number = (int) ($row->last_number ?? 0);
-        if ($number < 1) {
-            throw new \RuntimeException('Nomor surat gagal dibuat.');
-        }
+        if ($number < 1) throw new \RuntimeException('Nomor surat gagal dibuat.');
 
         return $this->format($classification, $tenant, $number, $date);
     }
 
-    private function format(
-        LetterClassification $classification,
-        Tenant $tenant,
-        int $number,
-        Carbon $date,
-    ): string {
+    private function format(LetterClassification $classification, Tenant $tenant, int $number, Carbon $date): string
+    {
         $padding = max(1, min((int) $classification->number_padding, 12));
         $values = [
             'number' => str_pad((string) $number, $padding, '0', STR_PAD_LEFT),
@@ -66,8 +53,12 @@ final class OutgoingLetterNumberService
         ];
 
         $format = trim((string) $classification->number_format);
-        if ($format === '') {
-            throw new \DomainException('Format penomoran klasifikasi surat belum diatur.');
+        if ($format === '') throw new \DomainException('Format penomoran klasifikasi surat belum diatur.');
+
+        foreach (['number', 'classification_code', 'tenant_code'] as $required) {
+            if (! preg_match('/\{\{\s*'.preg_quote($required, '/').'\s*\}\}/i', $format)) {
+                throw new \DomainException("Format penomoran wajib memiliki variabel {{$required}}.");
+            }
         }
 
         return trim(preg_replace_callback(
