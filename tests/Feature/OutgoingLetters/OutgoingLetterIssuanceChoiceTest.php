@@ -8,6 +8,7 @@ use App\Enums\OutgoingLetterStatus;
 use App\Models\OutgoingLetter;
 use App\Models\User;
 use App\Services\DocxPdfService;
+use App\Services\DocxTteService;
 use App\Services\OutgoingLetterService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -17,73 +18,55 @@ class OutgoingLetterIssuanceChoiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Storage::fake('local');
+        $this->mock(DocxTteService::class, function ($mock): void {
+            $mock->shouldReceive('createIssuedCopy')->once()->andReturn('/tmp/danum-test-issued.docx');
+        });
+    }
+
     public function test_issue_can_stop_before_tte_and_keeps_final_unsigned_pdf(): void
     {
-        Storage::fake('local');
         $user = User::factory()->superAdmin()->create();
         $letter = OutgoingLetter::factory()->create([
             'status' => OutgoingLetterStatus::VALIDATED,
             'signer_user_id' => $user->id,
             'generated_docx_path' => 'outgoing-letters/test/source.docx',
         ]);
-
         Storage::disk('local')->put($letter->generated_docx_path, 'test docx');
         $this->mock(DocxPdfService::class, fn ($mock) => $mock->shouldReceive('convert')->once()->andReturn('outgoing-letters/test/final-unsigned.pdf'));
 
-        $issued = app(OutgoingLetterService::class)->issue(
-            $letter,
-            $user->id,
-            'Surat sudah diperiksa dan diterbitkan untuk tanda tangan basah.',
-            null,
-            false,
-        );
+        $issued = app(OutgoingLetterService::class)->issue($letter, $user->id, 'Surat sudah diperiksa dan diterbitkan untuk tanda tangan basah.', null, false);
 
         $issued->refresh();
         $this->assertSame(OutgoingLetterStatus::ISSUED, $issued->status);
         $this->assertSame('outgoing-letters/test/final-unsigned.pdf', $issued->unsigned_pdf_path);
         $this->assertNull($issued->signed_pdf_path);
         $this->assertNotNull($issued->verification_token);
-        $this->assertDatabaseHas('outgoing_letter_status_histories', [
-            'outgoing_letter_id' => $issued->id,
-            'action' => 'issued',
-            'status' => OutgoingLetterStatus::ISSUED->value,
-        ]);
-        $this->assertDatabaseMissing('outgoing_letter_status_histories', [
-            'outgoing_letter_id' => $issued->id,
-            'action' => 'signed',
-        ]);
+        $this->assertDatabaseHas('outgoing_letter_status_histories', ['outgoing_letter_id' => $issued->id, 'action' => 'issued', 'status' => OutgoingLetterStatus::ISSUED->value]);
+        $this->assertDatabaseMissing('outgoing_letter_status_histories', ['outgoing_letter_id' => $issued->id, 'action' => 'signed']);
     }
 
     public function test_tte_selection_does_not_issue_before_pin(): void
     {
-        Storage::fake('local');
         $user = User::factory()->superAdmin()->create();
         $letter = OutgoingLetter::factory()->create([
             'status' => OutgoingLetterStatus::VALIDATED,
             'signer_user_id' => $user->id,
             'generated_docx_path' => 'outgoing-letters/test/source.docx',
         ]);
-
         Storage::disk('local')->put($letter->generated_docx_path, 'test docx');
         $pdf = $this->mock(DocxPdfService::class);
         $pdf->shouldNotReceive('convert');
 
-        $prepared = app(OutgoingLetterService::class)->issue(
-            $letter,
-            $user->id,
-            'Surat akan ditandatangani secara elektronik.',
-            null,
-            false,
-            'tte',
-        );
+        $prepared = app(OutgoingLetterService::class)->issue($letter, $user->id, 'Surat akan ditandatangani secara elektronik.', null, false, 'tte');
 
         $prepared->refresh();
         $this->assertSame(OutgoingLetterStatus::VALIDATED, $prepared->status);
         $this->assertNull($prepared->unsigned_pdf_path);
         $this->assertNull($prepared->signed_pdf_path);
-        $this->assertDatabaseMissing('outgoing_letter_status_histories', [
-            'outgoing_letter_id' => $prepared->id,
-            'action' => 'issued',
-        ]);
+        $this->assertDatabaseMissing('outgoing_letter_status_histories', ['outgoing_letter_id' => $prepared->id, 'action' => 'issued']);
     }
 }
