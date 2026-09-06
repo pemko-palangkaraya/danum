@@ -27,9 +27,9 @@ class OutgoingLetterIssuanceService
         private readonly SignerPinService $signerPinService,
     ) {}
 
-    public function issue(OutgoingLetter $letter, int $changedBy, string $note, ?string $pin = null, bool $signWithTte = true, ?string $issuanceMarker = null, string $verificationUrl = ''): OutgoingLetter
+    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note, ?string $pin = null, bool $signWithTte = true, ?string $issuanceMarker = null, ?string $verificationUrl = null): OutgoingLetter
     {
-        $note = trim($note);
+        $note = trim((string) ($note ?? ''));
         if ($note === '') throw new \DomainException('Catatan penandatanganan wajib diisi.');
         if ($letter->status !== OutgoingLetterStatus::VALIDATED) throw new \DomainException('Hanya surat yang sudah divalidasi yang dapat diterbitkan.');
         if ($letter->signer_user_id !== $changedBy) throw new \DomainException('Hanya penanda tangan yang ditentukan untuk surat ini yang dapat menerbitkan surat.');
@@ -118,10 +118,10 @@ class OutgoingLetterIssuanceService
         }
     }
 
-    public function signIssued(OutgoingLetter $letter, int $changedBy, string $pin, ?string $note = null, string $verificationUrl = ''): OutgoingLetter
+    public function signIssued(OutgoingLetter $letter, int $changedBy, string $pin, ?string $note = null, ?string $verificationUrl = null): OutgoingLetter
     {
         $note = trim((string) ($note ?? $letter->signing_note ?? ''));
-        if ($note === '') throw new \DomainException('Catatan penandatanganan wajib diisi.');
+        if ($note === '') throw new \DomainException('Catatan penanda tangan wajib diisi.');
         if (blank($verificationUrl)) throw new \DomainException('URL verifikasi surat wajib tersedia.');
 
         if ($letter->status === OutgoingLetterStatus::VALIDATED) return $this->issue($letter, $changedBy, $note, $pin, true, 'tte', $verificationUrl);
