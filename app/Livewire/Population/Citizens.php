@@ -17,6 +17,7 @@ class Citizens extends Component
     use WithStandardTablePagination;
 
     public string $search = '';
+    public string $statusFilter = 'active';
     public bool $showForm = false;
     public ?string $editingId = null;
     public ?string $selectedTenantId = null;
@@ -74,6 +75,11 @@ class Citizens extends Component
     }
 
     public function updatedSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedStatusFilter(): void
     {
         $this->resetPage();
     }
@@ -173,7 +179,7 @@ class Citizens extends Component
 
         return view('livewire.pages.population.citizens', [
             'citizens' => $tenantSelected
-                ? $this->citizenService->paginate($this->tenantId(), $this->search, $this->perPage)
+                ? $this->citizenService->paginate($this->tenantId(), $this->search, $this->perPage, $this->statusFilter)
                 : collect(),
             'tenants' => $isSuperAdmin ? $this->citizenService->tenants() : collect(),
             'references' => $references,
