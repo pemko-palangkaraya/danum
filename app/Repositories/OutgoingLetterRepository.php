@@ -20,9 +20,11 @@ class OutgoingLetterRepository implements OutgoingLetterRepositoryInterface
         return OutgoingLetter::query()->where('tenant_id', $tenantId)->find($id);
     }
 
-    public function findWithTrashed(string $id, string $tenantId): ?OutgoingLetter
+    public function findWithTrashed(string $id, ?string $tenantId = null): ?OutgoingLetter
     {
-        return OutgoingLetter::withTrashed()->where('tenant_id', $tenantId)->find($id);
+        return OutgoingLetter::withTrashed()
+            ->when($tenantId !== null, fn ($query) => $query->where('tenant_id', $tenantId))
+            ->find($id);
     }
 
     public function create(array $data): OutgoingLetter
