@@ -56,9 +56,19 @@
                                         <select wire:model="variableValues.{{ $variable }}" class="form-select mt-1"><option value="">Pilih {{ strtolower($label) }}</option>@foreach(($schema->options ?? []) as $option)<option value="{{ $option['value'] ?? '' }}">{{ $option['label'] ?? ($option['value'] ?? '') }}</option>@endforeach</select>
                                     @elseif($inputType === 'checkbox')
                                         <label class="mt-2 flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" wire:model="variableValues.{{ $variable }}" class="rounded"> {{ $label }}</label>
+                                    @elseif($variable === 'waktu_meninggal')
+                                        <div class="mt-1 grid grid-cols-[1fr_auto] gap-2">
+                                            <input type="time" wire:model="deathTime" class="form-control">
+                                            <select wire:model="deathTimeZone" class="form-select" aria-label="Zona waktu">
+                                                <option value="WIB">WIB</option>
+                                                <option value="WITA">WITA</option>
+                                                <option value="WIT">WIT</option>
+                                            </select>
+                                        </div>
+                                        <p class="mt-1 text-xs text-slate-400">Pilih zona waktu sesuai lokasi kejadian.</p>
                                     @elseif($dateVariable)
-                                        <input type="text" wire:model.blur="variableValues.{{ $variable }}" class="form-control mt-1" placeholder="dd mmm yyyy, contoh: 06 Sep 2026" autocomplete="off">
-                                        <p class="mt-1 text-xs text-slate-400">Gunakan format: dd mmm yyyy, misalnya 06 Sep 2026.</p>
+                                        <input type="text" wire:model.blur="variableValues.{{ $variable }}" class="form-control mt-1" placeholder="dd mmmm yyyy, contoh: 6 September 2026" autocomplete="off">
+                                        <p class="mt-1 text-xs text-slate-400">Gunakan format: dd mmmm yyyy, misalnya 6 September 2026.</p>
                                     @elseif($inputType === 'number')
                                         <input type="number" wire:model="variableValues.{{ $variable }}" class="form-control mt-1">
                                     @elseif(in_array($inputType, ['time','datetime','email','tel'], true))
