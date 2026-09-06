@@ -27,9 +27,9 @@ class OutgoingLetterIssuanceService
         private readonly SignerPinService $signerPinService,
     ) {}
 
-    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null, ?string $pin = null, bool $signWithTte = true, ?string $issuanceMarker = null, ?string $verificationUrl = null): OutgoingLetter
+    public function issue(OutgoingLetter $letter, int $changedBy, string $note, ?string $pin = null, bool $signWithTte = true, ?string $issuanceMarker = null, string $verificationUrl = ''): OutgoingLetter
     {
-        $note = trim((string) $note);
+        $note = trim($note);
         if ($note === '') throw new \DomainException('Catatan penandatanganan wajib diisi.');
         if ($letter->status !== OutgoingLetterStatus::VALIDATED) throw new \DomainException('Hanya surat yang sudah divalidasi yang dapat diterbitkan.');
         if ($letter->signer_user_id !== $changedBy) throw new \DomainException('Hanya penanda tangan yang ditentukan untuk surat ini yang dapat menerbitkan surat.');
@@ -41,10 +41,6 @@ class OutgoingLetterIssuanceService
 
         $marker = $issuanceMarker ?? ($signWithTte ? 'tte' : 'qr');
         if (! in_array($marker, ['qr', 'tte'], true)) throw new \DomainException('Marker penerbitan surat tidak valid.');
-
-        // The review modal requests the PIN before the TTE path may issue the letter.
-        // Keep the letter VALIDATED until handleSignerPin submits the PIN and this
-        // method is called again with $signWithTte=true.
         if (! $signWithTte && $marker === 'tte') return $letter;
 
         if ($signWithTte) {
@@ -84,11 +80,7 @@ class OutgoingLetterIssuanceService
         $signedPdfPath = null;
 
         try {
-            $temporaryDocx = $this->docxTteService->createIssuedCopy(
-                $sourceDocxPath,
-                $verificationUrl,
-                $marker,
-            );
+            $temporaryDocx = $this->docxTteService->createIssuedCopy($sourceDocxPath, $verificationUrl, $marker);
             $unsignedPdfPath = $this->docxPdfService->convert($temporaryDocx);
 
             if ($signWithTte) {
@@ -99,15 +91,7 @@ class OutgoingLetterIssuanceService
                     signerName: (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $signerCertificate->user()->value('name')),
                     reason: $note,
                 );
-
-                $attributes = [
-                    ...$attributes,
-                    'unsigned_pdf_path' => $unsignedPdfPath,
-                    'signed_pdf_path' => $signedPdfPath,
-                    'signature_certificate_id' => $signerCertificate->id,
-                    'signature_profile' => 'pades-b-t',
-                    'signed_at' => now(),
-                ];
+                $attributes = [...$attributes, 'unsigned_pdf_path' => $unsignedPdfPath, 'signed_pdf_path' => $signedPdfPath, 'signature_certificate_id' => $signerCertificate->id, 'signature_profile' => 'pades-b-t', 'signed_at' => now()];
             } else {
                 $attributes['unsigned_pdf_path'] = $unsignedPdfPath;
             }
@@ -117,27 +101,15 @@ class OutgoingLetterIssuanceService
                 $letter = $this->repository->update($letter, $attributes);
                 $this->recordHistory($letter, 'issued', $changedBy, $note);
                 $this->recordAudit('outgoing_letter.issued', $letter, $changedBy, $oldValues, $this->auditValues($letter));
-
                 if ($signWithTte) {
                     $this->recordHistory($letter, 'signed', $changedBy, $note);
                     $this->recordAudit('outgoing_letter.signed', $letter, $changedBy, $oldValues, $this->auditValues($letter));
                 }
-
                 return $letter;
             });
-
             return $letter;
         } catch (\Throwable $e) {
-            Log::error('Outgoing letter issuance failed.', [
-                'letter_id' => $letter->id,
-                'changed_by' => $changedBy,
-                'marker' => $marker,
-                'sign_with_tte' => $signWithTte,
-                'exception_class' => $e::class,
-                'exception_message' => $e->getMessage(),
-                'exception_file' => $e->getFile(),
-                'exception_line' => $e->getLine(),
-            ]);
+            Log::error('Outgoing letter issuance failed.', ['letter_id' => $letter->id, 'changed_by' => $changedBy, 'marker' => $marker, 'sign_with_tte' => $signWithTte, 'exception_class' => $e::class, 'exception_message' => $e->getMessage(), 'exception_file' => $e->getFile(), 'exception_line' => $e->getLine()]);
             if ($unsignedPdfPath !== null) Storage::disk('local')->delete($unsignedPdfPath);
             if ($signedPdfPath !== null) Storage::disk('local')->delete($signedPdfPath);
             throw $e;
@@ -146,17 +118,13 @@ class OutgoingLetterIssuanceService
         }
     }
 
-    public function signIssued(OutgoingLetter $letter, int $changedBy, string $pin, ?string $note = null, ?string $verificationUrl = null): OutgoingLetter
+    public function signIssued(OutgoingLetter $letter, int $changedBy, string $pin, ?string $note = null, string $verificationUrl = ''): OutgoingLetter
     {
         $note = trim((string) ($note ?? $letter->signing_note ?? ''));
         if ($note === '') throw new \DomainException('Catatan penandatanganan wajib diisi.');
+        if (blank($verificationUrl)) throw new \DomainException('URL verifikasi surat wajib tersedia.');
 
-        // TTE selected from the review modal must sign before the letter becomes
-        // ISSUED. Re-enter the normal issuance pipeline with the verified PIN.
-        if ($letter->status === OutgoingLetterStatus::VALIDATED) {
-            return $this->issue($letter, $changedBy, $note, $pin, true, 'tte', $verificationUrl);
-        }
-
+        if ($letter->status === OutgoingLetterStatus::VALIDATED) return $this->issue($letter, $changedBy, $note, $pin, true, 'tte', $verificationUrl);
         if ($letter->status !== OutgoingLetterStatus::ISSUED) throw new \DomainException('Hanya surat yang sudah diterbitkan yang dapat ditandatangani secara elektronik.');
         if ($letter->signer_user_id !== $changedBy) throw new \DomainException('Hanya penanda tangan yang ditentukan untuk surat ini yang dapat menandatangani surat.');
         if (blank($pin)) throw new \DomainException('PIN penanda tangan wajib diisi.');
@@ -164,42 +132,20 @@ class OutgoingLetterIssuanceService
         if (filled($letter->signed_pdf_path) && Storage::disk('local')->exists($letter->signed_pdf_path)) throw new \DomainException('Surat ini sudah memiliki tanda tangan elektronik.');
 
         $signedPdfPath = null;
-
         try {
             $signer = User::query()->findOrFail($changedBy);
             $this->signerPinService->verify($signer, $pin);
             $certificate = $this->resolveSignerCertificate($letter);
-
-            $signedPdfPath = $this->pdfSigningService->sign(
-                sourcePdfPath: Storage::disk('local')->path($letter->unsigned_pdf_path),
-                certificate: $certificate,
-                signerName: (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $certificate->user()->value('name')),
-                reason: $note,
-            );
-
+            $signedPdfPath = $this->pdfSigningService->sign(sourcePdfPath: Storage::disk('local')->path($letter->unsigned_pdf_path), certificate: $certificate, signerName: (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $certificate->user()->value('name')), reason: $note);
             $oldValues = $this->auditValues($letter);
             return DB::transaction(function () use ($letter, $changedBy, $note, $certificate, $signedPdfPath, $oldValues): OutgoingLetter {
-                $updated = $this->repository->update($letter, [
-                    'signed_pdf_path' => $signedPdfPath,
-                    'signature_certificate_id' => $certificate->id,
-                    'signature_profile' => 'pades-b-t',
-                    'signed_at' => now(),
-                    'signing_note' => $note,
-                ]);
+                $updated = $this->repository->update($letter, ['signed_pdf_path' => $signedPdfPath, 'signature_certificate_id' => $certificate->id, 'signature_profile' => 'pades-b-t', 'signed_at' => now(), 'signing_note' => $note]);
                 $this->recordHistory($updated, 'signed', $changedBy, $note);
                 $this->recordAudit('outgoing_letter.signed', $updated, $changedBy, $oldValues, $this->auditValues($updated));
                 return $updated;
             });
         } catch (\Throwable $e) {
-            Log::error('Outgoing letter TTE workflow failed.', [
-                'letter_id' => $letter->id,
-                'changed_by' => $changedBy,
-                'unsigned_pdf_path' => $letter->unsigned_pdf_path,
-                'exception_class' => $e::class,
-                'exception_message' => $e->getMessage(),
-                'exception_file' => $e->getFile(),
-                'exception_line' => $e->getLine(),
-            ]);
+            Log::error('Outgoing letter TTE workflow failed.', ['letter_id' => $letter->id, 'changed_by' => $changedBy, 'unsigned_pdf_path' => $letter->unsigned_pdf_path, 'exception_class' => $e::class, 'exception_message' => $e->getMessage(), 'exception_file' => $e->getFile(), 'exception_line' => $e->getLine()]);
             if ($signedPdfPath !== null) Storage::disk('local')->delete($signedPdfPath);
             if ($e instanceof \DomainException) throw $e;
             throw new \DomainException('TTE gagal: ' . $e->getMessage(), previous: $e);
@@ -214,15 +160,7 @@ class OutgoingLetterIssuanceService
             if ($certificate && ($certificate->position_id !== $letter->signer_position_id || $certificate->user_id !== $letter->signer_user_id)) throw new \DomainException('Sertifikat TTE tidak sesuai dengan penanda tangan surat.');
         }
         if ($certificate === null || ! $certificate->isUsable()) {
-            $certificate = SignerCertificate::query()
-                ->where('position_id', $letter->signer_position_id)
-                ->where('user_id', $letter->signer_user_id)
-                ->where('is_active', true)
-                ->whereNull('revoked_at')
-                ->where('valid_from', '<=', now())
-                ->where('valid_until', '>', now())
-                ->latest('created_at')
-                ->first();
+            $certificate = SignerCertificate::query()->where('position_id', $letter->signer_position_id)->where('user_id', $letter->signer_user_id)->where('is_active', true)->whereNull('revoked_at')->where('valid_from', '<=', now())->where('valid_until', '>', now())->latest('created_at')->first();
         }
         if (! $certificate || ! $certificate->isUsable()) throw new \DomainException('Sertifikat TTE aktif penanda tangan belum tersedia atau sudah tidak berlaku.');
         return $certificate;
@@ -241,25 +179,6 @@ class OutgoingLetterIssuanceService
 
     private function auditValues(OutgoingLetter $letter): array
     {
-        return [
-            'status' => $letter->status?->value,
-            'tenant_id' => $letter->tenant_id,
-            'letter_type_id' => $letter->letter_type_id,
-            'signer_position_id' => $letter->signer_position_id,
-            'signer_user_id' => $letter->signer_user_id,
-            'validator_position_id' => $letter->validator_position_id,
-            'validator_user_id' => $letter->validator_user_id,
-            'number' => $letter->number,
-            'subject' => $letter->subject,
-            'recipient_name' => $letter->recipient_name,
-            'issued_at' => $letter->issued_at?->toDateString(),
-            'valid_from' => $letter->valid_from?->toIso8601String(),
-            'valid_until' => $letter->valid_until?->toIso8601String(),
-            'unsigned_pdf_path' => $letter->unsigned_pdf_path,
-            'signed_pdf_path' => $letter->signed_pdf_path,
-            'signature_certificate_id' => $letter->signature_certificate_id,
-            'signature_profile' => $letter->signature_profile,
-            'signed_at' => $letter->signed_at?->toIso8601String(),
-        ];
+        return ['status' => $letter->status?->value, 'tenant_id' => $letter->tenant_id, 'letter_type_id' => $letter->letter_type_id, 'signer_position_id' => $letter->signer_position_id, 'signer_user_id' => $letter->signer_user_id, 'validator_position_id' => $letter->validator_position_id, 'validator_user_id' => $letter->validator_user_id, 'number' => $letter->number, 'subject' => $letter->subject, 'recipient_name' => $letter->recipient_name, 'issued_at' => $letter->issued_at?->toDateString(), 'valid_from' => $letter->valid_from?->toIso8601String(), 'valid_until' => $letter->valid_until?->toIso8601String(), 'unsigned_pdf_path' => $letter->unsigned_pdf_path, 'signed_pdf_path' => $letter->signed_pdf_path, 'signature_certificate_id' => $letter->signature_certificate_id, 'signature_profile' => $letter->signature_profile, 'signed_at' => $letter->signed_at?->toIso8601String()];
     }
 }
