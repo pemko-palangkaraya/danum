@@ -13,7 +13,7 @@ interface OutgoingLetterRepositoryInterface
 
     public function find(string $id, string $tenantId): ?OutgoingLetter;
 
-    public function findWithTrashed(string $id, string $tenantId): ?OutgoingLetter;
+    public function findWithTrashed(string $id, ?string $tenantId = null): ?OutgoingLetter;
 
     public function create(array $data): OutgoingLetter;
 
