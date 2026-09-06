@@ -150,7 +150,7 @@ trait HandlesLetterVariables
 
             $normalized = $date->normalize($this->variableValues[$variable]);
             if ($normalized === null) {
-                $this->addError('variableValues.'.$variable, 'Format tanggal tidak valid. Gunakan dd mmm yyyy, misalnya 06 Sep 2026.');
+                $this->addError('variableValues.'.$variable, 'Format tanggal tidak valid. Gunakan dd mmmm yyyy, misalnya 06 September 2026.');
                 continue;
             }
 
@@ -167,6 +167,17 @@ trait HandlesLetterVariables
     private function normalizedVariableValues(): array
     {
         $data = $this->variableValues;
+        $date = app(LetterVariableDateService::class);
+        $definitions = app(LetterVariableDefinitionService::class);
+
+        foreach ($data as $key => $value) {
+            if (! is_string($key) || is_array($value)) continue;
+
+            $definition = $definitions->forKey($key);
+            if ($date->isDate($key, $definition?->type) && filled($value)) {
+                $data[$key] = $date->normalize($value) ?? $value;
+            }
+        }
 
         foreach (['number', 'recipient_name', 'recipient_address', 'subject'] as $key) {
             $data[$key] = (string) ($data[$key] ?? '');
