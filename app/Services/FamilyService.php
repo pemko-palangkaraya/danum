@@ -106,6 +106,7 @@ class FamilyService
 
         if (! empty($data['head_citizen_id'])) {
             $this->findAliveCitizen($tenantId, $data['head_citizen_id']);
+            $this->ensureHeadAvailable($tenantId, $data['head_citizen_id'], $editingId);
         }
 
         $data['tenant_id'] = $tenantId;
@@ -153,7 +154,11 @@ class FamilyService
         $data = Validator::make(
             ['hubungan_dalam_keluarga' => $relationship, 'status' => $status],
             [
-                'hubungan_dalam_keluarga' => ['required', 'string', 'max:40'],
+                'hubungan_dalam_keluarga' => [
+                    'required',
+                    Rule::exists('population_reference_data', 'code')
+                        ->where(fn ($query) => $query->where('group', 'family_relationship')->where('is_active', true)),
+                ],
                 'status' => ['required', 'string', Rule::in(['active', 'inactive'])],
             ]
         )->validate();
@@ -268,6 +273,24 @@ class FamilyService
         }
 
         return $citizen;
+    }
+
+    private function ensureHeadAvailable(string $tenantId, string $citizenId, ?string $editingId): void
+    {
+        $query = Family::query()
+            ->where('tenant_id', $tenantId)
+            ->where('head_citizen_id', $citizenId)
+            ->when($editingId !== null, fn ($query) => $query->whereKey('!'.$editingId));
+
+        if ($editingId !== null) {
+            $query->whereKey('!'.$editingId);
+        }
+
+        if ($query->exists()) {
+            throw ValidationException::withMessages([
+                'head_citizen_id' => 'Warga ini sudah menjadi kepala keluarga pada KK lain.',
+            ]);
+        }
     }
 
     private function isFamilyHead(string $citizenId): bool
