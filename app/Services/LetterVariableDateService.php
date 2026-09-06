@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use DateTimeInterface;
 use Illuminate\Support\Carbon;
 
 final class LetterVariableDateService
@@ -38,18 +39,22 @@ final class LetterVariableDateService
 
         $date = Carbon::createFromFormat('!Y-m-d', $normalized);
 
-        return $date->format('d').' '.self::MONTHS[(int) $date->format('n')].' '.$date->format('Y');
+        return $date->format('j').' '.self::MONTHS[(int) $date->format('n')].' '.$date->format('Y');
     }
 
     public function normalize(mixed $value): ?string
     {
+        if ($value instanceof DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
         $value = trim((string) $value);
         if ($value === '') {
             return null;
         }
 
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
-            return $this->validDate($value);
+        if (preg_match('/^(\d{4}-\d{2}-\d{2})(?:[T\s].*)?$/', $value, $matches)) {
+            return $this->validDate($matches[1]);
         }
 
         if (! preg_match('/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/u', $value, $matches)) {
