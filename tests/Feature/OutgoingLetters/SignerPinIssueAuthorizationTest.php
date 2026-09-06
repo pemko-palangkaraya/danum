@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\DocxPdfService;
 use App\Services\SignerPinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class SignerPinIssueAuthorizationTest extends TestCase
@@ -18,13 +19,17 @@ class SignerPinIssueAuthorizationTest extends TestCase
 
     public function test_issue_rejects_missing_or_invalid_pin_before_pdf_conversion(): void
     {
+        Storage::fake('local');
+
         $signer = User::factory()->superAdmin()->create();
         app(SignerPinService::class)->set($signer, '123456');
 
         $letter = OutgoingLetter::factory()->create([
             'status' => OutgoingLetterStatus::VALIDATED,
             'signer_user_id' => $signer->id,
+            'generated_docx_path' => 'outgoing-letters/test/source.docx',
         ]);
+        Storage::disk('local')->put($letter->generated_docx_path, 'test docx content');
 
         $this->mock(DocxPdfService::class, function ($mock): void {
             $mock->shouldReceive('convert')->never();
@@ -43,11 +48,15 @@ class SignerPinIssueAuthorizationTest extends TestCase
 
     public function test_issue_requires_a_configured_pin(): void
     {
+        Storage::fake('local');
+
         $signer = User::factory()->superAdmin()->create();
         $letter = OutgoingLetter::factory()->create([
             'status' => OutgoingLetterStatus::VALIDATED,
             'signer_user_id' => $signer->id,
+            'generated_docx_path' => 'outgoing-letters/test/source.docx',
         ]);
+        Storage::disk('local')->put($letter->generated_docx_path, 'test docx content');
 
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('PIN penandatangan tidak valid.');
