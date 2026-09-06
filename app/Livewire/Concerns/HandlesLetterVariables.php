@@ -14,6 +14,7 @@ use App\Support\LetterVariableSchema;
 trait HandlesLetterVariables
 {
     public ?string $citizen_id = null;
+    public string $deathTimeZone = 'WIB';
 
     public function addRepeaterRow(string $key): void
     {
@@ -77,6 +78,7 @@ trait HandlesLetterVariables
         }
 
         $this->citizen_id = $citizen->id;
+        $this->deathTimeZone = 'WIB';
         $this->letter_type_id = $letterType->id;
         $this->showForm = true;
         $this->updatedLetterTypeId();
@@ -150,7 +152,7 @@ trait HandlesLetterVariables
 
             $normalized = $date->normalize($this->variableValues[$variable]);
             if ($normalized === null) {
-                $this->addError('variableValues.'.$variable, 'Format tanggal tidak valid. Gunakan dd mmmm yyyy, misalnya 06 September 2026.');
+                $this->addError('variableValues.'.$variable, 'Format tanggal tidak valid. Gunakan dd mmmm yyyy, misalnya 6 September 2026.');
                 continue;
             }
 
@@ -179,6 +181,8 @@ trait HandlesLetterVariables
             }
         }
 
+        $this->normalizeDeathTime($data);
+
         foreach (['number', 'recipient_name', 'recipient_address', 'subject'] as $key) {
             $data[$key] = (string) ($data[$key] ?? '');
         }
@@ -188,6 +192,21 @@ trait HandlesLetterVariables
         }
 
         return $data;
+    }
+
+    private function normalizeDeathTime(array &$data): void
+    {
+        $value = trim((string) ($data['waktu_meninggal'] ?? ''));
+        if ($value === '') return;
+
+        if (preg_match('/^(\d{1,2}:\d{2})(?::\d{2})?\s*(WIB|WITA|WIT)$/i', $value, $matches)) {
+            $data['waktu_meninggal'] = $matches[1].' '.strtoupper($matches[2]);
+            return;
+        }
+
+        if (preg_match('/^(\d{1,2}:\d{2})(?::\d{2})?$/', $value, $matches)) {
+            $data['waktu_meninggal'] = $matches[1].' '.strtoupper($this->deathTimeZone);
+        }
     }
 
     private function applySystemValues(?\App\Models\PositionHolder $holder = null): void
