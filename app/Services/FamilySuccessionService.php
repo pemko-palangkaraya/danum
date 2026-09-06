@@ -16,6 +16,7 @@ final class FamilySuccessionService
     private const HEAD = 'head';
     private const SPOUSE = 'spouse';
     private const CHILD = 'child';
+    private const PARENT = 'parent';
 
     public function handleMemberDeath(Citizen $citizen, string $eventDate, ?int $actorId = null): void
     {
@@ -26,14 +27,11 @@ final class FamilySuccessionService
             ->with('family')
             ->first();
 
-        if ($membership === null) {
+        if ($membership === null || $membership->family === null) {
             return;
         }
 
         $family = $membership->family;
-        if ($family === null) {
-            return;
-        }
 
         DB::transaction(function () use ($citizen, $eventDate, $actorId, $family): void {
             if ($family->head_citizen_id !== $citizen->id) {
@@ -72,8 +70,7 @@ final class FamilySuccessionService
 
     private function bothParentsAreDead(Family $family, string $deceasedId): bool
     {
-        $head = $family->headCitizen;
-        if ($head === null || $head->id !== $deceasedId) {
+        if ($family->head_citizen_id !== $deceasedId) {
             return false;
         }
 
@@ -107,7 +104,9 @@ final class FamilySuccessionService
 
     private function promoteSpouse(Family $family, Citizen $spouse, string $eventDate, ?int $actorId): void
     {
+        $oldHeadId = $family->head_citizen_id;
         $this->changeHead($family, $spouse, $eventDate, $actorId, 'Pasangan yang masih hidup otomatis menjadi kepala keluarga setelah kepala keluarga meninggal.');
+        $this->changeMemberRelationship($family, $oldHeadId, self::SPOUSE);
 
         $oldStatus = $spouse->status_perkawinan;
         if ($oldStatus === 'meninggal' || $oldStatus === 'cerai mati') {
@@ -123,21 +122,37 @@ final class FamilySuccessionService
             $spouse,
             'marital_status_change',
             $eventDate,
-            [
-                'status_perkawinan' => $oldStatus,
-            ],
-            [
-                'status_perkawinan' => 'cerai mati',
-            ],
+            ['status_perkawinan' => $oldStatus],
+            ['status_perkawinan' => 'cerai mati'],
             $family->no_kk,
             $actorId,
-            'Status perkawinan otomatis berubah menjadi cerai mati setelah pasangan meninggal.'
+            'Status perkawinan otomatis berubah menjadi cerai mati setelah pasangan meninggal.',
         );
     }
 
     private function promoteChild(Family $family, Citizen $child, string $eventDate, ?int $actorId): void
     {
         $this->changeHead($family, $child, $eventDate, $actorId, 'Anak tertua yang masih hidup otomatis menjadi kepala keluarga setelah kedua orang tua meninggal.');
+
+        FamilyMember::query()
+            ->where('family_id', $family->id)
+            ->where('citizen_id', '!=', $child->id)
+            ->where('status', 'active')
+            ->whereIn('hubungan_dalam_keluarga', [self::HEAD, self::SPOUSE])
+            ->update(['hubungan_dalam_keluarga' => self::PARENT]);
+    }
+
+    private function changeMemberRelationship(Family $family, ?string $citizenId, string $relationship): void
+    {
+        if ($citizenId === null) {
+            return;
+        }
+
+        FamilyMember::query()
+            ->where('family_id', $family->id)
+            ->where('citizen_id', $citizenId)
+            ->where('status', 'active')
+            ->update(['hubungan_dalam_keluarga' => $relationship]);
     }
 
     private function changeHead(Family $family, Citizen $replacement, string $eventDate, ?int $actorId, string $notes): void
@@ -152,15 +167,7 @@ final class FamilySuccessionService
             'updated_by' => $actorId,
         ]);
 
-        $member = FamilyMember::query()
-            ->where('family_id', $family->id)
-            ->where('citizen_id', $replacement->id)
-            ->where('status', 'active')
-            ->first();
-
-        if ($member !== null) {
-            $member->update(['hubungan_dalam_keluarga' => self::HEAD]);
-        }
+        $this->changeMemberRelationship($family, $replacement->id, self::HEAD);
 
         PopulationEvent::create([
             'tenant_id' => $family->tenant_id,
@@ -169,9 +176,7 @@ final class FamilySuccessionService
             'event_type' => 'family_head_change',
             'event_date' => $eventDate,
             'effective_date' => $eventDate,
-            'old_data' => [
-                'head_citizen_id' => $oldHeadId,
-            ],
+            'old_data' => ['head_citizen_id' => $oldHeadId],
             'new_data' => [
                 'head_citizen_id' => $replacement->id,
                 'no_kk' => $family->no_kk,
