@@ -5,12 +5,20 @@ declare(strict_types=1);
 namespace App\Livewire\Population;
 
 use App\Services\PopulationStatisticsService;
+use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
 class Statistics extends Component
 {
     public ?string $selectedTenantId = null;
     public bool $showAgePyramid = false;
+
+    protected PopulationStatisticsService $statisticsService;
+
+    public function boot(PopulationStatisticsService $statisticsService): void
+    {
+        $this->statisticsService = $statisticsService;
+    }
 
     public function mount(): void
     {
@@ -34,7 +42,7 @@ class Statistics extends Component
         $this->showAgePyramid = false;
     }
 
-    public function render()
+    public function render(): View
     {
         $user = auth()->user();
         abort_unless($user?->hasPermission('population.view'), 403);
@@ -43,13 +51,12 @@ class Statistics extends Component
         $tenantId = $isSuperAdmin ? $this->selectedTenantId : $user->tenant_id;
         abort_unless($isSuperAdmin || $tenantId, 422);
 
-        $service = app(PopulationStatisticsService::class);
-        $statistics = $service->summarize($tenantId);
+        $statistics = $this->statisticsService->summarize($tenantId);
 
         return view('livewire.population.statistics', [
             ...$statistics,
             'isSuperAdmin' => $isSuperAdmin,
-            'tenants' => $isSuperAdmin ? $service->tenants() : collect(),
+            'tenants' => $isSuperAdmin ? $this->statisticsService->tenants() : collect(),
         ]);
     }
 }
