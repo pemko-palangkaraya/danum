@@ -25,7 +25,7 @@ class OutgoingLetterService
 
     public function getAll(string $tenantId): Collection { return $this->repository->getAll($tenantId); }
     public function find(string $id, string $tenantId): ?OutgoingLetter { return $this->repository->find($id, $tenantId); }
-    public function findWithTrashed(string $id, ?string $tenantId = null): ?OutgoingLetter { return $this->repository->findWithTrashed($id, $tenantId); }
+    public function findWithTrashed(string $id, ?string $tenantId = null): ?OutgoingLetter { return $this->repository->findWithTrashed($id, $tenantId === '' ? null : $tenantId); }
 
     public function create(array $data, int $changedBy): OutgoingLetter
     {
