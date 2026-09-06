@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\AuditLogs;
 
 use App\Livewire\Concerns\WithStandardTablePagination;
-use App\Services\AuditLogService;
+use App\Services\AuditLogQueryService;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -86,7 +86,7 @@ class Index extends Component
         $this->resetPage();
     }
 
-    public function with(AuditLogService $auditLogs): array
+    public function with(AuditLogQueryService $auditLogs): array
     {
         return [
             'logs' => $auditLogs->paginate([
