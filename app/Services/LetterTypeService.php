@@ -38,26 +38,7 @@ class LetterTypeService
 
     public function getAvailableForTenant(string $tenantId): Collection
     {
-        return LetterType::query()
-            ->where('status', 'active')
-            ->where(function ($query) use ($tenantId): void {
-                $query
-                    ->where('tenant_id', $tenantId)
-                    ->orWhere(function ($global) use ($tenantId): void {
-                        $global
-                            ->whereNull('tenant_id')
-                            ->whereHas('permissions', function ($permission) use ($tenantId): void {
-                                $permission
-                                    ->where('allowed', true)
-                                    ->where(function ($scope) use ($tenantId): void {
-                                        $scope
-                                            ->where('tenant_id', $tenantId)
-                                            ->orWhereHas('category.tenants', fn ($tenants) => $tenants->whereKey($tenantId));
-                                    });
-                            });
-                    });
-            })
-            ->get();
+        return $this->permissionService->getAvailableForTenant($tenantId);
     }
 
     public function isAllowedForTenant(LetterType $letterType, string $tenantId): bool
