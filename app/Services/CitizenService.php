@@ -40,6 +40,15 @@ class CitizenService
         return $this->query($tenantId)->findOrFail($id);
     }
 
+    public function findAliveForTenant(string $tenantId, string $id): ?Citizen
+    {
+        return Citizen::query()
+            ->where('tenant_id', $tenantId)
+            ->whereKey($id)
+            ->where('status_kependudukan', '!=', 'meninggal')
+            ->first();
+    }
+
     public function find(string $id): Citizen
     {
         return Citizen::query()->findOrFail($id);
