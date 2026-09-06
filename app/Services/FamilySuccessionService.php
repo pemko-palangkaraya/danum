@@ -17,6 +17,7 @@ final class FamilySuccessionService
     private const SPOUSE = 'spouse';
     private const CHILD = 'child';
     private const PARENT = 'parent';
+    private const WIDOWED = 'widowed';
 
     public function handleMemberDeath(Citizen $citizen, string $eventDate, ?int $actorId = null): void
     {
@@ -108,12 +109,12 @@ final class FamilySuccessionService
         $this->changeMemberRelationship($family, $oldHeadId, self::SPOUSE);
 
         $oldStatus = $spouse->status_perkawinan;
-        if ($oldStatus === 'meninggal' || $oldStatus === 'cerai mati') {
+        if ($oldStatus === self::WIDOWED) {
             return;
         }
 
         $spouse->update([
-            'status_perkawinan' => 'cerai mati',
+            'status_perkawinan' => self::WIDOWED,
             'updated_by' => $actorId,
         ]);
 
@@ -122,7 +123,7 @@ final class FamilySuccessionService
             'marital_status_change',
             $eventDate,
             ['status_perkawinan' => $oldStatus],
-            ['status_perkawinan' => 'cerai mati'],
+            ['status_perkawinan' => self::WIDOWED],
             $family->no_kk,
             $actorId,
             'Status perkawinan otomatis berubah menjadi cerai mati setelah pasangan meninggal.',
