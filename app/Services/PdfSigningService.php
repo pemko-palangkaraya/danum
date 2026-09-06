@@ -14,6 +14,10 @@ class PdfSigningService
 {
     private const DEFAULT_REASON = 'Dokumen ini telah ditandatangani secara elektronik menggunakan sertifikat elektronik yang diterbitkan oleh Data Administrasi dan Urusan Masyarakat (DANUM).';
 
+    public function __construct(
+        private readonly CertificateAuthorityService $certificateAuthorities,
+    ) {}
+
     /**
      * Sign an existing PDF with a PAdES B-T signature and RFC 3161 TSA timestamp.
      */
@@ -36,7 +40,7 @@ class PdfSigningService
             $stage = 'resolve-certificate-chain';
             $certificate->loadMissing('issuingCa.parent');
             if (! $certificate->issuingCa) throw new RuntimeException('Sertifikat penanda tangan belum memiliki DANUM Issuing CA. Buat ulang sertifikat penanda tangan.');
-            $extraCertificatesPem = app(CertificateAuthorityService::class)->chainForSigner($certificate->issuingCa);
+            $extraCertificatesPem = $this->certificateAuthorities->chainForSigner($certificate->issuingCa);
 
             $stage = 'decrypt-private-key';
             $privateKeyPem = Crypt::decryptString((string) $certificate->private_key_encrypted);
