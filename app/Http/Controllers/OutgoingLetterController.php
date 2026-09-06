@@ -10,6 +10,7 @@ use App\Http\Requests\StoreOutgoingLetterRequest;
 use App\Http\Requests\UpdateOutgoingLetterRequest;
 use App\Models\OutgoingLetter;
 use App\Services\LetterTypeService;
+use App\Services\OutgoingLetterNumberService;
 use App\Services\OutgoingLetterParticipantService;
 use App\Services\OutgoingLetterPdfPreviewService;
 use App\Services\OutgoingLetterService;
@@ -28,6 +29,7 @@ class OutgoingLetterController extends Controller
         private readonly LetterTypeService $letterTypeService,
         private readonly OutgoingLetterTemplateService $outgoingLetterTemplateService,
         private readonly OutgoingLetterPdfPreviewService $pdfPreviewService,
+        private readonly OutgoingLetterNumberService $numberService,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -66,6 +68,7 @@ class OutgoingLetterController extends Controller
         if ($error = $this->participantService->resolveValidator($data, $tenant->id, true)) return $this->participantError($error);
 
         $templateVersion = $this->letterTypeService->ensureCurrentVersion($letterType);
+        $data['number'] = $this->numberService->generate($tenant, $letterType->classification()->firstOrFail());
         if (! isset($data['content']) && $templateVersion !== null) {
             $data['content'] = $this->outgoingLetterTemplateService->renderVersion($templateVersion, $tenant, $data);
         }
