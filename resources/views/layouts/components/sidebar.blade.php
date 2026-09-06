@@ -36,20 +36,20 @@
         }
 
         aside nav a,
-        aside > div a {
+        aside > div.border-t a {
             transition: background-color .15s ease, border-color .15s ease, color .15s ease, padding-left .15s ease;
         }
 
         aside nav a:hover,
-        aside > div a:hover {
+        aside > div.border-t a:hover {
             background: rgb(241 245 249);
             color: rgb(15 23 42);
         }
 
         aside nav a[href="{{ url()->current() }}"],
         aside nav a[aria-current="page"],
-        aside > div a[href="{{ url()->current() }}"],
-        aside > div a[aria-current="page"] {
+        aside > div.border-t a[href="{{ url()->current() }}"],
+        aside > div.border-t a[aria-current="page"] {
             background: rgb(241 245 249) !important;
             color: rgb(15 23 42) !important;
             font-weight: 600;
