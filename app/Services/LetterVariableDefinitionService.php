@@ -9,7 +9,7 @@ use App\Models\LetterVariableDefinition;
 final class LetterVariableDefinitionService
 {
     private const SYSTEM_VARIABLES = [
-        'letterhead', 'tenant_name', 'tenant_city', 'tenant_district', 'tenant_village',
+        'number', 'letterhead', 'tenant_name', 'tenant_city', 'tenant_district', 'tenant_village',
         'tenant_province', 'tenant_address', 'tenant_phone', 'tenant_email',
         'tenant_head_name', 'tenant_head_title', 'jabatan_ttd', 'nama_ttd', 'tte',
         'citizen_nik', 'citizen_nama_lengkap', 'citizen_tempat_lahir', 'citizen_tanggal_lahir',
@@ -47,9 +47,7 @@ final class LetterVariableDefinitionService
     public function isReadonly(string $key, bool $hasCitizen = false): bool
     {
         $definition = $this->forKey($key);
-        if ($definition) {
-            return (bool) $definition->readonly;
-        }
+        if ($definition) return (bool) $definition->readonly;
 
         return $this->isSystem($key) || ($hasCitizen && in_array($key, [
             'recipient_name', 'recipient_nik', 'recipient_gender', 'recipient_birth_place',
