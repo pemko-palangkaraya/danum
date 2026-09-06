@@ -7,6 +7,7 @@ namespace App\Livewire\Population;
 use App\Models\Citizen;
 use App\Services\CitizenService;
 use App\Services\PopulationLocationService;
+use App\Services\PopulationReferenceService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -26,6 +27,13 @@ class CitizenShow extends Component
     public string $jenis_alamat = 'domisili';
     public string $berlaku_mulai = '';
 
+    public function __construct(
+        private readonly CitizenService $citizenService,
+        private readonly PopulationLocationService $locationService,
+        private readonly PopulationReferenceService $referenceService,
+    ) {
+    }
+
     public function mount(Citizen $citizen): void
     {
         $user = auth()->user();
@@ -36,7 +44,7 @@ class CitizenShow extends Component
             404
         );
 
-        $this->citizen = app(CitizenService::class)->loadDetail($citizen);
+        $this->citizen = $this->citizenService->loadDetail($citizen);
         $this->resetAddressLocation();
     }
 
@@ -65,13 +73,12 @@ class CitizenShow extends Component
     {
         abort_unless(auth()->user()?->hasPermission('population.manage'), 403);
 
-        $service = app(CitizenService::class);
-        $service->addAddress($this->citizen, $this->only([
+        $this->citizenService->addAddress($this->citizen, $this->only([
             'alamat', 'rt', 'rw', 'kelurahan', 'kecamatan', 'kabupaten_kota',
             'provinsi', 'kode_pos', 'jenis_alamat', 'berlaku_mulai',
         ]));
 
-        $this->citizen = $service->loadAddresses($this->citizen);
+        $this->citizen = $this->citizenService->loadAddresses($this->citizen);
         $this->reset([
             'alamat', 'rt', 'rw', 'kode_pos', 'berlaku_mulai',
         ]);
@@ -84,8 +91,7 @@ class CitizenShow extends Component
     {
         $user = auth()->user();
         $isSuperAdmin = $user->isSuperAdmin();
-        $locationService = app(PopulationLocationService::class);
-        $locationOptions = $locationService->optionsForTenant(
+        $locationOptions = $this->locationService->optionsForTenant(
             (string) $this->citizen->tenant_id,
             $this->provinsi,
             $this->kabupaten_kota,
@@ -96,6 +102,7 @@ class CitizenShow extends Component
             'activeMembership' => $this->citizen->activeFamilyMembership,
             'canManage' => $user->hasPermission('population.manage'),
             'locationOptions' => $locationOptions,
+            'references' => $this->referenceService->all(),
             'citizensRoute' => $isSuperAdmin
                 ? 'population.admin.citizens.index'
                 : 'population.citizens.index',
@@ -107,7 +114,7 @@ class CitizenShow extends Component
 
     private function resetAddressLocation(): void
     {
-        $defaults = app(PopulationLocationService::class)->defaultsForTenant((string) $this->citizen->tenant_id);
+        $defaults = $this->locationService->defaultsForTenant((string) $this->citizen->tenant_id);
         $this->provinsi = $defaults['province'];
         $this->kabupaten_kota = $defaults['city'];
         $this->kecamatan = $defaults['district'];
