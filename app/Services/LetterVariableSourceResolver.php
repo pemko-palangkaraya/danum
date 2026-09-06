@@ -9,6 +9,7 @@ use App\Models\Family;
 use App\Models\FamilyMember;
 use App\Models\PositionHolder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 final class LetterVariableSourceResolver
 {
@@ -75,22 +76,24 @@ final class LetterVariableSourceResolver
         return $citizen->headedFamilies()->where('status','active')->with('activeMembers.citizen')->first();
     }
 
-    private function spouseFor(Family $family, Citizen $citizen, $members, ?string $subjectRelation): ?FamilyMember
+    /** @param Collection<int, FamilyMember> $members */
+    private function spouseFor(Family $family, Citizen $citizen, Collection $members, ?string $subjectRelation): ?FamilyMember
     {
         if ($subjectRelation === 'child') return null;
 
         if ($subjectRelation === 'spouse') {
             $head = $family->headCitizen;
-            return $head && (string) $head->id !== (string) $citizen->id
-                ? $members->first(fn (FamilyMember $member) => (string) $member->citizen_id === (string) $head->id)
-                    ?? new FamilyMember(['citizen' => $head])
-                : null;
+            if (! $head || (string) $head->id === (string) $citizen->id) return null;
+
+            return $members->first(fn (FamilyMember $member) => (string) $member->citizen_id === (string) $head->id)
+                ?? tap(new FamilyMember, fn (FamilyMember $member) => $member->setRelation('citizen', $head));
         }
 
         return $members->first(fn (FamilyMember $member) => $this->relationType($member->hubungan_dalam_keluarga) === 'spouse');
     }
 
-    private function childrenFor($members, ?string $subjectRelation)
+    /** @param Collection<int, FamilyMember> $members */
+    private function childrenFor(Collection $members, ?string $subjectRelation): Collection
     {
         return in_array($subjectRelation, [null, 'head', 'spouse'], true)
             ? $members->filter(fn (FamilyMember $member) => $this->relationType($member->hubungan_dalam_keluarga) === 'child')->values()
