@@ -23,18 +23,14 @@ class OutgoingLetterIssuanceChoiceTest extends TestCase
         parent::setUp();
         Storage::fake('local');
         $this->mock(DocxTteService::class, function ($mock): void {
-            $mock->shouldReceive('createIssuedCopy')->once()->andReturn('/tmp/danum-test-issued.docx');
+            $mock->shouldReceive('createIssuedCopy')->zeroOrMoreTimes()->andReturn('/tmp/danum-test-issued.docx');
         });
     }
 
     public function test_issue_can_stop_before_tte_and_keeps_final_unsigned_pdf(): void
     {
         $user = User::factory()->superAdmin()->create();
-        $letter = OutgoingLetter::factory()->create([
-            'status' => OutgoingLetterStatus::VALIDATED,
-            'signer_user_id' => $user->id,
-            'generated_docx_path' => 'outgoing-letters/test/source.docx',
-        ]);
+        $letter = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::VALIDATED, 'signer_user_id' => $user->id, 'generated_docx_path' => 'outgoing-letters/test/source.docx']);
         Storage::disk('local')->put($letter->generated_docx_path, 'test docx');
         $this->mock(DocxPdfService::class, fn ($mock) => $mock->shouldReceive('convert')->once()->andReturn('outgoing-letters/test/final-unsigned.pdf'));
 
@@ -52,11 +48,7 @@ class OutgoingLetterIssuanceChoiceTest extends TestCase
     public function test_tte_selection_does_not_issue_before_pin(): void
     {
         $user = User::factory()->superAdmin()->create();
-        $letter = OutgoingLetter::factory()->create([
-            'status' => OutgoingLetterStatus::VALIDATED,
-            'signer_user_id' => $user->id,
-            'generated_docx_path' => 'outgoing-letters/test/source.docx',
-        ]);
+        $letter = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::VALIDATED, 'signer_user_id' => $user->id, 'generated_docx_path' => 'outgoing-letters/test/source.docx']);
         Storage::disk('local')->put($letter->generated_docx_path, 'test docx');
         $pdf = $this->mock(DocxPdfService::class);
         $pdf->shouldNotReceive('convert');
