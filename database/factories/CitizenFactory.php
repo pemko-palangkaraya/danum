@@ -42,13 +42,21 @@ class CitizenFactory extends Factory
 
         return [
             'tenant_id' => Tenant::factory(),
+            // Keep null here so an explicit NIK supplied by a test is never replaced.
             'nik' => null,
             'nama_lengkap' => $this->randomName($gender),
             'tempat_lahir' => $this->faker->randomElement(self::BIRTH_PLACES),
             'tanggal_lahir' => $birthDate->format('Y-m-d'),
             'jenis_kelamin' => $gender,
             'golongan_darah' => $this->faker->randomElement(['A', 'B', 'AB', 'O', null]),
-            'agama' => $this->faker->randomElement(['islam', 'christian', 'catholic', 'hindu', 'buddhist', 'confucian']),
+            'agama' => $this->faker->randomElement([
+                'Islam',
+                'Kristen',
+                'Katolik',
+                'Hindu',
+                'Buddha',
+                'Konghucu',
+            ]),
             'status_perkawinan' => 'single',
             'pendidikan' => 'Tidak/Belum Sekolah',
             'pekerjaan' => 'Tidak/Belum Bekerja',
@@ -80,6 +88,7 @@ class CitizenFactory extends Factory
                 'status_perkawinan' => $maritalStatus,
             ];
 
+            // Only generate a NIK when the caller did not explicitly provide one.
             if (blank($citizen->nik)) {
                 $attributes['nik'] = $this->nikFor($birthDate, $gender);
             }
