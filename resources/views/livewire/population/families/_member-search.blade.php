@@ -26,17 +26,9 @@
             <div>
                 <select wire:model.live="memberRelationship" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
                     <option value="">Pilih hubungan</option>
-                    <option value="Kepala Keluarga">Kepala Keluarga</option>
-                    <option value="Istri">Istri</option>
-                    <option value="Suami">Suami</option>
-                    <option value="Anak">Anak</option>
-                    <option value="Menantu">Menantu</option>
-                    <option value="Cucu">Cucu</option>
-                    <option value="Orang Tua">Orang Tua</option>
-                    <option value="Mertua">Mertua</option>
-                    <option value="Famili Lain">Famili Lain</option>
-                    <option value="Pembantu">Pembantu</option>
-                    <option value="Lainnya">Lainnya</option>
+                    @foreach($familyRelationships as $relationship)
+                        <option value="{{ $relationship->code }}">{{ $relationship->label }}</option>
+                    @endforeach
                 </select>
                 @error('hubungan_dalam_keluarga')
                     <p class="mt-1.5 text-xs font-medium text-red-600">{{ $message }}</p>
