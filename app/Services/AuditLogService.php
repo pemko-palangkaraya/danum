@@ -28,8 +28,8 @@ final class AuditLogService
             'auditable_id' => $auditable?->getKey(),
             'old_values' => $this->sanitize($oldValues),
             'new_values' => $this->sanitize($newValues),
-            'ip_address' => $ipAddress ?? request()->ip(),
-            'user_agent' => $userAgent ?? request()->userAgent(),
+            'ip_address' => $ipAddress,
+            'user_agent' => $userAgent,
         ]);
     }
 
