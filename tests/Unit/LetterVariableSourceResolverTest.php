@@ -27,6 +27,7 @@ class LetterVariableSourceResolverTest extends TestCase
             ['group' => 'marital_status', 'code' => 'married', 'label' => 'Kawin', 'sort_order' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
             ['group' => 'religion', 'code' => 'buddhist', 'label' => 'Buddha', 'sort_order' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
             ['group' => 'citizenship', 'code' => 'WNI', 'label' => 'WNI', 'sort_order' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['group' => 'population_status', 'code' => 'active', 'label' => 'Aktif', 'sort_order' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
         ]);
 
         $citizen = Citizen::factory()->forTenant($tenant)->create([
@@ -35,6 +36,7 @@ class LetterVariableSourceResolverTest extends TestCase
             'status_perkawinan' => 'married',
             'agama' => 'buddhist',
             'kewarganegaraan' => 'WNI',
+            'status_kependudukan' => 'active',
         ]);
 
         $data = app(LetterVariableSourceResolver::class)->citizen($citizen);
@@ -44,6 +46,7 @@ class LetterVariableSourceResolverTest extends TestCase
         $this->assertSame('Kawin', $data['citizen_status_perkawinan']);
         $this->assertSame('Buddha', $data['citizen_agama']);
         $this->assertSame('WNI', $data['citizen_kewarganegaraan']);
+        $this->assertSame('Aktif', $data['citizen_status_kependudukan']);
         $this->assertSame('Buddha', $data['recipient_religion']);
     }
 
