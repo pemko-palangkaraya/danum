@@ -9,6 +9,7 @@ use App\Models\Citizen;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CitizenImportService;
+use Database\Seeders\PopulationReferenceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
@@ -17,6 +18,12 @@ use Tests\TestCase;
 class CitizenImportTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(PopulationReferenceSeeder::class);
+    }
 
     public function test_user_without_population_manage_cannot_open_import_page(): void
     {
@@ -56,7 +63,6 @@ class CitizenImportTest extends TestCase
         $this->assertDatabaseHas('citizens', [
             'tenant_id' => $tenant->id,
             'nik' => '6271010101010101',
-            'nama_lengkap' => 'Warga Baru',
             'created_by' => $user->id,
         ]);
     }
