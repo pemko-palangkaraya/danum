@@ -93,14 +93,14 @@
                     <td class="no">{{ $index + 1 }}</td>
                     <td class="name">{{ $citizen?->nama_lengkap ?? '-' }}</td>
                     <td class="nik">{{ $citizen?->nik ?? '-' }}</td>
-                    <td class="sex">{{ $citizen?->jenis_kelamin ?? '-' }}</td>
+                    <td class="sex">{{ $referenceLabels['gender'][$citizen?->jenis_kelamin] ?? ($citizen?->jenis_kelamin ?: '-') }}</td>
                     <td class="birth">{{ $citizen?->tempat_lahir ?? '-' }}, {{ $citizen?->tanggal_lahir?->format('d-m-Y') ?? '-' }}</td>
-                    <td class="religion">{{ $citizen?->agama ?? '-' }}</td>
+                    <td class="religion">{{ $referenceLabels['religion'][$citizen?->agama] ?? ($citizen?->agama ?: '-') }}</td>
                     <td class="education">{{ $citizen?->pendidikan ?? '-' }}</td>
                     <td class="job">{{ $citizen?->pekerjaan ?? '-' }}</td>
-                    <td class="marital">{{ $citizen?->status_perkawinan ?? '-' }}</td>
-                    <td class="relation">{{ $member->hubungan_dalam_keluarga ?: '-' }}</td>
-                    <td class="nationality">{{ $citizen?->kewarganegaraan ?? '-' }}</td>
+                    <td class="marital">{{ $referenceLabels['marital_status'][$citizen?->status_perkawinan] ?? ($citizen?->status_perkawinan ?: '-') }}</td>
+                    <td class="relation">{{ $referenceLabels['family_relationship'][$member->hubungan_dalam_keluarga] ?? ($member->hubungan_dalam_keluarga ?: '-') }}</td>
+                    <td class="nationality">{{ $referenceLabels['citizenship'][$citizen?->kewarganegaraan] ?? ($citizen?->kewarganegaraan ?: '-') }}</td>
                 </tr>
             @empty
                 <tr>
