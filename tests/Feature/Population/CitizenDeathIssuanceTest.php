@@ -67,7 +67,7 @@ class CitizenDeathIssuanceTest extends TestCase
             ->create();
         $type = LetterType::factory()->create([
             'tenant_id' => $tenant->id,
-            'code' => 'SURAT_KETERANGAN_KEMATIAN',
+            'code' => 'sk_kematian',
             'status' => LetterTypeStatus::ACTIVE,
         ]);
         $letter = OutgoingLetter::factory()->create([
