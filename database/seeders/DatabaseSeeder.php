@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             TenantReferenceSeeder::class,
             PopulationReferenceSeeder::class,
+            LetterClassificationSeeder::class,
             LetterVariableDefinitionSeeder::class,
             PositionSeeder::class,
             KalimantanTengahTenantSeeder::class,
@@ -49,13 +50,13 @@ class DatabaseSeeder extends Seeder
         if ($tenantCategoryId === null) throw new \RuntimeException('Master tenant category "kelurahan" tidak ditemukan.');
 
         $parentTenantId = Tenant::query()
-            ->where('code', 'wilayah-62-71-04')
+            ->where('code', 'RKP')
             ->whereHas('category', fn($query) => $query->where('code', 'kecamatan'))
             ->value('id');
         if ($parentTenantId === null) throw new \RuntimeException('Tenant Kecamatan Rakumpit belum tersedia untuk parent demo tenant.');
 
         $tenant = Tenant::updateOrCreate(
-            ['code' => env('DANUM_DEMO_TENANT_CODE', 'DEMO001')],
+            ['code' => env('DANUM_DEMO_TENANT_CODE', 'DEMO')],
             [
                 'name' => env('DANUM_DEMO_TENANT_NAME', 'Kelurahan Mungku Baru - Demo Tenant'),
                 'tenant_category_id' => $tenantCategoryId,
