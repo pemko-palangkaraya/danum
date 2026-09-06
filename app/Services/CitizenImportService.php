@@ -27,23 +27,18 @@ class CitizenImportService
 
     public function preview(UploadedFile $file, string $tenantId, string $duplicateMode): array
     {
-        $this->validateTenant($tenantId);
-        $this->validateDuplicateMode($duplicateMode);
-        $path = $file->getRealPath();
-        $extension = strtolower($file->getClientOriginalExtension());
+        $this->validateTenant($tenantId); $this->validateDuplicateMode($duplicateMode);
+        $path = $file->getRealPath(); $extension = strtolower($file->getClientOriginalExtension());
         if (! is_string($path) || ! is_file($path)) throw new RuntimeException('File import tidak ditemukan.');
         $raw = in_array($extension, ['xlsx', 'xls'], true) ? $this->readSpreadsheetRows($path) : $this->readRows($path);
         if (count($raw) < 2) return ['rows' => [], 'errors' => ['File tidak memiliki baris data.'], 'validCount' => 0, 'invalidCount' => 0];
-
         $headerMap = $this->headerMap(array_shift($raw));
         $missingHeaders = array_diff(['nik', 'nama lengkap'], array_keys($headerMap));
         if ($missingHeaders !== []) return ['rows' => [], 'errors' => array_map(static fn (string $header): string => 'Kolom wajib tidak ditemukan: '.strtoupper($header).'.', $missingHeaders), 'validCount' => 0, 'invalidCount' => 0];
 
-        $rows = $this->normalizeRows($raw, $headerMap);
-        $this->markFileDuplicates($rows);
+        $rows = $this->normalizeRows($raw, $headerMap); $this->markFileDuplicates($rows);
         $niks = array_values(array_unique(array_filter(array_column($rows, 'nik'))));
         $existingNiks = $niks === [] ? collect() : Citizen::query()->where('tenant_id', $tenantId)->whereIn('nik', $niks)->pluck('nik')->mapWithKeys(static fn ($nik): array => ['nik:'.(string) $nik => true]);
-
         foreach ($rows as $i => $item) {
             $validation = Validator::make($item, $this->rowRules());
             if ($validation->fails()) { $rows[$i]['_error'] = implode(' ', $validation->errors()->all()); continue; }
@@ -52,7 +47,6 @@ class CitizenImportService
                 if ($duplicateMode === 'skip') $rows[$i]['_error'] = 'NIK sudah ada — akan dilewati.';
             }
         }
-
         $validCount = collect($rows)->whereNull('_error')->count();
         return ['rows' => $rows, 'errors' => [], 'validCount' => $validCount, 'invalidCount' => count($rows) - $validCount];
     }
@@ -64,16 +58,21 @@ class CitizenImportService
         return DB::transaction(function () use ($rows, $tenantId, $duplicateMode, $userId): int {
             $niks = array_values(array_unique(array_filter(array_column($rows, 'nik'))));
             $existing = $niks === [] ? collect() : Citizen::query()->where('tenant_id', $tenantId)->whereIn('nik', $niks)->get()->keyBy('nik');
-            $creates = []; $createdCount = 0; $updatedCount = 0; $now = now();
+            $creates = []; $createdCount = 0; $updatedCount = 0; $skippedCount = 0; $now = now();
             foreach ($rows as $row) {
-                if (Validator::make($row, $this->rowRules())->fails()) continue;
+                $validation = Validator::make($row, $this->rowRules());
+                if ($validation->fails()) continue;
                 $citizen = $existing->get($row['nik']);
-                if ($citizen) { if ($duplicateMode === 'update') { $citizen->update($this->cleanRow($row, $tenantId) + ['updated_by' => $userId]); $updatedCount++; } continue; }
+                if ($citizen) {
+                    if ($duplicateMode === 'update') { $citizen->update($this->cleanRow($row, $tenantId) + ['updated_by' => $userId]); $updatedCount++; }
+                    else $skippedCount++;
+                    continue;
+                }
                 $data = $this->cleanRow($row, $tenantId); $data['id'] = (string) Str::uuid(); $data['created_by'] = $userId; $data['updated_by'] = $userId; $data['created_at'] = $now; $data['updated_at'] = $now; $creates[] = $data; $createdCount++;
             }
             foreach (array_chunk($creates, 500) as $chunk) Citizen::insert($chunk);
             $count = $createdCount + $updatedCount;
-            if ($count > 0) $this->auditLogService()->record(action: 'population.citizens.imported', user: $this->actor($userId), newValues: ['tenant_id' => $tenantId, 'duplicate_mode' => $duplicateMode, 'created_count' => $createdCount, 'updated_count' => $updatedCount, 'skipped_count' => count($rows) - $count, 'total_changed' => $count], tenantId: $tenantId);
+            if ($count > 0) $this->auditLogService()->record(action: 'population.citizens.imported', user: $this->actor($userId), newValues: ['tenant_id' => $tenantId, 'duplicate_mode' => $duplicateMode, 'created_count' => $createdCount, 'updated_count' => $updatedCount, 'skipped_count' => $skippedCount, 'total_changed' => $count], tenantId: $tenantId);
             return $count;
         });
     }
@@ -84,8 +83,11 @@ class CitizenImportService
 
     private function readSpreadsheetRows(string $path): array
     {
-        try { $reader = IOFactory::createReaderForFile($path); $reader->setReadDataOnly(true); $spreadsheet = $reader->load($path); $worksheet = $spreadsheet->getActiveSheet(); $rows = []; foreach ($worksheet->toArray('', true, true, false) as $row) $rows[] = array_map(static fn ($value): string => trim((string) $value), $row); $spreadsheet->disconnectWorksheets(); unset($spreadsheet); return $rows; }
-        catch (\Throwable $e) { throw new RuntimeException('File Excel tidak dapat dibaca: '.$e->getMessage(), 0, $e); }
+        try {
+            $reader = IOFactory::createReaderForFile($path); $reader->setReadDataOnly(true); $spreadsheet = $reader->load($path); $worksheet = $spreadsheet->getActiveSheet(); $rows = [];
+            foreach ($worksheet->toArray('', true, true, false) as $row) $rows[] = array_map(static fn ($value): string => trim((string) $value), $row);
+            $spreadsheet->disconnectWorksheets(); unset($spreadsheet); return $rows;
+        } catch (\Throwable $e) { throw new RuntimeException('File Excel tidak dapat dibaca: '.$e->getMessage(), 0, $e); }
     }
     private function readRows(string $path): array
     {
@@ -101,23 +103,23 @@ class CitizenImportService
             $item = ['line' => $index + 2];
             foreach ($this->headers() as $source => $target) $item[$target] = isset($headerMap[$source]) ? trim((string) ($rawRow[$headerMap[$source]] ?? '')) : '';
             $item['kewarganegaraan'] = $item['kewarganegaraan'] ?: 'WNI'; $item['status_kependudukan'] = $item['status_kependudukan'] ?: 'active'; $item['_error'] = null; $item['_duplicate'] = false;
-            if ($item['nik'] === '' && $item['nama_lengkap'] === '') continue;
-            $rows[] = $item;
+            if ($item['nik'] === '' && $item['nama_lengkap'] === '') continue; $rows[] = $item;
         }
         return $rows;
     }
     private function markFileDuplicates(array &$rows): void
     {
-        $seen = [];
-        foreach ($rows as $index => $row) if ($row['nik'] !== '') $seen[$row['nik']][] = $index;
+        $seen = []; foreach ($rows as $index => $row) if ($row['nik'] !== '') $seen[$row['nik']][] = $index;
         foreach ($seen as $indexes) if (count($indexes) > 1) foreach ($indexes as $index) $rows[$index]['_error'] = 'NIK duplikat di dalam file.';
     }
-    private function headers(): array { return ['nik' => 'nik', 'nama lengkap' => 'nama_lengkap', 'tempat lahir' => 'tempat_lahir', 'tanggal lahir' => 'tanggal_lahir', 'jenis kelamin' => 'jenis_kelamin', 'agama' => 'agama', 'pendidikan' => 'pendidikan', 'pekerjaan' => 'pekerjaan', 'status perkawinan' => 'status_perkawinan', 'golongan darah' => 'golongan_darah', 'alamat' => 'alamat', 'no kk' => 'no_kk', 'nik ayah' => 'nik_ayah', 'nik ibu' => 'nik_ibu', 'kewarganegaraan' => 'kewarganegaraan', 'status kependudukan' => 'status_kependudukan']; }
-
     private function cleanRow(array $row, string $tenantId): array
     {
-        $allowed = array_values($this->headers()); $data = array_intersect_key($row, array_flip($allowed)); $data['tenant_id'] = $tenantId; return $data;
+        return collect($row)->only(array_values($this->headers()))->map(static fn ($value) => $value === '' ? null : $value)->merge(['tenant_id' => $tenantId])->toArray();
+    }
+    private function headers(): array
+    {
+        return ['nik' => 'nik', 'nama lengkap' => 'nama_lengkap', 'tempat lahir' => 'tempat_lahir', 'tanggal lahir' => 'tanggal_lahir', 'jenis kelamin' => 'jenis_kelamin', 'golongan darah' => 'golongan_darah', 'agama' => 'agama', 'status perkawinan' => 'status_perkawinan', 'pendidikan' => 'pendidikan', 'pekerjaan' => 'pekerjaan', 'kewarganegaraan' => 'kewarganegaraan', 'no passport' => 'no_passport', 'no kitap' => 'no_kitap', 'nama ayah' => 'nama_ayah', 'nik ayah' => 'nik_ayah', 'nama ibu' => 'nama_ibu', 'nik ibu' => 'nik_ibu', 'status kependudukan' => 'status_kependudukan'];
     }
     private function auditLogService(): AuditLogService { return app(AuditLogService::class); }
-    private function actor(int|string $userId): User { return User::query()->findOrFail($userId); }
+    private function actor(int|string|null $userId = null): ?User { $user = Auth::user(); return $user instanceof User ? $user : ($userId !== null ? User::query()->find($userId) : null); }
 }
