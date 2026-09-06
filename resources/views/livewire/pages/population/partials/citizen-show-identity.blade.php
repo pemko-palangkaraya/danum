@@ -5,10 +5,17 @@
 
     <dl class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         @foreach([
-            ['NIK', $citizen->nik], ['Nama Lengkap', $citizen->nama_lengkap], ['Tempat Lahir', $citizen->tempat_lahir ?: '-'],
-            ['Tanggal Lahir', $citizen->tanggal_lahir?->format('d/m/Y') ?: '-'], ['Jenis Kelamin', $citizen->jenis_kelamin === 'male' ? 'Laki-laki' : ($citizen->jenis_kelamin === 'female' ? 'Perempuan' : '-')],
-            ['Golongan Darah', $citizen->golongan_darah ?: '-'], ['Agama', $citizen->agama ?: '-'], ['Status Perkawinan', $citizen->status_perkawinan ?: '-'],
-            ['Pendidikan', $citizen->pendidikan ?: '-'], ['Pekerjaan', $citizen->pekerjaan ?: '-'], ['Kewarganegaraan', $citizen->kewarganegaraan ?: '-'],
+            ['NIK', $citizen->nik],
+            ['Nama Lengkap', $citizen->nama_lengkap],
+            ['Tempat Lahir', $citizen->tempat_lahir ?: '-'],
+            ['Tanggal Lahir', $citizen->tanggal_lahir?->format('d/m/Y') ?: '-'],
+            ['Jenis Kelamin', $references['gender']->firstWhere('code', $citizen->jenis_kelamin)?->label ?: '-'],
+            ['Golongan Darah', $citizen->golongan_darah ?: '-'],
+            ['Agama', $references['religion']->firstWhere('code', $citizen->agama)?->label ?: '-'],
+            ['Status Perkawinan', $references['marital_status']->firstWhere('code', $citizen->status_perkawinan)?->label ?: '-'],
+            ['Pendidikan', $citizen->pendidikan ?: '-'],
+            ['Pekerjaan', $citizen->pekerjaan ?: '-'],
+            ['Kewarganegaraan', $references['citizenship']->firstWhere('code', $citizen->kewarganegaraan)?->label ?: $citizen->kewarganegaraan ?: '-'],
             ['Status Kependudukan', ucfirst($citizen->status_kependudukan)],
         ] as [$label, $value])
             <div>
