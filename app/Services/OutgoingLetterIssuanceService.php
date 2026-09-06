@@ -33,7 +33,6 @@ class OutgoingLetterIssuanceService
         if ($note === '') throw new \DomainException('Catatan penandatanganan wajib diisi.');
         if ($letter->status !== OutgoingLetterStatus::VALIDATED) throw new \DomainException('Hanya surat yang sudah divalidasi yang dapat diterbitkan.');
         if ($letter->signer_user_id !== $changedBy) throw new \DomainException('Hanya penanda tangan yang ditentukan untuk surat ini yang dapat menerbitkan surat.');
-        if (blank($verificationUrl)) throw new \DomainException('URL verifikasi surat wajib tersedia.');
 
         $signer = User::query()->findOrFail($changedBy);
         if (blank($letter->generated_docx_path)) throw new \DomainException('Dokumen DOCX surat belum tersedia untuk diterbitkan.');
@@ -80,7 +79,7 @@ class OutgoingLetterIssuanceService
         $signedPdfPath = null;
 
         try {
-            $temporaryDocx = $this->docxTteService->createIssuedCopy($sourceDocxPath, $verificationUrl, $marker);
+            $temporaryDocx = $this->docxTteService->createIssuedCopy($sourceDocxPath, (string) ($verificationUrl ?? ''), $marker);
             $unsignedPdfPath = $this->docxPdfService->convert($temporaryDocx);
 
             if ($signWithTte) {
@@ -117,7 +116,6 @@ class OutgoingLetterIssuanceService
     {
         $note = trim((string) ($note ?? $letter->signing_note ?? ''));
         if ($note === '') throw new \DomainException('Catatan penandatanganan wajib diisi.');
-        if (blank($verificationUrl)) throw new \DomainException('URL verifikasi surat wajib tersedia.');
 
         if ($letter->status === OutgoingLetterStatus::VALIDATED) return $this->issue($letter, $changedBy, $note, $pin, true, 'tte', $verificationUrl);
         if ($letter->status !== OutgoingLetterStatus::ISSUED) throw new \DomainException('Hanya surat yang sudah diterbitkan yang dapat ditandatangani secara elektronik.');
