@@ -146,7 +146,7 @@ class PopulationExportController extends Controller
             $citizen->tempat_lahir,
             $citizen->tanggal_lahir?->format('Y-m-d'),
             $references?->label('gender', $citizen->jenis_kelamin) ?? $citizen->jenis_kelamin,
-            $citizen->golongan_darah,
+            $references?->label('blood_type', $citizen->golongan_darah) ?? $citizen->golongan_darah,
             $references?->label('religion', $citizen->agama) ?? $citizen->agama,
             $references?->label('marital_status', $citizen->status_perkawinan) ?? $citizen->status_perkawinan,
             $citizen->pendidikan,
