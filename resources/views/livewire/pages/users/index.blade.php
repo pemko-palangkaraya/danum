@@ -70,8 +70,17 @@ new #[Layout('layouts.app')] class extends Component {
         $this->role = $user->isSuperAdmin() ? 'super_admin' : ($user->effectiveRole()?->slug ?? 'tenant_user');
         $this->tenantId = (string) ($user->tenant_id ?? '');
         $this->status = $user->status->value;
-        $this->customRoleId = $user->custom_role_id ? (string) $user->custom_role_id : null;
-        $this->roleSelection = $this->customRoleId !== null ? 'custom:' . $this->customRoleId : $this->role;
+
+        if ($user->customRole?->is_system) {
+            $this->customRoleId = null;
+            $this->roleSelection = $this->role;
+        } else {
+            $this->customRoleId = $user->custom_role_id ? (string) $user->custom_role_id : null;
+            $this->roleSelection = $this->customRoleId !== null
+                ? 'custom:' . $this->customRoleId
+                : $this->role;
+        }
+
         $this->resetValidation();
         $this->showForm = true;
     }
