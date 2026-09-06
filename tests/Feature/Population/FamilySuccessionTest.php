@@ -7,8 +7,10 @@ namespace Tests\Feature\Population;
 use App\Models\Citizen;
 use App\Models\Family;
 use App\Models\FamilyMember;
+use App\Services\FamilyService;
 use App\Services\FamilySuccessionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class FamilySuccessionTest extends TestCase
@@ -115,5 +117,45 @@ class FamilySuccessionTest extends TestCase
             'citizen_id' => $oldest->id,
             'event_type' => 'family_head_change',
         ]);
+    }
+
+    public function test_deceased_citizens_are_not_available_as_family_head_candidates(): void
+    {
+        $tenant = \App\Models\Tenant::factory()->create();
+        $alive = Citizen::factory()->forTenant($tenant)->create([
+            'nama_lengkap' => 'Warga Hidup',
+            'status_kependudukan' => 'active',
+        ]);
+        $deceased = Citizen::factory()->forTenant($tenant)->create([
+            'nama_lengkap' => 'Warga Meninggal',
+            'status_kependudukan' => 'meninggal',
+            'tanggal_meninggal' => '2026-09-05',
+        ]);
+
+        $service = app(FamilyService::class);
+        $candidates = $service->findHeadCandidates((string) $tenant->id, 'Warga');
+
+        $this->assertTrue($candidates->contains('id', $alive->id));
+        $this->assertFalse($candidates->contains('id', $deceased->id));
+        $this->assertNull($service->selectedHead((string) $tenant->id, (string) $deceased->id));
+    }
+
+    public function test_deceased_citizen_cannot_be_added_as_family_member(): void
+    {
+        $tenant = \App\Models\Tenant::factory()->create();
+        $family = Family::factory()->forTenant($tenant)->create();
+        $deceased = Citizen::factory()->forTenant($tenant)->create([
+            'status_kependudukan' => 'meninggal',
+            'tanggal_meninggal' => '2026-09-05',
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        app(FamilyService::class)->addMember(
+            (string) $tenant->id,
+            (string) $family->id,
+            (string) $deceased->id,
+            'child',
+        );
     }
 }
