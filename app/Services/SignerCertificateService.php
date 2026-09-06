@@ -8,14 +8,16 @@ use App\Models\Position;
 use App\Models\PositionHolder;
 use App\Models\SignerCertificate;
 use App\Models\User;
-use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class SignerCertificateService
 {
-    public function __construct(private readonly CertificateAuthorityService $certificateAuthorities) {}
+    public function __construct(
+        private readonly CertificateAuthorityService $certificateAuthorities,
+        private readonly AuditLogService $auditLogs,
+    ) {}
 
     public function generate(Position $position, PositionHolder $holder, User $generatedBy): SignerCertificate
     {
@@ -59,7 +61,7 @@ class SignerCertificateService
                 'metadata' => $issued['metadata'],
             ]);
 
-            app(AuditLogService::class)->record('signer_certificate.generated', $generatedBy, $certificate, null, [
+            $this->auditLogs->record('signer_certificate.generated', $generatedBy, $certificate, null, [
                 'position_id' => $position->id,
                 'user_id' => $holder->user_id,
                 'issuing_ca_id' => $issued['issuing_ca']->id,
