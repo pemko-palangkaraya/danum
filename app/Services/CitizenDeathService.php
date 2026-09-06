@@ -20,6 +20,10 @@ final class CitizenDeathService
         'jul' => 7, 'agu' => 8, 'sep' => 9, 'okt' => 10, 'nov' => 11, 'des' => 12,
     ];
 
+    public function __construct(
+        private readonly FamilySuccessionService $familySuccessionService,
+    ) {}
+
     public function applyFromIssuedLetter(OutgoingLetter $letter): void
     {
         if ($letter->status?->value !== 'issued') return;
@@ -78,6 +82,12 @@ final class CitizenDeathService
             'notes' => 'Status kependudukan diperbarui otomatis setelah Surat Keterangan Kematian diterbitkan.',
             'created_by' => $letter->created_by,
         ]);
+
+        $this->familySuccessionService->handleMemberDeath(
+            $citizen->refresh(),
+            $tanggalMeninggal,
+            $letter->created_by,
+        );
     }
 
     private function normalizeDate(mixed $value): ?string
