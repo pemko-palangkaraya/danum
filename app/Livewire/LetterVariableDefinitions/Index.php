@@ -89,7 +89,7 @@ class Index extends Component
             'type' => $this->type,
             'source' => $this->source,
             'required' => $this->required,
-            'readonly' => $this->readonly || $this->source !== 'manual',
+            'readonly' => $this->readonly,
             'options' => $options ?: null,
             'description' => filled(trim($this->description)) ? trim($this->description) : null,
             'is_active' => $this->is_active,
