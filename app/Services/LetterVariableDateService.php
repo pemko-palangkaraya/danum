@@ -33,52 +33,43 @@ final class LetterVariableDateService
     public function format(mixed $value): string
     {
         $normalized = $this->normalize($value);
-        if ($normalized === null) {
-            return blank($value) ? '' : (string) $value;
-        }
+        if ($normalized === null) return blank($value) ? '' : (string) $value;
 
         $date = Carbon::createFromFormat('!Y-m-d', $normalized);
-
         return $date->format('j').' '.self::MONTHS[(int) $date->format('n')].' '.$date->format('Y');
     }
 
     public function normalize(mixed $value): ?string
     {
-        if ($value instanceof DateTimeInterface) {
-            return $value->format('Y-m-d');
-        }
+        if ($value instanceof DateTimeInterface) return $value->format('Y-m-d');
 
         $value = trim((string) $value);
-        if ($value === '') {
-            return null;
-        }
+        if ($value === '') return null;
 
-        if (preg_match('/^(\d{4}-\d{2}-\d{2})(?:[T\s].*)?$/', $value, $matches)) {
-            return $this->validDate($matches[1]);
-        }
-
-        if (! preg_match('/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/u', $value, $matches)) {
-            return null;
-        }
+        if (preg_match('/^(\d{4}-\d{2}-\d{2})(?:[T\s].*)?$/', $value, $matches)) return $this->validDate($matches[1]);
+        if (! preg_match('/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/u', $value, $matches)) return null;
 
         $month = self::MONTH_ALIASES[mb_strtolower($matches[2])] ?? null;
-        if ($month === null) {
-            return null;
-        }
+        if ($month === null) return null;
 
         $candidate = sprintf('%04d-%02d-%02d', (int) $matches[3], $month, (int) $matches[1]);
-
         return $this->validDate($candidate);
     }
 
     public function isBirthDate(string $key): bool
     {
-        return $key === 'recipient_birth_date' || (bool) preg_match('/(^|_)birth_date$/i', $key);
+        return in_array($key, ['recipient_birth_date', 'citizen_tanggal_lahir'], true)
+            || (bool) preg_match('/(^|_)birth_date$/i', $key)
+            || (bool) preg_match('/(^|_)tanggal_lahir$/i', $key);
     }
 
     public function isDate(string $key, ?string $type = null): bool
     {
-        return $type === 'date' || $key === 'tanggal_meninggal' || (bool) preg_match('/(^|_)date$/i', $key);
+        return $type === 'date'
+            || in_array($key, ['date', 'tanggal_meninggal', 'citizen_tanggal_lahir'], true)
+            || (bool) preg_match('/(^|_)birth_date$/i', $key)
+            || (bool) preg_match('/(^|_)tanggal_(lahir|meninggal)$/i', $key)
+            || (bool) preg_match('/(^|_)date$/i', $key);
     }
 
     private function validDate(string $value): ?string
