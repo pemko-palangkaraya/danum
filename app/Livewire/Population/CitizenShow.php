@@ -27,11 +27,18 @@ class CitizenShow extends Component
     public string $jenis_alamat = 'domisili';
     public string $berlaku_mulai = '';
 
-    public function __construct(
-        private readonly CitizenService $citizenService,
-        private readonly PopulationLocationService $locationService,
-        private readonly PopulationReferenceService $referenceService,
-    ) {
+    protected CitizenService $citizenService;
+    protected PopulationLocationService $locationService;
+    protected PopulationReferenceService $referenceService;
+
+    public function boot(
+        CitizenService $citizenService,
+        PopulationLocationService $locationService,
+        PopulationReferenceService $referenceService,
+    ): void {
+        $this->citizenService = $citizenService;
+        $this->locationService = $locationService;
+        $this->referenceService = $referenceService;
     }
 
     public function mount(Citizen $citizen): void
