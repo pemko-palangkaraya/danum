@@ -27,12 +27,13 @@ class OutgoingLetterIssuanceService
         private readonly SignerPinService $signerPinService,
     ) {}
 
-    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null, ?string $pin = null, bool $signWithTte = true, ?string $issuanceMarker = null): OutgoingLetter
+    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note = null, ?string $pin = null, bool $signWithTte = true, ?string $issuanceMarker = null, ?string $verificationUrl = null): OutgoingLetter
     {
-        $note = trim((string) ($note ?? request()->input('note', '')));
+        $note = trim((string) $note);
         if ($note === '') throw new \DomainException('Catatan penandatanganan wajib diisi.');
         if ($letter->status !== OutgoingLetterStatus::VALIDATED) throw new \DomainException('Hanya surat yang sudah divalidasi yang dapat diterbitkan.');
         if ($letter->signer_user_id !== $changedBy) throw new \DomainException('Hanya penanda tangan yang ditentukan untuk surat ini yang dapat menerbitkan surat.');
+        if (blank($verificationUrl)) throw new \DomainException('URL verifikasi surat wajib tersedia.');
 
         $signer = User::query()->findOrFail($changedBy);
         if (blank($letter->generated_docx_path)) throw new \DomainException('Dokumen DOCX surat belum tersedia untuk diterbitkan.');
@@ -78,7 +79,6 @@ class OutgoingLetterIssuanceService
         }
 
         $sourceDocxPath = Storage::disk('local')->path($letter->generated_docx_path);
-        $verificationUrl = url('/verify/' . $letter->verification_token);
         $temporaryDocx = null;
         $unsignedPdfPath = null;
         $signedPdfPath = null;
@@ -146,7 +146,7 @@ class OutgoingLetterIssuanceService
         }
     }
 
-    public function signIssued(OutgoingLetter $letter, int $changedBy, string $pin, ?string $note = null): OutgoingLetter
+    public function signIssued(OutgoingLetter $letter, int $changedBy, string $pin, ?string $note = null, ?string $verificationUrl = null): OutgoingLetter
     {
         $note = trim((string) ($note ?? $letter->signing_note ?? ''));
         if ($note === '') throw new \DomainException('Catatan penandatanganan wajib diisi.');
@@ -154,7 +154,7 @@ class OutgoingLetterIssuanceService
         // TTE selected from the review modal must sign before the letter becomes
         // ISSUED. Re-enter the normal issuance pipeline with the verified PIN.
         if ($letter->status === OutgoingLetterStatus::VALIDATED) {
-            return $this->issue($letter, $changedBy, $note, $pin, true, 'tte');
+            return $this->issue($letter, $changedBy, $note, $pin, true, 'tte', $verificationUrl);
         }
 
         if ($letter->status !== OutgoingLetterStatus::ISSUED) throw new \DomainException('Hanya surat yang sudah diterbitkan yang dapat ditandatangani secara elektronik.');
