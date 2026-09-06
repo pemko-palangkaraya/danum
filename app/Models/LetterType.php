@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\LetterTypeStatus;
@@ -20,7 +22,7 @@ class LetterType extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'tenant_id', 'code', 'name', 'description', 'body_template', 'template_path', 'variables', 'status',
+        'tenant_id', 'letter_classification_id', 'code', 'name', 'description', 'body_template', 'template_path', 'variables', 'status',
         'has_expiry', 'validity_days', 'validity_period',
     ];
 
@@ -35,6 +37,7 @@ class LetterType extends Model
     }
 
     public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
+    public function classification(): BelongsTo { return $this->belongsTo(LetterClassification::class, 'letter_classification_id'); }
     public function versions(): HasMany { return $this->hasMany(LetterTypeVersion::class)->orderByDesc('version'); }
     public function permissions(): HasMany { return $this->hasMany(LetterTypePermission::class); }
     public function currentVersion(): ?LetterTypeVersion { return $this->versions()->first(); }
