@@ -49,6 +49,7 @@ final class LetterVariableSourceResolver
         $maritalStatus = $this->references->label('marital_status', $citizen->status_perkawinan, (string) $citizen->status_perkawinan);
         $religion = $this->references->label('religion', $citizen->agama, (string) $citizen->agama);
         $citizenship = $this->references->label('citizenship', $citizen->kewarganegaraan, (string) $citizen->kewarganegaraan);
+        $populationStatus = $this->references->label('population_status', $citizen->status_kependudukan, (string) $citizen->status_kependudukan);
 
         return [
             'citizen_nik' => $citizen->nik,
@@ -68,7 +69,7 @@ final class LetterVariableSourceResolver
             'citizen_nik_ayah' => $citizen->nik_ayah,
             'citizen_nama_ibu' => $citizen->nama_ibu,
             'citizen_nik_ibu' => $citizen->nik_ibu,
-            'citizen_status_kependudukan' => $citizen->status_kependudukan,
+            'citizen_status_kependudukan' => $populationStatus,
             'recipient_name' => $citizen->nama_lengkap,
             'recipient_nik' => $citizen->nik,
             'recipient_gender' => $gender,
