@@ -16,6 +16,12 @@ class UpdateLetterTypeRequest extends FormRequest
     {
         return [
             'tenant_id' => ['prohibited'],
+            'letter_classification_id' => [
+                'sometimes',
+                'required',
+                'uuid',
+                Rule::exists('letter_classifications', 'id')->where(fn ($query) => $query->where('is_active', true)->whereNull('deleted_at')),
+            ],
             'code' => ['sometimes', 'required', 'string', 'max:50', Rule::unique('letter_types', 'code')->where('tenant_id', $this->user()->tenant_id)->ignore($this->route('id'))],
             'name' => ['sometimes', 'required', 'string', 'max:150'],
             'description' => ['sometimes', 'nullable', 'string'],
