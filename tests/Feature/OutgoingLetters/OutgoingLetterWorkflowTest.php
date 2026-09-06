@@ -14,6 +14,7 @@ use App\Models\PositionHolder;
 use App\Models\SignerCertificate;
 use App\Models\User;
 use App\Services\DocxPdfService;
+use App\Services\DocxTteService;
 use App\Services\OutgoingLetterService;
 use App\Services\OutgoingLetterWorkflowService;
 use App\Services\PdfSigningService;
@@ -32,6 +33,12 @@ class OutgoingLetterWorkflowTest extends TestCase
     {
         parent::setUp();
         Storage::fake('local');
+
+        $this->mock(DocxTteService::class, function ($mock): void {
+            $mock->shouldReceive('createIssuedCopy')
+                ->andReturn('outgoing-letters/test/issued.docx');
+        });
+
         $this->mock(DocxPdfService::class, function ($mock): void {
             $mock->shouldReceive('convert')->andReturn('outgoing-letters/test/unsigned.pdf');
         });
@@ -202,7 +209,8 @@ class OutgoingLetterWorkflowTest extends TestCase
         $service = app(OutgoingLetterService::class);
         $request = $service->requestWithdrawal($letter, $requester->id, 'Surat dibatalkan.', 'withdrawals/statement.pdf');
         $result = $service->approveWithdrawal($request, $decider->id, 'Disetujui.');
-        $letter->refresh(); $request->refresh();
+        $letter->refresh();
+        $request->refresh();
         $this->assertSame(OutgoingLetterStatus::WITHDRAWN, $result->status);
         $this->assertSame(OutgoingLetterStatus::WITHDRAWN, $letter->status);
         $this->assertSame(OutgoingLetterWithdrawalStatus::APPROVED, $request->status);
@@ -213,12 +221,14 @@ class OutgoingLetterWorkflowTest extends TestCase
 
     public function test_rejected_withdrawal_keeps_letter_issued(): void
     {
-        $requester = User::factory()->superAdmin()->create(); $decider = User::factory()->superAdmin()->create();
+        $requester = User::factory()->superAdmin()->create();
+        $decider = User::factory()->superAdmin()->create();
         $letter = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::ISSUED]);
         $service = app(OutgoingLetterService::class);
         $request = $service->requestWithdrawal($letter, $requester->id, 'Mohon ditarik.', 'withdrawals/statement.pdf');
         $service->rejectWithdrawal($request, $decider->id, 'Alasan belum cukup.');
-        $letter->refresh(); $request->refresh();
+        $letter->refresh();
+        $request->refresh();
         $this->assertSame(OutgoingLetterStatus::ISSUED, $letter->status);
         $this->assertSame(OutgoingLetterWithdrawalStatus::REJECTED, $request->status);
         $this->assertSame($decider->id, $request->decided_by);
@@ -232,7 +242,7 @@ class OutgoingLetterWorkflowTest extends TestCase
         $letter->forceFill(['signer_position_id' => $position->id, 'generated_docx_path' => 'outgoing-letters/test/source.docx'])->save();
         Storage::disk('local')->put('outgoing-letters/test/source.docx', 'test docx content');
         app(SignerPinService::class)->set($signer, '123456');
-        $certificate = SignerCertificate::query()->create(['position_id' => $position->id, 'user_id' => $signer->id, 'type' => 'self_signed', 'serial_number' => 'TEST-'.strtoupper(bin2hex(random_bytes(8))), 'fingerprint_sha256' => hash('sha256', $signer->id.'-'.$position->id.'-'.microtime(true)), 'certificate_pem' => 'TEST CERTIFICATE', 'private_key_encrypted' => 'TEST PRIVATE KEY', 'valid_from' => now()->subMinute(), 'valid_until' => now()->addYear(), 'revoked_at' => null, 'is_active' => true, 'generated_by' => $signer->id]);
+        $certificate = SignerCertificate::query()->create(['position_id' => $position->id, 'user_id' => $signer->id, 'type' => 'self_signed', 'serial_number' => 'TEST-' . strtoupper(bin2hex(random_bytes(8))), 'fingerprint_sha256' => hash('sha256', $signer->id . '-' . $position->id . '-' . microtime(true)), 'certificate_pem' => 'TEST CERTIFICATE', 'private_key_encrypted' => 'TEST PRIVATE KEY', 'valid_from' => now()->subMinute(), 'valid_until' => now()->addYear(), 'revoked_at' => null, 'is_active' => true, 'generated_by' => $signer->id]);
         $this->assertTrue($certificate->fresh()->isUsable());
         $letter->forceFill(['signature_certificate_id' => $certificate->id])->save();
     }
