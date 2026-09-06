@@ -260,7 +260,7 @@ class Index extends Component
         try {
             $letter = $this->tenantQuery()->findOrFail($id);
             $this->authorize('issue', $letter);
-            $verificationUrl = route('outgoing-letters.verify', ['token' => $letter->verification_token]);
+            $verificationUrl = route('verification.show', ['token' => $letter->verification_token]);
             $service->issue($letter, auth()->id(), $note, null, false, $tte ? 'tte' : 'qr', $verificationUrl);
 
             if ($tte) {
@@ -287,7 +287,7 @@ class Index extends Component
         try {
             $letter = $this->tenantQuery()->findOrFail($id);
             $this->authorize('issue', $letter);
-            $verificationUrl = route('outgoing-letters.verify', ['token' => $letter->verification_token]);
+            $verificationUrl = route('verification.show', ['token' => $letter->verification_token]);
             $service->signIssued($letter, auth()->id(), $pin, trim($note), $verificationUrl);
             $this->dispatch('toast', type: 'success', message: 'Surat berhasil ditandatangani secara elektronik.');
         } catch (\Throwable $exception) {
