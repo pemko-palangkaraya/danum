@@ -23,10 +23,11 @@ class CitizenService
         private readonly AuditLogService $auditLogService,
     ) {}
 
-    public function query(string $tenantId, string $search = ''): Builder
+    public function query(string $tenantId, string $search = '', ?string $status = 'active'): Builder
     {
         return Citizen::query()
             ->where('tenant_id', $tenantId)
+            ->when($status !== null, fn (Builder $query) => $query->where('status_kependudukan', $status))
             ->when($search !== '', fn (Builder $query) => $query->where(
                 fn (Builder $query) => $query
                     ->where('nik', 'ilike', '%' . $search . '%')
@@ -35,14 +36,14 @@ class CitizenService
             ->orderBy('nama_lengkap');
     }
 
-    public function paginate(string $tenantId, string $search = '', int $perPage = 10): LengthAwarePaginator
+    public function paginate(string $tenantId, string $search = '', int $perPage = 10, ?string $status = 'active'): LengthAwarePaginator
     {
-        return $this->query($tenantId, $search)->paginate($perPage);
+        return $this->query($tenantId, $search, $status)->paginate($perPage);
     }
 
     public function findForTenant(string $tenantId, string $id): Citizen
     {
-        return $this->query($tenantId)->findOrFail($id);
+        return $this->query($tenantId, '', null)->findOrFail($id);
     }
 
     public function findAliveForTenant(string $tenantId, string $id): ?Citizen
