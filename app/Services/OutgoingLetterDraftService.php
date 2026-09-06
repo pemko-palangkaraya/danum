@@ -21,6 +21,8 @@ final class OutgoingLetterDraftService
         private readonly OutgoingLetterService $letters,
         private readonly DocxTemplateService $docx,
         private readonly LetterTypeService $letterTypes,
+        private readonly LetterVariableDateService $dates,
+        private readonly LetterVariableDefinitionService $variableDefinitions,
     ) {}
 
     /**
@@ -50,8 +52,9 @@ final class OutgoingLetterDraftService
         $signerTitle = (string) ($signerPosition->name ?? '');
         $citizenId = $data['_citizen_id'] ?? null;
         unset($data['_citizen_id']);
+
         $renderData = [
-            ...$data,
+            ...$this->formatDateVariablesForTemplate($data),
             'tenant_head_name' => $signerName,
             'tenant_head_title' => $signerTitle,
             'nama_ttd' => $signerName,
@@ -102,6 +105,21 @@ final class OutgoingLetterDraftService
             Storage::disk('local')->delete($generatedPath);
             throw $exception;
         }
+    }
+
+    /** @param array<string,mixed> $data */
+    private function formatDateVariablesForTemplate(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            if (! is_string($key) || is_array($value) || blank($value)) continue;
+
+            $definition = $this->variableDefinitions->forKey($key);
+            if ($this->dates->isDate($key, $definition?->type)) {
+                $data[$key] = $this->dates->format($value);
+            }
+        }
+
+        return $data;
     }
 
     private function extractText(string $path): string
