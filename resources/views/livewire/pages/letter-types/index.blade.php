@@ -2,7 +2,7 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Letter Type Management</h1>
-            <p class="mt-1 text-sm text-slate-500">Master jenis surat global. Metadata dikelola di sini; template DOCX dikelola melalui versioning.</p>
+            <p class="mt-1 text-sm text-slate-500">Master jenis surat global. Setiap jenis surat memakai satu klasifikasi untuk menentukan penomoran.</p>
         </div>
         <button wire:click="create" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">+ Add Letter Type</button>
     </div>
@@ -22,13 +22,15 @@
             @forelse ($letterTypes as $letterType)
                 <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
                     <div class="min-w-0">
-                        <div class="flex items-center gap-2">
+                        <div class="flex flex-wrap items-center gap-2">
                             <span class="font-mono text-xs font-semibold text-slate-400">{{ $letterType->code }}</span>
+                            <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">{{ $letterType->classification?->code ?? '-' }}</span>
                             <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{{ $letterType->status->value }}</span>
                         </div>
                         <h2 class="mt-1 font-semibold text-slate-900">{{ $letterType->name }}</h2>
                         <p class="mt-1 text-sm text-slate-500">{{ $letterType->description ?: 'Tidak ada deskripsi.' }}</p>
                         <p class="mt-2 text-xs text-slate-400">
+                            Klasifikasi: {{ $letterType->classification?->name ?: 'Belum diatur' }} ·
                             {{ count($letterType->variables ?? []) }} variabel · Template {{ $letterType->template_path ? 'DOCX tersedia' : 'belum tersedia' }} ·
                             Masa berlaku:
                             @switch($letterType->validity_period ?? 'none')
@@ -63,21 +65,32 @@
             <div class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl">
                 <div class="border-b border-slate-100 px-6 py-5">
                     <h2 class="text-lg font-semibold text-slate-900">{{ $editingId ? 'Edit Master Jenis Surat' : 'Add Letter Type' }}</h2>
-                    <p class="mt-1 text-sm text-slate-500">Kelola metadata jenis surat. Perubahan template DOCX dilakukan melalui <strong>Kelola Versi</strong> agar histori surat tetap utuh.</p>
+                    <p class="mt-1 text-sm text-slate-500">Klasifikasi menjadi dasar penomoran surat. Format nomor diatur pada master klasifikasi.</p>
                 </div>
 
                 <form wire:submit="save" class="space-y-5 p-6">
                     <div class="grid gap-5 sm:grid-cols-2">
                         <div>
+                            <label class="text-sm font-medium text-slate-700">Klasifikasi Surat</label>
+                            <select wire:model="letter_classification_id" class="form-select mt-1">
+                                <option value="">Pilih klasifikasi...</option>
+                                @foreach ($classifications as $classification)
+                                    <option value="{{ $classification->id }}">{{ $classification->code }} — {{ $classification->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('letter_classification_id') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
                             <label class="text-sm font-medium text-slate-700">Code</label>
                             <input wire:model="code" class="form-control mt-1">
                             @error('code') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                         </div>
-                        <div>
-                            <label class="text-sm font-medium text-slate-700">Name</label>
-                            <input wire:model="name" class="form-control mt-1">
-                            @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-sm font-medium text-slate-700">Name</label>
+                        <input wire:model="name" class="form-control mt-1">
+                        @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
@@ -103,7 +116,7 @@
                     <div class="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
                         <div>
                             <h3 class="text-sm font-semibold text-indigo-900">Variabel Template</h3>
-                            <p class="mt-1 text-xs text-indigo-700">Satu variabel biasa per baris. Untuk data berulang seperti banyak pelaksana, gunakan satu definisi repeater.</p>
+                            <p class="mt-1 text-xs text-indigo-700">Satu variabel biasa per baris. <code>number</code> diisi otomatis oleh sistem berdasarkan klasifikasi dan tenant.</p>
                         </div>
                         <textarea wire:model="variables_input" rows="8" placeholder="number&#10;recipient_name&#10;recipient_nik&#10;recipient_address&#10;subject&#10;date&#10;&#10;@repeat pelaksana|Nama:nama,NIP:nip,Jabatan:jabatan" class="form-textarea mt-3 font-mono text-sm"></textarea>
                         @error('variables_input') <p class="mt-2 text-xs text-rose-600">{{ $message }}</p> @enderror
@@ -114,14 +127,13 @@
                             <code>@verbatim{{#pelaksana}}@endverbatim</code>
                             ...
                             <code>@verbatim{{/pelaksana}}@endverbatim</code>.
-                            Untuk tabel, marker pembuka dan penutup dapat berada pada baris tabel yang akan digandakan.
                         </div>
                     </div>
 
                     @if ($editingId)
                         <div class="rounded-xl border border-violet-100 bg-violet-50 p-4">
                             <p class="text-sm font-semibold text-violet-900">Template DOCX dikelola melalui Kelola Versi</p>
-                            <p class="mt-1 text-xs text-violet-700">Untuk mengganti format dokumen, kembali ke daftar jenis surat lalu pilih <strong>Kelola Versi</strong>. Versi baru akan memiliki periode berlaku dan catatan perubahan sendiri.</p>
+                            <p class="mt-1 text-xs text-violet-700">Untuk mengganti format dokumen, pilih <strong>Kelola Versi</strong>. Versi baru akan memiliki periode berlaku dan catatan perubahan sendiri.</p>
                         </div>
                     @endif
 
