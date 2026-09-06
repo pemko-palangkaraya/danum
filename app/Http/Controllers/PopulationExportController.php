@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use RuntimeException;
 
-class PopulationExportController extends Controller
+class PopulationExportController
 {
     private const HEADERS = [
         'NIK', 'Nama Lengkap', 'Tempat Lahir', 'Tanggal Lahir', 'Jenis Kelamin',
@@ -90,12 +90,8 @@ class PopulationExportController extends Controller
         return (string) $id;
     }
 
-    private function downloadCsv(
-        $rows,
-        array $headers,
-        string $filename,
-        PopulationReferenceService $references,
-    ) {
+    private function downloadCsv($rows, array $headers, string $filename, PopulationReferenceService $references)
+    {
         return Response::streamDownload(function () use ($rows, $headers, $references): void {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
@@ -107,13 +103,8 @@ class PopulationExportController extends Controller
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
-    private function writeCsv(
-        $rows,
-        array $headers,
-        string $filename,
-        ?array $extraRows = null,
-        ?PopulationReferenceService $references = null,
-    ): string {
+    private function writeCsv($rows, array $headers, string $filename, ?array $extraRows = null, ?PopulationReferenceService $references = null): string
+    {
         $dir = storage_path('app/temp/population-export');
         if (! is_dir($dir) && ! mkdir($dir, 0777, true) && ! is_dir($dir)) {
             throw new RuntimeException('Direktori sementara export tidak dapat dibuat.');
@@ -158,7 +149,7 @@ class PopulationExportController extends Controller
             $citizen->nik_ayah,
             $citizen->nama_ibu,
             $citizen->nik_ibu,
-            $citizen->status_kependudukan,
+            $references?->label('population_status', $citizen->status_kependudukan, $citizen->status_kependudukan) ?? $citizen->status_kependudukan,
         ];
     }
 }
