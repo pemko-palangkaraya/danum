@@ -16,6 +16,11 @@ class StoreLetterTypeRequest extends FormRequest
     {
         return [
             'tenant_id' => ['prohibited'],
+            'letter_classification_id' => [
+                'required',
+                'uuid',
+                Rule::exists('letter_classifications', 'id')->where(fn ($query) => $query->where('is_active', true)->whereNull('deleted_at')),
+            ],
             'code' => ['required', 'string', 'max:50', Rule::unique('letter_types', 'code')->where('tenant_id', $this->user()->tenant_id)],
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string'],
