@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Livewire\LetterTypes;
 
 use App\Enums\LetterTypeStatus;
+use App\Models\LetterClassification;
 use App\Models\LetterType;
 use App\Services\DocxTemplateService;
 use App\Services\LetterTypeService;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use App\Livewire\Concerns\WithStandardTablePagination;
@@ -21,6 +23,7 @@ class Index extends Component
     public string $filter = 'active';
     public bool $showForm = false;
     public ?string $editingId = null;
+    public string $letter_classification_id = '';
     public string $code = '';
     public string $name = '';
     public string $description = '';
@@ -44,6 +47,7 @@ class Index extends Component
         $letterType = LetterType::query()->findOrFail($id);
         $this->authorize('update', $letterType);
         $this->editingId = $letterType->id;
+        $this->letter_classification_id = (string) $letterType->letter_classification_id;
         $this->code = $letterType->code;
         $this->name = $letterType->name;
         $this->description = (string) $letterType->description;
@@ -56,6 +60,11 @@ class Index extends Component
     public function save(LetterTypeService $service, DocxTemplateService $docx): void
     {
         $data = $this->validate([
+            'letter_classification_id' => [
+                'required',
+                'uuid',
+                Rule::exists('letter_classifications', 'id')->where(fn ($query) => $query->where('is_active', true)->whereNull('deleted_at')),
+            ],
             'code' => ['required', 'string', 'max:50'],
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string'],
@@ -76,9 +85,7 @@ class Index extends Component
         $templatePath = $letterType?->template_path;
         if ($templatePath) {
             $templatePath = storage_path('app/private/'.$templatePath);
-            if (!is_file($templatePath)) {
-                $templatePath = null;
-            }
+            if (!is_file($templatePath)) $templatePath = null;
         }
 
         if ($templatePath) {
@@ -124,7 +131,7 @@ class Index extends Component
 
     private function resetForm(): void
     {
-        $this->reset(['editingId', 'code', 'name', 'description', 'variables_input']);
+        $this->reset(['editingId', 'letter_classification_id', 'code', 'name', 'description', 'variables_input']);
         $this->status = LetterTypeStatus::DRAFT->value;
         $this->validity_period = 'none';
     }
@@ -157,9 +164,13 @@ class Index extends Component
 
     public function render()
     {
-        $query = LetterType::query()->latest();
+        $query = LetterType::query()->with('classification')->latest();
         if ($this->search !== '') $query->where(fn ($q) => $q->where('code', 'like', "%{$this->search}%")->orWhere('name', 'like', "%{$this->search}%"));
         if ($this->filter === 'deleted') $query->onlyTrashed(); else $query->where('status', LetterTypeStatus::from($this->filter));
-        return view('livewire.pages.letter-types.index', ['letterTypes' => $query->paginate($this->perPage)]);
+
+        return view('livewire.pages.letter-types.index', [
+            'letterTypes' => $query->paginate($this->perPage),
+            'classifications' => LetterClassification::query()->where('is_active', true)->orderBy('sort_order')->orderBy('code')->get(),
+        ]);
     }
 }
