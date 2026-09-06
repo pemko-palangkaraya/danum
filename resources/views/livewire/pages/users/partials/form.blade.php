@@ -2,9 +2,9 @@
     <h2 class="text-sm font-semibold text-slate-900">{{ $editingUserId ? 'Edit User' : 'Add User' }}</h2>
 
     <div class="mt-5 grid gap-5 sm:grid-cols-2">
-        <x-ui.input wire:model="name" label="Name" id="user-name" error="{{ $errors->first('name') }}" required />
-        <x-ui.input wire:model="nip" label="NIP" id="user-nip" maxlength="32" placeholder="Nomor Induk Pegawai" error="{{ $errors->first('nip') }}" />
-        <x-ui.input wire:model="email" label="Email / Login" id="user-email" type="email" error="{{ $errors->first('email') }}" required />
+        <x-ui.input wire:model="name" label="Name" id="user-name" name="name" autocomplete="name" error="{{ $errors->first('name') }}" required />
+        <x-ui.input wire:model="nip" label="NIP" id="user-nip" name="nip" autocomplete="off" maxlength="32" placeholder="Nomor Induk Pegawai" error="{{ $errors->first('nip') }}" />
+        <x-ui.input wire:model="email" label="Email / Login" id="user-email" name="email" type="email" autocomplete="email" error="{{ $errors->first('email') }}" required />
 
         <x-ui.field label="Role" for="user-role" :error="$errors->first('role') ?: $errors->first('custom_role_id')" hint="Custom role muncul setelah tenant dipilih dan hanya role yang berlaku untuk tenant tersebut.">
             <select id="user-role" wire:model.live="roleSelection" class="form-select w-full">
