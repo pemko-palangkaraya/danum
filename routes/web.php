@@ -59,6 +59,7 @@ Route::middleware('auth')->group(function () {
             Volt::route('/tenants/{tenant}', 'pages.tenants.show')->name('tenants.show');
         });
         Route::middleware('permission:letter-types.view')->group(function () {
+            Volt::route('/letter-classifications', 'pages.letter-classifications.index')->name('letter-classifications.index');
             Route::get('/letter-types', LetterTypeIndex::class)->name('letter-types.index');
             Route::get('/letter-types/{letterType}/permissions', LetterTypePermissions::class)->name('letter-types.permissions');
             Route::get('/letter-types/{letterType}/versions', LetterTypeVersions::class)->name('letter-types.versions');
