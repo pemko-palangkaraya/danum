@@ -6,6 +6,7 @@
         request()->routeIs('population.*') => 'population',
         request()->routeIs('letter-types.*', 'letter-variable-definitions.*', 'outgoing-letters.*', 'outgoing-letter-withdrawals.*') => 'letters',
         request()->routeIs('audit-logs.*') => 'monitoring',
+        request()->routeIs('settings.signing-certificate', 'settings.signing-pin') => 'security',
         request()->routeIs('rbac.*') => 'administration',
         default => null,
     };
@@ -13,60 +14,145 @@
 
 <nav class="flex-1 space-y-1 px-4 py-6" x-data="{ openSection: @js($activeSection) }">
     <p class="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Application</p>
-    <a href="{{ route('dashboard') }}" @class(['flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition','bg-slate-900 text-white shadow-sm' => request()->routeIs('dashboard'),'text-slate-600 hover:bg-slate-100 hover:text-slate-900' => ! request()->routeIs('dashboard')])>Dashboard</a>
+
+    <x-sidebar-link
+        :href="route('dashboard')"
+        :active="request()->routeIs('dashboard')"
+    >
+        Dashboard
+    </x-sidebar-link>
 
     @if ($user?->isSuperAdmin())
         @if ($user?->hasPermission('tenants.view'))
-            <div class="mt-3"><button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" @click="openSection = openSection === 'tenant' ? null : 'tenant'" :aria-expanded="openSection === 'tenant'"><span>Tenant</span><span x-text="openSection === 'tenant' ? '−' : '+'" class="ml-3 shrink-0 text-base font-normal leading-none text-slate-400"></span></button>
+            <div class="mt-3">
+                <button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" @click="openSection = openSection === 'tenant' ? null : 'tenant'" :aria-expanded="openSection === 'tenant'">
+                    <span>Tenant</span>
+                    <span x-text="openSection === 'tenant' ? '−' : '+'" class="ml-3 shrink-0 text-base font-normal leading-none text-slate-400"></span>
+                </button>
                 <div x-show="openSection === 'tenant'" x-cloak class="mt-1 space-y-1 pl-2">
-                    <a href="{{ route('tenants.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Tenants</a>
-                    <a href="{{ route('tenant-categories.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Kategori Tenant</a>
-                    @if ($user?->hasPermission('users.view'))<a href="{{ route('users.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Users</a>@endif
+                    <x-sidebar-link :href="route('tenants.index')" :active="request()->routeIs('tenants.*')">Tenants</x-sidebar-link>
+                    <x-sidebar-link :href="route('tenant-categories.index')" :active="request()->routeIs('tenant-categories.*')">Kategori Tenant</x-sidebar-link>
+                    @if ($user?->hasPermission('users.view'))
+                        <x-sidebar-link :href="route('users.index')" :active="request()->routeIs('users.*')">Users</x-sidebar-link>
+                    @endif
                     @if ($user?->hasPermission('positions.view'))
-                        <a href="{{ route('positions.admin.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Jabatan</a>
-                        <a href="{{ route('positions.structure.admin') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Struktur Organisasi</a>
+                        <x-sidebar-link :href="route('positions.admin.index')" :active="request()->routeIs('positions.admin.*')">Jabatan</x-sidebar-link>
+                        <x-sidebar-link :href="route('positions.structure.admin')" :active="request()->routeIs('positions.structure.admin')">Struktur Organisasi</x-sidebar-link>
                     @endif
                 </div>
             </div>
         @endif
 
         @if ($user?->hasPermission('population.view'))
-            <div class="mt-3"><button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" @click="openSection = openSection === 'population' ? null : 'population'" :aria-expanded="openSection === 'population'"><span>Kependudukan</span><span x-text="openSection === 'population' ? '−' : '+'" class="ml-3 shrink-0 text-base font-normal leading-none text-slate-400"></span></button>
+            <div class="mt-3">
+                <button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" @click="openSection = openSection === 'population' ? null : 'population'" :aria-expanded="openSection === 'population'">
+                    <span>Kependudukan</span>
+                    <span x-text="openSection === 'population' ? '−' : '+'" class="ml-3 shrink-0 text-base font-normal leading-none text-slate-400"></span>
+                </button>
                 <div x-show="openSection === 'population'" x-cloak class="mt-1 space-y-1 pl-2">
-                    <a href="{{ route('population.admin.citizens.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Data Kependudukan</a>
-                    <a href="{{ route('population.admin.families.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Kartu Keluarga</a>
-                    <a href="{{ route('population.admin.statistics') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Statistik</a>
+                    <x-sidebar-link :href="route('population.admin.citizens.index')" :active="request()->routeIs('population.admin.citizens.*')">Data Kependudukan</x-sidebar-link>
+                    <x-sidebar-link :href="route('population.admin.families.index')" :active="request()->routeIs('population.admin.families.*')">Kartu Keluarga</x-sidebar-link>
+                    <x-sidebar-link :href="route('population.admin.statistics')" :active="request()->routeIs('population.admin.statistics')">Statistik</x-sidebar-link>
                 </div>
             </div>
         @endif
 
         @if ($user?->hasPermission('letter-types.view') || $user?->hasPermission('outgoing-letters.view'))
-            <div class="mt-3"><button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" @click="openSection = openSection === 'letters' ? null : 'letters'" :aria-expanded="openSection === 'letters'"><span>Surat</span><span x-text="openSection === 'letters' ? '−' : '+'" class="ml-3 shrink-0 text-base font-normal leading-none text-slate-400"></span></button>
+            <div class="mt-3">
+                <button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" @click="openSection = openSection === 'letters' ? null : 'letters'" :aria-expanded="openSection === 'letters'">
+                    <span>Surat</span>
+                    <span x-text="openSection === 'letters' ? '−' : '+'" class="ml-3 shrink-0 text-base font-normal leading-none text-slate-400"></span>
+                </button>
                 <div x-show="openSection === 'letters'" x-cloak class="mt-1 space-y-1 pl-2">
                     @if ($user?->hasPermission('letter-types.view'))
-                        <a href="{{ route('letter-types.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Jenis Surat</a>
-                        <a href="{{ route('letter-variable-definitions.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Variabel Surat</a>
+                        <x-sidebar-link :href="route('letter-types.index')" :active="request()->routeIs('letter-types.*')">Jenis Surat</x-sidebar-link>
+                        <x-sidebar-link :href="route('letter-variable-definitions.index')" :active="request()->routeIs('letter-variable-definitions.*')">Variabel Surat</x-sidebar-link>
                     @endif
                     @if ($user?->hasPermission('outgoing-letters.view'))
-                        <a href="{{ route('outgoing-letters.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Surat Keluar</a>
-                        <a href="{{ route('outgoing-letter-withdrawals.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Penarikan Surat</a>
+                        <x-sidebar-link :href="route('outgoing-letters.index')" :active="request()->routeIs('outgoing-letters.*')">Surat Keluar</x-sidebar-link>
+                        <x-sidebar-link :href="route('outgoing-letter-withdrawals.index')" :active="request()->routeIs('outgoing-letter-withdrawals.*')">Penarikan Surat</x-sidebar-link>
                     @endif
                 </div>
             </div>
         @endif
 
         @if ($user?->hasPermission('audit-logs.view'))
-            <div class="mt-3"><button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" @click="openSection = openSection === 'monitoring' ? null : 'monitoring'" :aria-expanded="openSection === 'monitoring'"><span>Monitoring</span><span x-text="openSection === 'monitoring' ? '−' : '+'" class="ml-3 shrink-0 text-base font-normal leading-none text-slate-400"></span></button><div x-show="openSection === 'monitoring'" x-cloak class="mt-1 space-y-1 pl-2"><a href="{{ route('audit-logs.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Audit Log</a></div></div>
+            <div class="mt-3">
+                <button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" @click="openSection = openSection === 'monitoring' ? null : 'monitoring'" :aria-expanded="openSection === 'monitoring'">
+                    <span>Monitoring</span>
+                    <span x-text="openSection === 'monitoring' ? '−' : '+'" class="ml-3 shrink-0 text-base font-normal leading-none text-slate-400"></span>
+                </button>
+                <div x-show="openSection === 'monitoring'" x-cloak class="mt-1 space-y-1 pl-2">
+                    <x-sidebar-link :href="route('audit-logs.index')" :active="request()->routeIs('audit-logs.*')">Audit Log</x-sidebar-link>
+                </div>
+            </div>
         @endif
     @elseif ($user?->isTenantUser())
         @if ($user?->hasPermission('population.view'))
-            <div class="mt-3"><button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" @click="openSection = openSection === 'population' ? null : 'population'" :aria-expanded="openSection === 'population'"><span>Kependudukan</span><span x-text="openSection === 'population' ? '−' : '+'" class="ml-3 shrink-0 text-base font-normal leading-none text-slate-400"></span></button><div x-show="openSection === 'population'" x-cloak class="mt-1 space-y-1 pl-2"><a href="{{ route('population.citizens.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Data Kependudukan</a><a href="{{ route('population.families.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Kartu Keluarga</a><a href="{{ route('population.statistics') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Statistik</a></div></div>
+            <div class="mt-3">
+                <button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" @click="openSection = openSection === 'population' ? null : 'population'" :aria-expanded="openSection === 'population'">
+                    <span>Kependudukan</span>
+                    <span x-text="openSection === 'population' ? '−' : '+'" class="ml-3 shrink-0 text-base font-normal leading-none text-slate-400"></span>
+                </button>
+                <div x-show="openSection === 'population'" x-cloak class="mt-1 space-y-1 pl-2">
+                    <x-sidebar-link :href="route('population.citizens.index')" :active="request()->routeIs('population.citizens.*')">Data Kependudukan</x-sidebar-link>
+                    <x-sidebar-link :href="route('population.families.index')" :active="request()->routeIs('population.families.*')">Kartu Keluarga</x-sidebar-link>
+                    <x-sidebar-link :href="route('population.statistics')" :active="request()->routeIs('population.statistics')">Statistik</x-sidebar-link>
+                </div>
+            </div>
         @endif
+
         @if ($user?->hasPermission('outgoing-letters.view'))
-            <div class="mt-3"><button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600 hover:bg-slate-100" @click="openSection = openSection === 'letters' ? null : 'letters'" :aria-expanded="openSection === 'letters'"><span>Surat</span><span x-text="openSection === 'letters' ? '−' : '+'" class="ml-3 shrink-0 text-base font-normal leading-none text-slate-400"></span></button><div x-show="openSection === 'letters'" x-cloak class="mt-1 space-y-1 pl-2"><a href="{{ route('outgoing-letters.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Surat Keluar</a><a href="{{ route('outgoing-letter-withdrawals.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Penarikan Surat</a></div></div>
+            <div class="mt-3">
+                <button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" @click="openSection = openSection === 'letters' ? null : 'letters'" :aria-expanded="openSection === 'letters'">
+                    <span>Surat</span>
+                    <span x-text="openSection === 'letters' ? '−' : '+'" class="ml-3 shrink-0 text-base font-normal leading-none text-slate-400"></span>
+                </button>
+                <div x-show="openSection === 'letters'" x-cloak class="mt-1 space-y-1 pl-2">
+                    <x-sidebar-link :href="route('outgoing-letters.index')" :active="request()->routeIs('outgoing-letters.*')">Surat Keluar</x-sidebar-link>
+                    <x-sidebar-link :href="route('outgoing-letter-withdrawals.index')" :active="request()->routeIs('outgoing-letter-withdrawals.*')">Penarikan Surat</x-sidebar-link>
+                </div>
+            </div>
         @endif
-        @if ($user?->hasPermission('positions.view') || $user?->hasPermission('tenant-users.view') || $user?->hasPermission('tenant-profile.view'))<div class="mt-3"><button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600" @click="openSection = openSection === 'tenant' ? null : 'tenant'"><span>Tenant</span><span x-text="openSection === 'tenant' ? '−' : '+'"></span></button><div x-show="openSection === 'tenant'" x-cloak class="mt-1 space-y-1 pl-2">@if($user?->hasPermission('positions.view'))<a href="{{ route('positions.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Jabatan</a><a href="{{ route('positions.structure') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Struktur Organisasi</a>@endif @if($user?->hasPermission('tenant-users.view'))<a href="{{ route('tenant-users.index') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Pengguna Tenant</a>@endif @if($user?->hasPermission('tenant-profile.view'))<a href="{{ route('tenant-profile') }}" class="block rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Profil Organisasi</a>@endif</div></div>@endif
+
+        @if ($user?->hasPermission('positions.view') || $user?->hasPermission('tenant-users.view') || $user?->hasPermission('tenant-profile.view'))
+            <div class="mt-3">
+                <button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" @click="openSection = openSection === 'tenant' ? null : 'tenant'" :aria-expanded="openSection === 'tenant'">
+                    <span>Tenant</span>
+                    <span x-text="openSection === 'tenant' ? '−' : '+'" class="ml-3 shrink-0 text-base font-normal leading-none text-slate-400"></span>
+                </button>
+                <div x-show="openSection === 'tenant'" x-cloak class="mt-1 space-y-1 pl-2">
+                    @if ($user?->hasPermission('positions.view'))
+                        <x-sidebar-link :href="route('positions.index')" :active="request()->routeIs('positions.index')">Jabatan</x-sidebar-link>
+                        <x-sidebar-link :href="route('positions.structure')" :active="request()->routeIs('positions.structure')">Struktur Organisasi</x-sidebar-link>
+                    @endif
+                    @if ($user?->hasPermission('tenant-users.view'))
+                        <x-sidebar-link :href="route('tenant-users.index')" :active="request()->routeIs('tenant-users.*')">Pengguna Tenant</x-sidebar-link>
+                    @endif
+                    @if ($user?->hasPermission('tenant-profile.view'))
+                        <x-sidebar-link :href="route('tenant-profile')" :active="request()->routeIs('tenant-profile')">Profil Organisasi</x-sidebar-link>
+                    @endif
+                </div>
+            </div>
+        @endif
+
+        @if ($user?->hasPermission('outgoing-letters.issue'))
+            <div class="mt-3">
+                <button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" @click="openSection = openSection === 'security' ? null : 'security'" :aria-expanded="openSection === 'security'">
+                    <span>Keamanan</span>
+                    <span x-text="openSection === 'security' ? '−' : '+'" class="ml-3 shrink-0 text-base font-normal leading-none text-slate-400"></span>
+                </button>
+                <div x-show="openSection === 'security'" x-cloak class="mt-1 space-y-1 pl-2">
+                    <x-sidebar-link :href="route('settings.signing-certificate')" :active="request()->routeIs('settings.signing-certificate')">Sertifikat TTE</x-sidebar-link>
+                    <x-sidebar-link :href="route('settings.signing-pin')" :active="request()->routeIs('settings.signing-pin')">PIN Tanda Tangan</x-sidebar-link>
+                </div>
+            </div>
+        @endif
     @endif
 
-    @if ($user?->hasPermission('rbac.view'))<div class="mt-3 border-t border-slate-100 pt-3"><a href="{{ route('rbac.index') }}" class="block rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100">Role &amp; Access Control</a></div>@endif
+    @if ($user?->hasPermission('rbac.view'))
+        <div class="mt-3 border-t border-slate-100 pt-3">
+            <x-sidebar-link :href="route('rbac.index')" :active="request()->routeIs('rbac.*')">Role &amp; Access Control</x-sidebar-link>
+        </div>
+    @endif
 </nav>
