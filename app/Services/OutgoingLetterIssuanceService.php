@@ -93,12 +93,15 @@ class OutgoingLetterIssuanceService
             $oldValues = $this->auditValues($letter);
             $letter = DB::transaction(function () use ($letter, $changedBy, $note, $attributes, $oldValues, $signWithTte): OutgoingLetter {
                 $letter = $this->repository->update($letter, $attributes);
-                $this->recordHistory($letter, 'issued', $changedBy, $note);
-                $this->recordAudit('outgoing_letter.issued', $letter, $changedBy, $oldValues, $this->auditValues($letter));
+
                 if ($signWithTte) {
                     $this->recordHistory($letter, 'signed', $changedBy, $note);
                     $this->recordAudit('outgoing_letter.signed', $letter, $changedBy, $oldValues, $this->auditValues($letter));
                 }
+
+                $this->recordHistory($letter, 'issued', $changedBy, $note);
+                $this->recordAudit('outgoing_letter.issued', $letter, $changedBy, $oldValues, $this->auditValues($letter));
+
                 return $letter;
             });
             return $letter;
