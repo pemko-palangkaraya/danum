@@ -28,6 +28,8 @@ class PopulationStatisticsService
         $currentYear = Carbon::now()->year;
 
         $totalCitizens = (clone $livingCitizens)->count();
+        $activeCitizens = (clone $citizens)->where('status_kependudukan', 'active')->count();
+        $deceasedCitizens = (clone $citizens)->where('status_kependudukan', 'meninggal')->count();
         $gender = $this->gender($livingCitizens);
         $ageGroups = $this->buildAgeGroups($livingCitizens);
         $classifiedAge = (int) $ageGroups->sum('total');
@@ -42,6 +44,8 @@ class PopulationStatisticsService
 
         return [
             'totalCitizens' => $totalCitizens,
+            'activeCitizens' => $activeCitizens,
+            'deceasedCitizens' => $deceasedCitizens,
             'totalFamilies' => (clone $families)->count(),
             'deceasedThisYear' => (clone $citizens)->whereDate('tanggal_meninggal', '>=', $currentYear.'-01-01')->whereDate('tanggal_meninggal', '<=', $currentYear.'-12-31')->count(),
             'birthsThisYear' => (clone $citizens)->whereDate('tanggal_lahir', '>=', $currentYear.'-01-01')->whereDate('tanggal_lahir', '<=', $currentYear.'-12-31')->count(),
