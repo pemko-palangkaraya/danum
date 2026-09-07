@@ -5,7 +5,7 @@
         const typeId = new URLSearchParams(window.location.search).get('letter_type_id');
         if (typeId) {
             window.history.replaceState({}, '', window.location.pathname + window.location.hash);
-            $wire.create().then(() => $wire.set('letter_type_id', typeId));
+            $wire.createFresh().then(() => $wire.set('letter_type_id', typeId));
         }
     "
 >
@@ -29,4 +29,6 @@
     @if($showRejectForm)
         @include('livewire.pages.outgoing-letters.partials.reject-form')
     @endif
+
+    @include('livewire.pages.outgoing-letters.partials.cancel-confirm')
 </div>
