@@ -50,24 +50,26 @@ final class LetterVariableSourceResolver
         $religion = $this->references->label('religion', $citizen->agama, (string) $citizen->agama);
         $citizenship = $this->references->label('citizenship', $citizen->kewarganegaraan, (string) $citizen->kewarganegaraan);
         $populationStatus = $this->references->label('population_status', $citizen->status_kependudukan, (string) $citizen->status_kependudukan);
-        $birthDate = $this->date->format($citizen->tanggal_lahir);
+        $birthPlace = (string) ($citizen?->tempat_lahir ?: '-');
+        $birthDate = $this->date->format($citizen?->tanggal_lahir);
 
         return [
             'nama' => $citizen->nama_lengkap,
             'nik' => $citizen->nik,
             'jenis_kelamin' => $gender,
-            'tempat_lahir' => $citizen->tempat_lahir,
             'tanggal_lahir' => $birthDate,
             'status_perkawinan' => $maritalStatus,
             'agama' => $religion,
             'pekerjaan' => $citizen->pekerjaan,
             'kewarganegaraan' => $citizen->kewarganegaraan,
+            'ttl' => trim($birthPlace . ($birthDate !== '' ? ', ' . $birthDate : '')),
             'golongan_darah' => $bloodType,
             'nama_ayah' => $citizen->nama_ayah,
             'nik_ayah' => $citizen->nik_ayah,
             'nama_ibu' => $citizen->nama_ibu,
             'nik_ibu' => $citizen->nik_ibu,
             'pendidikan' => $citizen->pendidikan,
+            'kewarganegaraan' => $citizenship,
             'no_passport' => $citizen->no_passport,
             'no_kitap' => $citizen->no_kitap,
             'status_kependudukan' => $populationStatus,
