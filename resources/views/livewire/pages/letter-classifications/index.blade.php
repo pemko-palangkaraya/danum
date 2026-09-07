@@ -290,7 +290,7 @@ new #[Layout('layouts.app')] class extends Component {
 
                     <div class="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
                         <label class="text-sm font-semibold text-indigo-900">Format Penomoran</label>
-                        <input wire:model="number_format" class="form-control mt-2 font-mono" placeholder="{{number}}/{{classification_code}}/{{tenant_code}}/{{month_roman}}/{{year}}">
+                        <input wire:model="number_format" class="form-control mt-2 font-mono" placeholder="@{{number}}/@{{classification_code}}/@{{tenant_code}}/@{{month_roman}}/@{{year}}">
                         @error('number_format')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                         <p class="mt-2 text-xs text-indigo-700">Placeholder: <code>{{'{{number}}'}}</code>, <code>{{'{{classification_code}}'}}</code>, <code>{{'{{tenant_code}}'}}</code>, <code>{{'{{year}}'}}</code>, <code>{{'{{month}}'}}</code>, <code>{{'{{month_roman}}'}}</code>.</p>
                     </div>
