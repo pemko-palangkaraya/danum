@@ -50,26 +50,28 @@ final class LetterVariableSourceResolver
         $religion = $this->references->label('religion', $citizen->agama, (string) $citizen->agama);
         $citizenship = $this->references->label('citizenship', $citizen->kewarganegaraan, (string) $citizen->kewarganegaraan);
         $populationStatus = $this->references->label('population_status', $citizen->status_kependudukan, (string) $citizen->status_kependudukan);
-        $birthPlace = (string) ($citizen?->tempat_lahir ?: '-');
-        $birthDate = $this->date->format($citizen?->tanggal_lahir);
+        $birthPlace = (string) ($citizen->tempat_lahir ?: '-');
+        $birthDate = $this->date->format($citizen->tanggal_lahir);
+        $birthTtl = trim($birthPlace . ($birthDate !== '' ? ', ' . $birthDate : ''));
 
         return [
             'nama' => $citizen->nama_lengkap,
             'nik' => $citizen->nik,
             'jenis_kelamin' => $gender,
+            'tempat_lahir' => $birthPlace,
+            'tpt_lahir' => $birthPlace,
             'tanggal_lahir' => $birthDate,
             'status_perkawinan' => $maritalStatus,
             'agama' => $religion,
             'pekerjaan' => $citizen->pekerjaan,
-            'kewarganegaraan' => $citizen->kewarganegaraan,
-            'ttl' => trim($birthPlace . ($birthDate !== '' ? ', ' . $birthDate : '')),
+            'kewarganegaraan' => $citizenship,
+            'ttl' => $birthTtl,
             'golongan_darah' => $bloodType,
             'nama_ayah' => $citizen->nama_ayah,
             'nik_ayah' => $citizen->nik_ayah,
             'nama_ibu' => $citizen->nama_ibu,
             'nik_ibu' => $citizen->nik_ibu,
             'pendidikan' => $citizen->pendidikan,
-            'kewarganegaraan' => $citizenship,
             'no_passport' => $citizen->no_passport,
             'no_kitap' => $citizen->no_kitap,
             'status_kependudukan' => $populationStatus,
@@ -93,17 +95,17 @@ final class LetterVariableSourceResolver
         }
 
         $members = $family->activeMembers
-            ->filter(fn(FamilyMember $member) => (string) $member->citizen_id !== (string) $citizen->id)
+            ->filter(fn (FamilyMember $member) => (string) $member->citizen_id !== (string) $citizen->id)
             ->values();
 
         $subjectRelation = $this->relationType(
-            $family->activeMembers->first(fn(FamilyMember $member) => (string) $member->citizen_id === (string) $citizen->id)?->hubungan_dalam_keluarga
+            $family->activeMembers->first(fn (FamilyMember $member) => (string) $member->citizen_id === (string) $citizen->id)?->hubungan_dalam_keluarga
         );
 
         $spouse = $this->spouseFor($family, $citizen, $members, $subjectRelation);
         $childrenMembers = $this->childrenFor($members, $subjectRelation);
         $children = $childrenMembers
-            ->map(fn(FamilyMember $member, int $index) => $this->familyMemberRow($member, $index + 1, 'Anak'))
+            ->map(fn (FamilyMember $member, int $index) => $this->familyMemberRow($member, $index + 1, 'Anak'))
             ->all();
 
         $familyMembers = collect();
@@ -114,11 +116,9 @@ final class LetterVariableSourceResolver
             $familyMembers->push($this->familyMemberRow($member, $familyMembers->count() + 1, 'Anak'));
         }
 
-        $address = $this->address($family);
-
         return [
             'values' => [
-                'alamat' => $address,
+                'alamat' => $this->address($family),
                 'rt' => (string) ($family->rt ?? ''),
                 'rw' => (string) ($family->rw ?? ''),
                 'nama_pasangan' => (string) ($spouse?->citizen?->nama_lengkap ?: '-'),
@@ -158,18 +158,18 @@ final class LetterVariableSourceResolver
             $head = $family->headCitizen;
             if (! $head || (string) $head->id === (string) $citizen->id) return null;
 
-            return $members->first(fn(FamilyMember $member) => (string) $member->citizen_id === (string) $head->id)
-                ?? tap(new FamilyMember, fn(FamilyMember $member) => $member->setRelation('citizen', $head));
+            return $members->first(fn (FamilyMember $member) => (string) $member->citizen_id === (string) $head->id)
+                ?? tap(new FamilyMember, fn (FamilyMember $member) => $member->setRelation('citizen', $head));
         }
 
-        return $members->first(fn(FamilyMember $member) => $this->relationType($member->hubungan_dalam_keluarga) === 'spouse');
+        return $members->first(fn (FamilyMember $member) => $this->relationType($member->hubungan_dalam_keluarga) === 'spouse');
     }
 
     /** @param Collection<int, FamilyMember> $members */
     private function childrenFor(Collection $members, ?string $subjectRelation): Collection
     {
         return in_array($subjectRelation, [null, 'head', 'spouse'], true)
-            ? $members->filter(fn(FamilyMember $member) => $this->relationType($member->hubungan_dalam_keluarga) === 'child')->values()
+            ? $members->filter(fn (FamilyMember $member) => $this->relationType($member->hubungan_dalam_keluarga) === 'child')->values()
             : collect();
     }
 
@@ -212,6 +212,6 @@ final class LetterVariableSourceResolver
             $family->kabupaten_kota,
             $family->provinsi,
             $family->kode_pos,
-        ])->filter(fn($value) => filled($value))->implode(', ');
+        ])->filter(fn ($value) => filled($value))->implode(', ');
     }
 }
