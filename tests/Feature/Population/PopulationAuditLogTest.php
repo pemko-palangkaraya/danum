@@ -15,6 +15,7 @@ use App\Services\CitizenImportService;
 use App\Services\CitizenService;
 use App\Services\FamilyService;
 use App\Services\PopulationLocationService;
+use Database\Seeders\PopulationReferenceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
@@ -22,6 +23,12 @@ use Tests\TestCase;
 class PopulationAuditLogTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(PopulationReferenceSeeder::class);
+    }
 
     public function test_citizen_create_and_update_are_audited(): void
     {
