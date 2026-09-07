@@ -1,4 +1,14 @@
-<div class="space-y-6">
+<div
+    class="space-y-6"
+    x-data
+    x-init="
+        const typeId = new URLSearchParams(window.location.search).get('letter_type_id');
+        if (typeId) {
+            window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+            $wire.create().then(() => $wire.set('letter_type_id', typeId));
+        }
+    "
+>
     @include('livewire.pages.outgoing-letters.partials.toolbar')
 
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
