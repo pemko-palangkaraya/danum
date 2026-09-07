@@ -26,6 +26,7 @@ class LetterClassification extends Model
         'number_format',
         'number_padding',
         'sort_order',
+        'source_order',
         'is_active',
     ];
 
@@ -34,6 +35,7 @@ class LetterClassification extends Model
         return [
             'number_padding' => 'integer',
             'sort_order' => 'integer',
+            'source_order' => 'integer',
             'is_active' => 'boolean',
         ];
     }
