@@ -32,7 +32,7 @@
             @if($variables)
                 <div class="rounded-xl border border-slate-200 bg-white p-4">
                     <h3 class="text-sm font-semibold text-slate-900">Data Surat</h3>
-                    <p class="mt-1 text-xs text-slate-500">Variabel yang memiliki definisi master menggunakan tipe input yang ditentukan. Variabel yang belum terdaftar otomatis menjadi teks.</p>
+                    <p class="mt-1 text-xs text-slate-500">Masukkan NIK 16 digit untuk mengambil data warga secara otomatis. Data yang berasal dari master warga akan dibuat hanya-baca.</p>
                     <div class="mt-4 grid gap-4 sm:grid-cols-2">
                         @foreach($variables as $variable)
                             @php
@@ -74,7 +74,7 @@
                                     @elseif(in_array($inputType, ['time','datetime','email','tel'], true))
                                         <input type="{{ $inputType === 'datetime' ? 'datetime-local' : $inputType }}" wire:model="variableValues.{{ $variable }}" class="form-control mt-1">
                                     @else
-                                        <input wire:model="variableValues.{{ $variable }}" class="form-control mt-1">
+                                        <input wire:model="variableValues.{{ $variable }}" class="form-control mt-1" {{ $variable === 'recipient_nik' ? 'inputmode=numeric maxlength=16 autocomplete=off' : '' }}>
                                     @endif
                                     @error('variableValues.'.$variable)<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                                 </div>
