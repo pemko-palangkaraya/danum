@@ -24,7 +24,6 @@ default => null,
                 <span class="block truncate">✦ DANUM Assistant</span>
                 <span class="mt-0.5 block truncate text-xs font-medium text-indigo-600">Bantu temukan jenis surat</span>
             </span>
-            <span class="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">AI</span>
         </a>
     </div>
     @endif
