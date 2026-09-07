@@ -23,6 +23,7 @@ class LetterClassification extends Model
         'code',
         'name',
         'description',
+        'source',
         'number_format',
         'number_padding',
         'sort_order',
