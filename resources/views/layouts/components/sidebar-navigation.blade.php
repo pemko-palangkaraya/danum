@@ -4,7 +4,7 @@
     $activeSection = match (true) {
         request()->routeIs('tenants.*', 'tenant-categories.*', 'users.*', 'positions.*', 'tenant-users.*', 'tenant-profile') => 'tenant',
         request()->routeIs('population.*') => 'population',
-        request()->routeIs('letter-types.*', 'letter-classifications.*', 'letter-variable-definitions.*', 'outgoing-letters.*', 'outgoing-letter-withdrawals.*') => 'letters',
+        request()->routeIs('letter-types.*', 'letter-classifications.*', 'letter-variable-definitions.*', 'outgoing-letters.*', 'outgoing-letter-withdrawals.*', 'letter-assistant.*') => 'letters',
         request()->routeIs('audit-logs.*') => 'monitoring',
         request()->routeIs('settings.signing-certificate', 'settings.signing-pin') => 'security',
         request()->routeIs('rbac.*') => 'administration',
@@ -64,6 +64,7 @@
                     @if ($user?->hasPermission('outgoing-letters.view'))
                         <x-sidebar-link :href="route('outgoing-letters.index')" :active="request()->routeIs('outgoing-letters.*')">Surat Keluar</x-sidebar-link>
                         <x-sidebar-link :href="route('outgoing-letter-withdrawals.index')" :active="request()->routeIs('outgoing-letter-withdrawals.*')">Penarikan Surat</x-sidebar-link>
+                        <x-sidebar-link :href="route('letter-assistant.index')" :active="request()->routeIs('letter-assistant.*')">DANUM Assistant</x-sidebar-link>
                     @endif
                 </div>
             </div>
@@ -101,6 +102,7 @@
                 <div x-show="openSection === 'letters'" x-cloak class="mt-1 space-y-1 pl-2">
                     <x-sidebar-link :href="route('outgoing-letters.index')" :active="request()->routeIs('outgoing-letters.*')">Surat Keluar</x-sidebar-link>
                     <x-sidebar-link :href="route('outgoing-letter-withdrawals.index')" :active="request()->routeIs('outgoing-letter-withdrawals.*')">Penarikan Surat</x-sidebar-link>
+                    <x-sidebar-link :href="route('letter-assistant.index')" :active="request()->routeIs('letter-assistant.*')">DANUM Assistant</x-sidebar-link>
                 </div>
             </div>
         @endif
