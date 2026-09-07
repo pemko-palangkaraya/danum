@@ -234,12 +234,12 @@ trait HandlesLetterVariables
             if ($repeater = LetterVariableSchema::parseRepeater($variable)) {
                 $rows = $this->variableValues[$repeater['key']] ?? [];
                 if (! is_array($rows) || $rows === []) {
-                    $this->addError('variableValues.'.$repeater['key'], 'Tambahkan minimal satu data.');
+                    $this->addError('variableValues.' . $repeater['key'], 'Tambahkan minimal satu data.');
                     continue;
                 }
                 foreach ($rows as $rowIndex => $row) {
                     foreach ($repeater['fields'] as $field) {
-                        if (blank($row[$field['key']] ?? null)) $this->addError('variableValues.'.$repeater['key'].'.'.$rowIndex.'.'.$field['key'], 'Field ini wajib diisi.');
+                        if (blank($row[$field['key']] ?? null)) $this->addError('variableValues.' . $repeater['key'] . '.' . $rowIndex . '.' . $field['key'], 'Field ini wajib diisi.');
                     }
                 }
                 continue;
@@ -247,16 +247,16 @@ trait HandlesLetterVariables
             $definition = $this->letterVariableDefinitionService->forKey($variable);
             $required = $definition?->required ?? true;
             if ($required && blank($this->variableValues[$variable] ?? null)) {
-                $this->addError('variableValues.'.$variable, 'Field ini wajib diisi.');
+                $this->addError('variableValues.' . $variable, 'Field ini wajib diisi.');
                 continue;
             }
             if (blank($this->variableValues[$variable] ?? null) || ! $this->letterVariableDateService->isDate($variable, $definition?->type)) continue;
             $normalized = $this->letterVariableDateService->normalize($this->variableValues[$variable]);
             if ($normalized === null) {
-                $this->addError('variableValues.'.$variable, 'Format tanggal tidak valid. Gunakan dd mmmm yyyy, misalnya 6 September 2026.');
+                $this->addError('variableValues.' . $variable, 'Format tanggal tidak valid. Gunakan dd mmmm yyyy, misalnya 6 September 2026.');
                 continue;
             }
-            if ($normalized > now()->toDateString()) $this->addError('variableValues.'.$variable, $this->letterVariableDateService->isBirthDate($variable) ? 'Tanggal lahir tidak boleh tanggal di masa depan.' : 'Tanggal tidak boleh melewati hari ini.');
+            if ($normalized > now()->toDateString()) $this->addError('variableValues.' . $variable, $this->letterVariableDateService->isBirthDate($variable) ? 'Tanggal lahir tidak boleh tanggal di masa depan.' : 'Tanggal tidak boleh melewati hari ini.');
         }
     }
 
@@ -287,7 +287,7 @@ trait HandlesLetterVariables
             $definition = $this->letterVariableDefinitionService->forKey($key);
             if ($this->letterVariableDateService->isDate($key, $definition?->type) && filled($value)) $data[$key] = $this->letterVariableDateService->normalize($value) ?? $value;
         }
-        if (filled($this->deathTime)) $data['waktu_meninggal'] = trim($this->deathTime).' '.strtoupper($this->deathTimeZone);
+        if (filled($this->deathTime)) $data['waktu_meninggal'] = trim($this->deathTime) . ' ' . strtoupper($this->deathTimeZone);
         foreach (['number', 'recipient_name', 'recipient_address', 'subject'] as $key) $data[$key] = (string) ($data[$key] ?? '');
         if ($this->citizen_id) $data['_citizen_id'] = $this->citizen_id;
         return $data;
@@ -320,13 +320,32 @@ trait HandlesLetterVariables
 
         // Standard markers are intentionally supported even when a letter type
         // uses a custom variable definition instead of the global definition table.
-        foreach ([
-            'nama', 'nik', 'jenis_kelamin', 'tpt_lahir', 'tanggal_lahir',
-            'status_perkawinan', 'agama', 'pekerjaan', 'kewarganegaraan',
-            'golongan_darah', 'nama_ayah', 'nik_ayah', 'nama_ibu', 'nik_ibu',
-            'pendidikan', 'no_passport', 'no_kitap', 'status_kependudukan',
-            'alamat', 'rt', 'rw', 'nama_pasangan',
-        ] as $key) {
+        foreach (
+            [
+                'nama',
+                'nik',
+                'jenis_kelamin',
+                'tempat_lahir',
+                'tanggal_lahir',
+                'status_perkawinan',
+                'agama',
+                'pekerjaan',
+                'kewarganegaraan',
+                'golongan_darah',
+                'nama_ayah',
+                'nik_ayah',
+                'nama_ibu',
+                'nik_ibu',
+                'pendidikan',
+                'no_passport',
+                'no_kitap',
+                'status_kependudukan',
+                'alamat',
+                'rt',
+                'rw',
+                'nama_pasangan',
+            ] as $key
+        ) {
             if (array_key_exists($key, $this->variableValues) && array_key_exists($key, $values)) {
                 $this->variableValues[$key] = (string) ($values[$key] ?? '');
             }
@@ -356,10 +375,29 @@ trait HandlesLetterVariables
     private function isDeathAutofilledVariable(string $variable): bool
     {
         return $this->citizen_id !== null && in_array($variable, [
-            'recipient_name', 'recipient_nik', 'recipient_gender', 'recipient_birth_place', 'recipient_birth_date',
-            'recipient_age', 'recipient_religion', 'recipient_occupation', 'recipient_address', 'nama_pasangan',
-            'nama', 'nik', 'jenis_kelamin', 'tpt_lahir', 'tanggal_lahir', 'status_perkawinan', 'agama',
-            'pekerjaan', 'kewarganegaraan', 'status_kependudukan', 'alamat', 'rt', 'rw',
+            'recipient_name',
+            'recipient_nik',
+            'recipient_gender',
+            'recipient_birth_place',
+            'recipient_birth_date',
+            'recipient_age',
+            'recipient_religion',
+            'recipient_occupation',
+            'recipient_address',
+            'nama_pasangan',
+            'nama',
+            'nik',
+            'jenis_kelamin',
+            'tempat_lahir',
+            'tanggal_lahir',
+            'status_perkawinan',
+            'agama',
+            'pekerjaan',
+            'kewarganegaraan',
+            'status_kependudukan',
+            'alamat',
+            'rt',
+            'rw',
         ], true);
     }
 }

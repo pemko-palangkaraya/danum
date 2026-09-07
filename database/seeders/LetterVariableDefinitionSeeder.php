@@ -12,11 +12,6 @@ class LetterVariableDefinitionSeeder extends Seeder
     public function run(): void
     {
         $definitions = [
-            ['recipient_name', 'Nama', 'text', 'citizen', true, true],
-            ['recipient_nik', 'NIK', 'text', 'citizen', true, true],
-            ['recipient_gender', 'Jenis Kelamin', 'text', 'citizen', true, true],
-            ['recipient_birth_place', 'Tempat Lahir', 'text', 'citizen', true, true],
-            ['recipient_birth_date', 'Tanggal Lahir', 'date', 'citizen', true, true],
             ['recipient_age', 'Umur', 'number', 'calculated', true, true],
             ['recipient_religion', 'Agama', 'text', 'citizen', false, true],
             ['recipient_occupation', 'Pekerjaan', 'text', 'citizen', false, true],
@@ -27,7 +22,7 @@ class LetterVariableDefinitionSeeder extends Seeder
             ['nama', 'Nama', 'text', 'citizen', true, true],
             ['nik', 'NIK', 'text', 'citizen', true, true],
             ['jenis_kelamin', 'Jenis Kelamin', 'text', 'citizen', true, true],
-            ['tpt_lahir', 'Tempat Lahir', 'text', 'citizen', true, true],
+            ['tempat_lahir', 'Tempat Lahir', 'text', 'citizen', true, true],
             ['tanggal_lahir', 'Tanggal Lahir', 'date', 'citizen', true, true],
             ['status_perkawinan', 'Status Perkawinan', 'text', 'citizen', false, true],
             ['agama', 'Agama', 'text', 'citizen', false, true],

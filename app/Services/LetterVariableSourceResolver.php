@@ -57,7 +57,6 @@ final class LetterVariableSourceResolver
             'nik' => $citizen->nik,
             'jenis_kelamin' => $gender,
             'tempat_lahir' => $citizen->tempat_lahir,
-            'tpt_lahir' => $citizen->tempat_lahir,
             'tanggal_lahir' => $birthDate,
             'status_perkawinan' => $maritalStatus,
             'agama' => $religion,
