@@ -6,7 +6,6 @@ namespace App\Livewire\LetterTypes;
 
 use App\Livewire\Concerns\WithStandardTablePagination;
 use App\Models\LetterType;
-use App\Models\Tenant;
 use App\Models\TenantCategory;
 use App\Services\AuditLogService;
 use App\Services\LetterTypeService;
@@ -21,8 +20,6 @@ class Permissions extends Component
     public string $search = '';
     public int $perPage = 5;
     public string $letterTypeId;
-    public ?string $selectedTenantId = null;
-    public string $selectedTenantName = '';
     public ?int $selectedCategoryId = null;
     public string $selectedCategoryName = '';
 
@@ -30,20 +27,6 @@ class Permissions extends Component
     {
         $this->letterTypeId = $letterType;
         $this->authorize('view', $this->letterType());
-    }
-
-    public function grant(string $tenantId, LetterTypeService $service, AuditLogService $auditLog): void
-    {
-        $letterType = $this->authorizedLetterType();
-        $tenant = Tenant::query()->findOrFail($tenantId);
-        $existing = $letterType->permissions()->where('tenant_id', $tenant->id)->first();
-        $permission = $service->grantTenantPermission($letterType, $tenant->id);
-
-        if (! $existing || ! $existing->allowed) {
-            $this->recordAudit($auditLog, 'letter_type.permission.granted', $permission, $existing?->only(['tenant_id', 'letter_type_id', 'allowed']), $permission->only(['tenant_id', 'letter_type_id', 'allowed']), $tenant->id);
-        }
-
-        $this->dispatch('toast', type: 'success', message: 'Akses jenis surat diberikan ke ' . $tenant->name . '.');
     }
 
     public function grantCategory(int $categoryId, LetterTypeService $service, AuditLogService $auditLog): void
@@ -100,15 +83,6 @@ class Permissions extends Component
         $this->dispatch('toast', type: 'success', message: 'Akses kategori dicabut.');
     }
 
-    public function confirmRevoke(string $tenantId): void
-    {
-        $this->authorizedLetterType();
-        $tenant = Tenant::query()->findOrFail($tenantId);
-        $this->selectedTenantId = $tenant->id;
-        $this->selectedTenantName = $tenant->name;
-        $this->dispatch('open-confirmation-modal', id: 'letter-type-permission-revoke');
-    }
-
     public function updatedSearch(): void
     {
         $this->resetPage();
@@ -118,37 +92,6 @@ class Permissions extends Component
     {
         $this->perPage = max(5, min($this->perPage, 100));
         $this->resetPage();
-    }
-
-    public function cancelRevoke(): void
-    {
-        $this->selectedTenantId = null;
-        $this->selectedTenantName = '';
-    }
-
-    public function revoke(LetterTypeService $service, AuditLogService $auditLog): void
-    {
-        if (! $this->selectedTenantId) {
-            return;
-        }
-
-        $letterType = $this->authorizedLetterType();
-        $tenantId = $this->selectedTenantId;
-        $permission = $letterType->permissions()->where('tenant_id', $tenantId)->first();
-
-        if (! $service->revokeTenantPermission($letterType, $tenantId)) {
-            $this->cancelRevoke();
-            $this->dispatch('toast', type: 'error', message: 'Akses tidak ditemukan.');
-            return;
-        }
-
-        if ($permission?->allowed) {
-            $permission->refresh();
-            $this->recordAudit($auditLog, 'letter_type.permission.revoked', $permission, ['tenant_id' => $tenantId, 'letter_type_id' => $letterType->id, 'allowed' => true], $permission->only(['tenant_id', 'letter_type_id', 'allowed']), $tenantId);
-        }
-
-        $this->cancelRevoke();
-        $this->dispatch('toast', type: 'success', message: 'Akses jenis surat dicabut.');
     }
 
     private function letterType(): LetterType
@@ -165,9 +108,9 @@ class Permissions extends Component
         return $letterType;
     }
 
-    private function recordAudit(AuditLogService $auditLog, string $action, object $auditable, ?array $oldValues, array $newValues, ?string $tenantId = null): void
+    private function recordAudit(AuditLogService $auditLog, string $action, object $auditable, ?array $oldValues, array $newValues): void
     {
-        $auditLog->record($action, auth()->user(), $auditable, $oldValues, $newValues, $tenantId);
+        $auditLog->record($action, auth()->user(), $auditable, $oldValues, $newValues);
     }
 
     public function render()
