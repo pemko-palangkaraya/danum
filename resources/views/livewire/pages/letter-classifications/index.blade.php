@@ -21,7 +21,7 @@ new #[Layout('layouts.app')] class extends Component {
     public string $code = '';
     public string $name = '';
     public string $description = '';
-    public string $number_format = '{{number}}/{{classification_code}}/{{tenant_code}}/{{year}}';
+    public string $number_format = '{'.'{number}'.'}/{'.'{classification_code}'.'}/{'.'{tenant_code}'.'}/{'.'{year}'.'}';
     public int $number_padding = 3;
     public int $sort_order = 1;
     public bool $is_active = true;
@@ -82,7 +82,7 @@ new #[Layout('layouts.app')] class extends Component {
                 'is_active' => ['boolean'],
             ],
             [
-                'number_format.regex' => 'Format wajib memiliki {{number}}, {{classification_code}}, dan {{tenant_code}}.',
+                'number_format.regex' => 'Format wajib memiliki ' . '{'.'{number}'.'}, ' . '{'.'{classification_code}'.'}, dan ' . '{'.'{tenant_code}'.'}.',
             ],
         )->validate();
 
@@ -143,7 +143,7 @@ new #[Layout('layouts.app')] class extends Component {
         $this->code = '';
         $this->name = '';
         $this->description = '';
-        $this->number_format = '{{number}}/{{classification_code}}/{{tenant_code}}/{{year}}';
+        $this->number_format = '{'.'{number}'.'}/{'.'{classification_code}'.'}/{'.'{tenant_code}'.'}/{'.'{year}'.'}';
         $this->number_padding = 3;
         $this->sort_order = 1;
         $this->is_active = true;
