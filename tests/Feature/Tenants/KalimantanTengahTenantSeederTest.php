@@ -51,7 +51,7 @@ class KalimantanTengahTenantSeederTest extends TestCase
         $this->seed(\Database\Seeders\KalimantanTengahTenantSeeder::class);
 
         $city = Tenant::query()
-            ->where('code', 'wilayah-62-71')
+            ->where('code', 'PLK')
             ->firstOrFail();
 
         $districtTenants = Tenant::query()
@@ -65,7 +65,7 @@ class KalimantanTengahTenantSeederTest extends TestCase
 
         $this->assertSame('Palangka Raya', $city->city);
         $this->assertSame('Kalimantan Tengah', $city->province);
-        $this->assertCount(1, Tenant::query()->where('code', 'wilayah-62-71')->get());
+        $this->assertSame(['PLK'], Tenant::query()->where('code', 'PLK')->pluck('code')->all());
         $this->assertCount(5, $districtTenants);
         $this->assertCount(30, $villageTenants);
         $this->assertSame([$city->id], $districtTenants->pluck('parent_tenant_id')->unique()->values()->all());
@@ -73,13 +73,29 @@ class KalimantanTengahTenantSeederTest extends TestCase
         $this->assertSame(['Palangka Raya'], $districtTenants->pluck('city')->unique()->values()->all());
         $this->assertSame(['Palangka Raya'], $villageTenants->pluck('city')->unique()->values()->all());
 
+        $expectedCodes = [
+            'PHD', 'JKR', 'BKB', 'RKP', 'SBG',
+        ];
+
+        $this->assertSame(
+            $expectedCodes,
+            $districtTenants->sortBy('code')->pluck('code')->values()->all(),
+        );
+
         foreach ($districts as $district) {
-            $districtTenant = Tenant::query()->where('code', 'wilayah-'.str_replace('.', '-', $district['code']))->firstOrFail();
+            $shortCode = match ($district['name']) {
+                'Pahandut' => 'PHD',
+                'Jekan Raya' => 'JKR',
+                'Bukit Batu' => 'BKB',
+                'Rakumpit' => 'RKP',
+                'Sabangau' => 'SBG',
+            };
+
+            $districtTenant = Tenant::query()->where('code', $shortCode)->firstOrFail();
             $this->assertSame($city->id, $districtTenant->parent_tenant_id);
             $this->assertSame($district['name'], $districtTenant->district);
             $this->assertSame('Pusat Pemerintahan', $districtTenant->village);
             $this->assertSame(6, $districtTenant->children()->count());
-
             $this->assertSame(
                 6,
                 $villageTenants->where('parent_tenant_id', $districtTenant->id)->count(),
