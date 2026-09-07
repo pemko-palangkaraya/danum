@@ -73,8 +73,11 @@
                                         <input type="number" wire:model="variableValues.{{ $variable }}" class="form-control mt-1">
                                     @elseif(in_array($inputType, ['time','datetime','email','tel'], true))
                                         <input type="{{ $inputType === 'datetime' ? 'datetime-local' : $inputType }}" wire:model="variableValues.{{ $variable }}" class="form-control mt-1">
+                                    @elseif($variable === 'recipient_nik')
+                                        <input wire:model.blur="variableValues.{{ $variable }}" class="form-control mt-1" inputmode="numeric" maxlength="16" autocomplete="off">
+                                        <p class="mt-1 text-xs text-slate-400">Tekan Tab atau klik field lain setelah 16 digit untuk mengambil data warga.</p>
                                     @else
-                                        <input wire:model="{{ $variable === 'recipient_nik' ? 'variableValues.'.$variable : 'variableValues.'.$variable }}{{ $variable === 'recipient_nik' ? '.blur' : '' }}" class="form-control mt-1" {{ $variable === 'recipient_nik' ? 'inputmode=numeric maxlength=16 autocomplete=off' : '' }}>
+                                        <input wire:model="variableValues.{{ $variable }}" class="form-control mt-1">
                                     @endif
                                     @error('variableValues.'.$variable)<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                                 </div>
