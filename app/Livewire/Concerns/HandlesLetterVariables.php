@@ -309,13 +309,33 @@ trait HandlesLetterVariables
         $values += $family['values'];
         $deathDate = $this->variableValues['tanggal_meninggal'] ?? null;
         $values['recipient_age'] = $this->letterVariableSourceResolver->age($citizen, $deathDate);
+
         foreach ($this->variables as $variable) {
             $variable = (string) $variable;
             $definition = $this->letterVariableDefinitionService->forKey($variable);
-            if (in_array($definition?->source, ['citizen', 'family', 'calculated'], true) && array_key_exists($variable, $values)) $this->variableValues[$variable] = (string) ($values[$variable] ?? '');
+            if (in_array($definition?->source, ['citizen', 'family', 'calculated'], true) && array_key_exists($variable, $values)) {
+                $this->variableValues[$variable] = (string) ($values[$variable] ?? '');
+            }
         }
+
+        // Standard markers are intentionally supported even when a letter type
+        // uses a custom variable definition instead of the global definition table.
+        foreach ([
+            'nama', 'nik', 'jenis_kelamin', 'tpt_lahir', 'tanggal_lahir',
+            'status_perkawinan', 'agama', 'pekerjaan', 'kewarganegaraan',
+            'golongan_darah', 'nama_ayah', 'nik_ayah', 'nama_ibu', 'nik_ibu',
+            'pendidikan', 'no_passport', 'no_kitap', 'status_kependudukan',
+            'alamat', 'rt', 'rw', 'nama_pasangan',
+        ] as $key) {
+            if (array_key_exists($key, $this->variableValues) && array_key_exists($key, $values)) {
+                $this->variableValues[$key] = (string) ($values[$key] ?? '');
+            }
+        }
+
         $this->variableValues['ak'] = $family['members'];
-        foreach ($this->repeaterDefinitions() as $repeater) if ($repeater['key'] === 'anak_ditinggalkan') $this->variableValues[$repeater['key']] = $family['children'];
+        foreach ($this->repeaterDefinitions() as $repeater) {
+            if ($repeater['key'] === 'anak_ditinggalkan') $this->variableValues[$repeater['key']] = $family['children'];
+        }
     }
 
     public function isReadOnlyVariable(string $variable): bool
