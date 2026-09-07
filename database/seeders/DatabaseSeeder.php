@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             TenantReferenceSeeder::class,
             PopulationReferenceSeeder::class,
             LetterClassificationSeeder::class,
+            LetterTypeRecommendationSeeder::class,
             LetterVariableDefinitionSeeder::class,
             PositionSeeder::class,
             KalimantanTengahTenantSeeder::class,
