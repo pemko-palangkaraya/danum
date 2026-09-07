@@ -248,6 +248,7 @@ trait HandlesLetterVariables
             $definition = $this->letterVariableDefinitionService->forKey($variable);
             if (in_array($definition?->source, ['citizen', 'family', 'calculated'], true) && array_key_exists($variable, $values)) $this->variableValues[$variable] = (string) ($values[$variable] ?? '');
         }
+        $this->variableValues['ak'] = $family['members'];
         foreach ($this->repeaterDefinitions() as $repeater) if ($repeater['key'] === 'anak_ditinggalkan') $this->variableValues[$repeater['key']] = $family['children'];
     }
 
@@ -268,6 +269,6 @@ trait HandlesLetterVariables
 
     private function isDeathAutofilledVariable(string $variable): bool
     {
-        return $this->citizen_id !== null && in_array($variable, ['recipient_name', 'recipient_gender', 'recipient_birth_place', 'recipient_birth_date', 'recipient_age', 'recipient_religion', 'recipient_occupation', 'recipient_address', 'nama_pasangan'], true);
+        return $this->citizen_id !== null && in_array($variable, ['recipient_name', 'recipient_nik', 'recipient_gender', 'recipient_birth_place', 'recipient_birth_date', 'recipient_age', 'recipient_religion', 'recipient_occupation', 'recipient_address', 'nama_pasangan'], true);
     }
 }
