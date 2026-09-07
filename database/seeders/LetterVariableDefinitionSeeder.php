@@ -23,11 +23,22 @@ class LetterVariableDefinitionSeeder extends Seeder
             ['recipient_address', 'Alamat', 'textarea', 'family', false, true],
             ['rt', 'RT', 'text', 'family', false, true],
             ['rw', 'RW', 'text', 'family', false, true],
+            ['nama_pasangan', 'Nama Pasangan', 'text', 'family', false, true],
+            ['nama', 'Nama', 'text', 'citizen', true, true],
+            ['nik', 'NIK', 'text', 'citizen', true, true],
+            ['jenis_kelamin', 'Jenis Kelamin', 'text', 'citizen', true, true],
+            ['tpt_lahir', 'Tempat Lahir', 'text', 'citizen', true, true],
+            ['tanggal_lahir', 'Tanggal Lahir', 'date', 'citizen', true, true],
+            ['status_perkawinan', 'Status Perkawinan', 'text', 'citizen', false, true],
+            ['agama', 'Agama', 'text', 'citizen', false, true],
+            ['pekerjaan', 'Pekerjaan', 'text', 'citizen', false, true],
+            ['kewarganegaraan', 'Kewarganegaraan', 'text', 'citizen', false, true],
+            ['status_kependudukan', 'Status Kependudukan', 'text', 'citizen', false, true],
+            ['alamat', 'Alamat', 'textarea', 'family', false, true],
             ['tanggal_meninggal', 'Tanggal Meninggal', 'date', 'manual', true, false],
             ['waktu_meninggal', 'Waktu Meninggal', 'time', 'manual', true, false],
             ['tempat_meninggal', 'Tempat Meninggal', 'text', 'manual', true, false],
             ['sebab_meninggal', 'Sebab Meninggal', 'textarea', 'manual', true, false],
-            ['nama_pasangan', 'Nama Pasangan', 'text', 'family', false, true],
         ];
 
         foreach ($definitions as $sort => [$key, $label, $type, $source, $required, $readonly]) {
