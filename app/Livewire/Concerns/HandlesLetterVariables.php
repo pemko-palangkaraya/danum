@@ -20,6 +20,8 @@ trait HandlesLetterVariables
     public ?string $citizen_id = null;
     public string $deathTime = '';
     public string $deathTimeZone = 'WIB';
+    public bool $showCancelConfirm = false;
+    public string $cancelId = '';
 
     protected CitizenService $citizenService;
     protected LetterVariableDateService $letterVariableDateService;
@@ -88,6 +90,55 @@ trait HandlesLetterVariables
         $this->showForm = true;
         $this->updatedLetterTypeId();
         $this->applyCitizenValues($citizen);
+    }
+
+    public function createFresh(): void
+    {
+        $this->create();
+        if (! $this->showForm) return;
+
+        $this->reset(['citizen_id', 'deathTime', 'deathTimeZone']);
+        $this->resetValidation();
+    }
+
+    public function cancelForm(): void
+    {
+        $this->showForm = false;
+        $this->reset([
+            'editingId',
+            'letter_type_id',
+            'signer_position_id',
+            'validator_position_id',
+            'variables',
+            'variableValues',
+            'citizen_id',
+            'deathTime',
+            'deathTimeZone',
+        ]);
+        $this->resetValidation();
+    }
+
+    public function openCancel(string $id): void
+    {
+        try {
+            $tenantId = auth()->user()?->tenant_id;
+            if (! $tenantId) throw new \DomainException('Akun platform tidak memiliki konteks tenant.');
+
+            $letter = app(OutgoingLetterService::class)->find($id, $tenantId);
+            if (! $letter) throw new \DomainException('Surat tidak ditemukan dalam konteks tenant Anda.');
+
+            $this->authorize('cancel', $letter);
+            $this->cancelId = $id;
+            $this->showCancelConfirm = true;
+        } catch (\Throwable $exception) {
+            $this->dispatch('toast', type: 'error', message: $exception instanceof \DomainException ? $exception->getMessage() : 'Draft surat tidak dapat dibatalkan.');
+        }
+    }
+
+    public function closeCancel(): void
+    {
+        $this->showCancelConfirm = false;
+        $this->cancelId = '';
     }
 
     public function updatedVariableValues($value, string $key): void
@@ -207,8 +258,10 @@ trait HandlesLetterVariables
 
             $this->authorize('cancel', $letter);
             $workflow->cancel($letter, auth()->id());
+            $this->closeCancel();
             $this->dispatch('toast', type: 'success', message: 'Draft surat berhasil dibatalkan.');
         } catch (\Throwable $exception) {
+            $this->closeCancel();
             $this->dispatch('toast', type: 'error', message: $exception instanceof \DomainException ? $exception->getMessage() : 'Draft surat gagal dibatalkan.');
         }
     }
