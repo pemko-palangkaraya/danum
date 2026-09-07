@@ -1,4 +1,4 @@
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" wire:click.self="$set('showForm', false)">
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" wire:click.self="cancelForm">
     <div class="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-xl">
         <div class="border-b border-slate-100 px-6 py-5">
             <h2 class="text-lg font-semibold text-slate-900">{{ $editingId ? 'Edit Draft Surat' : 'Create Outgoing Letter' }}</h2>
@@ -47,7 +47,7 @@
                                     ? (string) floor((float) $variableValues[$variable])
                                     : ($dateVariable ? $this->formatIndonesianDate($variableValues[$variable] ?? '') : ($variableValues[$variable] ?? ''));
                             @endphp
-                            @if(! $readOnly && ! $definition)
+                            @if(! $readOnly)
                                 <div class="{{ $wide ? 'sm:col-span-2' : '' }}">
                                     <label class="text-sm font-medium text-slate-700">{{ $label }}</label>
                                     @if($inputType === 'textarea' || $variable === 'recipient_address')
@@ -74,11 +74,11 @@
                                     @elseif(in_array($inputType, ['time','datetime','email','tel'], true))
                                         <input type="{{ $inputType === 'datetime' ? 'datetime-local' : $inputType }}" wire:model="variableValues.{{ $variable }}" class="form-control mt-1">
                                     @else
-                                        <input wire:model="variableValues.{{ $variable }}" class="form-control mt-1" {{ $variable === 'recipient_nik' ? 'inputmode=numeric maxlength=16 autocomplete=off' : '' }}>
+                                        <input wire:model="{{ $variable === 'recipient_nik' ? 'variableValues.'.$variable : 'variableValues.'.$variable }}{{ $variable === 'recipient_nik' ? '.blur' : '' }}" class="form-control mt-1" {{ $variable === 'recipient_nik' ? 'inputmode=numeric maxlength=16 autocomplete=off' : '' }}>
                                     @endif
                                     @error('variableValues.'.$variable)<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                                 </div>
-                            @elseif($readOnly && ! $definition && $this->citizen_id)
+                            @elseif($this->citizen_id)
                                 <div class="{{ $wide ? 'sm:col-span-2' : '' }}">
                                     <label class="text-sm font-medium text-slate-700">{{ $label }}</label>
                                     <input value="{{ $displayValue }}" readonly class="form-control mt-1 bg-slate-50 text-slate-600">
@@ -111,7 +111,7 @@
                 </div>
             @endforeach
 
-            <div class="flex items-center justify-between gap-2 border-t border-slate-100 pt-5"><span class="text-xs text-slate-400">Setelah Submit, draft terkunci sampai diverifikasi atau ditolak.</span><div class="flex gap-2"><button type="button" wire:click="$set('showForm', false)" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Batal</button><button type="submit" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">{{ $editingId ? 'Simpan Perubahan' : 'Simpan Draft' }}</button></div></div>
+            <div class="flex items-center justify-between gap-2 border-t border-slate-100 pt-5"><span class="text-xs text-slate-400">Setelah Submit, draft terkunci sampai diverifikasi atau ditolak.</span><div class="flex gap-2"><button type="button" wire:click="cancelForm" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Batal</button><button type="submit" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">{{ $editingId ? 'Simpan Perubahan' : 'Simpan Draft' }}</button></div></div>
         </form>
     </div>
 </div>
