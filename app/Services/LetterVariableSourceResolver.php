@@ -77,6 +77,16 @@ final class LetterVariableSourceResolver
             'recipient_birth_date' => $this->date->format($citizen->tanggal_lahir),
             'recipient_religion' => $religion,
             'recipient_occupation' => $citizen->pekerjaan,
+            'nama' => $citizen->nama_lengkap,
+            'nik' => $citizen->nik,
+            'jenis_kelamin' => $gender,
+            'tpt_lahir' => $citizen->tempat_lahir,
+            'tanggal_lahir' => $this->date->format($citizen->tanggal_lahir),
+            'status_perkawinan' => $maritalStatus,
+            'agama' => $religion,
+            'pekerjaan' => $citizen->pekerjaan,
+            'kewarganegaraan' => $citizenship,
+            'status_kependudukan' => $populationStatus,
         ];
     }
 
