@@ -21,6 +21,8 @@ class LetterVariableDefinitionSeeder extends Seeder
             ['recipient_religion', 'Agama', 'text', 'citizen', false, true],
             ['recipient_occupation', 'Pekerjaan', 'text', 'citizen', false, true],
             ['recipient_address', 'Alamat', 'textarea', 'family', false, true],
+            ['rt', 'RT', 'text', 'family', false, true],
+            ['rw', 'RW', 'text', 'family', false, true],
             ['tanggal_meninggal', 'Tanggal Meninggal', 'date', 'manual', true, false],
             ['waktu_meninggal', 'Waktu Meninggal', 'time', 'manual', true, false],
             ['tempat_meninggal', 'Tempat Meninggal', 'text', 'manual', true, false],
