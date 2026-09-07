@@ -71,35 +71,36 @@ class LetterTypePermissionManagementTest extends TestCase
         ]);
     }
 
-    public function test_permission_changes_from_livewire_page_are_audited(): void
+    public function test_category_permission_changes_from_livewire_page_are_audited(): void
     {
-        $tenant = Tenant::factory()->create();
+        $category = TenantCategory::query()->where('code', 'kelurahan')->firstOrFail();
         $admin = User::factory()->superAdmin()->create();
         $letterType = LetterType::factory()->create(['tenant_id' => null]);
 
         $this->actingAs($admin);
 
         Livewire::test(Permissions::class, ['letterType' => $letterType->id])
-            ->call('grant', $tenant->id);
+            ->call('grantCategory', $category->id);
 
-        $permission = $letterType->permissions()->where('tenant_id', $tenant->id)->firstOrFail();
+        $permission = $letterType->permissions()
+            ->whereNull('tenant_id')
+            ->where('tenant_category_id', $category->id)
+            ->firstOrFail();
 
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => $admin->id,
-            'tenant_id' => $tenant->id,
-            'action' => 'letter_type.permission.granted',
+            'action' => 'letter_type.category_permission.granted',
             'auditable_type' => $permission::class,
             'auditable_id' => $permission->id,
         ]);
 
         Livewire::test(Permissions::class, ['letterType' => $letterType->id])
-            ->call('confirmRevoke', $tenant->id)
-            ->call('revoke');
+            ->call('confirmRevokeCategory', $category->id)
+            ->call('revokeCategory');
 
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => $admin->id,
-            'tenant_id' => $tenant->id,
-            'action' => 'letter_type.permission.revoked',
+            'action' => 'letter_type.category_permission.revoked',
             'auditable_type' => $permission::class,
             'auditable_id' => $permission->id,
         ]);
