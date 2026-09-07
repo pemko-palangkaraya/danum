@@ -11,6 +11,7 @@ class LetterClassificationSeeder extends Seeder
 {
     public function run(): void
     {
+        $source = 'Permendagri Nomor 83 Tahun 2022';
         $classifications = [
             ['000', 'Umum', 'Klasifikasi umum dan administrasi umum.', 1],
             ['100', 'Pemerintahan', 'Klasifikasi urusan pemerintahan.', 2],
@@ -24,15 +25,17 @@ class LetterClassificationSeeder extends Seeder
             ['900', 'Keuangan', 'Klasifikasi urusan keuangan.', 10],
         ];
 
-        foreach ($classifications as [$code, $name, $description, $sortOrder]) {
+        foreach ($classifications as [$code, $name, $description, $sourceOrder]) {
             LetterClassification::query()->updateOrCreate(
                 ['code' => $code],
                 [
                     'name' => $name,
                     'description' => $description,
+                    'source' => $source,
+                    'source_order' => $sourceOrder,
                     'number_format' => '{{number}}/{{classification_code}}/{{tenant_code}}/{{month_roman}}/{{year}}',
                     'number_padding' => 3,
-                    'sort_order' => $sortOrder,
+                    'sort_order' => $sourceOrder,
                     'is_active' => true,
                 ],
             );
