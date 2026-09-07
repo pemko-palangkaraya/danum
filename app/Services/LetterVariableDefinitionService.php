@@ -19,6 +19,13 @@ final class LetterVariableDefinitionService
         'citizen_status_kependudukan',
     ];
 
+    private const CITIZEN_AUTOFILLED_VARIABLES = [
+        'recipient_name', 'recipient_nik', 'recipient_gender', 'recipient_birth_place', 'recipient_birth_date',
+        'recipient_age', 'recipient_religion', 'recipient_occupation', 'recipient_address', 'nama_pasangan',
+        'nama', 'nik', 'jenis_kelamin', 'tpt_lahir', 'tanggal_lahir', 'status_perkawinan', 'agama',
+        'pekerjaan', 'kewarganegaraan', 'status_kependudukan', 'alamat', 'rt', 'rw',
+    ];
+
     /** @var array<string, LetterVariableDefinition>|null */
     private static ?array $cache = null;
 
@@ -47,12 +54,10 @@ final class LetterVariableDefinitionService
     public function isReadonly(string $key, bool $hasCitizen = false): bool
     {
         $definition = $this->forKey($key);
+        if ($definition && ! $hasCitizen) return (bool) $definition->readonly;
+        if ($hasCitizen && in_array($key, self::CITIZEN_AUTOFILLED_VARIABLES, true)) return true;
         if ($definition) return (bool) $definition->readonly;
 
-        return $this->isSystem($key) || ($hasCitizen && in_array($key, [
-            'recipient_name', 'recipient_nik', 'recipient_gender', 'recipient_birth_place',
-            'recipient_birth_date', 'recipient_age', 'recipient_religion', 'recipient_occupation',
-            'recipient_address', 'nama_pasangan',
-        ], true));
+        return $this->isSystem($key);
     }
 }
