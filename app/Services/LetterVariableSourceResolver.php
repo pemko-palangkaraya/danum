@@ -50,12 +50,13 @@ final class LetterVariableSourceResolver
         $religion = $this->references->label('religion', $citizen->agama, (string) $citizen->agama);
         $citizenship = $this->references->label('citizenship', $citizen->kewarganegaraan, (string) $citizen->kewarganegaraan);
         $populationStatus = $this->references->label('population_status', $citizen->status_kependudukan, (string) $citizen->status_kependudukan);
+        $birthDate = $this->date->format($citizen->tanggal_lahir);
 
         return [
             'citizen_nik' => $citizen->nik,
             'citizen_nama_lengkap' => $citizen->nama_lengkap,
             'citizen_tempat_lahir' => $citizen->tempat_lahir,
-            'citizen_tanggal_lahir' => $this->date->format($citizen->tanggal_lahir),
+            'citizen_tanggal_lahir' => $birthDate,
             'citizen_jenis_kelamin' => $gender,
             'citizen_golongan_darah' => $bloodType,
             'citizen_agama' => $religion,
@@ -74,14 +75,14 @@ final class LetterVariableSourceResolver
             'recipient_nik' => $citizen->nik,
             'recipient_gender' => $gender,
             'recipient_birth_place' => $citizen->tempat_lahir,
-            'recipient_birth_date' => $this->date->format($citizen->tanggal_lahir),
+            'recipient_birth_date' => $birthDate,
             'recipient_religion' => $religion,
             'recipient_occupation' => $citizen->pekerjaan,
             'nama' => $citizen->nama_lengkap,
             'nik' => $citizen->nik,
             'jenis_kelamin' => $gender,
             'tpt_lahir' => $citizen->tempat_lahir,
-            'tanggal_lahir' => $this->date->format($citizen->tanggal_lahir),
+            'tanggal_lahir' => $birthDate,
             'status_perkawinan' => $maritalStatus,
             'agama' => $religion,
             'pekerjaan' => $citizen->pekerjaan,
@@ -97,6 +98,7 @@ final class LetterVariableSourceResolver
             return [
                 'values' => [
                     'recipient_address' => '',
+                    'alamat' => '',
                     'rt' => '',
                     'rw' => '',
                     'nama_pasangan' => '-',
@@ -128,9 +130,12 @@ final class LetterVariableSourceResolver
             $familyMembers->push($this->familyMemberRow($member, $familyMembers->count() + 1, 'Anak'));
         }
 
+        $address = $this->address($family);
+
         return [
             'values' => [
-                'recipient_address' => $this->address($family),
+                'recipient_address' => $address,
+                'alamat' => $address,
                 'rt' => (string) ($family->rt ?? ''),
                 'rw' => (string) ($family->rw ?? ''),
                 'nama_pasangan' => (string) ($spouse?->citizen?->nama_lengkap ?: '-'),
