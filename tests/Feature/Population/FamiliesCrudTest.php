@@ -12,6 +12,7 @@ use App\Models\Tenant;
 use App\Models\TenantCategory;
 use App\Models\User;
 use App\Services\PopulationLocationService;
+use Database\Seeders\PopulationReferenceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -19,6 +20,12 @@ use Tests\TestCase;
 class FamiliesCrudTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(PopulationReferenceSeeder::class);
+    }
 
     public function test_tenant_user_with_population_manage_can_create_family(): void
     {
@@ -124,7 +131,7 @@ class FamiliesCrudTest extends TestCase
         $this->assertDatabaseHas('family_members', [
             'family_id' => $family->id,
             'citizen_id' => $citizen->id,
-            'hubungan_dalam_keluarga' => 'Anak',
+            'hubungan_dalam_keluarga' => 'child',
             'status' => 'active',
         ]);
     }
