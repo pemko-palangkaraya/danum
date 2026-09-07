@@ -85,7 +85,12 @@ final class LetterVariableSourceResolver
         $family = $this->familyFor($citizen);
         if (! $family) {
             return [
-                'values' => ['recipient_address' => '', 'nama_pasangan' => '-'],
+                'values' => [
+                    'recipient_address' => '',
+                    'rt' => '',
+                    'rw' => '',
+                    'nama_pasangan' => '-',
+                ],
                 'children' => [['nomor' => '1', 'nama' => '-']],
                 'members' => [],
             ];
@@ -116,6 +121,8 @@ final class LetterVariableSourceResolver
         return [
             'values' => [
                 'recipient_address' => $this->address($family),
+                'rt' => (string) ($family->rt ?? ''),
+                'rw' => (string) ($family->rw ?? ''),
                 'nama_pasangan' => (string) ($spouse?->citizen?->nama_lengkap ?: '-'),
             ],
             'children' => $children ?: [['nomor' => '1', 'nama' => '-']],
@@ -172,13 +179,16 @@ final class LetterVariableSourceResolver
     {
         $citizen = $member->citizen;
         $gender = $this->references->label('gender', $citizen?->jenis_kelamin, (string) ($citizen?->jenis_kelamin ?? ''));
+        $birthPlace = (string) ($citizen?->tempat_lahir ?: '-');
+        $birthDate = $this->date->format($citizen?->tanggal_lahir);
 
         return [
             'nomor' => (string) $number,
             'nama' => (string) ($citizen?->nama_lengkap ?: '-'),
             'gender' => $gender,
-            'tpt_lahir' => (string) ($citizen?->tempat_lahir ?: '-'),
-            'tanggal_lahir' => $this->date->format($citizen?->tanggal_lahir),
+            'ttl' => trim($birthPlace . ($birthDate !== '' ? ', ' . $birthDate : '')),
+            'tpt_lahir' => $birthPlace,
+            'tanggal_lahir' => $birthDate,
             'ket' => $relation,
         ];
     }
