@@ -77,7 +77,10 @@ class Permissions extends Component
 
     public function revokeCategory(LetterTypeService $service, AuditLogService $auditLog): void
     {
-        if ($this->selectedCategoryId === null) return;
+        if ($this->selectedCategoryId === null) {
+            return;
+        }
+
         $letterType = $this->authorizedLetterType();
         $categoryId = $this->selectedCategoryId;
         $permission = $letterType->permissions()->whereNull('tenant_id')->where('tenant_category_id', $categoryId)->first();
@@ -106,7 +109,10 @@ class Permissions extends Component
         $this->dispatch('open-confirmation-modal', id: 'letter-type-permission-revoke');
     }
 
-    public function updatedSearch(): void { $this->resetPage(); }
+    public function updatedSearch(): void
+    {
+        $this->resetPage();
+    }
 
     public function updatedPerPage(): void
     {
@@ -122,7 +128,10 @@ class Permissions extends Component
 
     public function revoke(LetterTypeService $service, AuditLogService $auditLog): void
     {
-        if (! $this->selectedTenantId) return;
+        if (! $this->selectedTenantId) {
+            return;
+        }
+
         $letterType = $this->authorizedLetterType();
         $tenantId = $this->selectedTenantId;
         $permission = $letterType->permissions()->where('tenant_id', $tenantId)->first();
@@ -164,19 +173,29 @@ class Permissions extends Component
     public function render()
     {
         $letterType = $this->letterType();
-        $query = Tenant::query()->orderBy('name');
+        $search = trim($this->search);
+        $query = TenantCategory::query()
+            ->where('is_active', true)
+            ->withCount(['tenants as active_tenants_count' => fn ($query) => $query->where('status', true)])
+            ->orderBy('sort_order')
+            ->orderBy('name');
 
-        if ($this->search !== '') {
-            $value = '%' . trim($this->search) . '%';
-            $query->where(fn($q) => $q->where('name', 'like', $value)->orWhere('code', 'like', $value));
+        if ($search !== '') {
+            $value = '%' . $search . '%';
+            $query->where(fn ($query) => $query
+                ->where('name', 'like', $value)
+                ->orWhere('code', 'like', $value));
         }
 
         return view('livewire.pages.letter-types.permissions', [
             'letterType' => $letterType,
-            'tenants' => $query->paginate($this->perPage),
-            'categories' => TenantCategory::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(),
-            'allowedTenantIds' => $letterType->permissions()->where('allowed', true)->whereNotNull('tenant_id')->pluck('tenant_id')->all(),
-            'allowedCategoryIds' => $letterType->permissions()->where('allowed', true)->whereNotNull('tenant_category_id')->pluck('tenant_category_id')->map(fn($id) => (int) $id)->all(),
+            'categories' => $query->paginate($this->perPage),
+            'allowedCategoryIds' => $letterType->permissions()
+                ->where('allowed', true)
+                ->whereNotNull('tenant_category_id')
+                ->pluck('tenant_category_id')
+                ->map(fn ($id) => (int) $id)
+                ->all(),
         ]);
     }
 }
