@@ -12,6 +12,8 @@ use Illuminate\Database\Seeder;
 
 class PopulationDemoSeeder extends Seeder
 {
+    private const DEFAULT_TENANT_CODE = 'DEMO';
+
     private const POSTAL_CODES = [
         'Pahandut|Langkai' => '73111',
         'Jekan Raya|Menteng' => '73111',
@@ -26,12 +28,17 @@ class PopulationDemoSeeder extends Seeder
 
     public function run(): void
     {
+        $tenantCode = env('DANUM_DEMO_TENANT_CODE', self::DEFAULT_TENANT_CODE);
+
         $tenant = Tenant::query()
-            ->where('code', env('DANUM_DEMO_TENANT_CODE', 'DEMO001'))
+            ->where('code', $tenantCode)
             ->first();
 
         if ($tenant === null) {
-            throw new \RuntimeException('Demo tenant tidak ditemukan. Jalankan DatabaseSeeder terlebih dahulu.');
+            throw new \RuntimeException(sprintf(
+                'Demo tenant dengan kode "%s" tidak ditemukan. Jalankan DatabaseSeeder terlebih dahulu.',
+                $tenantCode,
+            ));
         }
 
         $location = $this->tenantLocation($tenant);
