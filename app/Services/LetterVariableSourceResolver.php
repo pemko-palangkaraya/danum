@@ -83,7 +83,13 @@ final class LetterVariableSourceResolver
     public function family(Citizen $citizen): array
     {
         $family = $this->familyFor($citizen);
-        if (! $family) return ['values' => ['recipient_address' => '', 'nama_pasangan' => '-'], 'children' => [['nomor' => '1', 'nama' => '-']]];
+        if (! $family) {
+            return [
+                'values' => ['recipient_address' => '', 'nama_pasangan' => '-'],
+                'children' => [['nomor' => '1', 'nama' => '-']],
+                'members' => [],
+            ];
+        }
 
         $members = $family->activeMembers
             ->filter(fn (FamilyMember $member) => (string) $member->citizen_id !== (string) $citizen->id)
@@ -94,12 +100,18 @@ final class LetterVariableSourceResolver
         );
 
         $spouse = $this->spouseFor($family, $citizen, $members, $subjectRelation);
-        $children = $this->childrenFor($members, $subjectRelation)
-            ->map(fn (FamilyMember $member, int $index) => [
-                'nomor' => (string) ($index + 1),
-                'nama' => (string) ($member->citizen?->nama_lengkap ?: '-'),
-            ])
+        $childrenMembers = $this->childrenFor($members, $subjectRelation);
+        $children = $childrenMembers
+            ->map(fn (FamilyMember $member, int $index) => $this->familyMemberRow($member, $index + 1, 'Anak'))
             ->all();
+
+        $familyMembers = collect();
+        if ($spouse?->citizen) {
+            $familyMembers->push($this->familyMemberRow($spouse, 1, 'Pasangan'));
+        }
+        foreach ($childrenMembers as $member) {
+            $familyMembers->push($this->familyMemberRow($member, $familyMembers->count() + 1, 'Anak'));
+        }
 
         return [
             'values' => [
@@ -107,6 +119,7 @@ final class LetterVariableSourceResolver
                 'nama_pasangan' => (string) ($spouse?->citizen?->nama_lengkap ?: '-'),
             ],
             'children' => $children ?: [['nomor' => '1', 'nama' => '-']],
+            'members' => $familyMembers->all(),
         ];
     }
 
@@ -153,6 +166,21 @@ final class LetterVariableSourceResolver
         return in_array($subjectRelation, [null, 'head', 'spouse'], true)
             ? $members->filter(fn (FamilyMember $member) => $this->relationType($member->hubungan_dalam_keluarga) === 'child')->values()
             : collect();
+    }
+
+    private function familyMemberRow(FamilyMember $member, int $number, string $relation): array
+    {
+        $citizen = $member->citizen;
+        $gender = $this->references->label('gender', $citizen?->jenis_kelamin, (string) ($citizen?->jenis_kelamin ?? ''));
+
+        return [
+            'nomor' => (string) $number,
+            'nama' => (string) ($citizen?->nama_lengkap ?: '-'),
+            'gender' => $gender,
+            'tpt_lahir' => (string) ($citizen?->tempat_lahir ?: '-'),
+            'tanggal_lahir' => $this->date->format($citizen?->tanggal_lahir),
+            'ket' => $relation,
+        ];
     }
 
     private function relationType(mixed $relation): ?string
