@@ -25,7 +25,7 @@ class OutgoingLetterNumberingTest extends TestCase
         $tenant = Tenant::factory()->create(['tenant_category_id' => $category->id, 'code' => 'DINKES']);
         $classification = LetterClassification::factory()->create([
             'code' => '400.10',
-            'number_format' => '{{number}}/{{classification_code}}/{{tenant_code}}/{{year}}',
+            'number_format' => '{{number}}/{{classification_code}}/{{tenant_code}}/{{month_roman}}/{{year}}',
             'number_padding' => 3,
         ]);
 
@@ -35,8 +35,8 @@ class OutgoingLetterNumberingTest extends TestCase
         $first = $service->generate($tenant, $classification, $date);
         $second = $service->generate($tenant, $classification, $date);
 
-        self::assertSame('001/400.10/DINKES/2026', $first);
-        self::assertSame('002/400.10/DINKES/2026', $second);
+        self::assertSame('001/400.10/DINKES/IX/2026', $first);
+        self::assertSame('002/400.10/DINKES/IX/2026', $second);
     }
 
     public function test_number_sequence_starts_again_for_new_classification_or_year(): void
