@@ -68,7 +68,9 @@ new #[Layout('layouts.app')] class extends Component {
                             <div class="shrink-0 rounded-xl bg-indigo-50 px-3 py-2 text-center"><p class="text-xs text-indigo-500">Kecocokan</p><p class="text-lg font-bold text-indigo-700">{{ number_format($recommendation['confidence'] * 100, 0) }}%</p></div>
                         </div>
                         @if(count($recommendation['matched_terms']))<p class="mt-4 text-xs text-slate-400">Kata yang cocok: {{ implode(', ', $recommendation['matched_terms']) }}</p>@endif
-                        @if($recommendation['letter_type'])<a href="{{ route('outgoing-letters.index') }}" class="mt-4 inline-flex rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Gunakan untuk membuat surat</a>@endif
+                        @if($recommendation['letter_type'])
+                            <a href="{{ route('outgoing-letters.index', ['letter_type_id' => $recommendation['letter_type']->id]) }}" class="mt-4 inline-flex rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Gunakan untuk membuat surat</a>
+                        @endif
                     </div>
                 @endforeach
             </div>
