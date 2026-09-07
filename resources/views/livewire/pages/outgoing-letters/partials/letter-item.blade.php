@@ -41,7 +41,7 @@
                 @if($letter->status->value === 'draft' && ! $submitted && (int) $letter->created_by === (int) auth()->id())
                     @can('update', $letter)<button wire:click="edit('{{ $letter->id }}')" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Edit</button>@endcan
                     @can('submit', $letter)<button wire:click="submitLetter('{{ $letter->id }}')" class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Kirim</button>@endcan
-                    @can('cancel', $letter)<button wire:click="cancelLetter('{{ $letter->id }}')" wire:confirm="Batalkan draft surat ini? Surat tidak akan dapat dikirim untuk verifikasi lagi." class="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">Batalkan</button>@endcan
+                    @can('cancel', $letter)<button wire:click="openCancel('{{ $letter->id }}')" type="button" class="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">Batalkan</button>@endcan
                 @endif
                 @if($submitted && $letter->status->value === 'draft' && (int) $letter->validator_user_id === (int) auth()->id())
                     @can('validate', $letter)<button wire:click="validateLetter('{{ $letter->id }}')" class="rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50">Verifikasi</button>@endcan
