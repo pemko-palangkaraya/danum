@@ -17,7 +17,6 @@
                     </select>
                     @error('letter_type_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
-
                 <div class="grid gap-4 sm:grid-cols-2">
                     @foreach([['validator_position_id', 'Verifikator', $validatorPositions, 'Belum ada verifikator tersedia', 'Pilih verifikator'], ['signer_position_id', 'Penanda Tangan', $signerPositions, 'Pilih pejabat penanda tangan', 'Pilih pejabat penanda tangan']] as [$field, $label, $positions, $empty, $placeholder])
                         <div>
@@ -38,20 +37,16 @@
                 <div class="rounded-xl border border-slate-200 bg-white p-4">
                     <h3 class="text-sm font-semibold text-slate-900">Data Surat</h3>
                     <p class="mt-1 text-xs text-slate-500">Masukkan NIK 16 digit untuk mengambil data warga secara otomatis. Data yang berasal dari master warga akan dibuat hanya-baca.</p>
-
                     <div class="mt-4 grid gap-4 sm:grid-cols-2">
                         @foreach($variables as $variable)
                             @php
                                 $definition = is_string($variable) ? \App\Support\LetterVariableSchema::parseRepeater($variable) : null;
                                 if ($definition) continue;
 
-                                $schema = \App\Models\LetterVariableDefinition::query()
-                                    ->where('key', (string) $variable)
-                                    ->where('is_active', true)
-                                    ->first();
+                                $schema = \App\Models\LetterVariableDefinition::query()->where('key', (string) $variable)->where('is_active', true)->first();
                                 $label = $schema?->label ?? $variableLabels[$variable] ?? ucwords(str_replace('_', ' ', (string) $variable));
                                 $readOnly = $this->isReadOnlyVariable((string) $variable) || (bool) $schema?->readonly;
-                                $wide = in_array($variable, ['recipient_address', 'subject', 'tenant_address'], true) || $schema?->type === 'textarea';
+                                $wide = in_array($variable, ['recipient_address','alamat','subject','tenant_address'], true) || $schema?->type === 'textarea';
                                 $inputType = $schema?->type ?? 'text';
                                 $dateVariable = $variable === 'tanggal_meninggal' || $inputType === 'date' || (bool) preg_match('/(^|_)date$/i', (string) $variable);
                                 $displayValue = $variable === 'recipient_age' && is_numeric($variableValues[$variable] ?? null)
@@ -62,8 +57,10 @@
                             @if(! $readOnly)
                                 <div class="{{ $wide ? 'sm:col-span-2' : '' }}">
                                     <label class="text-sm font-medium text-slate-700">{{ $label }}</label>
-
-                                    @if($inputType === 'textarea' || $variable === 'recipient_address')
+                                    @if(in_array($variable, ['recipient_nik', 'nik'], true))
+                                        <input wire:model.live.debounce.500ms="variableValues.{{ $variable }}" class="form-control mt-1" inputmode="numeric" maxlength="16" autocomplete="off">
+                                        <p class="mt-1 text-xs text-slate-400">Data warga akan dicari otomatis setelah NIK 16 digit selesai dimasukkan.</p>
+                                    @elseif($inputType === 'textarea' || $variable === 'recipient_address' || $variable === 'alamat')
                                         <textarea wire:model="variableValues.{{ $variable }}" rows="3" class="form-textarea mt-1"></textarea>
                                     @elseif($inputType === 'select')
                                         <select wire:model="variableValues.{{ $variable }}" class="form-select mt-1">
@@ -92,15 +89,11 @@
                                         <p class="mt-1 text-xs text-slate-400">Gunakan format: dd mmmm yyyy, misalnya 6 September 2026.</p>
                                     @elseif($inputType === 'number')
                                         <input type="number" wire:model="variableValues.{{ $variable }}" class="form-control mt-1">
-                                    @elseif(in_array($inputType, ['time', 'datetime', 'email', 'tel'], true))
+                                    @elseif(in_array($inputType, ['time','datetime','email','tel'], true))
                                         <input type="{{ $inputType === 'datetime' ? 'datetime-local' : $inputType }}" wire:model="variableValues.{{ $variable }}" class="form-control mt-1">
-                                    @elseif($variable === 'recipient_nik')
-                                        <input wire:model.live.debounce.500ms="variableValues.{{ $variable }}" class="form-control mt-1" inputmode="numeric" maxlength="16" autocomplete="off">
-                                        <p class="mt-1 text-xs text-slate-400">Data warga akan dicari otomatis setelah NIK 16 digit selesai dimasukkan.</p>
                                     @else
                                         <input wire:model="variableValues.{{ $variable }}" class="form-control mt-1">
                                     @endif
-
                                     @error('variableValues.'.$variable)<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                                 </div>
                             @elseif($this->citizen_id)
@@ -126,7 +119,6 @@
                             <button type="button" wire:click="addRepeaterRow('{{ $repeater['key'] }}')" class="shrink-0 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">+ Tambah</button>
                         @endif
                     </div>
-
                     <div class="mt-4 space-y-3">
                         @foreach(($variableValues[$repeater['key']] ?? []) as $rowIndex => $row)
                             <div wire:key="repeater-{{ $repeater['key'] }}-{{ $rowIndex }}" class="rounded-xl border border-indigo-100 bg-white p-4">
@@ -136,7 +128,6 @@
                                         <button type="button" wire:click="removeRepeaterRow('{{ $repeater['key'] }}', {{ $rowIndex }})" class="text-xs font-medium text-rose-600 hover:text-rose-700">Hapus</button>
                                     @endif
                                 </div>
-
                                 <div class="grid gap-3 sm:grid-cols-2">
                                     @foreach($repeater['fields'] as $field)
                                         <div>
