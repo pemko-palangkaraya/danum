@@ -155,7 +155,7 @@ trait HandlesLetterVariables
 
     public function updatedVariableValues($value, string $key): void
     {
-        if ($key === 'recipient_nik') {
+        if (in_array($key, ['recipient_nik', 'nik'], true)) {
             $this->lookupCitizenByNik((string) $value);
             return;
         }
@@ -175,6 +175,7 @@ trait HandlesLetterVariables
     {
         $nik = preg_replace('/\D+/', '', $nik) ?? '';
         $this->variableValues['recipient_nik'] = $nik;
+        $this->variableValues['nik'] = $nik;
 
         if (strlen($nik) !== 16) return;
 
@@ -334,6 +335,11 @@ trait HandlesLetterVariables
 
     private function isDeathAutofilledVariable(string $variable): bool
     {
-        return $this->citizen_id !== null && in_array($variable, ['recipient_name', 'recipient_nik', 'recipient_gender', 'recipient_birth_place', 'recipient_birth_date', 'recipient_age', 'recipient_religion', 'recipient_occupation', 'recipient_address', 'nama_pasangan'], true);
+        return $this->citizen_id !== null && in_array($variable, [
+            'recipient_name', 'recipient_nik', 'recipient_gender', 'recipient_birth_place', 'recipient_birth_date',
+            'recipient_age', 'recipient_religion', 'recipient_occupation', 'recipient_address', 'nama_pasangan',
+            'nama', 'nik', 'jenis_kelamin', 'tpt_lahir', 'tanggal_lahir', 'status_perkawinan', 'agama',
+            'pekerjaan', 'kewarganegaraan', 'status_kependudukan', 'alamat', 'rt', 'rw',
+        ], true);
     }
 }
