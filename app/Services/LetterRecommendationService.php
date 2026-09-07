@@ -166,6 +166,10 @@ final class LetterRecommendationService
             'laporan' => ['pelaporan'],
             'data' => ['informasi', 'dokumen'],
             'penduduk' => ['kependudukan', 'warga'],
+            'domisili' => ['tinggal', 'alamat'],
+            'usaha' => ['umkm', 'bisnis'],
+            'tidak' => ['bukan'],
+            'mampu' => ['ekonomi', 'sosial'],
             'rekomendasi' => ['saran', 'persetujuan'],
         ][$term] ?? [];
     }
