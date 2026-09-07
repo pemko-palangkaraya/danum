@@ -141,6 +141,18 @@ trait HandlesLetterVariables
         $this->cancelId = '';
     }
 
+    public function renderingHandlesLetterVariables(): void
+    {
+        if (! isset($this->editingId) || ! $this->editingId || $this->citizen_id) return;
+
+        $citizenId = $this->variableValues['_citizen_id'] ?? null;
+        $tenantId = auth()->user()?->tenant_id;
+        if (! $citizenId || ! $tenantId) return;
+
+        $citizen = $this->citizenService->findAliveForTenant($tenantId, (string) $citizenId);
+        if ($citizen) $this->citizen_id = $citizen->id;
+    }
+
     public function updatedVariableValues($value, string $key): void
     {
         if ($key === 'recipient_nik') {
