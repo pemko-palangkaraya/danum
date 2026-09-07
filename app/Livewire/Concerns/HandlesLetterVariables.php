@@ -92,6 +92,11 @@ trait HandlesLetterVariables
 
     public function updatedVariableValues($value, string $key): void
     {
+        if ($key === 'recipient_nik') {
+            $this->lookupCitizenByNik((string) $value);
+            return;
+        }
+
         if ($key !== 'tanggal_meninggal' || ! $this->citizen_id) return;
 
         $tenantId = auth()->user()?->tenant_id;
@@ -101,6 +106,31 @@ trait HandlesLetterVariables
         $this->variableValues['recipient_age'] = $citizen
             ? $this->letterVariableSourceResolver->age($citizen, $value)
             : '';
+    }
+
+    private function lookupCitizenByNik(string $nik): void
+    {
+        $nik = preg_replace('/\D+/', '', $nik) ?? '';
+        $this->variableValues['recipient_nik'] = $nik;
+
+        if (strlen($nik) !== 16) return;
+
+        $tenantId = auth()->user()?->tenant_id;
+        if (! $tenantId) return;
+
+        $citizen = $this->citizenService->query($tenantId, '', null)
+            ->where('nik', $nik)
+            ->first();
+
+        if (! $citizen) {
+            $this->citizen_id = null;
+            $this->dispatch('toast', type: 'error', message: 'NIK tidak ditemukan pada data warga OPD Anda.');
+            return;
+        }
+
+        $this->citizen_id = $citizen->id;
+        $this->applyCitizenValues($citizen);
+        $this->dispatch('toast', type: 'success', message: 'Data warga ditemukan dan diisikan otomatis.');
     }
 
     private function initializeVariableValues(bool $newRows = false): void
@@ -238,6 +268,6 @@ trait HandlesLetterVariables
 
     private function isDeathAutofilledVariable(string $variable): bool
     {
-        return $this->citizen_id !== null && in_array($variable, ['recipient_name', 'recipient_nik', 'recipient_gender', 'recipient_birth_place', 'recipient_birth_date', 'recipient_age', 'recipient_religion', 'recipient_occupation', 'recipient_address', 'nama_pasangan'], true);
+        return $this->citizen_id !== null && in_array($variable, ['recipient_name', 'recipient_gender', 'recipient_birth_place', 'recipient_birth_date', 'recipient_age', 'recipient_religion', 'recipient_occupation', 'recipient_address', 'nama_pasangan'], true);
     }
 }
