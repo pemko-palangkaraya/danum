@@ -5,7 +5,7 @@
     </div>
     @unless($isSuperAdmin)
         @can('create', \App\Models\OutgoingLetter::class)
-            <button wire:click="create" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">+ Buat Surat</button>
+            <button wire:click="createFresh" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">+ Buat Surat</button>
         @endcan
     @endunless
 </div>
