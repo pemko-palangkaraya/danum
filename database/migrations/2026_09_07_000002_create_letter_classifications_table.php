@@ -12,9 +12,11 @@ return new class extends Migration
     {
         Schema::create('letter_classifications', function (Blueprint $table): void {
             $table->uuid('id')->primary();
-            $table->string('code', 50)->unique();
+            $table->string('code', 50);
             $table->string('name', 150);
             $table->text('description')->nullable();
+            $table->string('source', 255)->nullable();
+            $table->unsignedInteger('source_order')->nullable()->unique();
             $table->string('number_format', 255)->default('{{number}}/{{classification_code}}/{{tenant_code}}/{{month_roman}}/{{year}}');
             $table->unsignedSmallInteger('number_padding')->default(3);
             $table->unsignedInteger('sort_order')->default(0);
@@ -22,6 +24,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
+            $table->index('code');
             $table->index(['is_active', 'sort_order']);
         });
     }
