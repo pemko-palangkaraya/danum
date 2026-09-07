@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('code', 50)->unique();
             $table->string('name', 150);
             $table->text('description')->nullable();
-            $table->string('number_format', 255)->default('{{number}}/{{classification_code}}/{{tenant_code}}/{{year}}');
+            $table->string('number_format', 255)->default('{{number}}/{{classification_code}}/{{tenant_code}}/{{month_roman}}/{{year}}');
             $table->unsignedSmallInteger('number_padding')->default(3);
             $table->unsignedInteger('sort_order')->default(0);
             $table->boolean('is_active')->default(true);
