@@ -6,11 +6,14 @@
     'required' => false,
 ])
 
-<div {{ $attributes->class(['space-y-1.5']) }}>
+<div
+    {{ $attributes->class(['space-y-1.5']) }}
+    @if($error) data-validation-error="true" @endif
+>
     @if($label)
         <label @if($for) for="{{ $for }}" @endif class="text-sm font-medium text-slate-700">
             {{ $label }}
-            @if($required)<span class="text-red-600">*</span>@endif
+            @if($required)<span class="text-red-600" aria-hidden="true">*</span>@endif
         </label>
     @endif
 
@@ -21,6 +24,6 @@
     @endif
 
     @if($error)
-        <p class="text-xs text-red-600">{{ $error }}</p>
+        <p class="text-xs text-red-600" role="alert">{{ $error }}</p>
     @endif
 </div>
