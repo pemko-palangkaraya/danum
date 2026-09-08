@@ -13,7 +13,6 @@
             x-data="{
                 status: 'queued',
                 error: '',
-                downloadUrl: '',
                 timer: null,
                 async check() {
                     try {
@@ -32,7 +31,6 @@
                         const data = await response.json();
                         this.status = data.status ?? 'queued';
                         this.error = data.error ?? '';
-                        this.downloadUrl = data.download_url ?? '';
 
                         if (this.status === 'completed' || this.status === 'failed') {
                             clearInterval(this.timer);
@@ -43,15 +41,6 @@
                             ? exception.message
                             : 'Tidak dapat memeriksa status pembuatan PDF.';
                     }
-                },
-                openPdf() {
-                    if (! this.downloadUrl) {
-                        this.error = 'Link PDF belum tersedia. Silakan tunggu beberapa detik lalu coba lagi.';
-                        this.status = 'error';
-                        return;
-                    }
-
-                    window.open(this.downloadUrl, '_blank', 'noopener');
                 }
             }"
             x-init="check(); timer = setInterval(() => check(), 3000)"
@@ -76,14 +65,14 @@
                         <p class="text-sm font-semibold text-emerald-700">PDF selesai dibuat.</p>
                         <p class="mt-1 text-xs text-slate-500">Silakan klik tombol di bawah untuk membuka atau mengunduh PDF.</p>
                     </div>
-                    <button
-                        type="button"
-                        x-on:click="openPdf()"
-                        x-bind:disabled="!downloadUrl"
-                        class="inline-flex rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    <a
+                        href="{{ route('population.families.pdf.all.download', ['id' => $export->id]) }}"
+                        target="_blank"
+                        rel="noopener"
+                        class="inline-flex cursor-pointer rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
                     >
                         Buka / Download PDF
-                    </button>
+                    </a>
                 </div>
 
                 <div x-show="status === 'failed' || status === 'error'" class="text-sm text-red-700">
