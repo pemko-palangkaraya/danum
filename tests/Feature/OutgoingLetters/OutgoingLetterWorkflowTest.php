@@ -40,10 +40,21 @@ class OutgoingLetterWorkflowTest extends TestCase
         });
 
         $this->mock(DocxPdfService::class, function ($mock): void {
-            $mock->shouldReceive('convert')->andReturn('outgoing-letters/test/unsigned.pdf');
+            $mock->shouldReceive('convert')
+                ->andReturnUsing(function (): string {
+                    $path = 'outgoing-letters/test/unsigned.pdf';
+                    Storage::disk('local')->put($path, '%PDF-test-unsigned');
+                    return $path;
+                });
         });
+
         $this->mock(PdfSigningService::class, function ($mock): void {
-            $mock->shouldReceive('sign')->andReturn('outgoing-letters/test/signed.pdf');
+            $mock->shouldReceive('sign')
+                ->andReturnUsing(function (): string {
+                    $path = 'outgoing-letters/test/signed.pdf';
+                    Storage::disk('local')->put($path, '%PDF-test-signed');
+                    return $path;
+                });
         });
     }
 
@@ -87,6 +98,8 @@ class OutgoingLetterWorkflowTest extends TestCase
             $this->assertFalse($letter->isExpired());
             $this->assertNotNull($letter->verification_token);
             $this->assertSame('Saya menyetujui dan menandatangani surat ini untuk diterbitkan.', $letter->signing_note);
+            $this->assertNotNull($letter->document_hash);
+            $this->assertSame('SHA-256', $letter->document_hash_algorithm);
             $this->assertDatabaseHas('outgoing_letter_status_histories', ['outgoing_letter_id' => $letter->id, 'action' => 'issued', 'status' => OutgoingLetterStatus::ISSUED->value]);
         } finally {
             Carbon::setTestNow();
