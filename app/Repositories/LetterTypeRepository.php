@@ -7,6 +7,7 @@ namespace App\Repositories;
 use App\Models\LetterType;
 use App\Repositories\Contracts\LetterTypeRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 class LetterTypeRepository implements LetterTypeRepositoryInterface
 {
@@ -51,6 +52,31 @@ class LetterTypeRepository implements LetterTypeRepositoryInterface
     public function delete(LetterType $letterType): bool
     {
         return $letterType->delete();
+    }
+
+    public function scheduleDeletion(LetterType $letterType, \DateTimeInterface $at): bool
+    {
+        return $letterType->update(['deletion_scheduled_at' => $at]);
+    }
+
+    public function processScheduledDeletions(): int
+    {
+        return DB::transaction(function (): int {
+            $letterTypes = LetterType::query()
+                ->whereNotNull('deletion_scheduled_at')
+                ->where('deletion_scheduled_at', '<=', now())
+                ->get();
+
+            $count = 0;
+
+            foreach ($letterTypes as $letterType) {
+                if ($letterType->delete()) {
+                    $count++;
+                }
+            }
+
+            return $count;
+        });
     }
 
     public function restore(LetterType $letterType): bool
