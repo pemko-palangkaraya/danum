@@ -9,7 +9,7 @@
 
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div class="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row">
-            <input wire:model.live="search" type="search" placeholder="Cari kode atau nama..." class="form-control sm:max-w-sm">
+            <input wire:model.live.debounce.300ms="search" type="search" placeholder="Cari kode atau nama..." class="form-control sm:max-w-sm">
             <select wire:model.live="filter" class="form-select sm:w-44">
                 <option value="active">Active</option>
                 <option value="draft">Draft</option>
@@ -20,7 +20,7 @@
 
         <div class="divide-y divide-slate-100">
             @forelse ($letterTypes as $letterType)
-                <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div wire:key="letter-type-{{ $letterType->id }}" class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
                     <div class="min-w-0">
                         <div class="flex flex-wrap items-center gap-2">
                             <span class="font-mono text-xs font-semibold text-slate-400">{{ $letterType->code }}</span>
