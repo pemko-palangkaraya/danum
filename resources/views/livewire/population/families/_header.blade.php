@@ -4,9 +4,24 @@
         <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Kartu Keluarga</h1>
         <p class="mt-1 text-sm text-slate-500">Kelola data kartu keluarga dan anggota keluarga.</p>
     </div>
-    @if($canManage && (!$isSuperAdmin || $selectedTenantId))
-        <button wire:click="create" class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2">
-            <span class="text-base leading-none">+</span> Tambah KK
-        </button>
+
+    @if(!$isSuperAdmin || $selectedTenantId)
+        <div class="flex flex-wrap items-center gap-2">
+            <a
+                href="{{ route('population.families.pdf.all', $isSuperAdmin ? ['tenant_id' => $selectedTenantId] : []) }}"
+                target="_blank"
+                rel="noopener"
+                class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+            >
+                <span aria-hidden="true">PDF</span>
+                Cetak Semua KK
+            </a>
+
+            @if($canManage)
+                <button wire:click="create" class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2">
+                    <span class="text-base leading-none">+</span> Tambah KK
+                </button>
+            @endif
+        </div>
     @endif
 </div>
