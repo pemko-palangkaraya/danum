@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Family;
 use App\Models\Tenant;
+use App\Services\FamilyCardsBulkPdfService;
 use App\Services\PopulationReferenceService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -44,8 +45,11 @@ class FamilyCardController extends Controller
             : $pdf->stream($filename);
     }
 
-    public function pdfAll(Request $request, PopulationReferenceService $references): Response
-    {
+    public function pdfAll(
+        Request $request,
+        PopulationReferenceService $references,
+        FamilyCardsBulkPdfService $bulkPdf,
+    ): Response {
         $user = $request->user();
         abort_unless($user?->hasPermission('population.view'), 403);
 
@@ -56,46 +60,14 @@ class FamilyCardController extends Controller
         abort_unless($tenantId !== '', 422, 'Tenant harus ditentukan.');
 
         $tenant = Tenant::query()->findOrFail($tenantId);
-        $families = Family::query()
-            ->where('tenant_id', $tenant->id)
-            ->with([
-                'tenant:id,name,head_name,head_title,city',
-                'headCitizen:id,nama_lengkap',
-                'activeMembers' => fn ($query) => $query
-                    ->orderBy('urutan')
-                    ->with('citizen'),
-            ])
-            ->orderBy('no_kk')
-            ->get();
-
-        $members = $families->flatMap(fn (Family $family) => $family->activeMembers);
-        $citizens = $members->map(fn ($member) => $member->citizen)->filter();
-
-        $aggregate = [
-            'total_families' => $families->count(),
-            'total_members' => $members->count(),
-            'male' => $citizens->where('jenis_kelamin', 'male')->count(),
-            'female' => $citizens->where('jenis_kelamin', 'female')->count(),
-            'wni' => $citizens->where('kewarganegaraan', 'WNI')->count(),
-            'wna' => $citizens->where('kewarganegaraan', 'WNA')->count(),
-            'average_members' => $families->count() > 0
-                ? round($members->count() / $families->count(), 2)
-                : 0,
-        ];
-
-        $pdf = Pdf::loadView('population.family-cards-pdf', [
-            'tenant' => $tenant,
-            'families' => $families,
-            'aggregate' => $aggregate,
-            'printedAt' => now(),
-            'referenceLabels' => $this->referenceLabels($references),
-        ])->setPaper('a4', 'landscape');
-
+        $content = $bulkPdf->generate($tenant, $references);
         $filename = 'kartu-keluarga-semua-' . str($tenant->code)->slug() . '.pdf';
 
-        return $request->boolean('download')
-            ? $pdf->download($filename)
-            : $pdf->stream($filename);
+        return response($content, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => ($request->boolean('download') ? 'attachment' : 'inline') . '; filename="' . $filename . '"',
+            'Content-Length' => (string) strlen($content),
+        ]);
     }
 
     private function referenceLabels(PopulationReferenceService $references): array
