@@ -3,7 +3,7 @@
         <a href="{{ route('dashboard') }}" class="inline-flex items-center"><x-danum-logo class="h-8 w-auto text-yellow-400" /></a>
 
         <div class="flex items-center gap-2">
-            @include('layouts.components.sidebar-notification-link')
+            @include('layouts.components.sidebar-notification-link', ['compact' => true])
 
             <details
                 class="relative"
