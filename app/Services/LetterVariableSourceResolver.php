@@ -68,7 +68,7 @@ final class LetterVariableSourceResolver
             'status_perkawinan' => $maritalStatus,
             'agama' => $religion,
             'pekerjaan' => $citizen->pekerjaan,
-            'kewarganegaraan' => $citizen->kewarganegaraan,
+            'kewarganegaraan' => $citizenship,
             'ttl' => $birthTtl,
             'golongan_darah' => $bloodType,
             'nama_ayah' => $citizen->nama_ayah,
