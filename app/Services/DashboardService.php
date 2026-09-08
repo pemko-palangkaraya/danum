@@ -118,14 +118,14 @@ class DashboardService
 
     private function recentLetters(Builder $letters): Collection
     {
-        return (clone $letters)->with(['creator', 'tenant'])->latest('updated_at')->limit(6)->get()->map(function (OutgoingLetter $letter): array {
+        return (clone $letters)->with(['creator', 'letterType', 'tenant'])->latest('updated_at')->limit(6)->get()->map(function (OutgoingLetter $letter): array {
             $status = $letter->status->value;
             $effectiveState = $status === 'issued' && $letter->isExpired() ? 'expired' : $status;
             $rejected = filled($letter->rejection_reason);
 
             return [
                 'id' => $letter->id,
-                'subject' => $letter->subject ?: 'Tanpa perihal',
+                'subject' => $letter->letterType?->name ?? 'Jenis surat belum ditentukan',
                 'number' => $letter->number ?: 'Nomor belum tersedia',
                 'owner' => $letter->tenant?->name ?? $letter->creator?->name ?? 'Pengguna',
                 'status' => $rejected ? 'Ditolak' : ($letter->submitted_at && $status === 'draft' ? 'Menunggu Verifikasi' : match ($effectiveState) {
