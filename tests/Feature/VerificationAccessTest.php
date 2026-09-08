@@ -12,7 +12,6 @@ use App\Models\LetterType;
 use App\Models\OutgoingLetter;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Models\VerificationLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -139,7 +138,7 @@ class VerificationAccessTest extends TestCase
 
     public function test_invalid_verification_token_returns_not_found_and_is_logged(): void
     {
-        $this->get(route('verification.show', 'missing-token'))
+        $this->get(route('verification.json', 'missing-token'))
             ->assertNotFound()
             ->assertJson(['verified' => false]);
 
