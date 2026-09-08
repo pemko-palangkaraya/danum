@@ -65,7 +65,8 @@ class VerificationAccessTest extends TestCase
 
         $this->get(route('verification.show', $letter->verification_token))
             ->assertOk()
-            ->assertSee('Tanda Tangan Elektronik Tercatat')
+            ->assertSee('Tanda Tangan Elektronik')
+            ->assertSee('Dokumen belum memiliki tanda tangan elektronik')
             ->assertSee('Login untuk mengakses');
 
         $this->get(route('verification.document', $letter->verification_token))
@@ -131,6 +132,7 @@ class VerificationAccessTest extends TestCase
         $this->get(route('verification.show', $letter->verification_token))
             ->assertOk()
             ->assertSee('Dokumen Terdaftar')
+            ->assertSee('Dokumen belum memiliki tanda tangan elektronik')
             ->assertDontSee('Lihat Dokumen');
 
         $this->get(route('verification.document', $letter->verification_token))
@@ -141,6 +143,25 @@ class VerificationAccessTest extends TestCase
             'action' => 'DOWNLOAD',
             'result' => 'FORBIDDEN',
         ]);
+    }
+
+    public function test_tampered_signed_pdf_is_reported_as_invalid(): void
+    {
+        Storage::fake('local');
+        $letter = $this->createIssuedLetter(VerificationAccessLevel::PUBLIC);
+        Storage::disk('local')->put($letter->unsigned_pdf_path, '%PDF-source');
+        Storage::disk('local')->put('letters/tampered-signed.pdf', '%PDF-tampered');
+
+        $letter->update([
+            'signed_pdf_path' => 'letters/tampered-signed.pdf',
+            'document_hash' => hash('sha256', '%PDF-source'),
+            'document_hash_algorithm' => 'SHA-256',
+        ]);
+
+        $this->get(route('verification.show', $letter->verification_token))
+            ->assertOk()
+            ->assertSee('Tidak valid / gagal diverifikasi')
+            ->assertSee('Hash PDF final tidak cocok');
     }
 
     public function test_invalid_verification_token_returns_not_found_and_is_logged(): void
