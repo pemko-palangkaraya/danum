@@ -7,16 +7,25 @@ namespace App\Services;
 use App\Models\Family;
 use App\Models\FamilyMember;
 use App\Models\Tenant;
+use App\Services\PopulationReferenceService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Collection;
 use setasign\Fpdi\Fpdi;
 use setasign\Fpdi\PdfParser\StreamReader;
 
 final class FamilyCardsBulkPdfService
 {
+    private const MEMORY_LIMIT = '512M';
+    private const CHUNK_SIZE = 10;
+
     public function generate(
         Tenant $tenant,
         PopulationReferenceService $references,
     ): string {
+        // Bulk PDF jauh lebih berat daripada cetak satu KK. Naikkan limit
+        // hanya selama proses ini agar PHP default 128 MB tidak cepat habis.
+        @ini_set('memory_limit', self::MEMORY_LIMIT);
+
         $referenceLabels = [
             'gender' => $references->labels('gender'),
             'blood_type' => $references->labels('blood_type'),
@@ -37,6 +46,7 @@ final class FamilyCardsBulkPdfService
 
         $this->appendPdf($output, $summaryPdf);
         unset($summaryPdf);
+        gc_collect_cycles();
 
         Family::query()
             ->where('tenant_id', $tenant->id)
@@ -49,7 +59,7 @@ final class FamilyCardsBulkPdfService
             ])
             ->orderBy('no_kk')
             ->orderBy('id')
-            ->chunk(25, function ($families) use ($output, $referenceLabels): void {
+            ->chunk(self::CHUNK_SIZE, function (Collection $families) use ($output, $referenceLabels): void {
                 foreach ($families as $family) {
                     $familyPdf = Pdf::loadView('population.family-card-pdf', [
                         'family' => $family,
@@ -59,7 +69,11 @@ final class FamilyCardsBulkPdfService
 
                     $this->appendPdf($output, $familyPdf);
                     unset($familyPdf);
+                    gc_collect_cycles();
                 }
+
+                unset($families);
+                gc_collect_cycles();
             });
 
         return $output->Output('S');
@@ -75,20 +89,16 @@ final class FamilyCardsBulkPdfService
             ->where('status', 'active')
             ->whereHas('family', fn ($query) => $query->where('tenant_id', $tenant->id));
 
-        $totalMembers = (clone $membersQuery)->count();
-        $male = $this->countMembersByGender($tenant, 'male');
-        $female = $this->countMembersByGender($tenant, 'female');
-        $wni = $this->countMembersByCitizenship($tenant, 'WNI');
-        $wna = $this->countMembersByCitizenship($tenant, 'WNA');
+        $totalMembers = $membersQuery->count();
 
         return [
             'total_families' => $totalFamilies,
             'active_families' => $activeFamilies,
             'total_members' => $totalMembers,
-            'male' => $male,
-            'female' => $female,
-            'wni' => $wni,
-            'wna' => $wna,
+            'male' => $this->countMembersByGender($tenant, 'male'),
+            'female' => $this->countMembersByGender($tenant, 'female'),
+            'wni' => $this->countMembersByCitizenship($tenant, 'WNI'),
+            'wna' => $this->countMembersByCitizenship($tenant, 'WNA'),
             'average_members' => $totalFamilies > 0
                 ? round($totalMembers / $totalFamilies, 2)
                 : 0,
