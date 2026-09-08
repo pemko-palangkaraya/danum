@@ -11,6 +11,7 @@ use App\Models\Tenant;
 use App\Services\PopulationReferenceService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -77,10 +78,14 @@ class FamilyCardController extends Controller
     public function exportStatus(Request $request, string $id): Response
     {
         $export = $this->ownedExport($request, $id);
+        $queueState = $this->queueState($export->id);
+        $ready = $export->status === 'completed' && $queueState === 'finished';
 
         return response()->json([
             'status' => $export->status,
-            'download_url' => $export->status === 'completed'
+            'queue_state' => $queueState,
+            'ready' => $ready,
+            'download_url' => $ready
                 ? route('population.families.pdf.all.download', ['id' => $export->id])
                 : null,
             'error' => $export->status === 'failed'
@@ -100,6 +105,19 @@ class FamilyCardController extends Controller
             'kartu-keluarga-semua-' . str($export->tenant->code)->slug() . '.pdf',
             ['Content-Type' => 'application/pdf'],
         );
+    }
+
+    private function queueState(string $exportId): string
+    {
+        $job = DB::table('jobs')
+            ->where('payload', 'like', '%' . $exportId . '%')
+            ->first(['reserved_at']);
+
+        if ($job === null) {
+            return 'finished';
+        }
+
+        return $job->reserved_at === null ? 'queued' : 'running';
     }
 
     private function ownedExport(Request $request, string $id): FamilyCardExport
