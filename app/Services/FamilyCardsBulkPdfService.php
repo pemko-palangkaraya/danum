@@ -248,3 +248,189 @@ final class FamilyCardsBulkPdfService
             ],
             'marital_status' => [],
             'relationships' => [],
+            'education' => [],
+            'religion' => [],
+            'occupation' => [],
+            'citizenship' => [],
+            'families_with_children' => [],
+            'families_with_elderly' => [],
+        ];
+
+        $query = (clone $membersQuery)
+            ->join('citizens', 'citizens.id', '=', 'family_members.citizen_id')
+            ->select([
+                'family_members.family_id',
+                'family_members.hubungan_dalam_keluarga',
+                'citizens.tanggal_lahir',
+                'citizens.jenis_kelamin',
+                'citizens.status_perkawinan',
+                'citizens.pendidikan',
+                'citizens.agama',
+                'citizens.pekerjaan',
+                'citizens.kewarganegaraan',
+            ]);
+
+        foreach ($query->cursor() as $member) {
+            $this->incrementReferenceStat($stats['gender'], $member->jenis_kelamin, $referenceLabels['gender']);
+            $this->incrementReferenceStat($stats['marital_status'], $member->status_perkawinan, $referenceLabels['marital_status']);
+            $this->incrementReferenceStat($stats['relationships'], $member->hubungan_dalam_keluarga, $referenceLabels['family_relationship']);
+            $this->incrementReferenceStat($stats['religion'], $member->agama, $referenceLabels['religion']);
+            $this->incrementReferenceStat($stats['citizenship'], $member->kewarganegaraan, $referenceLabels['citizenship']);
+            $this->incrementTextStat($stats['education'], $member->pendidikan);
+            $this->incrementTextStat($stats['occupation'], $member->pekerjaan);
+
+            $age = $this->age($member->tanggal_lahir);
+            $ageGroup = $this->ageGroup($age);
+            $stats['age_groups'][$ageGroup]++;
+
+            if ($this->matchesReferenceValue($member->hubungan_dalam_keluarga, $referenceLabels['family_relationship'], ['anak'])) {
+                $stats['families_with_children'][$member->family_id] = true;
+            }
+
+            if ($age !== null && $age >= 60) {
+                $stats['families_with_elderly'][$member->family_id] = true;
+            }
+        }
+
+        return $stats;
+    }
+
+    private function locationStats($familyQuery, $membersQuery): array
+    {
+        $families = (clone $familyQuery)
+            ->select(['rt', 'rw', 'kelurahan'])
+            ->get();
+
+        $rt = $families->groupBy(fn ($family): string => $this->locationValue($family->rt, 'RT'))->map->count()->sortKeys()->all();
+        $kelurahan = $families->groupBy(fn ($family): string => $this->locationValue($family->kelurahan, 'Tidak tercatat'))->map->count();
+
+        $populationRows = (clone $membersQuery)
+            ->join('families', 'families.id', '=', 'family_members.family_id')
+            ->select([
+                'families.rt',
+                'families.rw',
+                'families.kelurahan',
+                DB::raw('count(*) as total'),
+            ])
+            ->groupBy('families.rt', 'families.rw', 'families.kelurahan')
+            ->orderBy('families.rt')
+            ->orderBy('families.rw')
+            ->get();
+
+        $rtRw = $populationRows->mapWithKeys(function ($row): array {
+            $key = $this->locationValue($row->rt, 'RT') . ' / ' . $this->locationValue($row->rw, 'RW');
+            return [$key => (int) $row->total];
+        })->all();
+
+        $kelurahanPopulation = $populationRows
+            ->groupBy(fn ($row): string => $this->locationValue($row->kelurahan, 'Tidak tercatat'))
+            ->map(fn (Collection $rows): int => (int) $rows->sum('total'));
+
+        $kelurahan = $kelurahan->map(fn (int $familyCount, string $name): array => [
+            'kk' => $familyCount,
+            'penduduk' => $kelurahanPopulation->get($name, 0),
+        ])->all();
+
+        return [
+            'rt' => $rt,
+            'rt_rw' => $rtRw,
+            'kelurahan' => $kelurahan,
+        ];
+    }
+
+    private function incrementReferenceStat(array &$stats, ?string $value, array $labels): void
+    {
+        $key = $this->referenceLabel($value, $labels);
+        $stats[$key] = ($stats[$key] ?? 0) + 1;
+    }
+
+    private function incrementTextStat(array &$stats, ?string $value): void
+    {
+        $key = trim((string) $value);
+        $key = $key !== '' ? $key : 'Tidak tercatat';
+        $stats[$key] = ($stats[$key] ?? 0) + 1;
+    }
+
+    private function referenceLabel(?string $value, array $labels): string
+    {
+        if ($value === null || trim($value) === '') {
+            return 'Tidak tercatat';
+        }
+
+        $value = trim($value);
+        return $labels[$value] ?? $value;
+    }
+
+    private function matchesReferenceValue(?string $value, array $labels, array $needles): bool
+    {
+        if ($value === null || trim($value) === '') {
+            return false;
+        }
+
+        $value = mb_strtolower(trim($value));
+        $label = mb_strtolower((string) ($labels[trim($value)] ?? ''));
+
+        foreach ($needles as $needle) {
+            if ($value === mb_strtolower($needle) || $label === mb_strtolower($needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function age(?string $birthDate): ?int
+    {
+        if ($birthDate === null || trim($birthDate) === '') {
+            return null;
+        }
+
+        return Carbon::parse($birthDate)->age;
+    }
+
+    private function ageGroup(?int $age): string
+    {
+        return match (true) {
+            $age === null => 'Tidak tercatat',
+            $age <= 5 => '0–5 tahun',
+            $age <= 12 => '6–12 tahun',
+            $age <= 17 => '13–17 tahun',
+            $age <= 59 => '18–59 tahun',
+            default => '≥60 tahun',
+        };
+    }
+
+    private function locationValue(?string $value, string $prefix): string
+    {
+        $value = trim((string) $value);
+        return $value !== '' ? $value : 'Tidak tercatat';
+    }
+
+    private function percentages(array $values, int $total): array
+    {
+        if ($total === 0) {
+            return array_fill_keys(array_keys($values), 0);
+        }
+
+        return collect($values)
+            ->map(fn (int $value): float => round(($value / $total) * 100, 2))
+            ->all();
+    }
+
+    private function median(Collection $values): float
+    {
+        if ($values->isEmpty()) {
+            return 0;
+        }
+
+        $values = $values->values();
+        $count = $values->count();
+        $middle = intdiv($count, 2);
+
+        if ($count % 2 === 0) {
+            return round(($values[$middle - 1] + $values[$middle]) / 2, 2);
+        }
+
+        return round((float) $values[$middle], 2);
+    }
+}
