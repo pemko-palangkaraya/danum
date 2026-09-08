@@ -25,15 +25,22 @@ class VerificationAccessTest extends TestCase
         Storage::fake('local');
         $letter = $this->createIssuedLetter(VerificationAccessLevel::PUBLIC);
         Storage::disk('local')->put($letter->unsigned_pdf_path, '%PDF-public');
+        $letter->update(['unsigned_pdf_path' => $letter->unsigned_pdf_path]);
+        $letter->refresh();
 
         $this->get(route('verification.show', $letter->verification_token))
             ->assertOk()
             ->assertSee('Dokumen Terverifikasi')
-            ->assertSee($letter->number);
+            ->assertSee($letter->number)
+            ->assertSee($letter->document_hash);
 
         $this->get(route('verification.document', $letter->verification_token))
             ->assertOk()
-            ->assertHeader('Content-Type', 'application/pdf');
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('Content-Disposition', 'inline; filename="'.$letter->number.'.pdf"');
+
+        $this->assertSame(hash('sha256', '%PDF-public'), $letter->document_hash);
+        $this->assertSame('SHA-256', $letter->document_hash_algorithm);
 
         $this->assertDatabaseHas('verification_logs', [
             'document_id' => $letter->id,
@@ -58,7 +65,7 @@ class VerificationAccessTest extends TestCase
 
         $this->get(route('verification.show', $letter->verification_token))
             ->assertOk()
-            ->assertSee('Tanda Tangan Elektronik Valid')
+            ->assertSee('Tanda Tangan Elektronik Tercatat')
             ->assertSee('Login untuk mengakses');
 
         $this->get(route('verification.document', $letter->verification_token))
