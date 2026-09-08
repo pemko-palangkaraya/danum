@@ -65,20 +65,15 @@ final class FamilyCardsBulkPdfService
                         ->with('citizen'),
                 ])
                 ->chunk(self::CHUNK_SIZE, function (Collection $families) use ($output, $referenceLabels, $temporaryDirectory): void {
-                    foreach ($families as $family) {
-                        $familyPath = $this->renderFamily($family, $referenceLabels, $temporaryDirectory);
+                    $familiesPath = $this->renderFamilies($families, $referenceLabels, $temporaryDirectory);
 
-                        try {
-                            $this->appendPdf($output, $familyPath);
-                        } finally {
-                            @unlink($familyPath);
-                        }
-
-                        unset($familyPath);
-                        gc_collect_cycles();
+                    try {
+                        $this->appendPdf($output, $familiesPath);
+                    } finally {
+                        @unlink($familiesPath);
                     }
 
-                    unset($families);
+                    unset($familiesPath, $families);
                     gc_collect_cycles();
                 });
 
@@ -109,12 +104,12 @@ final class FamilyCardsBulkPdfService
         return $path;
     }
 
-    private function renderFamily(Family $family, array $referenceLabels, string $temporaryDirectory): string
+    private function renderFamilies(Collection $families, array $referenceLabels, string $temporaryDirectory): string
     {
-        $path = $this->temporaryPdfPath($temporaryDirectory, 'family');
+        $path = $this->temporaryPdfPath($temporaryDirectory, 'families');
 
         Pdf::loadView('population.family-card-pdf', [
-            'family' => $family,
+            'families' => $families,
             'printedAt' => now(),
             'referenceLabels' => $referenceLabels,
         ])
