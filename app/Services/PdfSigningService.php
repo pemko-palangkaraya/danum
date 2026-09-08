@@ -13,6 +13,7 @@ use RuntimeException;
 class PdfSigningService
 {
     private const DEFAULT_REASON = 'Dokumen ini telah ditandatangani secara elektronik menggunakan sertifikat elektronik yang diterbitkan oleh Data Administrasi dan Urusan Masyarakat (DANUM).';
+    private const FOOTER_TEXT = 'Dokumen ini telah ditandatangani secara elektronik menggunakan sertifikat elektronik yang diterbitkan oleh DANUM.';
 
     public function __construct(
         private readonly CertificateAuthorityService $certificateAuthorities,
@@ -67,11 +68,55 @@ class PdfSigningService
 
             try {
                 $stage = 'create-pdf-document';
-                $pdf = new class extends \Com\Tecnick\Pdf\Tcpdf {
+                $pdf = new class(self::FOOTER_TEXT) extends \Com\Tecnick\Pdf\Tcpdf {
+                    public function __construct(private readonly string $footerText)
+                    {
+                        parent::__construct();
+                    }
+
                     public function setDocumentTimestamps(int $timestamp): void
                     {
                         $this->doctime = $timestamp;
                         $this->docmodtime = $timestamp;
+                    }
+
+                    public function defaultPageContent(int $pid = -1): string
+                    {
+                        if ($pid < 0) {
+                            $pid = $this->page->getPageId();
+                        }
+
+                        if ($this->defaultfont === null) {
+                            $this->defaultfont = $this->font->insert($this->pon, 'helvetica', '', 7);
+                        }
+
+                        $page = $this->page->getPage($pid);
+                        $pageWidth = $page['width'];
+                        $pageHeight = $page['height'];
+                        $margin = 10.0;
+                        $footerHeight = 7.0;
+                        $textWidth = $pageWidth - (2 * $margin);
+                        $footerY = $pageHeight - $margin - $footerHeight;
+
+                        $out = $this->beginArtifact('Pagination', 'Footer');
+                        $out .= $this->graph->getStartTransform();
+                        $out .= $this->defaultfont['out'];
+                        $out .= $this->color->getPdfColor('#555555');
+                        $out .= $this->getTextCell(
+                            txt: $this->footerText,
+                            posx: $margin,
+                            posy: $footerY,
+                            width: $textWidth,
+                            height: $footerHeight,
+                            offset: 0,
+                            linespace: 0,
+                            valign: \Com\Tecnick\Pdf\TextVAlign::Center,
+                            halign: \Com\Tecnick\Pdf\TextHAlign::Center,
+                        );
+                        $out .= $this->graph->getStopTransform();
+                        $out .= $this->endArtifact();
+
+                        return $out;
                     }
                 };
                 $pdf->setDocumentTimestamps($signingTime->timestamp);
