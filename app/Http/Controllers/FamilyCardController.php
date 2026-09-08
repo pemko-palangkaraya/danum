@@ -65,7 +65,8 @@ class FamilyCardController extends Controller
             'status' => 'queued',
         ]);
 
-        GenerateFamilyCardsPdf::dispatch($export->id);
+        // Selalu pakai database queue agar request browser tidak menjalankan PDF secara langsung.
+        GenerateFamilyCardsPdf::dispatch($export->id)->onConnection('database');
 
         return response()->view('population.family-cards-export-processing', [
             'export' => $export,
