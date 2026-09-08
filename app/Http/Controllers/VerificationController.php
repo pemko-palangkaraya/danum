@@ -8,6 +8,7 @@ use App\Enums\OutgoingLetterStatus;
 use App\Enums\VerificationAccessLevel;
 use App\Models\OutgoingLetter;
 use App\Services\VerificationLogService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -89,7 +90,12 @@ class VerificationController extends Controller
                 return redirect()->guest(route('login'));
             }
 
-            $this->authorize('view', $letter);
+            try {
+                $this->authorize('view', $letter);
+            } catch (AuthorizationException $exception) {
+                $this->verificationLogService->record($request, 'DOWNLOAD', 'FORBIDDEN', $letter, 'verification');
+                throw $exception;
+            }
         }
 
         $path = $letter->signed_pdf_path ?: $letter->unsigned_pdf_path;
