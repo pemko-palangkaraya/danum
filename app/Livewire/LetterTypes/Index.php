@@ -23,8 +23,11 @@ class Index extends Component
     public string $filter = 'active';
     public bool $showForm = false;
     public bool $showDeleteConfirm = false;
+    public bool $showRestoreConfirm = false;
     public ?string $deleteId = null;
+    public ?string $restoreId = null;
     public string $deleteName = '';
+    public string $restoreName = '';
     public ?string $deleteScheduledAt = null;
     public ?string $editingId = null;
     public string $letter_classification_id = '';
@@ -169,7 +172,7 @@ class Index extends Component
         $this->dispatch('toast', type: 'success', message: "Jenis surat '{$name}' dijadwalkan dihapus pada 23:59:59 hari ini.");
     }
 
-    public function restore(string $id, LetterTypeService $service): void
+    public function openRestore(string $id): void
     {
         $letterType = LetterType::withTrashed()->findOrFail($id);
         $this->authorize('restore', $letterType);
@@ -178,9 +181,35 @@ class Index extends Component
             return;
         }
 
-        $service->restore($letterType);
+        $this->restoreId = $letterType->id;
+        $this->restoreName = $letterType->name;
+        $this->showRestoreConfirm = true;
+    }
+
+    public function confirmRestore(LetterTypeService $service): void
+    {
+        if (! $this->restoreId) {
+            return;
+        }
+
+        $letterType = LetterType::withTrashed()->findOrFail($this->restoreId);
+        $this->authorize('restore', $letterType);
+
+        if ($letterType->trashed()) {
+            $service->restore($letterType);
+        }
+
+        $name = $this->restoreName;
+        $this->closeRestoreConfirm();
         $this->resetPage();
-        $this->dispatch('toast', type: 'success', message: "Jenis surat '{$letterType->name}' berhasil dipulihkan.");
+        $this->dispatch('toast', type: 'success', message: "Jenis surat '{$name}' berhasil dipulihkan.");
+    }
+
+    public function closeRestoreConfirm(): void
+    {
+        $this->showRestoreConfirm = false;
+        $this->restoreId = null;
+        $this->restoreName = '';
     }
 
     public function closeDeleteConfirm(): void
