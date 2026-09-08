@@ -27,7 +27,12 @@ class UpdateUserRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'nip' => ['sometimes', 'nullable', 'string', 'max:32'],
+            'nip' => ['sometimes', 'nullable', 'string', 'max:18', Rule::unique('employee_profiles', 'nip')->ignore($user?->employeeProfile?->getKey())],
+            'pangkat' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'golongan' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'status_pegawai' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'tanggal_masuk' => ['sometimes', 'nullable', 'date'],
+            'tanggal_pensiun' => ['sometimes', 'nullable', 'date', 'after_or_equal:tanggal_masuk'],
             'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user?->getKey())],
             'password' => ['sometimes', 'required', 'string', 'min:8'],
             'role' => ['sometimes', 'nullable', Rule::in(['super_admin', 'tenant_admin', 'tenant_user'])],
@@ -47,9 +52,7 @@ class UpdateUserRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $user = $this->currentUser();
-            if ($user === null) {
-                return;
-            }
+            if ($user === null) return;
 
             $platformRole = $this->input('platform_role', $user->platform_role?->value);
             $tenantId = $this->input('tenant_id', $user->tenant_id);
@@ -58,15 +61,12 @@ class UpdateUserRequest extends FormRequest
             if ($platformRole === 'super_admin' && ($tenantId !== null || $customRoleId !== null)) {
                 $validator->errors()->add('platform_role', 'Super Admin tidak boleh memiliki tenant atau RBAC role.');
             }
-
             if ($platformRole === null && $tenantId === null) {
                 $validator->errors()->add('tenant_id', 'Tenant member harus memiliki tenant.');
             }
-
             if ($platformRole === null && $tenantId !== null && $customRoleId === null) {
                 $validator->errors()->add('custom_role_id', 'Tenant member harus memiliki RBAC role.');
             }
-
             if ($customRoleId !== null && $tenantId !== null && Role::findActiveForTenant($customRoleId, $tenantId) === null) {
                 $validator->errors()->add('custom_role_id', 'RBAC role tidak berlaku untuk tenant yang dipilih.');
             }
@@ -76,10 +76,7 @@ class UpdateUserRequest extends FormRequest
     private function currentUser(): ?User
     {
         $routeUser = $this->route('user') ?? $this->route('id');
-        if ($routeUser instanceof User) {
-            return $routeUser;
-        }
-
+        if ($routeUser instanceof User) return $routeUser;
         $userId = $routeUser ?? $this->input('user_id');
         return $userId === null ? null : User::query()->find($userId);
     }

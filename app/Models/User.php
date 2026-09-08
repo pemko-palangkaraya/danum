@@ -11,6 +11,7 @@ use App\Enums\UserStatus;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -19,7 +20,7 @@ class User extends Authenticatable
     use HasFactory;
     use Notifiable;
 
-    protected $fillable = ['name', 'nip', 'email', 'password', 'platform_role', 'custom_role_id', 'status', 'tenant_id'];
+    protected $fillable = ['name', 'email', 'password', 'platform_role', 'custom_role_id', 'status', 'tenant_id'];
     protected $hidden = ['signing_pin_hash', 'signing_pin_failed_attempts', 'signing_pin_locked_until'];
 
     protected function casts(): array
@@ -34,6 +35,11 @@ class User extends Authenticatable
             'signing_pin_failed_attempts' => 'integer',
             'signing_pin_locked_until' => 'datetime',
         ];
+    }
+
+    public function employeeProfile(): HasOne
+    {
+        return $this->hasOne(EmployeeProfile::class);
     }
 
     public function isSuperAdmin(): bool

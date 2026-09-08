@@ -25,7 +25,12 @@ class StoreUserRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'nip' => ['nullable', 'string', 'max:32'],
+            'nip' => ['nullable', 'string', 'max:18', Rule::unique('employee_profiles', 'nip')],
+            'pangkat' => ['nullable', 'string', 'max:100'],
+            'golongan' => ['nullable', 'string', 'max:20'],
+            'status_pegawai' => ['nullable', 'string', 'max:50'],
+            'tanggal_masuk' => ['nullable', 'date'],
+            'tanggal_pensiun' => ['nullable', 'date', 'after_or_equal:tanggal_masuk'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'string', 'min:8'],
             'role' => ['nullable', Rule::in(['super_admin', 'tenant_admin', 'tenant_user'])],
