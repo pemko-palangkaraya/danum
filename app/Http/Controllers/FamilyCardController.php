@@ -66,7 +66,6 @@ class FamilyCardController extends Controller
             'status' => 'queued',
         ]);
 
-        // Selalu pakai database queue agar request browser tidak menjalankan PDF secara langsung.
         GenerateFamilyCardsPdf::dispatch($export->id)->onConnection('database');
 
         return response()->view('population.family-cards-export-processing', [
@@ -78,14 +77,17 @@ class FamilyCardController extends Controller
     public function exportStatus(Request $request, string $id): Response
     {
         $export = $this->ownedExport($request, $id);
-        $queueState = $this->queueState($export->id);
-        $ready = $export->status === 'completed' && $queueState === 'finished';
+        $workerRunning = $this->isExportJobRunning($export->id);
+
+        $status = match (true) {
+            $export->status === 'completed' && $workerRunning => 'finalizing',
+            default => $export->status,
+        };
 
         return response()->json([
-            'status' => $export->status,
-            'queue_state' => $queueState,
-            'ready' => $ready,
-            'download_url' => $ready
+            'status' => $status,
+            'worker_status' => $workerRunning ? 'running' : 'finished',
+            'download_url' => $status === 'completed'
                 ? route('population.families.pdf.all.download', ['id' => $export->id])
                 : null,
             'error' => $export->status === 'failed'
@@ -97,27 +99,18 @@ class FamilyCardController extends Controller
     public function downloadExport(Request $request, string $id): Response
     {
         $export = $this->ownedExport($request, $id);
-        abort_unless($export->status === 'completed' && $export->path !== null, 404);
-        abort_unless(Storage::disk('local')->exists($export->path), 404);
+        abort_unless($export->status === 'completed', 409, 'PDF belum siap diunduh.');
+        abort_if($this->isExportJobRunning($export->id), 409, 'Worker masih menyelesaikan pembuatan PDF.');
+        abort_unless($export->path !== null, 404);
 
-        return Storage::disk('local')->download(
-            $export->path,
+        $disk = Storage::disk('local');
+        abort_unless($disk->exists($export->path), 404, 'File PDF tidak ditemukan.');
+
+        return response()->download(
+            $disk->path($export->path),
             'kartu-keluarga-semua-' . str($export->tenant->code)->slug() . '.pdf',
             ['Content-Type' => 'application/pdf'],
         );
-    }
-
-    private function queueState(string $exportId): string
-    {
-        $job = DB::table('jobs')
-            ->where('payload', 'like', '%' . $exportId . '%')
-            ->first(['reserved_at']);
-
-        if ($job === null) {
-            return 'finished';
-        }
-
-        return $job->reserved_at === null ? 'queued' : 'running';
     }
 
     private function ownedExport(Request $request, string $id): FamilyCardExport
@@ -127,6 +120,14 @@ class FamilyCardController extends Controller
             ->whereKey($id)
             ->where('user_id', $request->user()->id)
             ->firstOrFail();
+    }
+
+    private function isExportJobRunning(string $exportId): bool
+    {
+        return DB::table('jobs')
+            ->where('queue', 'default')
+            ->where('payload', 'like', '%' . $exportId . '%')
+            ->exists();
     }
 
     private function referenceLabels(PopulationReferenceService $references): array
