@@ -120,6 +120,10 @@ class Citizens extends Component
             $this->{$field} = (string) ($citizen->{$field} ?? '');
         }
 
+        // Reference values are stored as codes in the form. Resolve legacy
+        // human-readable values from imported data so the option is selected.
+        $this->agama = $this->referenceService->codeForValue('religion', $citizen->agama) ?? $this->agama;
+
         $this->tanggal_lahir = $citizen->tanggal_lahir?->format('Y-m-d') ?? '';
         $this->editingId = $citizen->id;
         $this->showForm = true;
