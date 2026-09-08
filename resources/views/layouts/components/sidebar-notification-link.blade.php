@@ -3,7 +3,7 @@
     $unreadNotifications = auth()->user()?->unreadNotifications()->count() ?? 0;
 @endphp
 
-<a href="{{ route('notifications.index') }}" @class([
+<a href="{{ route('notifications.index') }}" aria-label="Notifikasi" @class([
     'flex items-center justify-between rounded-xl text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-900',
     'w-full px-3 py-2.5' => ! $compact,
     'px-2.5 py-2' => $compact,
