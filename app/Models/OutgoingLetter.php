@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class OutgoingLetter extends Model
@@ -39,6 +40,28 @@ class OutgoingLetter extends Model
             if ($letter->status === OutgoingLetterStatus::ISSUED && blank($letter->verification_token)) {
                 $letter->verification_token = Str::random(64);
             }
+        });
+
+        static::saved(function (self $letter): void {
+            if (filled($letter->document_hash)) {
+                return;
+            }
+
+            $path = $letter->signed_pdf_path ?: $letter->unsigned_pdf_path;
+            if (blank($path) || ! Storage::disk('local')->exists($path)) {
+                return;
+            }
+
+            $absolutePath = Storage::disk('local')->path($path);
+            $hash = hash_file('sha256', $absolutePath);
+            if ($hash === false) {
+                return;
+            }
+
+            $letter->forceFill([
+                'document_hash' => $hash,
+                'document_hash_algorithm' => 'SHA-256',
+            ])->saveQuietly();
         });
     }
 
