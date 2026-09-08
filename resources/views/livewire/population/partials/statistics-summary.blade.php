@@ -29,7 +29,7 @@
                 <p class="mt-2 text-3xl font-extrabold tracking-tight text-gray-900">{{ number_format($deceasedThisYear) }}</p>
                 <p class="mt-1 text-xs text-rose-600">Data kematian {{ $currentYear }}</p>
             </div>
-            <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-50 text-rose-600">☠️</span>
+            <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-50 text-rose-600">🪦</span>
         </div>
     </div>
     <div class="group relative overflow-hidden rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg">

@@ -2,7 +2,7 @@
     <div class="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-indigo-500/5 blur-2xl"></div>
     <div class="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div class="flex items-start gap-4">
-            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">▥</div>
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">👨‍👩‍👧‍👦</div>
             <div>
                 <div class="flex flex-wrap items-center gap-2">
                     <h2 class="font-semibold text-gray-900">Piramida Penduduk</h2>
@@ -14,7 +14,7 @@
                     <span class="inline-flex items-center gap-1.5 rounded-lg bg-pink-50 px-2.5 py-1.5 font-semibold text-pink-700"><span class="h-2 w-2 rounded-full bg-pink-500"></span>{{ number_format($female) }} perempuan</span>
                     <span class="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1.5 font-semibold text-slate-600">{{ number_format($classifiedAge) }} terklasifikasi</span>
                     @if($unclassifiedAge > 0)
-                        <span class="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 font-semibold text-amber-700">{{ number_format($unclassifiedAge) }} tanpa tanggal lahir</span>
+                    <span class="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 font-semibold text-amber-700">{{ number_format($unclassifiedAge) }} tanpa tanggal lahir</span>
                     @endif
                 </div>
             </div>
