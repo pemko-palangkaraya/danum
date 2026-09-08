@@ -44,6 +44,8 @@ class VerificationController extends Controller
                 'type' => $letter->letterType?->name,
                 'recipient_name' => $letter->recipient_name,
                 'subject' => $letter->subject,
+                'signer_name' => $letter->signer_name,
+                'signer_title' => $letter->signer_title,
                 'issued_at' => $letter->issued_at?->toDateString(),
                 'valid_from' => $letter->letterType?->has_expiry ? $letter->valid_from?->toIso8601String() : null,
                 'valid_until' => $letter->letterType?->has_expiry ? $letter->valid_until?->toIso8601String() : null,
