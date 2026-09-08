@@ -12,32 +12,25 @@ use Illuminate\Database\Seeder;
 
 class WargaKelurahanSeeder extends Seeder
 {
-    private const DEFAULT_TENANT_CODE = 'DEMO';
-
-    private const POSTAL_CODES = [
-        'Pahandut|Langkai' => '73111',
-        'Jekan Raya|Menteng' => '73111',
-        'Jekan Raya|Bukit Tunggal' => '73112',
-        'Jekan Raya|Palangka' => '73112',
-        'Bukit Batu|Banturung' => '73224',
-        'Bukit Batu|Sei Gohong' => '73225',
-        'Rakumpit|Mungku Baru' => '73229',
-        'Rakumpit|Panjehang' => '73228',
-        'Rakumpit|Petuk Bukit' => '73227',
-    ];
+    /**
+     * Ganti kode tenant ini jika ingin membuat data demo untuk kelurahan lain.
+     *
+     * Kode tenant harus sudah terdaftar di tabel tenants. Data kelurahan,
+     * kecamatan, kota, dan provinsi akan otomatis mengikuti tenant tersebut.
+     */
+    private const TENANT_CODE = 'RKP-05';
 
     public function run(): void
     {
-        $tenantCode = env('RKP-05', self::DEFAULT_TENANT_CODE);
-
+        // Untuk seed ke kelurahan lain, cukup ganti TENANT_CODE di atas.
         $tenant = Tenant::query()
-            ->where('code', $tenantCode)
+            ->where('code', self::TENANT_CODE)
             ->first();
 
         if ($tenant === null) {
             throw new \RuntimeException(sprintf(
-                'Demo tenant dengan kode "%s" tidak ditemukan. Jalankan DatabaseSeeder terlebih dahulu.',
-                $tenantCode,
+                'Tenant dengan kode "%s" tidak ditemukan. Pastikan kode tenant sudah terdaftar.',
+                self::TENANT_CODE,
             ));
         }
 
@@ -139,7 +132,7 @@ class WargaKelurahanSeeder extends Seeder
         return [
             'district' => $district,
             'village' => $village,
-            'kode_pos' => self::POSTAL_CODES[$district . '|' . $village] ?? null,
+            'kode_pos' => $tenant->postal_code ?? null,
         ];
     }
 }
