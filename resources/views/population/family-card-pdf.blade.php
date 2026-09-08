@@ -21,7 +21,7 @@
         .members th { text-align: center; font-size: 6.7px; background: #f1f1f1; font-weight: bold; }
         .members td { font-size: 6.8px; line-height: 1.2; }
         .no { width: 3%; text-align: center; }
-        .nik { width: 11%; font-family: monospace; }
+        .nik { width: 11%; text-align: center; }
         .name { width: 14%; }
         .sex { width: 6%; text-align: center; }
         .birth { width: 11%; }
