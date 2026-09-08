@@ -23,7 +23,7 @@
             $withdrawal = $letter->withdrawalRequests->first(fn ($request) => $request->status->value !== 'pending');
             $isRestricted = $accessLevel->value === 'restricted';
             $isProtected = $accessLevel->value === 'protected';
-            $tteValid = filled($letter->signed_pdf_path);
+            $tteSigned = filled($letter->signed_pdf_path);
         @endphp
 
         <section @class([
@@ -47,7 +47,7 @@
                     ])>{{ $state === 'withdrawn' ? '!' : '✓' }}</span>
                     <div>
                         <p class="text-sm font-bold">
-                            {{ $isRestricted ? 'Dokumen Terdaftar' : ($isProtected ? 'Tanda Tangan Elektronik Valid' : 'Dokumen Terverifikasi') }}
+                            {{ $isRestricted ? 'Dokumen Terdaftar' : ($isProtected ? 'Tanda Tangan Elektronik Tercatat' : 'Dokumen Terverifikasi') }}
                         </p>
                         @if ($state === 'withdrawn')
                             <p class="mt-1 text-sm font-medium text-red-700">Surat ini telah ditarik dan tidak lagi berlaku.</p>
@@ -95,9 +95,9 @@
                 @endif
                 <div class="grid grid-cols-3 gap-4 py-4">
                     <dt class="text-sm text-slate-500">Status TTE</dt>
-                    <dd class="col-span-2 text-sm font-bold {{ $tteValid ? 'text-emerald-700' : 'text-amber-700' }}">{{ $tteValid ? 'Valid' : 'Tidak ditandatangani secara elektronik' }}</dd>
+                    <dd class="col-span-2 text-sm font-bold {{ $tteSigned ? 'text-emerald-700' : 'text-amber-700' }}">{{ $tteSigned ? 'Tertandatangani (PAdES B-T + TSA)' : 'Tidak ditandatangani secara elektronik' }}</dd>
                 </div>
-                @if($tteValid && $letter->signed_at)
+                @if($tteSigned && $letter->signed_at)
                     <div class="grid grid-cols-3 gap-4 py-4">
                         <dt class="text-sm text-slate-500">Waktu TTE</dt>
                         <dd class="col-span-2 text-sm">{{ $letter->signed_at->translatedFormat('d F Y H:i:s') }}</dd>
