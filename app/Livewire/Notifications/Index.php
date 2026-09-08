@@ -14,10 +14,25 @@ class Index extends Component
 {
     use WithStandardTablePagination;
 
-    public function markAsRead(string $id): void
+    public function openNotification(string $id): void
     {
         $notification = $this->notification($id);
-        $notification?->markAsRead();
+
+        if ($notification === null) {
+            return;
+        }
+
+        $notification->markAsRead();
+        $url = $notification->data['action_url'] ?? null;
+
+        if ($url) {
+            $this->redirect($url, navigate: true);
+        }
+    }
+
+    public function markAsRead(string $id): void
+    {
+        $this->notification($id)?->markAsRead();
     }
 
     public function markAllAsRead(): void
