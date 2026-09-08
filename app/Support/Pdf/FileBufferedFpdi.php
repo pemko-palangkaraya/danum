@@ -33,7 +33,7 @@ final class FileBufferedFpdi extends Fpdi
         $this->_putheader();
     }
 
-    public function Image($file, $x = null, $y = null, $w = 0, $h = 0, $type = '', $link = ''): void
+    public function Image($file, $x = null, $y = null, $w = 0, $h = 0, $type = '', $link = '')
     {
         if (! isset($this->images[$file])) {
             $info = getimagesize($file);
@@ -53,14 +53,14 @@ final class FileBufferedFpdi extends Fpdi
         parent::Image($file, $x, $y, $w, $h, $type, $link);
     }
 
-    public function Output($dest = '', $name = '', $isUTF8 = false): void
+    public function Output($dest = '', $name = '', $isUTF8 = false)
     {
         if ($this->state < 3) {
             $this->Close();
         }
     }
 
-    public function _endpage(): void
+    public function _endpage()
     {
         parent::_endpage();
 
@@ -68,12 +68,12 @@ final class FileBufferedFpdi extends Fpdi
         unset($this->pages[$this->page]);
     }
 
-    public function _getoffset(): int
+    public function _getoffset()
     {
         return ftell($this->fileHandle);
     }
 
-    protected function _put($s, $newLine = true): void
+    protected function _put($s, $newLine = true)
     {
         if (! is_resource($this->fileHandle)) {
             $this->Error('PDF output file is not open.');
@@ -87,7 +87,7 @@ final class FileBufferedFpdi extends Fpdi
         fwrite($this->fileHandle, $s, strlen($s));
     }
 
-    public function _putpages(): void
+    public function _putpages()
     {
         $pageCount = $this->page;
 
@@ -179,14 +179,14 @@ final class FileBufferedFpdi extends Fpdi
         $this->_put('endobj');
     }
 
-    public function _putheader(): void
+    public function _putheader()
     {
         if ($this->_getoffset() === 0) {
             parent::_putheader();
         }
     }
 
-    public function _enddoc(): void
+    public function _enddoc()
     {
         parent::_enddoc();
 
