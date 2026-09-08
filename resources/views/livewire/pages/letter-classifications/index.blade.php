@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\VerificationAccessLevel;
 use App\Models\LetterClassification;
 use App\Services\AuditLogService;
 use Illuminate\Support\Facades\Validator;
@@ -27,6 +28,7 @@ new #[Layout('layouts.app')] class extends Component {
     public int $number_padding = 3;
     public int $sort_order = 1;
     public bool $is_active = true;
+    public string $verification_access_level = 'public';
 
     public function mount(): void { abort_unless(auth()->user()?->isSuperAdmin(), 403); }
     public function updatedSearch(): void { $this->resetPage(); }
@@ -54,6 +56,7 @@ new #[Layout('layouts.app')] class extends Component {
         $this->number_padding = $classification->number_padding;
         $this->sort_order = $classification->sort_order;
         $this->is_active = $classification->is_active;
+        $this->verification_access_level = $classification->verification_access_level?->value ?? 'public';
         $this->resetValidation();
         $this->showForm = true;
     }
@@ -73,6 +76,7 @@ new #[Layout('layouts.app')] class extends Component {
                 'number_padding' => $this->number_padding,
                 'sort_order' => $this->sort_order,
                 'is_active' => $this->is_active,
+                'verification_access_level' => $this->verification_access_level,
             ],
             [
                 'code' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/'],
@@ -89,6 +93,7 @@ new #[Layout('layouts.app')] class extends Component {
                 'number_padding' => ['required', 'integer', 'min:1', 'max:12'],
                 'sort_order' => ['required', 'integer', 'min:1', 'max:65535'],
                 'is_active' => ['boolean'],
+                'verification_access_level' => [Rule::enum(VerificationAccessLevel::class)],
             ],
             [
                 'number_format.regex' => 'Format wajib memiliki ' . '{{number}}, {{classification_code}}, dan {{tenant_code}}.',
@@ -106,6 +111,7 @@ new #[Layout('layouts.app')] class extends Component {
             'number_padding' => $classification->number_padding,
             'sort_order' => $classification->sort_order,
             'is_active' => $classification->is_active,
+            'verification_access_level' => $classification->verification_access_level?->value,
         ] : null;
 
         $classification->fill([
@@ -118,6 +124,7 @@ new #[Layout('layouts.app')] class extends Component {
             'number_padding' => $this->number_padding,
             'sort_order' => $this->sort_order,
             'is_active' => $this->is_active,
+            'verification_access_level' => $this->verification_access_level,
         ]);
         $classification->save();
 
@@ -136,6 +143,7 @@ new #[Layout('layouts.app')] class extends Component {
                 'number_padding' => $classification->number_padding,
                 'sort_order' => $classification->sort_order,
                 'is_active' => $classification->is_active,
+                'verification_access_level' => $classification->verification_access_level?->value,
             ],
         );
 
@@ -166,6 +174,7 @@ new #[Layout('layouts.app')] class extends Component {
         $this->number_padding = 3;
         $this->sort_order = 1;
         $this->is_active = true;
+        $this->verification_access_level = 'public';
         $this->resetValidation();
     }
 
@@ -204,11 +213,13 @@ new #[Layout('layouts.app')] class extends Component {
 
         <div class="divide-y divide-slate-100">
             @forelse($classifications as $classification)
+                @php($accessLevel = $classification->verification_access_level?->value ?? 'public')
                 <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
                     <div class="min-w-0">
                         <div class="flex flex-wrap items-center gap-2">
                             <span class="font-mono text-sm font-bold text-slate-700">{{ $classification->code }}</span>
                             <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $classification->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">{{ $classification->is_active ? 'Active' : 'Inactive' }}</span>
+                            <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $accessLevel === 'public' ? 'bg-sky-50 text-sky-700' : ($accessLevel === 'protected' ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700') }}">{{ match($accessLevel) { 'public' => 'PUBLIC', 'protected' => 'PROTECTED', 'restricted' => 'RESTRICTED', default => 'PUBLIC' } }}</span>
                         </div>
                         <h2 class="mt-1 text-sm font-semibold text-slate-900">{{ $classification->name }}</h2>
                         <p class="mt-1 text-xs text-slate-500">{{ $classification->description ?: 'Tidak ada deskripsi.' }}</p>
@@ -249,7 +260,7 @@ new #[Layout('layouts.app')] class extends Component {
             <div class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl">
                 <div class="border-b border-slate-100 px-6 py-5">
                     <h2 class="text-lg font-semibold text-slate-900">{{ $editingId ? 'Edit Klasifikasi Surat' : 'Tambah Klasifikasi Surat' }}</h2>
-                    <p class="mt-1 text-sm text-slate-500">Lengkapi identitas klasifikasi, sumber data, dan aturan format nomor surat.</p>
+                    <p class="mt-1 text-sm text-slate-500">Lengkapi identitas klasifikasi, sumber data, aturan format nomor surat, dan akses verifikasi dokumen.</p>
                 </div>
 
                 <form wire:submit="save" class="space-y-5 p-6">
@@ -305,6 +316,22 @@ new #[Layout('layouts.app')] class extends Component {
                             <label class="text-sm font-medium text-slate-700">Urutan Tampilan</label>
                             <input wire:model="sort_order" type="number" min="1" class="form-control mt-1">
                             @error('sort_order')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <label class="text-sm font-semibold text-slate-900">Akses Verifikasi Dokumen</label>
+                        <p class="mt-1 text-xs leading-5 text-slate-500">Tentukan apa yang boleh dilakukan pengguna dari halaman QR verifikasi untuk surat dengan klasifikasi ini.</p>
+                        <select wire:model="verification_access_level" class="form-control mt-3">
+                            <option value="public">PUBLIC — Metadata + hash + lihat dokumen</option>
+                            <option value="protected">PROTECTED — Metadata + hash, dokumen perlu login</option>
+                            <option value="restricted">RESTRICTED — Verifikasi metadata saja, tanpa dokumen</option>
+                        </select>
+                        @error('verification_access_level')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
+                        <div class="mt-3 space-y-1 text-xs text-slate-500">
+                            <p><strong class="text-slate-700">PUBLIC:</strong> siapa pun dapat memverifikasi dan melihat dokumen.</p>
+                            <p><strong class="text-slate-700">PROTECTED:</strong> verifikasi dapat dilihat publik, tetapi dokumen hanya setelah login dan otorisasi.</p>
+                            <p><strong class="text-slate-700">RESTRICTED:</strong> hanya informasi verifikasi minimum yang ditampilkan; dokumen tidak tersedia melalui endpoint publik.</p>
                         </div>
                     </div>
 
