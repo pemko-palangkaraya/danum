@@ -19,6 +19,10 @@ interface LetterTypeRepositoryInterface
 
     public function delete(LetterType $letterType): bool;
 
+    public function scheduleDeletion(LetterType $letterType, \DateTimeInterface $at): bool;
+
+    public function processScheduledDeletions(): int;
+
     public function restore(LetterType $letterType): bool;
 
     public function findWithTrashed(string $id, ?string $tenantId): ?LetterType;
