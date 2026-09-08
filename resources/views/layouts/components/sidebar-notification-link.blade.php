@@ -1,6 +1,5 @@
-@props(['compact' => false])
-
 @php
+    $compact = $compact ?? false;
     $unreadNotifications = auth()->user()?->unreadNotifications()->count() ?? 0;
 @endphp
 
