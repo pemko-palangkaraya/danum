@@ -36,6 +36,8 @@ use App\Http\Controllers\PositionAppointmentDocumentController;
 
 Route::view('/', 'welcome')->name('home');
 Route::get('/verify/{token}', [VerificationController::class, 'page'])->name('verification.show');
+Route::get('/verify/{token}/json', [VerificationController::class, 'show'])->name('verification.json');
+Route::get('/verify/{token}/document', [VerificationController::class, 'document'])->name('verification.document');
 
 Route::middleware('guest')->group(function () {
     Volt::route('/login', 'pages.auth.login')->name('login');
