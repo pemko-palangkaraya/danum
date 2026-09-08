@@ -187,8 +187,8 @@ class Index extends Component
 
         if ($this->search !== '') {
             $query->where(fn ($q) => $q
-                ->where('code', 'like', "%{$this->search}%")
-                ->orWhere('name', 'like', "%{$this->search}%"));
+                ->where('code', 'ilike', "%{$this->search}%")
+                ->orWhere('name', 'ilike', "%{$this->search}%"));
         }
 
         if ($this->filter === 'deleted') {
