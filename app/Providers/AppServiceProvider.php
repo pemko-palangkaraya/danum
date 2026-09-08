@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Models\LetterType;
 use App\Models\OutgoingLetter;
+use App\Observers\LetterTypeObserver;
 use App\Observers\OutgoingLetterObserver;
 use App\Repositories\Contracts\TenantRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
@@ -44,5 +46,6 @@ class AppServiceProvider extends ServiceProvider
         });
 
         OutgoingLetter::observe(OutgoingLetterObserver::class);
+        LetterType::observe(LetterTypeObserver::class);
     }
 }
