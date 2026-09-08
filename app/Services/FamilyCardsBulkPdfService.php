@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Family;
+use App\Models\FamilyMember;
 use App\Models\Tenant;
 use Barryvdh\DomPDF\Facade\Pdf;
 use setasign\Fpdi\Fpdi;
@@ -59,8 +60,6 @@ final class FamilyCardsBulkPdfService
                     $this->appendPdf($output, $familyPdf);
                     unset($familyPdf);
                 }
-
-                unset($families);
             });
 
         return $output->Output('S');
@@ -69,17 +68,14 @@ final class FamilyCardsBulkPdfService
     private function aggregate(Tenant $tenant): array
     {
         $familyQuery = Family::query()->where('tenant_id', $tenant->id);
-
         $totalFamilies = (clone $familyQuery)->count();
         $activeFamilies = (clone $familyQuery)->where('status', 'active')->count();
 
-        $membersQuery = $tenant->id
-            ? \App\Models\FamilyMember::query()
-                ->where('status', 'active')
-                ->whereHas('family', fn ($query) => $query->where('tenant_id', $tenant->id))
-            : null;
+        $membersQuery = FamilyMember::query()
+            ->where('status', 'active')
+            ->whereHas('family', fn ($query) => $query->where('tenant_id', $tenant->id));
 
-        $totalMembers = $membersQuery?->count() ?? 0;
+        $totalMembers = (clone $membersQuery)->count();
         $male = $this->countMembersByGender($tenant, 'male');
         $female = $this->countMembersByGender($tenant, 'female');
         $wni = $this->countMembersByCitizenship($tenant, 'WNI');
@@ -101,7 +97,7 @@ final class FamilyCardsBulkPdfService
 
     private function countMembersByGender(Tenant $tenant, string $gender): int
     {
-        return \App\Models\FamilyMember::query()
+        return FamilyMember::query()
             ->where('status', 'active')
             ->whereHas('family', fn ($query) => $query->where('tenant_id', $tenant->id))
             ->whereHas('citizen', fn ($query) => $query->where('jenis_kelamin', $gender))
@@ -110,7 +106,7 @@ final class FamilyCardsBulkPdfService
 
     private function countMembersByCitizenship(Tenant $tenant, string $citizenship): int
     {
-        return \App\Models\FamilyMember::query()
+        return FamilyMember::query()
             ->where('status', 'active')
             ->whereHas('family', fn ($query) => $query->where('tenant_id', $tenant->id))
             ->whereHas('citizen', fn ($query) => $query->where('kewarganegaraan', $citizenship))
@@ -123,7 +119,9 @@ final class FamilyCardsBulkPdfService
 
         for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
             $template = $output->importPage($pageNumber);
-            $output->useImportedPage($template, 0, 0, 0, 0, true);
+            $size = $output->getTemplateSize($template);
+            $output->AddPage($size['orientation'], [$size['width'], $size['height']]);
+            $output->useImportedPage($template);
         }
     }
 }
