@@ -76,9 +76,10 @@ class FamilyCardController extends Controller
     public function exportStatus(Request $request, string $id): Response
     {
         $export = $this->ownedExport($request, $id);
+        $disk = Storage::disk('local');
         $ready = $export->status === 'completed'
             && $export->path !== null
-            && Storage::disk('local')->exists($export->path);
+            && $disk->exists($export->path);
 
         return response()->json([
             'status' => $export->status,
@@ -104,10 +105,19 @@ class FamilyCardController extends Controller
         $disk = Storage::disk('local');
         abort_unless($disk->exists($export->path), 404, 'File PDF tidak ditemukan.');
 
-        return response()->download(
-            $disk->path($export->path),
+        $stream = $disk->readStream($export->path);
+        abort_unless(is_resource($stream), 500, 'File PDF tidak dapat dibaca.');
+
+        return response()->streamDownload(
+            function () use ($stream): void {
+                fpassthru($stream);
+                fclose($stream);
+            },
             'kartu-keluarga-semua-' . str($export->tenant->code)->slug() . '.pdf',
-            ['Content-Type' => 'application/pdf'],
+            [
+                'Content-Type' => 'application/pdf',
+                'Cache-Control' => 'no-store',
+            ],
         );
     }
 
