@@ -6,8 +6,9 @@ namespace App\Observers;
 
 use App\Models\LetterType;
 use App\Services\LetterTypeNotificationService;
+use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
-final class LetterTypeObserver
+final class LetterTypeObserver implements ShouldHandleEventsAfterCommit
 {
     public function deleted(LetterType $letterType): void
     {
