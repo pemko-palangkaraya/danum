@@ -165,13 +165,16 @@ final class FamilyCardsBulkPdfService
     private function aggregate(Tenant $tenant, array $referenceLabels): array
     {
         $familyQuery = $this->selectedFamilyQuery($tenant);
-        $familyIdsQuery = (clone $familyQuery)->select('id');
-        $totalFamilies = (clone $familyQuery)->count();
-        $activeFamilies = (clone $familyQuery)->where('status', 'active')->count();
+        $familyIds = (clone $familyQuery)->pluck('id');
+        $totalFamilies = $familyIds->count();
+        $activeFamilies = Family::query()
+            ->whereIn('id', $familyIds)
+            ->where('status', 'active')
+            ->count();
 
         $membersQuery = FamilyMember::query()
             ->where('family_members.status', 'active')
-            ->whereIn('family_members.family_id', $familyIdsQuery);
+            ->whereIn('family_members.family_id', $familyIds);
 
         $totalMembers = (clone $membersQuery)->count();
         $familySizes = $this->familySizes($familyQuery);
@@ -403,6 +406,12 @@ final class FamilyCardsBulkPdfService
         };
     }
 
+    private function locationValue(?string $value, string $prefix): string
+    {
+        $value = trim((string) $value);
+        return $value !== '' ? $value : 'Tidak tercatat';
+    }
+
     private function percentages(array $values, int $total): array
     {
         if ($total === 0) {
@@ -416,23 +425,18 @@ final class FamilyCardsBulkPdfService
 
     private function median(Collection $values): float
     {
-        $values = $values->sort()->values();
-        $count = $values->count();
-
-        if ($count === 0) {
+        if ($values->isEmpty()) {
             return 0;
         }
 
+        $values = $values->values();
+        $count = $values->count();
         $middle = intdiv($count, 2);
 
-        return $count % 2 === 1
-            ? (float) $values->get($middle)
-            : round(($values->get($middle - 1) + $values->get($middle)) / 2, 2);
-    }
+        if ($count % 2 === 0) {
+            return round(($values[$middle - 1] + $values[$middle]) / 2, 2);
+        }
 
-    private function locationValue(?string $value, string $prefix): string
-    {
-        $value = trim((string) $value);
-        return $value !== '' ? $prefix . ' ' . $value : 'Tidak tercatat';
+        return round((float) $values[$middle], 2);
     }
 }
