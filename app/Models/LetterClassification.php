@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\VerificationAccessLevel;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -23,6 +24,7 @@ class LetterClassification extends Model
         'code',
         'name',
         'description',
+        'verification_access_level',
         'source',
         'number_format',
         'number_padding',
@@ -34,6 +36,7 @@ class LetterClassification extends Model
     protected function casts(): array
     {
         return [
+            'verification_access_level' => VerificationAccessLevel::class,
             'number_padding' => 'integer',
             'sort_order' => 'integer',
             'source_order' => 'integer',
