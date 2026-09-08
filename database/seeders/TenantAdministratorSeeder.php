@@ -52,7 +52,6 @@ class TenantAdministratorSeeder extends Seeder
 
                 $administrator = $existing ?? User::query()->create([
                     'name' => 'Tenant Admin - '.$tenant->name,
-                    'nip' => null,
                     'email' => $email,
                     'email_verified_at' => now(),
                     'password' => Hash::make($password),
