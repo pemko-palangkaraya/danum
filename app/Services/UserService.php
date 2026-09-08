@@ -58,8 +58,13 @@ class UserService
             $changedAt = now();
 
             $updatedUser = $this->userRepository->update($user, $userData);
-            if ($this->hasEmployeeProfileData($profile)) {
-                $updatedUser->employeeProfile()->updateOrCreate([], $profile);
+
+            if ($this->hasEmployeeProfileFields($data)) {
+                if ($this->hasEmployeeProfileData($profile)) {
+                    $updatedUser->employeeProfile()->updateOrCreate([], $profile);
+                } else {
+                    $updatedUser->employeeProfile()->delete();
+                }
             }
 
             $updatedUser = $updatedUser->fresh(['employeeProfile']);
@@ -108,6 +113,11 @@ class UserService
     private function withoutEmployeeProfileFields(array $data): array
     {
         return array_diff_key($data, array_flip(self::EMPLOYEE_PROFILE_FIELDS));
+    }
+
+    private function hasEmployeeProfileFields(array $data): bool
+    {
+        return array_intersect(array_keys($data), self::EMPLOYEE_PROFILE_FIELDS) !== [];
     }
 
     private function hasEmployeeProfileData(array $profile): bool
