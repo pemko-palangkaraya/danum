@@ -17,6 +17,7 @@ class DocxRendererService
     public function render(string $xml, array $values): string
     {
         $xml = $this->renderRepeaters($xml, $values);
+        $xml = $this->protectSignatureTables($xml);
         return $this->replacePlaceholders($xml, $values);
     }
 
@@ -77,6 +78,105 @@ class DocxRendererService
         }
 
         return $dom->saveXML() ?: $xml;
+    }
+
+    private function protectSignatureTables(string $xml): string
+    {
+        $dom = $this->loadDocument($xml);
+        $xpath = $this->xpath($dom);
+        $tables = $xpath->query('//w:tbl');
+
+        if (! $tables) return $xml;
+
+        foreach ($tables as $table) {
+            $text = $this->nodeText($xpath, $table);
+            if (! $this->isSignatureTable($text)) continue;
+
+            $rows = $xpath->query('.//w:tr', $table);
+            if ($rows) foreach ($rows as $row) $this->addRowCantSplit($dom, $row);
+
+            $paragraphs = $xpath->query('.//w:p', $table);
+            if (! $paragraphs) continue;
+
+            $paragraphList = iterator_to_array($paragraphs);
+            foreach ($paragraphList as $index => $paragraph) {
+                $keepNext = $index < count($paragraphList) - 1;
+                $this->protectParagraph($dom, $paragraph, $keepNext);
+            }
+        }
+
+        return $dom->saveXML() ?: $xml;
+    }
+
+    private function isSignatureTable(string $text): bool
+    {
+        foreach ([
+            '{{qr}}',
+            '{{tte}}',
+            '{{nama_ttd}}',
+            '{{jabatan_ttd}}',
+            '{{pangkat_ttd}}',
+            '{{golongan_ttd}}',
+            '{{nip_ttd}}',
+        ] as $marker) {
+            if (str_contains($text, $marker)) return true;
+        }
+
+        return false;
+    }
+
+    private function addRowCantSplit(DOMDocument $dom, \DOMNode $row): void
+    {
+        if (! $row instanceof DOMElement) return;
+
+        $rowProperties = null;
+        foreach ($row->childNodes as $child) {
+            if ($child instanceof DOMElement && $child->localName === 'trPr') {
+                $rowProperties = $child;
+                break;
+            }
+        }
+
+        if (! $rowProperties) {
+            $rowProperties = $dom->createElementNS(self::WORD_NS, 'w:trPr');
+            $row->insertBefore($rowProperties, $row->firstChild);
+        }
+
+        foreach ($rowProperties->childNodes as $child) {
+            if ($child instanceof DOMElement && $child->localName === 'cantSplit') return;
+        }
+
+        $rowProperties->appendChild($dom->createElementNS(self::WORD_NS, 'w:cantSplit'));
+    }
+
+    private function protectParagraph(DOMDocument $dom, \DOMNode $paragraph, bool $keepNext): void
+    {
+        if (! $paragraph instanceof DOMElement) return;
+
+        $properties = null;
+        foreach ($paragraph->childNodes as $child) {
+            if ($child instanceof DOMElement && $child->localName === 'pPr') {
+                $properties = $child;
+                break;
+            }
+        }
+
+        if (! $properties) {
+            $properties = $dom->createElementNS(self::WORD_NS, 'w:pPr');
+            $paragraph->insertBefore($properties, $paragraph->firstChild);
+        }
+
+        $this->appendParagraphProperty($dom, $properties, 'keepLines');
+        if ($keepNext) $this->appendParagraphProperty($dom, $properties, 'keepNext');
+    }
+
+    private function appendParagraphProperty(DOMDocument $dom, DOMElement $properties, string $name): void
+    {
+        foreach ($properties->childNodes as $child) {
+            if ($child instanceof DOMElement && $child->localName === $name) return;
+        }
+
+        $properties->appendChild($dom->createElementNS(self::WORD_NS, 'w:' . $name));
     }
 
     /** @param array<string,mixed> $item */
