@@ -56,6 +56,7 @@
 </head>
 <body>
     @foreach($families ?? collect([$family]) as $family)
+        @php($members = $family->activeMembers->take(10))
         <div class="family-card">
             <div class="title">KARTU KELUARGA</div>
             <div class="kk-number">No. {{ $family->no_kk }}</div>
@@ -106,26 +107,19 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($family->activeMembers->take(10) as $index => $member)
-                        @php($citizen = $member->citizen)
+                    @for($row = 0; $row < 10; $row++)
+                        @php($member = $members->get($row))
+                        @php($citizen = $member?->citizen)
                         <tr>
-                            <td class="no">{{ $index + 1 }}</td>
+                            <td class="no">{{ $row + 1 }}</td>
                             <td class="name">{{ $citizen?->nama_lengkap ?? '-' }}</td>
                             <td class="nik">{{ $citizen?->nik ?? '-' }}</td>
                             <td class="sex">{{ $referenceLabels['gender'][$citizen?->jenis_kelamin] ?? ($citizen?->jenis_kelamin ?: '-') }}</td>
-                            <td class="birth">{{ $citizen?->tempat_lahir ?? '-' }}, {{ $citizen?->tanggal_lahir?->format('d-m-Y') ?? '-' }}</td>
+                            <td class="birth">{{ $citizen?->tempat_lahir ?? '-' }}{{ $citizen?->tanggal_lahir ? ', ' . $citizen->tanggal_lahir->format('d-m-Y') : '' }}</td>
                             <td class="religion">{{ $referenceLabels['religion'][$citizen?->agama] ?? ($citizen?->agama ?: '-') }}</td>
                             <td class="education">{{ $citizen?->pendidikan ?? '-' }}</td>
                             <td class="job">{{ $citizen?->pekerjaan ?? '-' }}</td>
                             <td class="blood">{{ $referenceLabels['blood_type'][$citizen?->golongan_darah] ?? ($citizen?->golongan_darah ?: '-') }}</td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="9" style="text-align:center;">Belum ada anggota keluarga aktif.</td></tr>
-                    @endforelse
-                    @for($row = $family->activeMembers->count() + 1; $row <= 10; $row++)
-                        <tr>
-                            <td class="no">{{ $row }}</td><td>-</td><td class="nik">-</td><td class="sex">-</td>
-                            <td>-</td><td>-</td><td>-</td><td>-</td><td class="blood">-</td>
                         </tr>
                     @endfor
                 </tbody>
@@ -158,24 +152,19 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($family->activeMembers->take(10) as $index => $member)
-                        @php($citizen = $member->citizen)
+                    @for($row = 0; $row < 10; $row++)
+                        @php($member = $members->get($row))
+                        @php($citizen = $member?->citizen)
                         <tr>
-                            <td class="no">{{ $index + 1 }}</td>
+                            <td class="no">{{ $row + 1 }}</td>
                             <td class="marital">{{ $referenceLabels['marital_status'][$citizen?->status_perkawinan] ?? ($citizen?->status_perkawinan ?: '-') }}</td>
                             <td class="marriage-date">-</td>
-                            <td class="relation">{{ $referenceLabels['family_relationship'][$member->hubungan_dalam_keluarga] ?? ($member->hubungan_dalam_keluarga ?: '-') }}</td>
+                            <td class="relation">{{ $referenceLabels['family_relationship'][$member?->hubungan_dalam_keluarga] ?? ($member?->hubungan_dalam_keluarga ?: '-') }}</td>
                             <td class="citizenship">{{ $referenceLabels['citizenship'][$citizen?->kewarganegaraan] ?? ($citizen?->kewarganegaraan ?: '-') }}</td>
                             <td class="passport">{{ $citizen?->no_passport ?: '-' }}</td>
                             <td class="kitap">{{ $citizen?->no_kitap ?: '-' }}</td>
                             <td class="parent">{{ $citizen?->nama_ayah ?: '-' }}</td>
                             <td class="parent">{{ $citizen?->nama_ibu ?: '-' }}</td>
-                        </tr>
-                    @endforelse
-                    @for($row = $family->activeMembers->count() + 1; $row <= 10; $row++)
-                        <tr>
-                            <td class="no">{{ $row }}</td><td>-</td><td class="marriage-date">-</td><td>-</td>
-                            <td class="citizenship">-</td><td class="passport">-</td><td class="kitap">-</td><td>-</td><td>-</td>
                         </tr>
                     @endfor
                 </tbody>
