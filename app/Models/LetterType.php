@@ -23,7 +23,7 @@ class LetterType extends Model
 
     protected $fillable = [
         'tenant_id', 'letter_classification_id', 'code', 'name', 'description', 'body_template', 'template_path', 'variables', 'status',
-        'has_expiry', 'validity_days', 'validity_period',
+        'has_expiry', 'validity_days', 'validity_period', 'deletion_scheduled_at',
     ];
 
     protected function casts(): array
@@ -33,6 +33,7 @@ class LetterType extends Model
             'variables' => 'array',
             'has_expiry' => 'boolean',
             'validity_days' => 'integer',
+            'deletion_scheduled_at' => 'datetime',
         ];
     }
 
@@ -46,5 +47,10 @@ class LetterType extends Model
     public function hasValidityPeriod(): bool
     {
         return ($this->validity_period ?? 'none') !== 'none';
+    }
+
+    public function deletionIsScheduled(): bool
+    {
+        return $this->deletion_scheduled_at !== null && ! $this->trashed();
     }
 }
