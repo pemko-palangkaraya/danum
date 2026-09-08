@@ -100,8 +100,9 @@ class VerificationController extends Controller
 
         $this->verificationLogService->record($request, 'DOWNLOAD', 'SUCCESS', $letter, 'verification');
 
-        return Storage::disk('local')->download($path, $this->downloadFilename($letter), [
+        return response()->file(Storage::disk('local')->path($path), [
             'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$this->downloadFilename($letter).'"',
         ]);
     }
 
