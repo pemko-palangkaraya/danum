@@ -19,6 +19,7 @@ class LetterTypeService
         private readonly DocxTemplateService $templateService,
         private readonly LetterTypePermissionService $permissionService,
         private readonly LetterTypeVersionService $versionService,
+        private readonly LetterTypeNotificationService $notificationService,
     ) {}
 
     public function find(string $id, ?string $tenantId): ?LetterType
@@ -105,8 +106,14 @@ class LetterTypeService
     public function scheduleDeletion(LetterType $letterType): bool
     {
         $scheduledAt = now()->endOfDay();
+        $scheduled = $this->repository->scheduleDeletion($letterType, $scheduledAt);
 
-        return $this->repository->scheduleDeletion($letterType, $scheduledAt);
+        if ($scheduled) {
+            $letterType->refresh();
+            $this->notificationService->notifyScheduled($letterType);
+        }
+
+        return $scheduled;
     }
 
     public function processScheduledDeletions(): int
