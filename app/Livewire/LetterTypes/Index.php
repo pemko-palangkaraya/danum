@@ -25,6 +25,7 @@ class Index extends Component
     public bool $showDeleteConfirm = false;
     public ?string $deleteId = null;
     public string $deleteName = '';
+    public ?string $deleteScheduledAt = null;
     public ?string $editingId = null;
     public string $letter_classification_id = '';
     public string $code = '';
@@ -148,6 +149,7 @@ class Index extends Component
         $this->authorize('delete', $letterType);
         $this->deleteId = $letterType->id;
         $this->deleteName = $letterType->name;
+        $this->deleteScheduledAt = now()->endOfDay()->format('d/m/Y H:i:s');
         $this->showDeleteConfirm = true;
     }
 
@@ -159,11 +161,12 @@ class Index extends Component
 
         $letterType = LetterType::query()->findOrFail($this->deleteId);
         $this->authorize('delete', $letterType);
-        $service->delete($letterType);
+        $service->scheduleDeletion($letterType);
 
+        $name = $this->deleteName;
         $this->closeDeleteConfirm();
         $this->resetPage();
-        $this->dispatch('toast', type: 'success', message: 'Jenis surat dihapus.');
+        $this->dispatch('toast', type: 'success', message: "Jenis surat '{$name}' dijadwalkan dihapus pada 23:59:59 hari ini.");
     }
 
     public function closeDeleteConfirm(): void
@@ -171,6 +174,7 @@ class Index extends Component
         $this->showDeleteConfirm = false;
         $this->deleteId = null;
         $this->deleteName = '';
+        $this->deleteScheduledAt = null;
     }
 
     private function resetForm(): void
@@ -217,9 +221,15 @@ class Index extends Component
         }
 
         if ($this->filter === 'deleted') {
-            $query->onlyTrashed();
+            $query->where(function ($q): void {
+                $q->onlyTrashed()
+                    ->orWhere(function ($scheduled): void {
+                        $scheduled->whereNotNull('deletion_scheduled_at')->whereNull('deleted_at');
+                    });
+            });
         } else {
-            $query->where('status', LetterTypeStatus::from($this->filter));
+            $query->where('status', LetterTypeStatus::from($this->filter))
+                ->whereNull('deletion_scheduled_at');
         }
 
         return view('livewire.pages.letter-types.index', [
