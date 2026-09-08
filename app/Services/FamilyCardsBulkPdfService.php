@@ -7,27 +7,24 @@ namespace App\Services;
 use App\Models\Family;
 use App\Models\FamilyMember;
 use App\Models\Tenant;
+use App\Support\Pdf\FileBufferedFpdi;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
-use setasign\Fpdi\Fpdi;
-use setasign\Fpdi\PdfParser\StreamReader;
+use Illuminate\Support\Str;
+use Throwable;
 
 final class FamilyCardsBulkPdfService
 {
     private const MEMORY_LIMIT = '512M';
+
     private const CHUNK_SIZE = 10;
 
     public function generate(
         Tenant $tenant,
         PopulationReferenceService $references,
     ): string {
-        // Bulk PDF tidak dibatasi 30 detik seperti request PHP biasa karena
-        // setiap KK harus dirender oleh DomPDF sebelum digabung menjadi satu PDF.
         @set_time_limit(0);
         @ini_set('max_execution_time', '0');
-
-        // Naikkan limit hanya selama proses bulk PDF; aplikasi lain tetap
-        // menggunakan konfigurasi memory_limit normal.
         @ini_set('memory_limit', self::MEMORY_LIMIT);
 
         $referenceLabels = [
@@ -39,48 +36,120 @@ final class FamilyCardsBulkPdfService
             'citizenship' => $references->labels('citizenship'),
         ];
 
-        $aggregate = $this->aggregate($tenant);
-        $output = new Fpdi();
+        $temporaryDirectory = storage_path('app/tmp/family-cards');
+        $this->ensureDirectory($temporaryDirectory);
 
-        $summaryPdf = Pdf::loadView('population.family-cards-summary-pdf', [
-            'tenant' => $tenant,
-            'aggregate' => $aggregate,
-            'printedAt' => now(),
-        ])->setPaper('a4', 'landscape')->output();
+        $outputPath = $temporaryDirectory . '/all-' . $tenant->id . '-' . Str::uuid() . '.pdf';
+        $output = new FileBufferedFpdi();
+        $output->openFile($outputPath);
 
-        $this->appendPdf($output, $summaryPdf);
-        unset($summaryPdf);
-        gc_collect_cycles();
+        try {
+            $summaryPath = $this->renderSummary($tenant, $temporaryDirectory);
 
-        Family::query()
-            ->where('tenant_id', $tenant->id)
-            ->with([
-                'tenant:id,name,head_name,head_title,city',
-                'headCitizen:id,nama_lengkap',
-                'activeMembers' => fn ($query) => $query
-                    ->orderBy('urutan')
-                    ->with('citizen'),
-            ])
-            ->orderBy('no_kk')
-            ->orderBy('id')
-            ->chunk(self::CHUNK_SIZE, function (Collection $families) use ($output, $referenceLabels): void {
-                foreach ($families as $family) {
-                    $familyPdf = Pdf::loadView('population.family-card-pdf', [
-                        'family' => $family,
-                        'printedAt' => now(),
-                        'referenceLabels' => $referenceLabels,
-                    ])->setPaper('a4', 'landscape')->output();
+            try {
+                $this->appendPdf($output, $summaryPath);
+            } finally {
+                @unlink($summaryPath);
+            }
 
-                    $this->appendPdf($output, $familyPdf);
-                    unset($familyPdf);
+            Family::query()
+                ->where('tenant_id', $tenant->id)
+                ->with([
+                    'tenant:id,name,head_name,head_title,city',
+                    'headCitizen:id,nama_lengkap',
+                    'activeMembers' => fn ($query) => $query
+                        ->orderBy('urutan')
+                        ->with('citizen'),
+                ])
+                ->orderBy('no_kk')
+                ->orderBy('id')
+                ->chunk(self::CHUNK_SIZE, function (Collection $families) use ($output, $referenceLabels, $temporaryDirectory): void {
+                    foreach ($families as $family) {
+                        $familyPath = $this->renderFamily($family, $referenceLabels, $temporaryDirectory);
+
+                        try {
+                            $this->appendPdf($output, $familyPath);
+                        } finally {
+                            @unlink($familyPath);
+                        }
+
+                        unset($familyPath);
+                        gc_collect_cycles();
+                    }
+
+                    unset($families);
                     gc_collect_cycles();
-                }
+                });
 
-                unset($families);
-                gc_collect_cycles();
-            });
+            $output->Close();
 
-        return $output->Output('S');
+            return $outputPath;
+        } catch (Throwable $exception) {
+            @unlink($outputPath);
+            throw $exception;
+        }
+    }
+
+    private function renderSummary(Tenant $tenant, string $temporaryDirectory): string
+    {
+        $path = $this->temporaryPdfPath($temporaryDirectory, 'summary');
+
+        Pdf::loadView('population.family-cards-summary-pdf', [
+            'tenant' => $tenant,
+            'aggregate' => $this->aggregate($tenant),
+            'printedAt' => now(),
+        ])
+            ->setPaper('a4', 'landscape')
+            ->save($path);
+
+        return $path;
+    }
+
+    private function renderFamily(Family $family, array $referenceLabels, string $temporaryDirectory): string
+    {
+        $path = $this->temporaryPdfPath($temporaryDirectory, 'family');
+
+        Pdf::loadView('population.family-card-pdf', [
+            'family' => $family,
+            'printedAt' => now(),
+            'referenceLabels' => $referenceLabels,
+        ])
+            ->setPaper('a4', 'landscape')
+            ->save($path);
+
+        return $path;
+    }
+
+    private function temporaryPdfPath(string $directory, string $prefix): string
+    {
+        return $directory . '/' . $prefix . '-' . Str::uuid() . '.pdf';
+    }
+
+    private function ensureDirectory(string $directory): void
+    {
+        if (is_dir($directory)) {
+            return;
+        }
+
+        if (! mkdir($directory, 0775, true) && ! is_dir($directory)) {
+            throw new \RuntimeException('Unable to create temporary PDF directory: ' . $directory);
+        }
+    }
+
+    private function appendPdf(FileBufferedFpdi $output, string $pdfPath): void
+    {
+        $pageCount = $output->setSourceFile($pdfPath);
+
+        for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
+            $template = $output->importPage($pageNumber);
+            $size = $output->getTemplateSize($template);
+
+            $output->AddPage(
+                $size['orientation'],
+                [$size['width'], $size['height']],
+            );
+            $output->useImportedPage($template);
+        }
     }
 
     private function aggregate(Tenant $tenant): array
@@ -125,17 +194,5 @@ final class FamilyCardsBulkPdfService
             ->whereHas('family', fn ($query) => $query->where('tenant_id', $tenant->id))
             ->whereHas('citizen', fn ($query) => $query->where('kewarganegaraan', $citizenship))
             ->count();
-    }
-
-    private function appendPdf(Fpdi $output, string $pdfContent): void
-    {
-        $pageCount = $output->setSourceFile(StreamReader::createByString($pdfContent));
-
-        for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
-            $template = $output->importPage($pageNumber);
-            $size = $output->getTemplateSize($template);
-            $output->AddPage($size['orientation'], [$size['width'], $size['height']]);
-            $output->useImportedPage($template);
-        }
     }
 }
