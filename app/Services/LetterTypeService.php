@@ -102,6 +102,18 @@ class LetterTypeService
         });
     }
 
+    public function scheduleDeletion(LetterType $letterType): bool
+    {
+        $scheduledAt = now()->endOfDay();
+
+        return $this->repository->scheduleDeletion($letterType, $scheduledAt);
+    }
+
+    public function processScheduledDeletions(): int
+    {
+        return $this->repository->processScheduledDeletions();
+    }
+
     public function delete(LetterType $letterType): bool
     {
         return $this->repository->delete($letterType);
