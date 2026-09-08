@@ -61,17 +61,25 @@
                 </div>
                 @endif
                 <div class="grid grid-cols-3 gap-4 py-4">
+                    <dt class="text-sm text-slate-500">Penanda tangan</dt>
+                    <dd class="col-span-2 text-sm font-semibold">{{ $letter->signer_name ?? '-' }}</dd>
+                </div>
+                <div class="grid grid-cols-3 gap-4 py-4">
+                    <dt class="text-sm text-slate-500">Jabatan penanda tangan</dt>
+                    <dd class="col-span-2 text-sm">{{ $letter->signer_title ?? '-' }}</dd>
+                </div>
+                <div class="grid grid-cols-3 gap-4 py-4">
                     <dt class="text-sm text-slate-500">Diterbitkan</dt>
                     <dd class="col-span-2 text-sm">{{ optional($letter->issued_at)->translatedFormat('d F Y') ?? '-' }}</dd>
                 </div>
                 @if($letter->letterType?->has_expiry)
                 <div class="grid grid-cols-3 gap-4 py-4">
                     <dt class="text-sm text-slate-500">Berlaku mulai</dt>
-                    <dd class="col-span-2 text-sm">{{ optional($letter->valid_from)->translatedFormat('d F Y H:i') ?? '-' }}</dd>
+                    <dd class="col-span-2 text-sm">{{ optional($letter->valid_from)->translatedFormat('d F Y') ?? '-' }}</dd>
                 </div>
                 <div class="grid grid-cols-3 gap-4 py-4">
                     <dt class="text-sm text-slate-500">Berlaku sampai</dt>
-                    <dd class="col-span-2 text-sm">{{ optional($letter->valid_until)->translatedFormat('d F Y H:i') ?? '-' }}</dd>
+                    <dd class="col-span-2 text-sm">{{ optional($letter->valid_until)->translatedFormat('d F Y') ?? '-' }}</dd>
                 </div>
                 @endif
                 @if($state === 'withdrawn' && $withdrawal?->decided_at)
