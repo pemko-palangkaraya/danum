@@ -86,7 +86,7 @@ class DocxTemplateRepeaterTest extends TestCase
             $read->close();
 
             $this->assertSame(3, substr_count($xml, '<w:cantSplit'));
-            $this->assertSame(7, substr_count($xml, '<w:keepNext'));
+            $this->assertSame(8, substr_count($xml, '<w:keepNext'));
             $this->assertStringContainsString('Meysa Yudhistira, S.Kom.', $xml);
             $this->assertStringContainsString('NIP 199105232025041001', $xml);
             @unlink($result);
