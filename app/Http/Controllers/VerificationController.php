@@ -100,9 +100,18 @@ class VerificationController extends Controller
 
         $this->verificationLogService->record($request, 'DOWNLOAD', 'SUCCESS', $letter, 'verification');
 
-        return Storage::disk('local')->download($path, $letter->number . '.pdf', [
+        return Storage::disk('local')->download($path, $this->downloadFilename($letter), [
             'Content-Type' => 'application/pdf',
         ]);
+    }
+
+    private function downloadFilename(OutgoingLetter $letter): string
+    {
+        $number = trim((string) $letter->number);
+        $safeNumber = preg_replace('/[\\\/]+/', '-', $number) ?: 'dokumen';
+        $safeNumber = trim($safeNumber, '.-');
+
+        return ($safeNumber !== '' ? $safeNumber : 'dokumen') . '.pdf';
     }
 
     private function accessLevel(OutgoingLetter $letter): VerificationAccessLevel
