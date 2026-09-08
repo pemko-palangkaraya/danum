@@ -11,7 +11,6 @@ use App\Models\Tenant;
 use App\Services\PopulationReferenceService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -77,20 +76,22 @@ class FamilyCardController extends Controller
     public function exportStatus(Request $request, string $id): Response
     {
         $export = $this->ownedExport($request, $id);
-        $workerRunning = $this->isExportJobRunning($export->id);
-        $ready = $export->status === 'completed' && ! $workerRunning;
+        $ready = $export->status === 'completed'
+            && $export->path !== null
+            && Storage::disk('local')->exists($export->path);
 
         return response()->json([
             'status' => $export->status,
-            'queue_state' => $workerRunning ? 'running' : 'finished',
             'ready' => $ready,
-            'worker_status' => $workerRunning ? 'running' : 'finished',
             'download_url' => $ready
                 ? route('population.families.pdf.all.download', ['id' => $export->id])
                 : null,
             'error' => $export->status === 'failed'
                 ? 'Pembuatan PDF gagal. Silakan coba lagi.'
                 : null,
+        ], 200, [
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
         ]);
     }
 
@@ -98,8 +99,7 @@ class FamilyCardController extends Controller
     {
         $export = $this->ownedExport($request, $id);
         abort_unless($export->status === 'completed', 409, 'PDF belum siap diunduh.');
-        abort_if($this->isExportJobRunning($export->id), 409, 'Worker masih menyelesaikan pembuatan PDF.');
-        abort_unless($export->path !== null, 404);
+        abort_unless($export->path !== null, 404, 'File PDF belum tercatat.');
 
         $disk = Storage::disk('local');
         abort_unless($disk->exists($export->path), 404, 'File PDF tidak ditemukan.');
@@ -118,14 +118,6 @@ class FamilyCardController extends Controller
             ->whereKey($id)
             ->where('user_id', $request->user()->id)
             ->firstOrFail();
-    }
-
-    private function isExportJobRunning(string $exportId): bool
-    {
-        return DB::table('jobs')
-            ->where('queue', 'default')
-            ->where('payload', 'like', '%' . $exportId . '%')
-            ->exists();
     }
 
     private function referenceLabels(PopulationReferenceService $references): array
