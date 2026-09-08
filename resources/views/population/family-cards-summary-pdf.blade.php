@@ -220,8 +220,8 @@
         <tr>
             <td><span class="value">{{ number_format($aggregate['total_families']) }}</span><span class="label">Total KK</span></td>
             <td><span class="value">{{ number_format($aggregate['total_members']) }}</span><span class="label">Total Penduduk</span></td>
-            <td><span class="value">{{ number_format($aggregate['average_members'], 2) }}</span><span class="label">Rata-rata Anggota/KK</span></td>
-            <td><span class="value">{{ number_format($aggregate['median_members'], 2) }}</span><span class="label">Median Anggota/KK</span></td>
+            <td><span class="value">{{ number_format($aggregate['average_members']) }}</span><span class="label">Rata-rata Anggota/KK</span></td>
+            <td><span class="value">{{ number_format($aggregate['median_members']) }}</span><span class="label">Median Anggota/KK</span></td>
             <td><span class="value">{{ number_format($aggregate['minimum_members']) }}–{{ number_format($aggregate['maximum_members']) }}</span><span class="label">Min–Maks Anggota</span></td>
             <td><span class="value">{{ number_format($aggregate['active_families']) }}</span><span class="label">KK Aktif</span></td>
         </tr>
@@ -295,9 +295,7 @@
                         @endforeach
                     </table>
                 </div>
-            </td>
 
-            <td>
                 <div class="section">
                     <div class="section-title">5. Pendidikan</div>
                     <table class="data">
@@ -313,7 +311,9 @@
                         @endforeach
                     </table>
                 </div>
+            </td>
 
+            <td>
                 <div class="section">
                     <div class="section-title">6. Agama</div>
                     <table class="data">
@@ -454,7 +454,7 @@
     </table>
 
     <div class="note">
-        Catatan: agregat pada halaman ini mengikuti KK yang sedang diekspor. Pada tahap pengujian, ekspor dibatasi maksimal 5 KK. Kelompok umur dihitung dari tanggal lahir yang tercatat. Pekerjaan dan pendidikan adalah nilai yang tercatat pada data penduduk, bukan indikator otomatis kondisi ekonomi. Agregat RT/RW dan kelurahan menggunakan alamat yang tercatat pada data KK.
+        Catatan: agregat pada halaman ini mengikuti KK yang sedang diekspor. Kelompok umur dihitung dari tanggal lahir yang tercatat. Pekerjaan dan pendidikan adalah nilai yang tercatat pada data penduduk, bukan indikator otomatis kondisi ekonomi. Agregat RT/RW dan kelurahan menggunakan alamat yang tercatat pada data KK.
     </div>
     <div class="footer">Halaman berikutnya: satu Kartu Keluarga per halaman, berurutan berdasarkan nomor KK.</div>
 </body>
