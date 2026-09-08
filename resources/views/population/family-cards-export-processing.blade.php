@@ -12,6 +12,8 @@
             class="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
             x-data="{
                 status: 'queued',
+                queueState: 'queued',
+                ready: false,
                 error: '',
                 timer: null,
                 async check() {
@@ -30,9 +32,11 @@
 
                         const data = await response.json();
                         this.status = data.status ?? 'queued';
+                        this.queueState = data.queue_state ?? 'queued';
+                        this.ready = data.ready === true;
                         this.error = data.error ?? '';
 
-                        if (this.status === 'completed' || this.status === 'failed') {
+                        if (this.ready || this.status === 'failed') {
                             clearInterval(this.timer);
                         }
                     } catch (exception) {
@@ -43,12 +47,16 @@
                     }
                 },
                 closePage() {
+                    // Browser hanya mengizinkan window.close() pada konteks
+                    // yang dibuka oleh script/tab opener. Coba beberapa cara
+                    // sebelum memberi fallback yang aman.
+                    window.open('', '_self');
                     window.close();
                     setTimeout(() => {
                         if (! window.closed) {
-                            window.location.href = '{{ route('population.families.index') }}';
+                            window.location.replace('{{ route('population.families.index') }}');
                         }
-                    }, 150);
+                    }, 300);
                 }
             }"
             x-init="check(); timer = setInterval(() => check(), 3000)"
@@ -63,18 +71,27 @@
                 <div x-show="status === 'queued' || status === 'processing'" class="flex items-center gap-3">
                     <span class="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900"></span>
                     <div>
-                        <p class="text-sm font-semibold" x-text="status === 'processing' ? 'Sedang membuat PDF...' : 'Menunggu proses dimulai...'"></p>
-                        <p class="mt-1 text-xs text-slate-500">Status diperiksa otomatis setiap beberapa detik.</p>
+                        <p class="text-sm font-semibold" x-text="queueState === 'running' ? 'Worker sedang membuat PDF...' : 'Menunggu worker memulai proses...'">
+                        </p>
+                        <p class="mt-1 text-xs text-slate-500" x-text="queueState === 'running' ? 'PDF masih diproses. Jangan menganggap file sudah selesai sebelum status siap.' : 'Pekerjaan sudah masuk antrean dan akan diproses worker.'"></p>
                     </div>
                 </div>
 
-                <div x-show="status === 'completed'" class="space-y-3">
+                <div x-show="status === 'completed' && ! ready" class="flex items-center gap-3">
+                    <span class="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900"></span>
                     <div>
-                        <p class="text-sm font-semibold text-emerald-700">PDF selesai dibuat.</p>
-                        <p class="mt-1 text-xs text-slate-500">Klik tombol untuk membuka atau mengunduh PDF.</p>
+                        <p class="text-sm font-semibold">PDF sudah dibuat, worker sedang menyelesaikan pekerjaan...</p>
+                        <p class="mt-1 text-xs text-slate-500">Tombol file akan aktif setelah job worker benar-benar selesai.</p>
+                    </div>
+                </div>
+
+                <div x-show="ready" class="space-y-3">
+                    <div>
+                        <p class="text-sm font-semibold text-emerald-700">PDF siap dibuka.</p>
+                        <p class="mt-1 text-xs text-slate-500">Job worker sudah selesai dan file tersedia.</p>
                     </div>
                     <a
-                        href="{{ route('population.families.pdf.all.download', ['id' => $export->id]) }}"
+                        :href="{{ Js::from(route('population.families.pdf.all.download', ['id' => $export->id])) }}"
                         class="inline-flex cursor-pointer rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
                     >
                         Buka / Download PDF
