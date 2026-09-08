@@ -7,6 +7,7 @@ use Livewire\Volt\Volt;
 use App\Livewire\Dashboard;
 use App\Livewire\TenantProfile;
 use App\Livewire\AuditLogs\Index as AuditLogIndex;
+use App\Livewire\Notifications\Index as NotificationIndex;
 use App\Livewire\Settings\Password as SettingsPassword;
 use App\Livewire\Tenants\Index as TenantIndex;
 use App\Livewire\Tenants\Create as TenantCreate;
@@ -45,6 +46,7 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::get('/settings/password', SettingsPassword::class)->name('settings.password');
+    Route::get('/notifications', NotificationIndex::class)->name('notifications.index');
     Route::get('/population/citizens/import', PopulationCitizenImport::class)->name('population.citizens.import');
     Route::middleware('permission:dashboard.view')->group(function () { Route::get('/dashboard', Dashboard::class)->name('dashboard'); });
     Route::middleware('permission:rbac.view')->group(function () { Volt::route('/rbac', 'pages.rbac.index')->name('rbac.index'); });
