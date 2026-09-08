@@ -13,21 +13,43 @@
             x-data="{
                 status: 'queued',
                 error: '',
-                check() {
-                    fetch('{{ route('population.families.pdf.all.status', ['id' => $export->id]) }}', {
-                        headers: { 'Accept': 'application/json' },
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            this.status = data.status;
-                            this.error = data.error ?? '';
-                            if (data.status === 'completed' && data.download_url) {
-                                window.location.href = data.download_url;
-                            }
+                timer: null,
+                async check() {
+                    try {
+                        const response = await fetch('{{ route('population.families.pdf.all.status', ['id' => $export->id]) }}', {
+                            headers: {
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            cache: 'no-store',
                         });
+
+                        if (! response.ok) {
+                            throw new Error(`Status HTTP ${response.status}`);
+                        }
+
+                        const data = await response.json();
+                        this.status = data.status ?? 'queued';
+                        this.error = data.error ?? '';
+
+                        if (this.status === 'completed' && data.download_url) {
+                            clearInterval(this.timer);
+                            window.location.assign(data.download_url);
+                            return;
+                        }
+
+                        if (this.status === 'failed') {
+                            clearInterval(this.timer);
+                        }
+                    } catch (exception) {
+                        this.status = 'error';
+                        this.error = exception instanceof Error
+                            ? exception.message
+                            : 'Tidak dapat memeriksa status pembuatan PDF.';
+                    }
                 }
             }"
-            x-init="check(); setInterval(() => check(), 3000)"
+            x-init="check(); timer = setInterval(() => check(), 3000)"
         >
             <p class="text-sm font-medium text-slate-500">Kependudukan</p>
             <h1 class="mt-1 text-xl font-semibold">Membuat PDF Semua Kartu Keluarga</h1>
@@ -36,16 +58,16 @@
             </p>
 
             <div class="mt-6 rounded-xl bg-slate-50 p-4">
-                <div class="flex items-center gap-3" x-show="status !== 'failed'">
+                <div class="flex items-center gap-3" x-show="status === 'queued' || status === 'processing'">
                     <span class="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900"></span>
                     <div>
-                        <p class="text-sm font-semibold" x-text="status === 'processing' ? 'Sedang membuat PDF...' : 'Menunggu proses dimulai...'">Menunggu proses dimulai...</p>
+                        <p class="text-sm font-semibold" x-text="status === 'processing' ? 'Sedang membuat PDF...' : 'Menunggu proses dimulai...'"></p>
                         <p class="mt-1 text-xs text-slate-500">Halaman akan otomatis membuka PDF setelah selesai.</p>
                     </div>
                 </div>
 
-                <div x-show="status === 'failed'" class="text-sm text-red-700">
-                    <p class="font-semibold">Pembuatan PDF gagal.</p>
+                <div x-show="status === 'failed' || status === 'error'" class="text-sm text-red-700">
+                    <p class="font-semibold" x-text="status === 'error' ? 'Gagal memeriksa status PDF.' : 'Pembuatan PDF gagal.'"></p>
                     <p class="mt-1" x-text="error"></p>
                 </div>
             </div>
