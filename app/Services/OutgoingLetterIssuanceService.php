@@ -59,6 +59,8 @@ class OutgoingLetterIssuanceService
             'signature_certificate_id' => null,
             'signature_profile' => null,
             'signed_at' => null,
+            'document_hash' => null,
+            'document_hash_algorithm' => null,
         ];
         $period = $letterType?->validity_period ?? 'none';
         if ($period !== 'none') {
@@ -85,9 +87,10 @@ class OutgoingLetterIssuanceService
             if ($signWithTte) {
                 $signerCertificate = $this->resolveSignerCertificate($letter);
                 $signedPdfPath = $this->pdfSigningService->sign(sourcePdfPath: Storage::disk('local')->path($unsignedPdfPath), certificate: $signerCertificate, signerName: (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $signerCertificate->user()->value('name')), reason: $note);
-                $attributes = [...$attributes, 'unsigned_pdf_path' => $unsignedPdfPath, 'signed_pdf_path' => $signedPdfPath, 'signature_certificate_id' => $signerCertificate->id, 'signature_profile' => 'pades-b-t', 'signed_at' => now()];
+                $attributes = [...$attributes, 'unsigned_pdf_path' => $unsignedPdfPath, 'signed_pdf_path' => $signedPdfPath, 'signature_certificate_id' => $signerCertificate->id, 'signature_profile' => 'pades-b-t', 'signed_at' => now(), ...$this->documentHashAttributes($signedPdfPath)];
             } else {
                 $attributes['unsigned_pdf_path'] = $unsignedPdfPath;
+                $attributes = [...$attributes, ...$this->documentHashAttributes($unsignedPdfPath)];
             }
 
             $oldValues = $this->auditValues($letter);
@@ -133,9 +136,10 @@ class OutgoingLetterIssuanceService
             $this->signerPinService->verify($signer, $pin);
             $certificate = $this->resolveSignerCertificate($letter);
             $signedPdfPath = $this->pdfSigningService->sign(sourcePdfPath: Storage::disk('local')->path($letter->unsigned_pdf_path), certificate: $certificate, signerName: (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $certificate->user()->value('name')), reason: $note);
+            $documentHashAttributes = $this->documentHashAttributes($signedPdfPath);
             $oldValues = $this->auditValues($letter);
-            return DB::transaction(function () use ($letter, $changedBy, $note, $certificate, $signedPdfPath, $oldValues): OutgoingLetter {
-                $updated = $this->repository->update($letter, ['signed_pdf_path' => $signedPdfPath, 'signature_certificate_id' => $certificate->id, 'signature_profile' => 'pades-b-t', 'signed_at' => now(), 'signing_note' => $note]);
+            return DB::transaction(function () use ($letter, $changedBy, $note, $certificate, $signedPdfPath, $documentHashAttributes, $oldValues): OutgoingLetter {
+                $updated = $this->repository->update($letter, ['signed_pdf_path' => $signedPdfPath, 'signature_certificate_id' => $certificate->id, 'signature_profile' => 'pades-b-t', 'signed_at' => now(), ...$documentHashAttributes]);
                 $this->recordHistory($updated, 'signed', $changedBy, $note);
                 $this->recordAudit('outgoing_letter.signed', $updated, $changedBy, $oldValues, $this->auditValues($updated));
                 return $updated;
@@ -146,6 +150,20 @@ class OutgoingLetterIssuanceService
             if ($e instanceof \DomainException) throw $e;
             throw new \DomainException('TTE gagal: ' . $e->getMessage(), previous: $e);
         }
+    }
+
+    private function documentHashAttributes(string $path): array
+    {
+        $absolutePath = Storage::disk('local')->path($path);
+        if (! is_file($absolutePath)) throw new \RuntimeException('PDF final tidak ditemukan untuk pembuatan hash dokumen.');
+
+        $hash = hash_file('sha256', $absolutePath);
+        if ($hash === false) throw new \RuntimeException('Hash SHA-256 dokumen gagal dibuat.');
+
+        return [
+            'document_hash' => $hash,
+            'document_hash_algorithm' => 'SHA-256',
+        ];
     }
 
     private function resolveSignerCertificate(OutgoingLetter $letter): SignerCertificate
