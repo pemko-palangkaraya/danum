@@ -169,6 +169,20 @@ class Index extends Component
         $this->dispatch('toast', type: 'success', message: "Jenis surat '{$name}' dijadwalkan dihapus pada 23:59:59 hari ini.");
     }
 
+    public function restore(string $id, LetterTypeService $service): void
+    {
+        $letterType = LetterType::withTrashed()->findOrFail($id);
+        $this->authorize('restore', $letterType);
+
+        if (! $letterType->trashed()) {
+            return;
+        }
+
+        $service->restore($letterType);
+        $this->resetPage();
+        $this->dispatch('toast', type: 'success', message: "Jenis surat '{$letterType->name}' berhasil dipulihkan.");
+    }
+
     public function closeDeleteConfirm(): void
     {
         $this->showDeleteConfirm = false;
