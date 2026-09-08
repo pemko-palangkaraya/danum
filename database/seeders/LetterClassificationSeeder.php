@@ -54,7 +54,6 @@ class LetterClassificationSeeder extends Seeder
             // Klasifikasi operasional yang sudah dipakai oleh fitur surat.
             ['400.7.22', 'Surat Keterangan, Sertifikasi dan Perijinan', 'Surat keterangan, sertifikasi dan perijinan.', 781],
             ['400.7.22.1', 'Surat keterangan', 'Surat keterangan yang diterbitkan pemerintah daerah.', 782],
-            ['400.12.4.4', 'Penyajian dan Layanan Informasi Administrasi Kependudukan', 'Penyajian dan layanan informasi administrasi kependudukan.', 942],
             ['500.5.7.15', 'Rekomendasi', 'Klasifikasi untuk dokumen rekomendasi.', 1380],
             ['800.1.11.1', 'Surat Perintah Dinas/Surat Tugas', 'Surat perintah dinas dan surat tugas.', 2294],
         ];
