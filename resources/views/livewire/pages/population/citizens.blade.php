@@ -4,6 +4,7 @@
         'canView' => true,
         'canManage' => $canManage,
         'tenantSelected' => $tenantSelected,
+        'selectedTenantId' => $selectedTenantId,
     ])
 
     @if($showForm)
