@@ -9,7 +9,7 @@
             <h3 class="text-sm font-semibold text-slate-900">Identitas</h3>
             <div class="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 @foreach([['nik','NIK'],['nama_lengkap','Nama Lengkap'],['tempat_lahir','Tempat Lahir'],['tanggal_lahir','Tanggal Lahir']] as [$field, $label])
-                    <x-ui.input wire:model="{{ $field }}" type="{{ $field === 'tanggal_lahir' ? 'date' : 'text' }}" label="{{ $label }}" id="citizen-{{ $field }}" error="{{ $errors->first($field) }}" :required="in_array($field, ['nik', 'nama_lengkap], true)" />
+                    <x-ui.input wire:model="{{ $field }}" type="{{ $field === 'tanggal_lahir' ? 'date' : 'text' }}" label="{{ $label }}" id="citizen-{{ $field }}" error="{{ $errors->first($field) }}" :required="in_array($field, ['nik', 'nama_lengkap'], true)" />
                 @endforeach
 
                 <x-ui.field label="Jenis Kelamin" for="citizen-jenis-kelamin" error="{{ $errors->first('jenis_kelamin') }}">
