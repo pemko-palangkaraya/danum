@@ -34,12 +34,7 @@
                         this.error = data.error ?? '';
                         this.downloadUrl = data.download_url ?? '';
 
-                        if (this.status === 'completed') {
-                            clearInterval(this.timer);
-                            return;
-                        }
-
-                        if (this.status === 'failed') {
+                        if (this.status === 'completed' || this.status === 'failed') {
                             clearInterval(this.timer);
                         }
                     } catch (exception) {
@@ -48,6 +43,15 @@
                             ? exception.message
                             : 'Tidak dapat memeriksa status pembuatan PDF.';
                     }
+                },
+                openPdf() {
+                    if (! this.downloadUrl) {
+                        this.error = 'Link PDF belum tersedia. Silakan tunggu beberapa detik lalu coba lagi.';
+                        this.status = 'error';
+                        return;
+                    }
+
+                    window.open(this.downloadUrl, '_blank', 'noopener');
                 }
             }"
             x-init="check(); timer = setInterval(() => check(), 3000)"
@@ -72,13 +76,14 @@
                         <p class="text-sm font-semibold text-emerald-700">PDF selesai dibuat.</p>
                         <p class="mt-1 text-xs text-slate-500">Silakan klik tombol di bawah untuk membuka atau mengunduh PDF.</p>
                     </div>
-                    <a
-                        x-bind:href="downloadUrl"
-                        x-show="downloadUrl"
-                        class="inline-flex rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+                    <button
+                        type="button"
+                        x-on:click="openPdf()"
+                        x-bind:disabled="!downloadUrl"
+                        class="inline-flex rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         Buka / Download PDF
-                    </a>
+                    </button>
                 </div>
 
                 <div x-show="status === 'failed' || status === 'error'" class="text-sm text-red-700">
