@@ -32,7 +32,7 @@
             text-align: center;
             font-size: 17px;
             font-weight: bold;
-            margin: 0 0 1px;
+            margin: 4px 0 1px;
         }
 
         .kk-number {
