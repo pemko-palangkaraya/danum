@@ -39,8 +39,9 @@ return [
             'driver' => 'database',
             'connection' => env('DB_QUEUE_CONNECTION'),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
-            'queue' => env('DB_QUEUE', 'default'),
-            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90),
+            // Bulk PDF generation may legitimately run for several minutes.
+            // Keep retry_after longer than the job timeout to prevent duplicate work.
+            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 1200),
             'after_commit' => false,
         ],
 
@@ -112,11 +113,8 @@ return [
     | Failed Queue Jobs
     |--------------------------------------------------------------------------
     |
-    | These options configure the behavior of failed queue job logging so you
-    | can control how and where failed jobs are stored. Laravel ships with
-    | support for storing failed jobs in a simple file or in a database.
-    |
-    | Supported drivers: "database-uuids", "dynamodb", "file", "null"
+    | These options configure the behavior of failed job logging so you can
+    | control how and where failed jobs are stored.
     |
     */
 
