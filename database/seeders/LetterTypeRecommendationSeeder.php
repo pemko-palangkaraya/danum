@@ -14,11 +14,11 @@ class LetterTypeRecommendationSeeder extends Seeder
     public function run(): void
     {
         $types = [
-            ['SKD', 'Surat Keterangan Domisili', 'Surat keterangan domisili atau keterangan tempat tinggal warga.', '400.7.22.1'],
-            ['SKU', 'Surat Keterangan Usaha', 'Surat keterangan usaha, kegiatan usaha, UMKM, dan pekerjaan mandiri warga.', '400.7.22.1'],
-            ['SKTM', 'Surat Keterangan Tidak Mampu', 'Surat keterangan tidak mampu, kondisi ekonomi, atau kebutuhan layanan sosial warga.', '400.7.22.1'],
-            ['SKK', 'Surat Keterangan Kelahiran', 'Surat keterangan kelahiran dan kebutuhan administrasi kependudukan terkait kelahiran.', '400.12.4.4'],
-            ['SKM', 'Surat Keterangan Kematian', 'Surat keterangan kematian dan kebutuhan administrasi kependudukan terkait kematian.', '400.12.4.4'],
+            ['SKD', 'Surat Keterangan Domisili', 'Surat keterangan domisili atau keterangan tempat tinggal warga.', '400.10.2.2'],
+            ['SKU', 'Surat Keterangan Usaha', 'Surat keterangan usaha, kegiatan usaha, UMKM, dan pekerjaan mandiri warga.', '400.10.2.2'],
+            ['SKTM', 'Surat Keterangan Tidak Mampu', 'Surat keterangan tidak mampu, kondisi ekonomi, atau kebutuhan layanan sosial warga.', '400.10.2.2'],
+            ['SKK', 'Surat Keterangan Kelahiran', 'Surat keterangan kelahiran dan kebutuhan administrasi kependudukan terkait kelahiran.', '400.10.2.2'],
+            ['SKM', 'Surat Keterangan Kematian', 'Surat keterangan kematian dan kebutuhan administrasi kependudukan terkait kematian.', '400.10.2.2'],
             ['SPT', 'Surat Perintah Dinas / Surat Tugas', 'Surat tugas, penugasan, perintah dinas, dan penugasan pegawai.', '800.1.11.1'],
             ['UND', 'Surat Undangan Rapat', 'Surat undangan rapat, pertemuan, koordinasi, dan agenda kedinasan.', '000.1.5'],
             ['SR', 'Surat Rekomendasi', 'Surat rekomendasi, saran, pertimbangan, atau persetujuan administratif.', '500.5.7.15'],
