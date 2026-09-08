@@ -13,6 +13,7 @@
             x-data="{
                 status: 'queued',
                 error: '',
+                downloadUrl: '',
                 timer: null,
                 async check() {
                     try {
@@ -31,10 +32,10 @@
                         const data = await response.json();
                         this.status = data.status ?? 'queued';
                         this.error = data.error ?? '';
+                        this.downloadUrl = data.download_url ?? '';
 
-                        if (this.status === 'completed' && data.download_url) {
+                        if (this.status === 'completed') {
                             clearInterval(this.timer);
-                            window.location.assign(data.download_url);
                             return;
                         }
 
@@ -54,16 +55,30 @@
             <p class="text-sm font-medium text-slate-500">Kependudukan</p>
             <h1 class="mt-1 text-xl font-semibold">Membuat PDF Semua Kartu Keluarga</h1>
             <p class="mt-2 text-sm text-slate-600">
-                {{ $tenant->name }} sedang diproses. Anda tidak perlu menunggu halaman ini tetap terbuka secara aktif.
+                {{ $tenant->name }} sedang diproses. Proses tetap berjalan di server meskipun halaman ditutup.
             </p>
 
             <div class="mt-6 rounded-xl bg-slate-50 p-4">
-                <div class="flex items-center gap-3" x-show="status === 'queued' || status === 'processing'">
+                <div x-show="status === 'queued' || status === 'processing'" class="flex items-center gap-3">
                     <span class="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900"></span>
                     <div>
                         <p class="text-sm font-semibold" x-text="status === 'processing' ? 'Sedang membuat PDF...' : 'Menunggu proses dimulai...'"></p>
-                        <p class="mt-1 text-xs text-slate-500">Halaman akan otomatis membuka PDF setelah selesai.</p>
+                        <p class="mt-1 text-xs text-slate-500">Status diperiksa otomatis setiap beberapa detik.</p>
                     </div>
+                </div>
+
+                <div x-show="status === 'completed'" class="space-y-3">
+                    <div>
+                        <p class="text-sm font-semibold text-emerald-700">PDF selesai dibuat.</p>
+                        <p class="mt-1 text-xs text-slate-500">Silakan klik tombol di bawah untuk membuka atau mengunduh PDF.</p>
+                    </div>
+                    <a
+                        x-bind:href="downloadUrl"
+                        x-show="downloadUrl"
+                        class="inline-flex rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+                    >
+                        Buka / Download PDF
+                    </a>
                 </div>
 
                 <div x-show="status === 'failed' || status === 'error'" class="text-sm text-red-700">
