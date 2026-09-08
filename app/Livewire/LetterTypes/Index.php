@@ -221,15 +221,14 @@ class Index extends Component
         }
 
         if ($this->filter === 'deleted') {
-            $query->where(function ($q): void {
-                $q->onlyTrashed()
+            $query->withTrashed()->where(function ($q): void {
+                $q->whereNotNull('deleted_at')
                     ->orWhere(function ($scheduled): void {
                         $scheduled->whereNotNull('deletion_scheduled_at')->whereNull('deleted_at');
                     });
             });
         } else {
-            $query->where('status', LetterTypeStatus::from($this->filter))
-                ->whereNull('deletion_scheduled_at');
+            $query->where('status', LetterTypeStatus::from($this->filter));
         }
 
         return view('livewire.pages.letter-types.index', [
