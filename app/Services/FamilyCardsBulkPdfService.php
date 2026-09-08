@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Models\Family;
 use App\Models\FamilyMember;
 use App\Models\Tenant;
-use App\Services\PopulationReferenceService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
 use setasign\Fpdi\Fpdi;
@@ -22,8 +21,13 @@ final class FamilyCardsBulkPdfService
         Tenant $tenant,
         PopulationReferenceService $references,
     ): string {
-        // Bulk PDF jauh lebih berat daripada cetak satu KK. Naikkan limit
-        // hanya selama proses ini agar PHP default 128 MB tidak cepat habis.
+        // Bulk PDF tidak dibatasi 30 detik seperti request PHP biasa karena
+        // setiap KK harus dirender oleh DomPDF sebelum digabung menjadi satu PDF.
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+
+        // Naikkan limit hanya selama proses bulk PDF; aplikasi lain tetap
+        // menggunakan konfigurasi memory_limit normal.
         @ini_set('memory_limit', self::MEMORY_LIMIT);
 
         $referenceLabels = [
