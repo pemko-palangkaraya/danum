@@ -81,7 +81,11 @@ class LetterTypeRepository implements LetterTypeRepositoryInterface
 
     public function restore(LetterType $letterType): bool
     {
-        return $letterType->restore();
+        return DB::transaction(function () use ($letterType): bool {
+            $letterType->update(['deletion_scheduled_at' => null]);
+
+            return $letterType->restore();
+        });
     }
 
     public function findWithTrashed(string $id, ?string $tenantId): ?LetterType
