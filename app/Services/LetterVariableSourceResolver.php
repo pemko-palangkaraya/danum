@@ -25,6 +25,7 @@ final class LetterVariableSourceResolver
 
         $name = (string) ($holder?->user?->name ?? $tenant->head_name ?? '');
         $title = (string) ($holder?->position?->name ?? $tenant->head_title ?? '');
+        $employee = $holder?->user?->employeeProfile;
 
         return [
             'tenant_name' => $tenant->name,
@@ -38,6 +39,9 @@ final class LetterVariableSourceResolver
             'tenant_head_name' => $name,
             'tenant_head_title' => $title,
             'nama_ttd' => $name,
+            'nip_ttd' => (string) ($employee?->nip ?? ''),
+            'pangkat_ttd' => (string) ($employee?->pangkat ?? ''),
+            'golongan_ttd' => (string) ($employee?->golongan ?? ''),
             'jabatan_ttd' => $title,
         ];
     }
