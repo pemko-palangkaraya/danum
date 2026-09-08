@@ -79,8 +79,12 @@
             const statusErrorMessage = document.getElementById('status-error-message');
             const closeButton = document.getElementById('close-page');
 
+            const POLL_INTERVAL = 5000;
+            const TRANSIENT_HTTP_STATUSES = new Set([502, 503, 504]);
+
             let timer = null;
             let checking = false;
+            let transientErrorCount = 0;
 
             const stopPolling = () => {
                 if (timer !== null) {
@@ -94,6 +98,12 @@
                 ready.classList.toggle('hidden', state !== 'ready');
                 failed.classList.toggle('hidden', state !== 'failed');
                 errorState.classList.toggle('hidden', state !== 'error');
+            };
+
+            const clearTransientError = () => {
+                transientErrorCount = 0;
+                errorState.classList.add('hidden');
+                statusErrorMessage.textContent = '';
             };
 
             const checkStatus = async () => {
@@ -113,8 +123,22 @@
                     });
 
                     if (!response.ok) {
+                        if (TRANSIENT_HTTP_STATUSES.has(response.status)) {
+                            transientErrorCount++;
+
+                            if (transientErrorCount >= 3) {
+                                showState('processing');
+                                processingTitle.textContent = 'Menunggu server merespons...';
+                                processingDescription.textContent = 'Pembuatan PDF tetap berjalan. Pemeriksaan status akan dicoba kembali otomatis.';
+                            }
+
+                            return;
+                        }
+
                         throw new Error(`Status HTTP ${response.status}`);
                     }
+
+                    clearTransientError();
 
                     const data = await response.json();
 
@@ -145,10 +169,11 @@
                         processingDescription.textContent = 'Pekerjaan sudah masuk antrean dan akan diproses worker.';
                     }
                 } catch (exception) {
-                    errorState.classList.remove('hidden');
+                    transientErrorCount = 0;
                     statusErrorMessage.textContent = exception instanceof Error
                         ? exception.message
                         : 'Tidak dapat memeriksa status pembuatan PDF.';
+                    showState('error');
                 } finally {
                     checking = false;
                 }
@@ -166,7 +191,7 @@
             });
 
             checkStatus();
-            timer = window.setInterval(checkStatus, 2000);
+            timer = window.setInterval(checkStatus, POLL_INTERVAL);
         })();
     </script>
 </body>
