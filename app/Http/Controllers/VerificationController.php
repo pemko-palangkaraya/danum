@@ -142,7 +142,7 @@ class VerificationController extends Controller
             'signer_name' => $letter->signer_name,
             'signer_title' => $letter->signer_title,
             'signed_at' => $letter->signed_at?->toIso8601String(),
-            'tte_status' => filled($letter->signed_pdf_path) ? 'valid' : 'not_signed',
+            'tte_status' => filled($letter->signed_pdf_path) ? 'signed' : 'not_signed',
             'state' => $state,
             'tenant' => $letter->tenant?->name,
             'city' => $letter->tenant?->city,
