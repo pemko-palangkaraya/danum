@@ -37,7 +37,7 @@ class VerificationAccessTest extends TestCase
         $this->get(route('verification.document', $letter->verification_token))
             ->assertOk()
             ->assertHeader('Content-Type', 'application/pdf')
-            ->assertHeader('Content-Disposition', 'inline; filename="'.$letter->number.'.pdf"');
+            ->assertHeader('Content-Disposition', 'inline; filename="'.$this->safeFilename($letter->number).'"');
 
         $this->assertSame(hash('sha256', '%PDF-public'), $letter->document_hash);
         $this->assertSame('SHA-256', $letter->document_hash_algorithm);
@@ -175,5 +175,13 @@ class VerificationAccessTest extends TestCase
             'issued_at' => now(),
             'unsigned_pdf_path' => 'letters/test-'.$accessLevel->value.'.pdf',
         ]);
+    }
+
+    private function safeFilename(string $number): string
+    {
+        $safeNumber = trim(str_replace(['/', '\\'], '-', $number));
+        $safeNumber = trim($safeNumber, '.-');
+
+        return ($safeNumber !== '' ? $safeNumber : 'dokumen') . '.pdf';
     }
 }
