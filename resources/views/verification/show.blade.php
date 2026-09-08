@@ -54,14 +54,12 @@
                     <dt class="text-sm text-slate-500">Instansi</dt>
                     <dd class="col-span-2 text-sm">{{ $letter->tenant?->name ?? '-' }}</dd>
                 </div>
-                <div class="grid grid-cols-3 gap-4 py-4">
-                    <dt class="text-sm text-slate-500">Pemohon</dt>
-                    <dd class="col-span-2 text-sm">{{ $letter->recipient_name }}</dd>
-                </div>
+                @if(filled($letter->subject))
                 <div class="grid grid-cols-3 gap-4 py-4">
                     <dt class="text-sm text-slate-500">Perihal</dt>
                     <dd class="col-span-2 text-sm">{{ $letter->subject }}</dd>
                 </div>
+                @endif
                 <div class="grid grid-cols-3 gap-4 py-4">
                     <dt class="text-sm text-slate-500">Diterbitkan</dt>
                     <dd class="col-span-2 text-sm">{{ optional($letter->issued_at)->translatedFormat('d F Y') ?? '-' }}</dd>
