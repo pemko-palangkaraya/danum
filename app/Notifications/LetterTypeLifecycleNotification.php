@@ -37,7 +37,6 @@ class LetterTypeLifecycleNotification extends Notification
             'letter_type_id' => $this->letterTypeId,
             'letter_type_name' => $this->letterTypeName,
             'scheduled_at' => $this->scheduledAt,
-            'action_url' => route('outgoing-letters.index'),
         ];
     }
 
