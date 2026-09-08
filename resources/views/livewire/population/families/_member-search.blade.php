@@ -27,9 +27,15 @@
                 <select wire:model.live="memberRelationship" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
                     <option value="">Pilih hubungan</option>
                     @foreach($familyRelationships as $relationship)
-                        <option value="{{ $relationship->code }}">{{ $relationship->label }}</option>
+                        <option
+                            value="{{ $relationship->code }}"
+                            @disabled($relationship->code === 'spouse' && $detail?->headCitizen?->jenis_kelamin !== 'male')
+                        >{{ $relationship->label }}</option>
                     @endforeach
                 </select>
+                @if($detail?->headCitizen?->jenis_kelamin !== 'male')
+                    <p class="mt-1.5 text-xs text-slate-400">Hubungan Istri tersedia untuk KK dengan kepala keluarga laki-laki.</p>
+                @endif
                 @error('hubungan_dalam_keluarga')
                     <p class="mt-1.5 text-xs font-medium text-red-600">{{ $message }}</p>
                 @enderror
