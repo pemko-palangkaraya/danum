@@ -27,6 +27,11 @@ new #[Layout('layouts.app')] class extends Component {
     public string $signerPinConfirmation = '';
     public string $name = '';
     public string $nip = '';
+    public string $pangkat = '';
+    public string $golongan = '';
+    public string $statusPegawai = '';
+    public string $tanggalMasuk = '';
+    public string $tanggalPensiun = '';
     public string $email = '';
     public string $password = '';
     public string $role = 'tenant_user';
@@ -37,50 +42,36 @@ new #[Layout('layouts.app')] class extends Component {
     public string $search = '';
     public string $filter = 'active';
 
-    public function mount(): void
-    {
-        $this->authorize('viewAny', User::class);
-    }
-
-    public function updatedSearch(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedFilter(): void
-    {
-        $this->resetPage();
-    }
-
-    public function create(): void
-    {
-        $this->resetForm();
-        $this->showForm = true;
-    }
+    public function mount(): void { $this->authorize('viewAny', User::class); }
+    public function updatedSearch(): void { $this->resetPage(); }
+    public function updatedFilter(): void { $this->resetPage(); }
+    public function create(): void { $this->resetForm(); $this->showForm = true; }
 
     public function edit(int $id): void
     {
-        $user = User::query()->with('customRole')->findOrFail($id);
+        $user = User::query()->with(['customRole', 'employeeProfile'])->findOrFail($id);
         $this->authorize('update', $user);
+        $profile = $user->employeeProfile;
         $this->editingUserId = $user->id;
         $this->name = $user->name;
-        $this->nip = (string) ($user->nip ?? '');
+        $this->nip = (string) ($profile?->nip ?? '');
+        $this->pangkat = (string) ($profile?->pangkat ?? '');
+        $this->golongan = (string) ($profile?->golongan ?? '');
+        $this->statusPegawai = (string) ($profile?->status_pegawai ?? '');
+        $this->tanggalMasuk = $profile?->tanggal_masuk?->format('Y-m-d') ?? '';
+        $this->tanggalPensiun = $profile?->tanggal_pensiun?->format('Y-m-d') ?? '';
         $this->email = $user->email;
         $this->password = '';
         $this->role = $user->isSuperAdmin() ? 'super_admin' : ($user->effectiveRole()?->slug ?? 'tenant_user');
         $this->tenantId = (string) ($user->tenant_id ?? '');
         $this->status = $user->status->value;
-
         if ($user->customRole?->is_system) {
             $this->customRoleId = null;
             $this->roleSelection = $this->role;
         } else {
             $this->customRoleId = $user->custom_role_id ? (string) $user->custom_role_id : null;
-            $this->roleSelection = $this->customRoleId !== null
-                ? 'custom:' . $this->customRoleId
-                : $this->role;
+            $this->roleSelection = $this->customRoleId !== null ? 'custom:' . $this->customRoleId : $this->role;
         }
-
         $this->resetValidation();
         $this->showForm = true;
     }
@@ -93,7 +84,6 @@ new #[Layout('layouts.app')] class extends Component {
             $this->customRoleId = $customRoleId !== '' ? $customRoleId : null;
             return;
         }
-
         $this->role = $this->roleSelection;
         $this->customRoleId = null;
     }
@@ -108,16 +98,9 @@ new #[Layout('layouts.app')] class extends Component {
 
     public function availableCustomRoles()
     {
-        if ($this->tenantId === '') {
-            return collect();
-        }
-
+        if ($this->tenantId === '') return collect();
         $query = Role::query()->where('is_system', false)->where('is_active', true);
-
-        if (auth()->user()?->isSuperAdmin()) {
-            return $query->orderBy('scope')->orderBy('name')->get();
-        }
-
+        if (auth()->user()?->isSuperAdmin()) return $query->orderBy('scope')->orderBy('name')->get();
         return $query->where('scope', 'tenant')->where('tenant_id', $this->tenantId)->orderBy('name')->get();
     }
 
@@ -147,7 +130,6 @@ new #[Layout('layouts.app')] class extends Component {
                 'signerPinConfirmation.same' => 'Konfirmasi PIN tidak sama.',
             ]
         )->validate();
-
         $pinService->set($user, $validated['signerPin']);
         $auditLogService->record(action: 'signer_pin.updated', user: auth()->user(), auditable: $user, newValues: ['configured' => true], tenantId: $user->tenant_id);
         $this->closeSignerPin();
@@ -167,15 +149,11 @@ new #[Layout('layouts.app')] class extends Component {
     public function save(UserService $userService): void
     {
         $customRole = null;
-
         if (str_starts_with($this->roleSelection, 'custom:')) {
             $customRoleId = (int) substr($this->roleSelection, 7);
             $customRole = Role::query()->whereKey($customRoleId)->where('is_system', false)->where('is_active', true)->where(function ($query) {
-                if (auth()->user()?->isSuperAdmin()) {
-                    $query->where('scope', 'global')->orWhere(fn ($tenant) => $tenant->where('scope', 'tenant')->where('tenant_id', $this->tenantId));
-                } else {
-                    $query->where('scope', 'tenant')->where('tenant_id', $this->tenantId);
-                }
+                if (auth()->user()?->isSuperAdmin()) $query->where('scope', 'global')->orWhere(fn ($tenant) => $tenant->where('scope', 'tenant')->where('tenant_id', $this->tenantId));
+                else $query->where('scope', 'tenant')->where('tenant_id', $this->tenantId);
             })->firstOrFail();
             $this->role = 'tenant_user';
             $this->customRoleId = (string) $customRole->id;
@@ -186,6 +164,11 @@ new #[Layout('layouts.app')] class extends Component {
         $data = [
             'name' => $this->name,
             'nip' => $this->nip,
+            'pangkat' => $this->pangkat,
+            'golongan' => $this->golongan,
+            'status_pegawai' => $this->statusPegawai,
+            'tanggal_masuk' => $this->tanggalMasuk ?: null,
+            'tanggal_pensiun' => $this->tanggalPensiun ?: null,
             'email' => $this->email,
             'password' => $this->password,
             'role' => $this->role,
@@ -212,7 +195,6 @@ new #[Layout('layouts.app')] class extends Component {
             $validated['password'] = Hash::make($validated['password']);
             $userService->create($validated);
         }
-
         $this->resetForm();
         $this->dispatch('toast', type: 'success', message: 'User berhasil disimpan.');
     }
@@ -231,6 +213,11 @@ new #[Layout('layouts.app')] class extends Component {
         $this->editingUserId = null;
         $this->name = '';
         $this->nip = '';
+        $this->pangkat = '';
+        $this->golongan = '';
+        $this->statusPegawai = '';
+        $this->tanggalMasuk = '';
+        $this->tanggalPensiun = '';
         $this->email = '';
         $this->password = '';
         $this->role = 'tenant_user';
@@ -243,36 +230,25 @@ new #[Layout('layouts.app')] class extends Component {
 
     public function with(): array
     {
-        $query = User::query()->with(['tenant', 'customRole'])->orderBy('name');
-
+        $query = User::query()->with(['tenant', 'customRole', 'employeeProfile'])->orderBy('name');
         if ($this->search !== '') {
             $search = trim($this->search);
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'ilike', '%' . $search . '%')
                     ->orWhere('email', 'ilike', '%' . $search . '%')
-                    ->orWhere('nip', 'ilike', '%' . $search . '%')
+                    ->orWhereHas('employeeProfile', fn ($profile) => $profile->where('nip', 'ilike', '%' . $search . '%')->orWhere('pangkat', 'ilike', '%' . $search . '%'))
                     ->orWhereHas('tenant', fn ($tenant) => $tenant->where('name', 'ilike', '%' . $search . '%'));
             });
         }
-
-        $query->when($this->filter === 'active', fn ($q) => $q->where('status', UserStatus::ACTIVE->value))
-            ->when($this->filter === 'inactive', fn ($q) => $q->where('status', UserStatus::INACTIVE->value));
-
-        return [
-            'users' => $query->paginate($this->perPage),
-            'tenants' => Tenant::query()->orderBy('name')->get(),
-        ];
+        $query->when($this->filter === 'active', fn ($q) => $q->where('status', UserStatus::ACTIVE->value))->when($this->filter === 'inactive', fn ($q) => $q->where('status', UserStatus::INACTIVE->value));
+        return ['users' => $query->paginate($this->perPage), 'tenants' => Tenant::query()->orderBy('name')->get()];
     }
 };
 ?>
 
 <div class="space-y-6">
     @include('livewire.pages.users.partials.header')
-
-    @if ($showForm)
-        @include('livewire.pages.users.partials.form')
-    @endif
-
+    @if ($showForm) @include('livewire.pages.users.partials.form') @endif
     @include('livewire.pages.users.partials.table')
     @include('livewire.pages.users.partials.signer-pin')
 </div>
