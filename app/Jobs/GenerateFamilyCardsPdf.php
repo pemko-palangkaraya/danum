@@ -41,12 +41,25 @@ class GenerateFamilyCardsPdf implements ShouldQueue
 
         $export->update(['status' => 'processing', 'error' => null]);
 
+        $generatedPath = null;
+        $stream = null;
+
         try {
             $tenant = Tenant::query()->findOrFail($export->tenant_id);
-            $content = $bulkPdf->generate($tenant, $references);
+            $generatedPath = $bulkPdf->generate($tenant, $references);
             $path = 'exports/family-cards/' . $export->id . '.pdf';
 
-            Storage::disk('local')->put($path, $content);
+            $stream = fopen($generatedPath, 'rb');
+
+            if ($stream === false) {
+                throw new \RuntimeException('Unable to open generated family card PDF.');
+            }
+
+            $stored = Storage::disk('local')->put($path, $stream);
+
+            if (! $stored) {
+                throw new \RuntimeException('Unable to store generated family card PDF.');
+            }
 
             $export->update([
                 'status' => 'completed',
@@ -59,6 +72,14 @@ class GenerateFamilyCardsPdf implements ShouldQueue
             ]);
 
             throw $exception;
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+
+            if ($generatedPath !== null) {
+                @unlink($generatedPath);
+            }
         }
     }
 }
