@@ -67,8 +67,8 @@ class PopulationDemoSeeder extends Seeder
                 ->forTenant($tenant)
                 ->state([
                     'head_citizen_id' => $head->id,
-                    'rt' => str_pad((string) fake()->numberBetween(1, 12), 3, '0', STR_PAD_LEFT),
-                    'rw' => str_pad((string) fake()->numberBetween(1, 8), 3, '0', STR_PAD_LEFT),
+                    'rt' => str_pad((string) fake()->numberBetween(1, 4), 3, '0', STR_PAD_LEFT),
+                    'rw' => str_pad((string) fake()->numberBetween(1, 1), 3, '0', STR_PAD_LEFT),
                     'kelurahan' => $location['village'],
                     'kecamatan' => $location['district'],
                     'kabupaten_kota' => $tenant->city,
