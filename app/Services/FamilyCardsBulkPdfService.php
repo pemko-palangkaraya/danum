@@ -21,6 +21,8 @@ final class FamilyCardsBulkPdfService
 
     private const CHUNK_SIZE = 10;
 
+    private const FAMILY_LIMIT = 10;
+
     public function generate(
         Tenant $tenant,
         PopulationReferenceService $references,
@@ -54,8 +56,7 @@ final class FamilyCardsBulkPdfService
                 @unlink($summaryPath);
             }
 
-            Family::query()
-                ->where('tenant_id', $tenant->id)
+            $this->selectedFamilyQuery($tenant)
                 ->with([
                     'tenant:id,name,head_name,head_title,city',
                     'headCitizen:id,nama_lengkap',
@@ -63,8 +64,6 @@ final class FamilyCardsBulkPdfService
                         ->orderBy('urutan')
                         ->with('citizen'),
                 ])
-                ->orderBy('no_kk')
-                ->orderBy('id')
                 ->chunk(self::CHUNK_SIZE, function (Collection $families) use ($output, $referenceLabels, $temporaryDirectory): void {
                     foreach ($families as $family) {
                         $familyPath = $this->renderFamily($family, $referenceLabels, $temporaryDirectory);
@@ -216,7 +215,8 @@ final class FamilyCardsBulkPdfService
         return Family::query()
             ->where('tenant_id', $tenant->id)
             ->orderBy('no_kk')
-            ->orderBy('id');
+            ->orderBy('id')
+            ->limit(self::FAMILY_LIMIT);
     }
 
     private function familySizes($familyQuery): Collection
