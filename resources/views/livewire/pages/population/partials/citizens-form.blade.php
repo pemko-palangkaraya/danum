@@ -9,7 +9,7 @@
             <h3 class="text-sm font-semibold text-slate-900">Identitas</h3>
             <div class="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 @foreach([['nik','NIK'],['nama_lengkap','Nama Lengkap'],['tempat_lahir','Tempat Lahir'],['tanggal_lahir','Tanggal Lahir']] as [$field, $label])
-                    <x-ui.input wire:model="{{ $field }}" type="{{ $field === 'tanggal_lahir' ? 'date' : 'text' }}" label="{{ $label }}" id="citizen-{{ $field }}" error="{{ $errors->first($field) }}" />
+                    <x-ui.input wire:model="{{ $field }}" type="{{ $field === 'tanggal_lahir' ? 'date' : 'text' }}" label="{{ $label }}" id="citizen-{{ $field }}" error="{{ $errors->first($field) }}" :required="in_array($field, ['nik', 'nama_lengkap], true)" />
                 @endforeach
 
                 <x-ui.field label="Jenis Kelamin" for="citizen-jenis-kelamin" error="{{ $errors->first('jenis_kelamin') }}">
@@ -56,7 +56,7 @@
             <h3 class="text-sm font-semibold text-slate-900">Kewarganegaraan & Dokumen</h3>
             <div class="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 <x-ui.field label="Kewarganegaraan" for="citizen-kewarganegaraan" error="{{ $errors->first('kewarganegaraan') }}" required>
-                    <select id="citizen-kewarganegaraan" wire:model="kewarganegaraan" class="form-select w-full">
+                    <select id="citizen-kewarganegaraan" wire:model="kewarganegaraan" class="form-select w-full" required>
                         @foreach($references['citizenship'] as $reference)
                             <option value="{{ $reference->code }}">{{ $reference->label }}</option>
                         @endforeach
@@ -86,7 +86,7 @@
                 </x-ui.field>
 
                 <x-ui.field label="Status Kependudukan" for="citizen-status-kependudukan" error="{{ $errors->first('status_kependudukan') }}" required>
-                    <select id="citizen-status-kependudukan" wire:model="status_kependudukan" class="form-select w-full">
+                    <select id="citizen-status-kependudukan" wire:model="status_kependudukan" class="form-select w-full" required>
                         @foreach($references['population_status'] as $reference)
                             <option value="{{ $reference->code }}">{{ $reference->label }}</option>
                         @endforeach
