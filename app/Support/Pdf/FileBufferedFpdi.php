@@ -79,6 +79,8 @@ final class FileBufferedFpdi extends Fpdi
             $this->Error('PDF output file is not open.');
         }
 
+        $s = (string) $s;
+
         if ($newLine) {
             fwrite($this->fileHandle, $s . "\n", strlen($s) + 1);
             return;
