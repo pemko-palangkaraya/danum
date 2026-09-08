@@ -43,7 +43,7 @@ class PopulationReferenceSeeder extends Seeder
 
         $this->upsert('family_relationship', [
             ['code' => 'head', 'label' => 'Kepala Keluarga', 'sort_order' => 1],
-            ['code' => 'spouse', 'label' => 'Istri/Suami', 'sort_order' => 2],
+            ['code' => 'spouse', 'label' => 'Istri', 'sort_order' => 2],
             ['code' => 'child', 'label' => 'Anak', 'sort_order' => 3],
             ['code' => 'son_in_law', 'label' => 'Menantu', 'sort_order' => 4],
             ['code' => 'grandchild', 'label' => 'Cucu', 'sort_order' => 5],
