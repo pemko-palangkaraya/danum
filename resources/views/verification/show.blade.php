@@ -23,7 +23,8 @@
             $withdrawal = $letter->withdrawalRequests->first(fn ($request) => $request->status->value !== 'pending');
             $isRestricted = $accessLevel->value === 'restricted';
             $isProtected = $accessLevel->value === 'protected';
-            $tteSigned = filled($letter->signed_pdf_path);
+            $tteStatus = $tte['status'];
+            $tteValid = $tteStatus === 'valid';
         @endphp
 
         <section @class([
@@ -47,7 +48,7 @@
                     ])>{{ $state === 'withdrawn' ? '!' : '✓' }}</span>
                     <div>
                         <p class="text-sm font-bold">
-                            {{ $isRestricted ? 'Dokumen Terdaftar' : ($isProtected ? 'Tanda Tangan Elektronik Tercatat' : 'Dokumen Terverifikasi') }}
+                            {{ $isRestricted ? 'Dokumen Terdaftar' : ($isProtected ? 'Tanda Tangan Elektronik' : 'Dokumen Terverifikasi') }}
                         </p>
                         @if ($state === 'withdrawn')
                             <p class="mt-1 text-sm font-medium text-red-700">Surat ini telah ditarik dan tidak lagi berlaku.</p>
@@ -57,10 +58,12 @@
                             <p class="mt-1 text-sm font-medium text-slate-600">Surat ini belum memasuki masa berlaku.</p>
                         @elseif ($isRestricted)
                             <p class="mt-1 text-sm font-medium text-slate-600">Isi dokumen tidak tersedia melalui layanan verifikasi publik.</p>
-                        @elseif ($isProtected)
-                            <p class="mt-1 text-sm font-medium text-emerald-700">Tanda tangan elektronik dokumen tercatat pada DANUM.</p>
+                        @elseif ($tteValid)
+                            <p class="mt-1 text-sm font-medium text-emerald-700">Tanda tangan PAdES terverifikasi secara kriptografis.</p>
+                        @elseif ($tteStatus === 'unsigned')
+                            <p class="mt-1 text-sm font-medium text-amber-700">Dokumen belum memiliki tanda tangan elektronik.</p>
                         @else
-                            <p class="mt-1 text-sm font-medium text-emerald-700">Surat ini tercatat resmi dan dapat diverifikasi.</p>
+                            <p class="mt-1 text-sm font-medium text-red-700">Tanda tangan elektronik tidak dapat diverifikasi.</p>
                         @endif
                     </div>
                 </div>
@@ -95,9 +98,21 @@
                 @endif
                 <div class="grid grid-cols-3 gap-4 py-4">
                     <dt class="text-sm text-slate-500">Status TTE</dt>
-                    <dd class="col-span-2 text-sm font-bold {{ $tteSigned ? 'text-emerald-700' : 'text-amber-700' }}">{{ $tteSigned ? 'Tertandatangani (PAdES B-T + TSA)' : 'Tidak ditandatangani secara elektronik' }}</dd>
+                    <dd class="col-span-2 text-sm font-bold {{ $tteValid ? 'text-emerald-700' : ($tteStatus === 'unsigned' ? 'text-amber-700' : 'text-red-700') }}">
+                        {{ match ($tteStatus) {
+                            'valid' => 'Valid — PAdES B-T',
+                            'unsigned' => 'Tidak ditandatangani secara elektronik',
+                            default => 'Tidak valid / gagal diverifikasi',
+                        } }}
+                    </dd>
                 </div>
-                @if($tteSigned && $letter->signed_at)
+                @if($tte['message'])
+                    <div class="grid grid-cols-3 gap-4 py-4">
+                        <dt class="text-sm text-slate-500">Verifikasi TTE</dt>
+                        <dd class="col-span-2 text-sm">{{ $tte['message'] }}</dd>
+                    </div>
+                @endif
+                @if($tteValid && $letter->signed_at)
                     <div class="grid grid-cols-3 gap-4 py-4">
                         <dt class="text-sm text-slate-500">Waktu TTE</dt>
                         <dd class="col-span-2 text-sm">{{ $letter->signed_at->translatedFormat('d F Y H:i:s') }}</dd>
