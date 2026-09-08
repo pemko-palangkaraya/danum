@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Jobs\GenerateFamilyCardsPdf;
 use App\Models\Family;
+use App\Models\FamilyCardExport;
 use App\Models\Tenant;
-use App\Services\FamilyCardsBulkPdfService;
 use App\Services\PopulationReferenceService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
 class FamilyCardController extends Controller
@@ -45,11 +47,8 @@ class FamilyCardController extends Controller
             : $pdf->stream($filename);
     }
 
-    public function pdfAll(
-        Request $request,
-        PopulationReferenceService $references,
-        FamilyCardsBulkPdfService $bulkPdf,
-    ): Response {
+    public function pdfAll(Request $request): Response
+    {
         $user = $request->user();
         abort_unless($user?->hasPermission('population.view'), 403);
 
@@ -60,14 +59,55 @@ class FamilyCardController extends Controller
         abort_unless($tenantId !== '', 422, 'Tenant harus ditentukan.');
 
         $tenant = Tenant::query()->findOrFail($tenantId);
-        $content = $bulkPdf->generate($tenant, $references);
-        $filename = 'kartu-keluarga-semua-' . str($tenant->code)->slug() . '.pdf';
-
-        return response($content, 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => ($request->boolean('download') ? 'attachment' : 'inline') . '; filename="' . $filename . '"',
-            'Content-Length' => (string) strlen($content),
+        $export = FamilyCardExport::query()->create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $user->id,
+            'status' => 'queued',
         ]);
+
+        GenerateFamilyCardsPdf::dispatch($export->id);
+
+        return response()->view('population.family-cards-export-processing', [
+            'export' => $export,
+            'tenant' => $tenant,
+        ]);
+    }
+
+    public function exportStatus(Request $request, string $id): Response
+    {
+        $export = $this->ownedExport($request, $id);
+
+        return response()->json([
+            'status' => $export->status,
+            'download_url' => $export->status === 'completed'
+                ? route('population.families.pdf.all.download', ['id' => $export->id])
+                : null,
+            'error' => $export->status === 'failed'
+                ? 'Pembuatan PDF gagal. Silakan coba lagi.'
+                : null,
+        ]);
+    }
+
+    public function downloadExport(Request $request, string $id): Response
+    {
+        $export = $this->ownedExport($request, $id);
+        abort_unless($export->status === 'completed' && $export->path !== null, 404);
+        abort_unless(Storage::disk('local')->exists($export->path), 404);
+
+        return Storage::disk('local')->download(
+            $export->path,
+            'kartu-keluarga-semua-' . str($export->tenant->code)->slug() . '.pdf',
+            ['Content-Type' => 'application/pdf'],
+        );
+    }
+
+    private function ownedExport(Request $request, string $id): FamilyCardExport
+    {
+        return FamilyCardExport::query()
+            ->with('tenant:id,code')
+            ->whereKey($id)
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
     }
 
     private function referenceLabels(PopulationReferenceService $references): array
