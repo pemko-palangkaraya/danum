@@ -78,16 +78,14 @@ class FamilyCardController extends Controller
     {
         $export = $this->ownedExport($request, $id);
         $workerRunning = $this->isExportJobRunning($export->id);
-
-        $status = match (true) {
-            $export->status === 'completed' && $workerRunning => 'finalizing',
-            default => $export->status,
-        };
+        $ready = $export->status === 'completed' && ! $workerRunning;
 
         return response()->json([
-            'status' => $status,
+            'status' => $export->status,
+            'queue_state' => $workerRunning ? 'running' : 'finished',
+            'ready' => $ready,
             'worker_status' => $workerRunning ? 'running' : 'finished',
-            'download_url' => $status === 'completed'
+            'download_url' => $ready
                 ? route('population.families.pdf.all.download', ['id' => $export->id])
                 : null,
             'error' => $export->status === 'failed'
