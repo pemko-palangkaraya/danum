@@ -41,6 +41,14 @@
                             ? exception.message
                             : 'Tidak dapat memeriksa status pembuatan PDF.';
                     }
+                },
+                closePage() {
+                    window.close();
+                    setTimeout(() => {
+                        if (! window.closed) {
+                            window.location.href = '{{ route('population.families.index') }}';
+                        }
+                    }, 150);
                 }
             }"
             x-init="check(); timer = setInterval(() => check(), 3000)"
@@ -63,12 +71,13 @@
                 <div x-show="status === 'completed'" class="space-y-3">
                     <div>
                         <p class="text-sm font-semibold text-emerald-700">PDF selesai dibuat.</p>
-                        <p class="mt-1 text-xs text-slate-500">Silakan klik tombol di bawah untuk membuka atau mengunduh PDF.</p>
+                        <p class="mt-1 text-xs text-slate-500">Klik tombol untuk membuka atau mengunduh PDF. Halaman ini akan ditutup setelahnya jika browser mengizinkan.</p>
                     </div>
                     <a
                         href="{{ route('population.families.pdf.all.download', ['id' => $export->id]) }}"
                         target="_blank"
                         rel="noopener"
+                        @click="setTimeout(() => window.close(), 500)"
                         class="inline-flex cursor-pointer rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
                     >
                         Buka / Download PDF
@@ -81,14 +90,14 @@
                 </div>
             </div>
 
-            <div class="mt-5 flex items-center justify-between gap-3">
-                <a href="{{ url()->previous() }}" class="text-sm font-semibold text-slate-600 hover:text-slate-900">Kembali</a>
-                <a
-                    href="{{ route('population.families.index') }}"
+            <div class="mt-5 flex justify-end">
+                <button
+                    type="button"
+                    @click="closePage()"
                     class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
                 >
                     Kembali ke Kartu Keluarga
-                </a>
+                </button>
             </div>
         </section>
     </main>
