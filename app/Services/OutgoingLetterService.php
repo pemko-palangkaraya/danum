@@ -124,6 +124,8 @@ class OutgoingLetterService
             'signature_certificate_id' => $letter->signature_certificate_id,
             'signature_profile' => $letter->signature_profile,
             'signed_at' => $letter->signed_at?->toIso8601String(),
+            'document_hash' => $letter->document_hash,
+            'document_hash_algorithm' => $letter->document_hash_algorithm,
         ];
     }
 }
