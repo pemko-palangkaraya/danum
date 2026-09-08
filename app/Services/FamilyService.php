@@ -178,6 +178,10 @@ class FamilyService
             ]);
         }
 
+        if ($relationship === 'spouse') {
+            $this->validateWifeRelationship($tenantId, $family, $citizen, $status);
+        }
+
         DB::transaction(function () use ($tenantId, $family, $citizen, $data): void {
             $member = FamilyMember::query()
                 ->where('family_id', $family->id)
@@ -262,7 +266,7 @@ class FamilyService
             }))
             ->orderBy('nama_lengkap')
             ->limit(10)
-            ->get(['id', 'nik', 'nama_lengkap']);
+            ->get(['id', 'nik', 'nama_lengkap', 'jenis_kelamin']);
     }
 
     private function findAliveCitizen(string $tenantId, string $citizenId): Citizen
@@ -291,6 +295,46 @@ class FamilyService
         if ($query->exists()) {
             throw ValidationException::withMessages([
                 'head_citizen_id' => 'Warga ini sudah menjadi kepala keluarga pada KK lain.',
+            ]);
+        }
+    }
+
+    private function validateWifeRelationship(string $tenantId, Family $family, Citizen $citizen, string $status): void
+    {
+        if ($family->head_citizen_id === null) {
+            throw ValidationException::withMessages([
+                'hubungan_dalam_keluarga' => 'Istri hanya dapat ditambahkan setelah kepala keluarga ditentukan.',
+            ]);
+        }
+
+        $head = $this->findCitizen($tenantId, $family->head_citizen_id);
+
+        if ($head->jenis_kelamin !== 'male') {
+            throw ValidationException::withMessages([
+                'hubungan_dalam_keluarga' => 'Hubungan Istri hanya berlaku pada kepala keluarga laki-laki.',
+            ]);
+        }
+
+        if ($citizen->jenis_kelamin !== 'female') {
+            throw ValidationException::withMessages([
+                'hubungan_dalam_keluarga' => 'Hubungan Istri hanya dapat diberikan kepada warga perempuan.',
+            ]);
+        }
+
+        if ($status !== 'active') {
+            return;
+        }
+
+        $hasWife = FamilyMember::query()
+            ->where('family_id', $family->id)
+            ->where('status', 'active')
+            ->where('hubungan_dalam_keluarga', 'spouse')
+            ->where('citizen_id', '!=', $citizen->id)
+            ->exists();
+
+        if ($hasWife) {
+            throw ValidationException::withMessages([
+                'hubungan_dalam_keluarga' => 'KK ini sudah memiliki Istri aktif.',
             ]);
         }
     }
