@@ -31,9 +31,20 @@ class Index extends Component
     public string $validity_period = 'none';
     public string $variables_input = '';
 
-    public function mount(): void { $this->authorize('viewAny', LetterType::class); }
-    public function updatedSearch(): void { $this->resetPage(); }
-    public function updatedFilter(): void { $this->resetPage(); }
+    public function mount(): void
+    {
+        $this->authorize('viewAny', LetterType::class);
+    }
+
+    public function updatedSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFilter(): void
+    {
+        $this->resetPage();
+    }
 
     public function create(): void
     {
@@ -74,10 +85,14 @@ class Index extends Component
         ]);
 
         $letterType = $this->editingId ? LetterType::query()->findOrFail($this->editingId) : null;
-        if ($letterType) $this->authorize('update', $letterType); else $this->authorize('create', LetterType::class);
+        if ($letterType) {
+            $this->authorize('update', $letterType);
+        } else {
+            $this->authorize('create', LetterType::class);
+        }
 
         $declared = $docx->normalizeVariables($this->variables_input);
-        if (!$declared) {
+        if (! $declared) {
             $this->addError('variables_input', 'Isi minimal satu variabel, misalnya recipient_name.');
             return;
         }
@@ -85,7 +100,9 @@ class Index extends Component
         $templatePath = $letterType?->template_path;
         if ($templatePath) {
             $templatePath = storage_path('app/private/'.$templatePath);
-            if (!is_file($templatePath)) $templatePath = null;
+            if (! is_file($templatePath)) {
+                $templatePath = null;
+            }
         }
 
         if ($templatePath) {
@@ -118,6 +135,7 @@ class Index extends Component
 
         $this->showForm = false;
         $this->resetForm();
+        $this->resetPage();
         $this->dispatch('toast', type: 'success', message: $message);
     }
 
@@ -126,6 +144,7 @@ class Index extends Component
         $letterType = LetterType::query()->findOrFail($id);
         $this->authorize('delete', $letterType);
         $service->delete($letterType);
+        $this->resetPage();
         $this->dispatch('toast', type: 'success', message: 'Jenis surat dihapus.');
     }
 
@@ -165,12 +184,26 @@ class Index extends Component
     public function render()
     {
         $query = LetterType::query()->with('classification')->latest();
-        if ($this->search !== '') $query->where(fn ($q) => $q->where('code', 'like', "%{$this->search}%")->orWhere('name', 'like', "%{$this->search}%"));
-        if ($this->filter === 'deleted') $query->onlyTrashed(); else $query->where('status', LetterTypeStatus::from($this->filter));
+
+        if ($this->search !== '') {
+            $query->where(fn ($q) => $q
+                ->where('code', 'like', "%{$this->search}%")
+                ->orWhere('name', 'like', "%{$this->search}%"));
+        }
+
+        if ($this->filter === 'deleted') {
+            $query->onlyTrashed();
+        } else {
+            $query->where('status', LetterTypeStatus::from($this->filter));
+        }
 
         return view('livewire.pages.letter-types.index', [
             'letterTypes' => $query->paginate($this->perPage),
-            'classifications' => LetterClassification::query()->where('is_active', true)->orderBy('sort_order')->orderBy('code')->get(),
+            'classifications' => LetterClassification::query()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('code')
+                ->get(),
         ]);
     }
 }
