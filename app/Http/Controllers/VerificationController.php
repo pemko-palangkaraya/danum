@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\OutgoingLetterStatus;
 use App\Enums\VerificationAccessLevel;
 use App\Models\OutgoingLetter;
+use App\Services\PdfSignatureVerificationService;
 use App\Services\VerificationLogService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
@@ -18,6 +19,7 @@ class VerificationController extends Controller
 {
     public function __construct(
         private readonly VerificationLogService $verificationLogService,
+        private readonly PdfSignatureVerificationService $pdfSignatureVerificationService,
     ) {}
 
     private function findLetter(string $token): ?OutgoingLetter
@@ -134,6 +136,7 @@ class VerificationController extends Controller
         $state = $letter->status === OutgoingLetterStatus::WITHDRAWN
             ? 'withdrawn'
             : ($letter->isExpired() ? 'expired' : ($letter->isActive() ? 'active' : 'not_yet_active'));
+        $tte = $this->pdfSignatureVerificationService->verify($letter);
 
         $data = [
             'number' => $letter->number,
@@ -142,7 +145,9 @@ class VerificationController extends Controller
             'signer_name' => $letter->signer_name,
             'signer_title' => $letter->signer_title,
             'signed_at' => $letter->signed_at?->toIso8601String(),
-            'tte_status' => filled($letter->signed_pdf_path) ? 'signed' : 'not_signed',
+            'tte_status' => $tte['status'],
+            'tte_message' => $tte['message'],
+            'tte_profile' => $tte['profile'] ?? null,
             'state' => $state,
             'tenant' => $letter->tenant?->name,
             'city' => $letter->tenant?->city,
