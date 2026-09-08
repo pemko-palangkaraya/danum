@@ -174,7 +174,7 @@
 
     @if ($showDeleteConfirm)
         <div class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4" wire:click.self="closeDeleteConfirm">
-            <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+            <div class="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
                 <div class="border-b border-slate-100 px-6 py-5">
                     <div class="flex items-start gap-3">
                         <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600">!</div>
@@ -191,7 +191,9 @@
                 </div>
                 <div class="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
                     <button type="button" wire:click="closeDeleteConfirm" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Batal</button>
-                    <button type="button" wire:click="confirmDelete" wire:loading.attr="disabled" class="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60">Ya, Hapus</button>
+                    <button type="button" wire:click="confirmDelete" class="inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2">
+                        Ya, Hapus
+                    </button>
                 </div>
             </div>
         </div>
