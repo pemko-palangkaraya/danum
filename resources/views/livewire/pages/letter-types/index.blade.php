@@ -70,7 +70,7 @@
                         @elseif ($letterType->deletionIsScheduled())
                             <span class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">Menunggu penghapusan</span>
                         @elseif ($letterType->trashed())
-                            <button wire:click="restore('{{ $letterType->id }}')" wire:confirm="Pulihkan jenis surat '{{ $letterType->name }}'?" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100">Restore</button>
+                            <button wire:click="openRestore('{{ $letterType->id }}')" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100">Restore</button>
                         @else
                             <span class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">Tidak ada tindakan</span>
                         @endif
@@ -203,6 +203,32 @@
                 <div class="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
                     <button type="button" wire:click="closeDeleteConfirm" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Batal</button>
                     <button type="button" wire:click="confirmDelete" class="inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2">Jadwalkan Hapus</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($showRestoreConfirm)
+        <div class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4" wire:click.self="closeRestoreConfirm">
+            <div class="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+                <div class="border-b border-slate-100 px-6 py-5">
+                    <div class="flex items-start gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">✓</div>
+                        <div>
+                            <h2 class="text-lg font-semibold text-slate-900">Pulihkan Jenis Surat?</h2>
+                            <p class="mt-1 text-sm text-slate-500">Jenis surat akan tersedia kembali untuk tenant yang memiliki akses.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="px-6 py-5">
+                    <p class="rounded-lg bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">{{ $restoreName }}</p>
+                    <div class="mt-3 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-3 text-xs text-emerald-800">
+                        Setelah dipulihkan, tenant terkait akan menerima pemberitahuan bahwa jenis surat sudah dapat digunakan kembali.
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
+                    <button type="button" wire:click="closeRestoreConfirm" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Batal</button>
+                    <button type="button" wire:click="confirmRestore" class="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">Pulihkan</button>
                 </div>
             </div>
         </div>
