@@ -22,6 +22,9 @@ class Index extends Component
     public string $search = '';
     public string $filter = 'active';
     public bool $showForm = false;
+    public bool $showDeleteConfirm = false;
+    public ?string $deleteId = null;
+    public string $deleteName = '';
     public ?string $editingId = null;
     public string $letter_classification_id = '';
     public string $code = '';
@@ -139,13 +142,35 @@ class Index extends Component
         $this->dispatch('toast', type: 'success', message: $message);
     }
 
-    public function delete(string $id, LetterTypeService $service): void
+    public function openDelete(string $id): void
     {
         $letterType = LetterType::query()->findOrFail($id);
         $this->authorize('delete', $letterType);
+        $this->deleteId = $letterType->id;
+        $this->deleteName = $letterType->name;
+        $this->showDeleteConfirm = true;
+    }
+
+    public function confirmDelete(LetterTypeService $service): void
+    {
+        if (! $this->deleteId) {
+            return;
+        }
+
+        $letterType = LetterType::query()->findOrFail($this->deleteId);
+        $this->authorize('delete', $letterType);
         $service->delete($letterType);
+
+        $this->closeDeleteConfirm();
         $this->resetPage();
         $this->dispatch('toast', type: 'success', message: 'Jenis surat dihapus.');
+    }
+
+    public function closeDeleteConfirm(): void
+    {
+        $this->showDeleteConfirm = false;
+        $this->deleteId = null;
+        $this->deleteName = '';
     }
 
     private function resetForm(): void
