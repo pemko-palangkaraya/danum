@@ -23,6 +23,25 @@ const dispatchErrorToast = (message) => {
     }));
 };
 
+const focusFirstValidationError = () => {
+    const field = document.querySelector('[data-validation-error="true"]:not([hidden])');
+
+    if (!field) {
+        return;
+    }
+
+    const target = field.querySelector('input, select, textarea, button');
+
+    if (!target || target.disabled || target.readOnly) {
+        return;
+    }
+
+    window.requestAnimationFrame(() => {
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+};
+
 const startServerClock = () => {
     const clock = document.querySelector('[data-server-clock]');
 
@@ -73,6 +92,10 @@ window.addEventListener('livewire:init', () => {
         onFailure(() => {
             dispatchErrorToast('Tidak dapat terhubung ke server. Periksa koneksi Anda lalu coba lagi.');
         });
+    });
+
+    Livewire.hook('morphed', () => {
+        focusFirstValidationError();
     });
 
     window.setInterval(() => {
