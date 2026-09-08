@@ -108,7 +108,7 @@ class VerificationController extends Controller
     private function downloadFilename(OutgoingLetter $letter): string
     {
         $number = trim((string) $letter->number);
-        $safeNumber = preg_replace('/[\\\/]+/', '-', $number) ?: 'dokumen';
+        $safeNumber = str_replace(['/', '\\'], '-', $number);
         $safeNumber = trim($safeNumber, '.-');
 
         return ($safeNumber !== '' ? $safeNumber : 'dokumen') . '.pdf';
