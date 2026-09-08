@@ -21,10 +21,6 @@ final class FamilyCardsBulkPdfService
 
     private const CHUNK_SIZE = 10;
 
-    // Temporary test limit: generate only five family cards until the
-    // file-buffered PDF pipeline is confirmed end-to-end.
-    private const TEST_FAMILY_LIMIT = 5;
-
     public function generate(
         Tenant $tenant,
         PopulationReferenceService $references,
@@ -69,7 +65,6 @@ final class FamilyCardsBulkPdfService
                 ])
                 ->orderBy('no_kk')
                 ->orderBy('id')
-                ->limit(self::TEST_FAMILY_LIMIT)
                 ->chunk(self::CHUNK_SIZE, function (Collection $families) use ($output, $referenceLabels, $temporaryDirectory): void {
                     foreach ($families as $family) {
                         $familyPath = $this->renderFamily($family, $referenceLabels, $temporaryDirectory);
@@ -221,8 +216,7 @@ final class FamilyCardsBulkPdfService
         return Family::query()
             ->where('tenant_id', $tenant->id)
             ->orderBy('no_kk')
-            ->orderBy('id')
-            ->limit(self::TEST_FAMILY_LIMIT);
+            ->orderBy('id');
     }
 
     private function familySizes($familyQuery): Collection
