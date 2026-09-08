@@ -71,13 +71,10 @@
                 <div x-show="status === 'completed'" class="space-y-3">
                     <div>
                         <p class="text-sm font-semibold text-emerald-700">PDF selesai dibuat.</p>
-                        <p class="mt-1 text-xs text-slate-500">Klik tombol untuk membuka atau mengunduh PDF. Halaman ini akan ditutup setelahnya jika browser mengizinkan.</p>
+                        <p class="mt-1 text-xs text-slate-500">Klik tombol untuk membuka atau mengunduh PDF.</p>
                     </div>
                     <a
                         href="{{ route('population.families.pdf.all.download', ['id' => $export->id]) }}"
-                        target="_blank"
-                        rel="noopener"
-                        @click="setTimeout(() => window.close(), 500)"
                         class="inline-flex cursor-pointer rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
                     >
                         Buka / Download PDF
@@ -96,7 +93,7 @@
                     @click="closePage()"
                     class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
                 >
-                    Kembali ke Kartu Keluarga
+                    Tutup Halaman
                 </button>
             </div>
         </section>
