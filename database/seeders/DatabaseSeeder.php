@@ -7,6 +7,7 @@ namespace Database\Seeders;
 use App\Enums\PlatformRole;
 use App\Enums\TenantStatus;
 use App\Enums\UserStatus;
+use App\Models\EmployeeProfile;
 use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\TenantCategory;
@@ -37,7 +38,6 @@ class DatabaseSeeder extends Seeder
 
         User::updateOrCreate(['email' => $superAdminEmail], [
             'name' => env('DANUM_SUPER_ADMIN_NAME', 'Super Admin'),
-            'nip' => null,
             'email_verified_at' => now(),
             'password' => Hash::make($superAdminPassword),
             'remember_token' => null,
@@ -78,9 +78,8 @@ class DatabaseSeeder extends Seeder
         $permissionService = app(SystemRolePermissionService::class);
         $tenantAdminRole = $this->ensureSystemRole('tenant_admin', 'Tenant Admin');
         $permissionService->sync($tenantAdminRole);
-        User::updateOrCreate(['email' => env('DANUM_TENANT_ADMIN_EMAIL', 'yudhistira@danum.local')], [
+        $tenantAdmin = User::updateOrCreate(['email' => env('DANUM_TENANT_ADMIN_EMAIL', 'yudhistira@danum.local')], [
             'name' => 'Meysa Yudhistira, S.Kom.',
-            'nip' => '199105232025041001',
             'email_verified_at' => now(),
             'password' => Hash::make(env('DANUM_TENANT_ADMIN_PASSWORD', 'password')),
             'remember_token' => null,
@@ -90,11 +89,22 @@ class DatabaseSeeder extends Seeder
             'tenant_id' => $tenant->id,
         ]);
 
+        EmployeeProfile::updateOrCreate(
+            ['user_id' => $tenantAdmin->id],
+            [
+                'nip' => '199105232025041001',
+                'pangkat' => null,
+                'golongan' => null,
+                'status_pegawai' => null,
+                'tanggal_masuk' => null,
+                'tanggal_pensiun' => null,
+            ],
+        );
+
         $tenantUserRole = $this->ensureSystemRole('tenant_user', 'Tenant User');
         $permissionService->sync($tenantUserRole);
         User::updateOrCreate(['email' => env('DANUM_TENANT_USER_EMAIL', 'ucok@danum.local')], [
             'name' => 'Tenant User',
-            'nip' => null,
             'email_verified_at' => now(),
             'password' => Hash::make(env('DANUM_TENANT_USER_PASSWORD', 'password')),
             'remember_token' => null,
