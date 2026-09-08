@@ -27,7 +27,7 @@
         <x-ui.field label="Tenant" for="user-tenant" :error="$errors->first('tenant_id')">
             <select id="user-tenant" wire:model.live="tenantId" class="form-select w-full"><option value="">Select tenant</option>@foreach ($tenants as $tenant)<option value="{{ $tenant->id }}">{{ $tenant->name }}</option>@endforeach</select>
         </x-ui.field>
-        <x-ui.input wire:model="password" label="Password {{ $editingUserId ? '(optional)' : '' }}" id="user-password" type="password" autocomplete="new-password" error="{{ $errors->first('password') }}" />
+        <x-ui.input wire:model="password" label="Password {{ $editingUserId ? '(optional)' : '' }}" id="user-password" type="password" autocomplete="new-password" error="{{ $errors->first('password') }}" :required="!$editingUserId" />
         <x-ui.field label="Status" for="user-status" :error="$errors->first('status')">
             <select id="user-status" wire:model="status" class="form-select w-full">@foreach (\App\Enums\UserStatus::cases() as $userStatus)<option value="{{ $userStatus->value }}">{{ ucfirst($userStatus->value) }}</option>@endforeach</select>
         </x-ui.field>
