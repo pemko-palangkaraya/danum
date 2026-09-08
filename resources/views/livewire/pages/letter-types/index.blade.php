@@ -69,6 +69,8 @@
                             <button wire:click="openDelete('{{ $letterType->id }}')" class="rounded-lg border border-rose-200 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50">Delete</button>
                         @elseif ($letterType->deletionIsScheduled())
                             <span class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">Menunggu penghapusan</span>
+                        @elseif ($letterType->trashed())
+                            <button wire:click="restore('{{ $letterType->id }}')" wire:confirm="Pulihkan jenis surat '{{ $letterType->name }}'?" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100">Restore</button>
                         @else
                             <span class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">Tidak ada tindakan</span>
                         @endif
