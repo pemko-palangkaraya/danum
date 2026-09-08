@@ -20,4 +20,8 @@ Artisan::command('danum:ca-init', function (CertificateAuthorityService $service
 
 Schedule::call(function (LetterTypeService $service): void {
     $service->processScheduledDeletions();
-})->everySecond()->between('23:59', '23:59:59')->withoutOverlapping();
+})
+    ->name('danum-process-scheduled-letter-type-deletions')
+    ->everySecond()
+    ->between('23:59', '23:59:59')
+    ->withoutOverlapping();
