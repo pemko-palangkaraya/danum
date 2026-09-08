@@ -19,9 +19,6 @@ class PdfSigningService
         private readonly CertificateAuthorityService $certificateAuthorities,
     ) {}
 
-    /**
-     * Sign an existing PDF with a PAdES B-T signature and RFC 3161 TSA timestamp.
-     */
     public function sign(
         string $sourcePdfPath,
         SignerCertificate $certificate,
@@ -119,6 +116,7 @@ class PdfSigningService
                         return $out;
                     }
                 };
+                $pdf->enableDefaultPageContent();
                 $pdf->setDocumentTimestamps($signingTime->timestamp);
                 $pdf->setCreator('DANUM');
                 $pdf->setAuthor($signerName);
