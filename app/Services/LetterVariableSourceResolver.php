@@ -68,7 +68,7 @@ final class LetterVariableSourceResolver
             'status_perkawinan' => $maritalStatus,
             'agama' => $religion,
             'pekerjaan' => $citizen->pekerjaan,
-            'kewarganegaraan' => $citizenship,
+            'kewarganegaraan' => $citizen->kewarganegaraan,
             'ttl' => $birthTtl,
             'golongan_darah' => $bloodType,
             'nama_ayah' => $citizen->nama_ayah,
@@ -114,7 +114,7 @@ final class LetterVariableSourceResolver
 
         $familyMembers = collect();
         if ($spouse?->citizen) {
-            $familyMembers->push($this->familyMemberRow($spouse, 1, 'Pasangan'));
+            $familyMembers->push($this->familyMemberRow($spouse, 1, 'Istri'));
         }
         foreach ($childrenMembers as $member) {
             $familyMembers->push($this->familyMemberRow($member, $familyMembers->count() + 1, 'Anak'));
