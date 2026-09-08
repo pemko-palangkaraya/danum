@@ -204,9 +204,19 @@ class PdfSigningService
 
     private function configureFonts(): void
     {
-        if (! defined('K_PATH_FONTS')) {
-            $fontPath = realpath(base_path('vendor/tecnickcom/tc-lib-pdf-font/target/fonts'));
-            if ($fontPath !== false) define('K_PATH_FONTS', $fontPath);
+        if (defined('K_PATH_FONTS')) {
+            return;
+        }
+
+        $generatedFontPath = realpath(storage_path('app/tc-lib-pdf-font/core'));
+        if ($generatedFontPath !== false && is_file($generatedFontPath . DIRECTORY_SEPARATOR . 'helvetica.json')) {
+            define('K_PATH_FONTS', $generatedFontPath);
+            return;
+        }
+
+        $vendorFontPath = realpath(base_path('vendor/tecnickcom/tc-lib-pdf-font/target/fonts'));
+        if ($vendorFontPath !== false) {
+            define('K_PATH_FONTS', $vendorFontPath);
         }
     }
 }
