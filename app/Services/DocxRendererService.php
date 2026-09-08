@@ -98,10 +98,8 @@ class DocxRendererService
             $paragraphs = $xpath->query('.//w:p', $table);
             if (! $paragraphs) continue;
 
-            $paragraphList = iterator_to_array($paragraphs);
-            foreach ($paragraphList as $index => $paragraph) {
-                $keepNext = $index < count($paragraphList) - 1;
-                $this->protectParagraph($dom, $paragraph, $keepNext);
+            foreach ($paragraphs as $paragraph) {
+                $this->protectParagraph($dom, $paragraph);
             }
         }
 
@@ -149,7 +147,7 @@ class DocxRendererService
         $rowProperties->appendChild($dom->createElementNS(self::WORD_NS, 'w:cantSplit'));
     }
 
-    private function protectParagraph(DOMDocument $dom, \DOMNode $paragraph, bool $keepNext): void
+    private function protectParagraph(DOMDocument $dom, \DOMNode $paragraph): void
     {
         if (! $paragraph instanceof DOMElement) return;
 
@@ -167,7 +165,6 @@ class DocxRendererService
         }
 
         $this->appendParagraphProperty($dom, $properties, 'keepLines');
-        if ($keepNext) $this->appendParagraphProperty($dom, $properties, 'keepNext');
     }
 
     private function appendParagraphProperty(DOMDocument $dom, DOMElement $properties, string $name): void
