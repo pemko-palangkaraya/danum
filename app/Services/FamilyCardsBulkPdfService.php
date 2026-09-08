@@ -18,10 +18,7 @@ use Throwable;
 final class FamilyCardsBulkPdfService
 {
     private const MEMORY_LIMIT = '512M';
-
     private const CHUNK_SIZE = 10;
-
-    private const FAMILY_LIMIT = 50;
 
     public function generate(
         Tenant $tenant,
@@ -49,7 +46,6 @@ final class FamilyCardsBulkPdfService
 
         try {
             $summaryPath = $this->renderSummary($tenant, $temporaryDirectory, $referenceLabels);
-
             try {
                 $this->appendPdf($output, $summaryPath);
             } finally {
@@ -66,19 +62,16 @@ final class FamilyCardsBulkPdfService
                 ])
                 ->chunk(self::CHUNK_SIZE, function (Collection $families) use ($output, $referenceLabels, $temporaryDirectory): void {
                     $familiesPath = $this->renderFamilies($families, $referenceLabels, $temporaryDirectory);
-
                     try {
                         $this->appendPdf($output, $familiesPath);
                     } finally {
                         @unlink($familiesPath);
                     }
-
                     unset($familiesPath, $families);
                     gc_collect_cycles();
                 });
 
             $output->Close();
-
             return $outputPath;
         } catch (Throwable $exception) {
             @unlink($outputPath);
@@ -86,36 +79,25 @@ final class FamilyCardsBulkPdfService
         }
     }
 
-    private function renderSummary(
-        Tenant $tenant,
-        string $temporaryDirectory,
-        array $referenceLabels,
-    ): string {
+    private function renderSummary(Tenant $tenant, string $temporaryDirectory, array $referenceLabels): string
+    {
         $path = $this->temporaryPdfPath($temporaryDirectory, 'summary');
-
         Pdf::loadView('population.family-cards-summary-pdf', [
             'tenant' => $tenant,
             'aggregate' => $this->aggregate($tenant, $referenceLabels),
             'printedAt' => now(),
-        ])
-            ->setPaper('a4', 'landscape')
-            ->save($path);
-
+        ])->setPaper('a4', 'landscape')->save($path);
         return $path;
     }
 
     private function renderFamilies(Collection $families, array $referenceLabels, string $temporaryDirectory): string
     {
         $path = $this->temporaryPdfPath($temporaryDirectory, 'families');
-
         Pdf::loadView('population.family-card-pdf', [
             'families' => $families,
             'printedAt' => now(),
             'referenceLabels' => $referenceLabels,
-        ])
-            ->setPaper('a4', 'landscape')
-            ->save($path);
-
+        ])->setPaper('a4', 'landscape')->save($path);
         return $path;
     }
 
@@ -129,7 +111,6 @@ final class FamilyCardsBulkPdfService
         if (is_dir($directory)) {
             return;
         }
-
         if (! mkdir($directory, 0775, true) && ! is_dir($directory)) {
             throw new \RuntimeException('Unable to create temporary PDF directory: ' . $directory);
         }
@@ -138,15 +119,10 @@ final class FamilyCardsBulkPdfService
     private function appendPdf(FileBufferedFpdi $output, string $pdfPath): void
     {
         $pageCount = $output->setSourceFile($pdfPath);
-
         for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
             $template = $output->importPage($pageNumber);
             $size = $output->getTemplateSize($template);
-
-            $output->AddPage(
-                $size['orientation'],
-                [$size['width'], $size['height']],
-            );
+            $output->AddPage($size['orientation'], [$size['width'], $size['height']]);
             $output->useImportedPage($template);
         }
     }
@@ -156,10 +132,7 @@ final class FamilyCardsBulkPdfService
         $familyQuery = $this->selectedFamilyQuery($tenant);
         $familyIds = (clone $familyQuery)->pluck('id');
         $totalFamilies = $familyIds->count();
-        $activeFamilies = Family::query()
-            ->whereIn('id', $familyIds)
-            ->where('status', 'active')
-            ->count();
+        $activeFamilies = Family::query()->whereIn('id', $familyIds)->where('status', 'active')->count();
 
         $membersQuery = FamilyMember::query()
             ->where('family_members.status', 'active')
@@ -169,7 +142,6 @@ final class FamilyCardsBulkPdfService
         $familySizes = $this->familySizes($familyQuery);
         $memberStats = $this->memberStats($membersQuery, $referenceLabels);
         $locations = $this->locationStats($familyQuery, $membersQuery);
-
         $sizes = $familySizes->values()->sort()->values();
         $minimumMembers = $sizes->isNotEmpty() ? (int) $sizes->first() : 0;
         $maximumMembers = $sizes->isNotEmpty() ? (int) $sizes->last() : 0;
@@ -210,8 +182,7 @@ final class FamilyCardsBulkPdfService
         return Family::query()
             ->where('tenant_id', $tenant->id)
             ->orderBy('no_kk')
-            ->orderBy('id')
-            ->limit(self::FAMILY_LIMIT);
+            ->orderBy('id');
     }
 
     private function familySizes($familyQuery): Collection
@@ -224,9 +195,7 @@ final class FamilyCardsBulkPdfService
             ->pluck('total', 'family_id')
             ->map(fn ($count): int => (int) $count);
 
-        return (clone $familyQuery)
-            ->pluck('id')
-            ->map(fn (string $familyId): int => $counts->get($familyId, 0));
+        return (clone $familyQuery)->pluck('id')->map(fn (string $familyId): int => $counts->get($familyId, 0));
     }
 
     private function memberStats($membersQuery, array $referenceLabels): array
@@ -273,44 +242,30 @@ final class FamilyCardsBulkPdfService
             $this->incrementReferenceStat($stats['citizenship'], $member->kewarganegaraan, $referenceLabels['citizenship']);
             $this->incrementTextStat($stats['education'], $member->pendidikan);
             $this->incrementTextStat($stats['occupation'], $member->pekerjaan);
-
             $age = $this->age($member->tanggal_lahir);
-            $ageGroup = $this->ageGroup($age);
-            $stats['age_groups'][$ageGroup]++;
+            $stats['age_groups'][$this->ageGroup($age)]++;
 
             if ($this->matchesReferenceValue($member->hubungan_dalam_keluarga, $referenceLabels['family_relationship'], ['anak'])) {
                 $stats['families_with_children'][$member->family_id] = true;
             }
-
             if ($age !== null && $age >= 60) {
                 $stats['families_with_elderly'][$member->family_id] = true;
             }
         }
-
         return $stats;
     }
 
     private function locationStats($familyQuery, $membersQuery): array
     {
-        $families = (clone $familyQuery)
-            ->select(['rt', 'rw', 'kelurahan'])
-            ->get();
-
+        $families = (clone $familyQuery)->select(['rt', 'rw', 'kelurahan'])->get();
         $rt = $families->groupBy(fn ($family): string => $this->locationValue($family->rt, 'RT'))->map->count()->sortKeys()->all();
         $kelurahan = $families->groupBy(fn ($family): string => $this->locationValue($family->kelurahan, 'Tidak tercatat'))->map->count();
 
         $populationRows = (clone $membersQuery)
             ->join('families', 'families.id', '=', 'family_members.family_id')
-            ->select([
-                'families.rt',
-                'families.rw',
-                'families.kelurahan',
-                DB::raw('count(*) as total'),
-            ])
+            ->select(['families.rt', 'families.rw', 'families.kelurahan', DB::raw('count(*) as total')])
             ->groupBy('families.rt', 'families.rw', 'families.kelurahan')
-            ->orderBy('families.rt')
-            ->orderBy('families.rw')
-            ->get();
+            ->orderBy('families.rt')->orderBy('families.rw')->get();
 
         $rtRw = $populationRows->mapWithKeys(function ($row): array {
             $key = $this->locationValue($row->rt, 'RT') . ' / ' . $this->locationValue($row->rw, 'RW');
@@ -326,11 +281,7 @@ final class FamilyCardsBulkPdfService
             'penduduk' => $kelurahanPopulation->get($name, 0),
         ])->all();
 
-        return [
-            'rt' => $rt,
-            'rt_rw' => $rtRw,
-            'kelurahan' => $kelurahan,
-        ];
+        return ['rt' => $rt, 'rt_rw' => $rtRw, 'kelurahan' => $kelurahan];
     }
 
     private function incrementReferenceStat(array &$stats, ?string $value, array $labels): void
@@ -351,7 +302,6 @@ final class FamilyCardsBulkPdfService
         if ($value === null || trim($value) === '') {
             return 'Tidak tercatat';
         }
-
         $value = trim($value);
         return $labels[$value] ?? $value;
     }
@@ -361,16 +311,13 @@ final class FamilyCardsBulkPdfService
         if ($value === null || trim($value) === '') {
             return false;
         }
-
         $value = mb_strtolower(trim($value));
         $label = mb_strtolower((string) ($labels[trim($value)] ?? ''));
-
         foreach ($needles as $needle) {
             if ($value === mb_strtolower($needle) || $label === mb_strtolower($needle)) {
                 return true;
             }
         }
-
         return false;
     }
 
@@ -379,7 +326,6 @@ final class FamilyCardsBulkPdfService
         if ($birthDate === null || trim($birthDate) === '') {
             return null;
         }
-
         return Carbon::parse($birthDate)->age;
     }
 
@@ -406,10 +352,7 @@ final class FamilyCardsBulkPdfService
         if ($total === 0) {
             return array_fill_keys(array_keys($values), 0);
         }
-
-        return collect($values)
-            ->map(fn (int $value): float => round(($value / $total) * 100, 2))
-            ->all();
+        return collect($values)->map(fn (int $value): float => round(($value / $total) * 100, 2))->all();
     }
 
     private function median(Collection $values): float
@@ -417,15 +360,12 @@ final class FamilyCardsBulkPdfService
         if ($values->isEmpty()) {
             return 0;
         }
-
         $values = $values->values();
         $count = $values->count();
         $middle = intdiv($count, 2);
-
         if ($count % 2 === 0) {
             return round(($values[$middle - 1] + $values[$middle]) / 2, 2);
         }
-
         return round((float) $values[$middle], 2);
     }
 }
