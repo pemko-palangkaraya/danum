@@ -68,6 +68,7 @@ class VerificationController extends Controller
         return view('verification.show', [
             'letter' => $letter,
             'accessLevel' => $level,
+            'tte' => $this->pdfSignatureVerificationService->verify($letter),
         ]);
     }
 
