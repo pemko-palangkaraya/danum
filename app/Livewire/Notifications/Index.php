@@ -16,18 +16,7 @@ class Index extends Component
 
     public function openNotification(string $id): void
     {
-        $notification = $this->notification($id);
-
-        if ($notification === null) {
-            return;
-        }
-
-        $notification->markAsRead();
-        $url = $notification->data['action_url'] ?? null;
-
-        if ($url) {
-            $this->redirect($url, navigate: true);
-        }
+        $this->notification($id)?->markAsRead();
     }
 
     public function markAsRead(string $id): void
