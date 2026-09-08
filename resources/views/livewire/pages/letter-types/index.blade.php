@@ -10,13 +10,20 @@
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div class="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row">
             <input wire:model.live.debounce.300ms="search" type="search" placeholder="Cari kode atau nama..." class="form-control sm:max-w-sm">
-            <select wire:model.live="filter" class="form-select sm:w-44">
+            <select wire:model.live="filter" class="form-select sm:w-52">
                 <option value="active">Active</option>
                 <option value="draft">Draft</option>
                 <option value="validated">Validated</option>
                 <option value="retired">Retired</option>
+                <option value="deleted">Deleted</option>
             </select>
         </div>
+
+        @if ($filter === 'deleted')
+            <div class="border-b border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                Menampilkan jenis surat yang sudah dihapus. Data tetap tersimpan karena menggunakan soft delete.
+            </div>
+        @endif
 
         <div class="divide-y divide-slate-100">
             @forelse ($letterTypes as $letterType)
@@ -26,6 +33,9 @@
                             <span class="font-mono text-xs font-semibold text-slate-400">{{ $letterType->code }}</span>
                             <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">{{ $letterType->classification?->code ?? '-' }}</span>
                             <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{{ $letterType->status->value }}</span>
+                            @if ($letterType->trashed())
+                                <span class="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">deleted</span>
+                            @endif
                         </div>
                         <h2 class="mt-1 font-semibold text-slate-900">{{ $letterType->name }}</h2>
                         <p class="mt-1 text-sm text-slate-500">{{ $letterType->description ?: 'Tidak ada deskripsi.' }}</p>
@@ -45,16 +55,22 @@
                         </p>
                     </div>
                     <div class="flex shrink-0 flex-wrap gap-2">
-                        @if ($letterType->isGlobal())
-                            <a href="{{ route('letter-types.permissions', $letterType) }}" class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">Atur Akses OPD</a>
-                            <a href="{{ route('letter-types.versions', $letterType) }}" class="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-medium text-violet-700 hover:bg-violet-100">Kelola Versi</a>
+                        @if ($filter !== 'deleted')
+                            @if ($letterType->isGlobal())
+                                <a href="{{ route('letter-types.permissions', $letterType) }}" class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">Atur Akses OPD</a>
+                                <a href="{{ route('letter-types.versions', $letterType) }}" class="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-medium text-violet-700 hover:bg-violet-100">Kelola Versi</a>
+                            @endif
+                            <button wire:click="edit('{{ $letterType->id }}')" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Edit Master</button>
+                            <button wire:click="openDelete('{{ $letterType->id }}')" class="rounded-lg border border-rose-200 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50">Delete</button>
+                        @else
+                            <span class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">Tidak ada tindakan</span>
                         @endif
-                        <button wire:click="edit('{{ $letterType->id }}')" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Edit Master</button>
-                        <button wire:click="delete('{{ $letterType->id }}')" wire:confirm="Hapus jenis surat ini?" class="rounded-lg border border-rose-200 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50">Delete</button>
                     </div>
                 </div>
             @empty
-                <div class="p-12 text-center text-sm text-slate-500">Belum ada jenis surat.</div>
+                <div class="p-12 text-center text-sm text-slate-500">
+                    {{ $filter === 'deleted' ? 'Belum ada jenis surat yang dihapus.' : 'Belum ada jenis surat.' }}
+                </div>
             @endforelse
         </div>
         <x-ui.table-footer :paginator="$letterTypes" label="letter types" />
@@ -152,6 +168,31 @@
                         <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">{{ $editingId ? 'Save Master' : 'Create Letter Type' }}</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    @endif
+
+    @if ($showDeleteConfirm)
+        <div class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4" wire:click.self="closeDeleteConfirm">
+            <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+                <div class="border-b border-slate-100 px-6 py-5">
+                    <div class="flex items-start gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600">!</div>
+                        <div>
+                            <h2 class="text-lg font-semibold text-slate-900">Hapus Jenis Surat?</h2>
+                            <p class="mt-1 text-sm text-slate-500">Tindakan ini akan memindahkan jenis surat ke data terhapus.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="px-6 py-5">
+                    <p class="text-sm text-slate-700">Kamu akan menghapus:</p>
+                    <p class="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">{{ $deleteName }}</p>
+                    <p class="mt-3 text-xs text-slate-500">Data tidak langsung dihapus permanen dan masih dapat dilihat melalui filter <strong>Deleted</strong>.</p>
+                </div>
+                <div class="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
+                    <button type="button" wire:click="closeDeleteConfirm" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Batal</button>
+                    <button type="button" wire:click="confirmDelete" wire:loading.attr="disabled" class="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60">Ya, Hapus</button>
+                </div>
             </div>
         </div>
     @endif
