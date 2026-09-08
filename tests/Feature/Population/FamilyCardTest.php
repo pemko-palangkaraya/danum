@@ -26,6 +26,21 @@ class FamilyCardTest extends TestCase
             ->assertHeader('content-type', 'application/pdf');
     }
 
+    public function test_tenant_user_can_print_all_family_cards_as_pdf(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $otherTenant = Tenant::factory()->create();
+        $user = User::factory()->tenantUser($tenant)->create();
+
+        Family::factory()->count(2)->forTenant($tenant)->create();
+        Family::factory()->forTenant($otherTenant)->create();
+
+        $this->actingAs($user)
+            ->get(route('population.families.pdf.all'))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
     public function test_tenant_user_cannot_print_another_tenants_family_card(): void
     {
         $tenant = Tenant::factory()->create();
