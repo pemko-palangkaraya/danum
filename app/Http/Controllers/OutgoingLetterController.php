@@ -68,7 +68,17 @@ class OutgoingLetterController extends Controller
         if ($error = $this->participantService->resolveValidator($data, $tenant->id, true)) return $this->participantError($error);
 
         $templateVersion = $this->letterTypeService->ensureCurrentVersion($letterType);
-        $data['number'] = $this->numberService->generate($tenant, $letterType->classification()->firstOrFail());
+        $letterDate = now();
+        $sequenceNumber = $data['sequence_number'] ?? null;
+        $data['number'] = $this->numberService->generate(
+            $tenant,
+            $letterType->classification()->firstOrFail(),
+            $letterDate,
+            $sequenceNumber,
+        );
+        $data['sequence_number'] = $sequenceNumber;
+        $data['sequence_year'] = (int) $letterDate->year;
+
         if (! isset($data['content']) && $templateVersion !== null) {
             $data['content'] = $this->outgoingLetterTemplateService->renderVersion($templateVersion, $tenant, $data);
         }
