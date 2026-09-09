@@ -50,6 +50,8 @@ jobs:
       DB_DATABASE: laravel
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
+      TZ: Asia/Pontianak
+      PGTZ: Asia/Pontianak
 
     services:
       postgres:
@@ -58,6 +60,7 @@ jobs:
           POSTGRES_DB: laravel
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
+          TZ: Asia/Pontianak
         ports:
           - 5432:5432
         options: >-
