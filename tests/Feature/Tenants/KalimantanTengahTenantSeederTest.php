@@ -50,15 +50,11 @@ class KalimantanTengahTenantSeederTest extends TestCase
 
         $this->seed(\Database\Seeders\KalimantanTengahTenantSeeder::class);
 
-        $city = Tenant::query()
-            ->where('code', 'PLK')
-            ->firstOrFail();
-
+        $city = Tenant::query()->where('code', 'PLK')->firstOrFail();
         $districtTenants = Tenant::query()
             ->where('parent_tenant_id', $city->id)
             ->whereHas('category', fn ($query) => $query->where('code', 'kecamatan'))
             ->get();
-
         $villageTenants = Tenant::query()
             ->whereHas('category', fn ($query) => $query->where('code', 'kelurahan'))
             ->get();
@@ -73,9 +69,7 @@ class KalimantanTengahTenantSeederTest extends TestCase
         $this->assertSame(['Palangka Raya'], $districtTenants->pluck('city')->unique()->values()->all());
         $this->assertSame(['Palangka Raya'], $villageTenants->pluck('city')->unique()->values()->all());
 
-        $expectedCodes = [
-            'PHD', 'JKR', 'BKB', 'RKP', 'SBG',
-        ];
+        $expectedCodes = ['BKB', 'JKR', 'PHD', 'RKP', 'SBG'];
 
         $this->assertSame(
             $expectedCodes,
@@ -96,10 +90,7 @@ class KalimantanTengahTenantSeederTest extends TestCase
             $this->assertSame($district['name'], $districtTenant->district);
             $this->assertSame('Pusat Pemerintahan', $districtTenant->village);
             $this->assertSame(6, $districtTenant->children()->count());
-            $this->assertSame(
-                6,
-                $villageTenants->where('parent_tenant_id', $districtTenant->id)->count(),
-            );
+            $this->assertSame(6, $villageTenants->where('parent_tenant_id', $districtTenant->id)->count());
         }
     }
 }
