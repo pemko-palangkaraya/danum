@@ -1,5 +1,12 @@
 $ErrorActionPreference = 'Continue'
 
+$TaskNames = @(
+    'DANUM - Nginx',
+    'DANUM - PHP-CGI',
+    'DANUM - Scheduler',
+    'DANUM - Queue Worker'
+)
+
 Write-Host ''
 Write-Host '========================================' -ForegroundColor Cyan
 Write-Host '          DANUM SERVICE STOPPER' -ForegroundColor Cyan
@@ -26,32 +33,34 @@ function Stop-ProcessTree {
     }
 }
 
-function Stop-ByCommandLine {
-    param(
-        [string]$Pattern,
-        [string]$Label
-    )
+# Minta Task Scheduler menghentikan task DANUM agar proses tidak langsung hidup kembali.
+foreach ($taskName in $TaskNames) {
+    $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
 
-    $processes = Get-CimInstance Win32_Process |
-        Where-Object {
-            $_.CommandLine -and $_.CommandLine -match $Pattern
-        }
-
-    if (-not $processes) {
-        Write-Host "[OK] $Label tidak sedang berjalan." -ForegroundColor Green
-        return
-    }
-
-    foreach ($process in $processes) {
-        Stop-ProcessTree -TargetProcessId $process.ProcessId -Label $Label
+    if ($task) {
+        Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+        Write-Host "[STOP] Task $taskName" -ForegroundColor Yellow
     }
 }
 
-# Laravel workers: target berdasarkan command line agar PHP lain tidak ikut mati.
-Stop-ByCommandLine 'artisan\s+schedule:work' 'Laravel Scheduler'
-Stop-ByCommandLine 'artisan\s+queue:work\s+database\s+--queue=default' 'Laravel Queue'
+# Beri waktu singkat agar task menghentikan proses foreground-nya.
+Start-Sleep -Seconds 1
 
-# PHP-CGI DANUM: target proses yang benar-benar memiliki port 9000.
+# Fallback cleanup: target hanya proses DANUM yang dikenal.
+$scheduler = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+    $_.CommandLine -and $_.CommandLine -match 'artisan\s+schedule:work'
+}
+foreach ($process in $scheduler) {
+    Stop-ProcessTree -TargetProcessId $process.ProcessId -Label 'Laravel Scheduler'
+}
+
+$queue = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+    $_.CommandLine -and $_.CommandLine -match 'artisan\s+queue:work\s+database\s+--queue=default'
+}
+foreach ($process in $queue) {
+    Stop-ProcessTree -TargetProcessId $process.ProcessId -Label 'Laravel Queue'
+}
+
 $phpCgiConnections = Get-NetTCPConnection -LocalPort 9000 -State Listen -ErrorAction SilentlyContinue
 if ($phpCgiConnections) {
     $phpCgiPids = $phpCgiConnections | Select-Object -ExpandProperty OwningProcess -Unique
@@ -62,22 +71,15 @@ if ($phpCgiConnections) {
             Stop-ProcessTree -TargetProcessId $targetPid -Label 'PHP-CGI :9000'
         } elseif ($process) {
             Write-Host "[WARN] Port 9000 digunakan PID $targetPid ($($process.ProcessName)); tidak dihentikan karena bukan php-cgi." -ForegroundColor Yellow
-        } else {
-            Write-Host "[OK] PID $targetPid sudah tidak berjalan." -ForegroundColor Green
         }
     }
-} else {
-    Write-Host '[OK] PHP-CGI :9000 tidak sedang berjalan.' -ForegroundColor Green
 }
 
-# Nginx DANUM: hentikan seluruh process tree nginx.
 $nginxProcesses = Get-Process -Name nginx -ErrorAction SilentlyContinue
 if ($nginxProcesses) {
     foreach ($nginx in $nginxProcesses) {
         Stop-ProcessTree -TargetProcessId $nginx.Id -Label 'Nginx'
     }
-} else {
-    Write-Host '[OK] Nginx tidak sedang berjalan.' -ForegroundColor Green
 }
 
 Write-Host ''
