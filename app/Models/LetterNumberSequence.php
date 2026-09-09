@@ -17,7 +17,6 @@ class LetterNumberSequence extends Model
 
     protected $fillable = [
         'tenant_id',
-        'letter_classification_id',
         'year',
         'last_number',
     ];
@@ -33,10 +32,5 @@ class LetterNumberSequence extends Model
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
-    }
-
-    public function classification(): BelongsTo
-    {
-        return $this->belongsTo(LetterClassification::class, 'letter_classification_id');
     }
 }
