@@ -28,9 +28,11 @@ class FamilyRelationshipRulesTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $user = User::factory()->tenantAdmin($tenant)->create();
+        $family = Family::factory()->forTenant($tenant)->create();
 
         Livewire::actingAs($user)
             ->test(Families::class)
+            ->call('showDetail', $family->id)
             ->assertSee('Istri')
             ->assertDontSee('Istri/Suami');
     }
