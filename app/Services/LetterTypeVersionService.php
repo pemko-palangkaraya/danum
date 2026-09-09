@@ -15,7 +15,6 @@ final class LetterTypeVersionService
 {
     public function __construct(
         private readonly AuditLogService $auditLogService,
-        private readonly LetterVariableDefinitionService $variableDefinitions,
     ) {}
 
     public function current(LetterType $letterType): ?LetterTypeVersion
@@ -50,7 +49,6 @@ final class LetterTypeVersionService
             $this->validatePeriod($latest, $effectiveFrom, $effectiveUntil);
 
             $variables = $this->normalizeVariables($data['variables'] ?? $letterType->variables ?? []);
-            $this->validateCatalog($variables);
             $currentVariables = $this->normalizeVariables($letterType->variables ?? []);
             $missing = array_values(array_diff($currentVariables, $variables));
 
@@ -103,7 +101,6 @@ final class LetterTypeVersionService
         $bodyTemplate = (string) ($letterType->body_template ?? '');
         $templatePath = $letterType->template_path;
         $variables = $this->normalizeVariables($letterType->variables ?? []);
-        $this->validateCatalog($variables);
         $active = $this->active($letterType);
 
         if ($active !== null && $active->body_template === $bodyTemplate && $active->template_path === $templatePath) {
@@ -171,17 +168,6 @@ final class LetterTypeVersionService
             static fn ($value) => trim((string) $value),
             $variables,
         ))));
-    }
-
-    /** @param list<string> $variables */
-    private function validateCatalog(array $variables): void
-    {
-        $undefined = $this->variableDefinitions->undefined($variables);
-        if ($undefined === []) return;
-
-        throw new \DomainException(
-            'Variabel template belum terdaftar di Katalog Variabel: '.implode(', ', $undefined).'.'
-        );
     }
 
     private function ensureGlobal(LetterType $letterType): void
