@@ -38,13 +38,16 @@ jobs:
           }
 
           Write-Host '[STOP] DANUM services...' -ForegroundColor Yellow
-          & "$Danum\stop-danum.bat"
+          & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\stop-danum.ps1"
           if ($LASTEXITCODE -ne 0) {
               throw 'Gagal menghentikan service DANUM.'
           }
 
           Write-Host '[UPDATE] Mengambil master terbaru...' -ForegroundColor Yellow
           git fetch origin master
+          if ($LASTEXITCODE -ne 0) {
+              throw 'git fetch gagal.'
+          }
           git pull --ff-only origin master
           if ($LASTEXITCODE -ne 0) {
               throw 'Gagal mengambil perubahan terbaru dari master.'
@@ -57,7 +60,7 @@ jobs:
           }
 
           Write-Host '[NODE] Install dependencies...' -ForegroundColor Yellow
-          npm ci --omit=dev
+          npm ci
           if ($LASTEXITCODE -ne 0) {
               throw 'npm ci gagal.'
           }
@@ -81,13 +84,13 @@ jobs:
           }
 
           Write-Host '[START] Menjalankan service DANUM...' -ForegroundColor Yellow
-          & "$Danum\start-danum.bat"
+          & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\start-danum.ps1"
           if ($LASTEXITCODE -ne 0) {
               throw 'Gagal menjalankan service DANUM.'
           }
 
           Write-Host '[CHECK] Memverifikasi 4 service DANUM...' -ForegroundColor Yellow
-          & "$Danum\check-danum.bat"
+          & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\check-danum.ps1"
           if ($LASTEXITCODE -ne 0) {
               throw 'Health check DANUM gagal.'
           }
