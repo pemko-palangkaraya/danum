@@ -8,16 +8,16 @@ Write-Host ''
 
 function Stop-ProcessTree {
     param(
-        [int]$ProcessId,
+        [int]$TargetProcessId,
         [string]$Label
     )
 
-    if (-not $ProcessId) {
+    if (-not $TargetProcessId) {
         return
     }
 
-    Write-Host "[STOP] $Label (PID $ProcessId)..." -ForegroundColor Yellow
-    & taskkill.exe /PID $ProcessId /T /F | Out-Host
+    Write-Host "[STOP] $Label (PID $TargetProcessId)..." -ForegroundColor Yellow
+    & taskkill.exe /PID $TargetProcessId /T /F | Out-Host
 
     if ($LASTEXITCODE -eq 0) {
         Write-Host "[OK] $Label berhasil dihentikan." -ForegroundColor Green
@@ -43,7 +43,7 @@ function Stop-ByCommandLine {
     }
 
     foreach ($process in $processes) {
-        Stop-ProcessTree -ProcessId $process.ProcessId -Label $Label
+        Stop-ProcessTree -TargetProcessId $process.ProcessId -Label $Label
     }
 }
 
@@ -56,12 +56,14 @@ $phpCgiConnections = Get-NetTCPConnection -LocalPort 9000 -State Listen -ErrorAc
 if ($phpCgiConnections) {
     $phpCgiPids = $phpCgiConnections | Select-Object -ExpandProperty OwningProcess -Unique
 
-    foreach ($pid in $phpCgiPids) {
-        $process = Get-Process -Id $pid -ErrorAction SilentlyContinue
+    foreach ($targetPid in $phpCgiPids) {
+        $process = Get-Process -Id $targetPid -ErrorAction SilentlyContinue
         if ($process -and $process.ProcessName -ieq 'php-cgi') {
-            Stop-ProcessTree -ProcessId $pid -Label 'PHP-CGI :9000'
+            Stop-ProcessTree -TargetProcessId $targetPid -Label 'PHP-CGI :9000'
+        } elseif ($process) {
+            Write-Host "[WARN] Port 9000 digunakan PID $targetPid ($($process.ProcessName)); tidak dihentikan karena bukan php-cgi." -ForegroundColor Yellow
         } else {
-            Write-Host "[WARN] Port 9000 digunakan PID $pid ($($process.ProcessName)); tidak dihentikan karena bukan php-cgi." -ForegroundColor Yellow
+            Write-Host "[OK] PID $targetPid sudah tidak berjalan." -ForegroundColor Green
         }
     }
 } else {
@@ -72,7 +74,7 @@ if ($phpCgiConnections) {
 $nginxProcesses = Get-Process -Name nginx -ErrorAction SilentlyContinue
 if ($nginxProcesses) {
     foreach ($nginx in $nginxProcesses) {
-        Stop-ProcessTree -ProcessId $nginx.Id -Label 'Nginx'
+        Stop-ProcessTree -TargetProcessId $nginx.Id -Label 'Nginx'
     }
 } else {
     Write-Host '[OK] Nginx tidak sedang berjalan.' -ForegroundColor Green
