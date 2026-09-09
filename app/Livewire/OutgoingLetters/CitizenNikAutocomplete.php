@@ -11,10 +11,12 @@ use Livewire\Component;
 class CitizenNikAutocomplete extends Component
 {
     public string $search = '';
+    public string $variable = 'recipient_nik';
 
-    public function mount(string $value = ''): void
+    public function mount(string $value = '', string $variable = 'recipient_nik'): void
     {
         $this->search = preg_replace('/\D+/', '', $value) ?? '';
+        $this->variable = $variable;
     }
 
     public function updatedSearch(): void
@@ -38,4 +40,6 @@ class CitizenNikAutocomplete extends Component
             'suggestions' => $suggestions,
         ]);
     }
+
+    // The parent component remains responsible for the actual citizen hydration.
 }
