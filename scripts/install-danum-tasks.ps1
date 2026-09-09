@@ -22,13 +22,14 @@ function Register-DanumTask {
     $action = New-ScheduledTaskAction -Execute $Execute -Argument $Arguments -WorkingDirectory $Danum
     $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero)
-    $trigger = New-ScheduledTaskTrigger -AtStartup
+    $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 
     Register-ScheduledTask `
         -TaskName $taskName `
         -Action $action `
         -Principal $principal `
         -Settings $settings `
+        -Trigger $trigger `
         -Description "DANUM service: $Name" | Out-Null
 
     Write-Host "[OK] Task terdaftar: $taskName" -ForegroundColor Green
