@@ -21,8 +21,8 @@ jobs:
           php-version: '8.2'
           coverage: none
 
-      - name: Refresh lock hash
-        run: composer update --lock --no-interaction --no-progress --no-scripts
+      - name: Refresh lock for PHP 8.2
+        run: composer update --with-all-dependencies --no-interaction --no-progress --no-scripts
 
       - name: Commit refreshed lock
         env:
@@ -36,7 +36,7 @@ jobs:
             echo "No lock changes needed."
             exit 0
           fi
-          git commit -m "chore(composer): refresh lock file"
+          git commit -m "chore(composer): refresh lock for PHP 8.2"
           git push
 
       - name: Trigger CI
