@@ -11,8 +11,36 @@ permissions:
   contents: read
 
 jobs:
+  build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Upload Vite build
+        uses: actions/upload-artifact@v4
+        with:
+          name: vite-build
+          path: public/build
+          if-no-files-found: error
+
   test:
     name: Tests
+    needs: build
     runs-on: ubuntu-latest
 
     env:
@@ -42,6 +70,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Download Vite build
+        uses: actions/download-artifact@v4
+        with:
+          name: vite-build
+          path: public/build
+
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -63,23 +97,3 @@ jobs:
 
       - name: Run tests
         run: php artisan test --ansi
-
-  build:
-    name: Frontend Build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install Node dependencies
-        run: npm ci
-
-      - name: Build frontend
-        run: npm run build
