@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\LetterVariableDefinition;
+use App\Support\LetterVariableSchema;
 
 final class LetterVariableDefinitionService
 {
@@ -96,6 +97,20 @@ final class LetterVariableDefinitionService
     public function isSystem(string $key): bool
     {
         return in_array($key, self::SYSTEM_VARIABLES, true);
+    }
+
+    /** @param list<string> $variables @return list<string> */
+    public function undefined(array $variables): array
+    {
+        $undefined = [];
+
+        foreach ($variables as $variable) {
+            $variable = trim((string) $variable);
+            if ($variable === '' || $this->isSystem($variable) || LetterVariableSchema::isRepeater($variable)) continue;
+            if ($this->forKey($variable) === null) $undefined[] = $variable;
+        }
+
+        return array_values(array_unique($undefined));
     }
 
     public function isReadonly(string $key, bool $hasCitizen = false): bool
