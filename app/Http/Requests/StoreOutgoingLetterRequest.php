@@ -40,6 +40,7 @@ class StoreOutgoingLetterRequest extends FormRequest
                 }),
             ],
             'number' => ['prohibited'],
+            'sequence_number' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'recipient_name' => ['required', 'string', 'max:150'],
             'recipient_address' => ['nullable', 'string'],
             'subject' => ['required', 'string', 'max:255'],
