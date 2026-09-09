@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 $Danum = 'C:\Users\yudhistira\Herd\danum'
 $BackupDirectory = 'C:\Users\yudhistira\Herd\danum-backups'
 $PgDump = 'C:\Program Files\PostgreSQL\18\bin\pg_dump.exe'
+$PgRestore = 'C:\Program Files\PostgreSQL\18\bin\pg_restore.exe'
 $EnvFile = Join-Path $Danum '.env'
 
 function Get-EnvValue {
@@ -27,6 +28,10 @@ function Get-EnvValue {
 
 if (-not (Test-Path $PgDump)) {
     throw "pg_dump tidak ditemukan: $PgDump"
+}
+
+if (-not (Test-Path $PgRestore)) {
+    throw "pg_restore tidak ditemukan: $PgRestore"
 }
 
 if (-not (Test-Path $EnvFile)) {
@@ -87,8 +92,16 @@ try {
         throw 'File backup kosong.'
     }
 
+    Write-Host '[VERIFY] Memeriksa integritas struktur backup...' -ForegroundColor Yellow
+    & $PgRestore --list "$backupFile" | Out-Null
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "pg_restore --list gagal dengan exit code $LASTEXITCODE."
+    }
+
     Write-Host "[OK] Backup berhasil: $backupFile" -ForegroundColor Green
     Write-Host "[OK] Ukuran backup : $([math]::Round($backupSize / 1MB, 2)) MB" -ForegroundColor Green
+    Write-Host '[OK] Integritas backup terverifikasi tanpa mengubah database.' -ForegroundColor Green
 
     # Simpan maksimal 10 backup terbaru agar folder backup tidak tumbuh tanpa batas.
     $backups = Get-ChildItem $BackupDirectory -Filter 'danum-*.dump' -File |
