@@ -8,6 +8,7 @@ use App\Livewire\Concerns\WithStandardTablePagination;
 use App\Models\LetterType;
 use App\Services\DocxTemplateService;
 use App\Services\LetterTypeService;
+use App\Services\LetterVariableDefinitionService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
@@ -34,6 +35,7 @@ class Versions extends Component
     public array $templateFoundVariables = [];
     public array $templateUnknownVariables = [];
     public array $templateMissingVariables = [];
+    public array $templateUndefinedVariables = [];
 
     public function mount(string|LetterType $letterType): void
     {
@@ -69,15 +71,21 @@ class Versions extends Component
         $this->validateTemplate($docx);
     }
 
-    public function addFoundVariables(DocxTemplateService $docx): void
+    public function addFoundVariables(DocxTemplateService $docx, LetterVariableDefinitionService $variableDefinitions): void
     {
-        if (! $this->templateUnknownVariables) {
+        $catalogVariables = array_values(array_diff(
+            $this->templateUnknownVariables,
+            $variableDefinitions->undefined($this->templateUnknownVariables),
+        ));
+
+        if ($catalogVariables === []) {
+            $this->validateTemplate($docx);
             return;
         }
 
         $this->versionVariables = $this->normalizedVariables([
             ...$this->versionVariables,
-            ...$this->templateUnknownVariables,
+            ...$catalogVariables,
         ]);
         $this->validateTemplate($docx);
     }
@@ -104,7 +112,16 @@ class Versions extends Component
             $this->templateFoundVariables = array_values($found);
             $this->templateUnknownVariables = array_values($diff['unknown']);
             $this->templateMissingVariables = array_values($diff['missing']);
-            $this->templateCheckStatus = ($diff['unknown'] || $diff['missing']) ? 'failed' : 'passed';
+            $this->templateUndefinedVariables = app(LetterVariableDefinitionService::class)->undefined($found);
+
+            if ($this->templateUndefinedVariables !== []) {
+                $this->addError(
+                    'template_file',
+                    'Variabel belum terdaftar di Katalog Variabel: '.implode(', ', $this->templateUndefinedVariables).'.',
+                );
+            }
+
+            $this->templateCheckStatus = ($diff['unknown'] || $diff['missing'] || $this->templateUndefinedVariables) ? 'failed' : 'passed';
 
             return $this->templateCheckStatus === 'passed';
         } catch (\Throwable $e) {
@@ -122,6 +139,7 @@ class Versions extends Component
         $this->templateFoundVariables = [];
         $this->templateUnknownVariables = [];
         $this->templateMissingVariables = [];
+        $this->templateUndefinedVariables = [];
     }
 
     private function validateTemplateFile(): bool
@@ -206,6 +224,7 @@ class Versions extends Component
         $this->templateFoundVariables = [];
         $this->templateUnknownVariables = [];
         $this->templateMissingVariables = [];
+        $this->templateUndefinedVariables = [];
     }
 
     public function render()
