@@ -71,21 +71,11 @@ class Versions extends Component
         $this->validateTemplate($docx);
     }
 
-    public function addFoundVariables(DocxTemplateService $docx, LetterVariableDefinitionService $variableDefinitions): void
+    public function addFoundVariables(DocxTemplateService $docx): void
     {
-        $catalogVariables = array_values(array_diff(
-            $this->templateUnknownVariables,
-            $variableDefinitions->undefined($this->templateUnknownVariables),
-        ));
-
-        if ($catalogVariables === []) {
-            $this->validateTemplate($docx);
-            return;
-        }
-
         $this->versionVariables = $this->normalizedVariables([
             ...$this->versionVariables,
-            ...$catalogVariables,
+            ...$this->templateFoundVariables,
         ]);
         $this->validateTemplate($docx);
     }
@@ -114,14 +104,7 @@ class Versions extends Component
             $this->templateMissingVariables = array_values($diff['missing']);
             $this->templateUndefinedVariables = app(LetterVariableDefinitionService::class)->undefined($found);
 
-            if ($this->templateUndefinedVariables !== []) {
-                $this->addError(
-                    'template_file',
-                    'Variabel belum terdaftar di Katalog Variabel: '.implode(', ', $this->templateUndefinedVariables).'.',
-                );
-            }
-
-            $this->templateCheckStatus = ($diff['unknown'] || $diff['missing'] || $this->templateUndefinedVariables) ? 'failed' : 'passed';
+            $this->templateCheckStatus = ($diff['unknown'] || $diff['missing']) ? 'failed' : 'passed';
 
             return $this->templateCheckStatus === 'passed';
         } catch (\Throwable $e) {
