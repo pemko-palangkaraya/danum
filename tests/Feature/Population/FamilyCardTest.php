@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Population;
 
 use App\Models\Family;
+use App\Models\FamilyCardExport;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,7 +27,7 @@ class FamilyCardTest extends TestCase
             ->assertHeader('content-type', 'application/pdf');
     }
 
-    public function test_tenant_user_can_print_all_family_cards_as_pdf(): void
+    public function test_tenant_user_can_queue_all_family_cards_as_pdf(): void
     {
         $tenant = Tenant::factory()->create();
         $otherTenant = Tenant::factory()->create();
@@ -38,7 +39,13 @@ class FamilyCardTest extends TestCase
         $this->actingAs($user)
             ->get(route('population.families.pdf.all'))
             ->assertOk()
-            ->assertHeader('content-type', 'application/pdf');
+            ->assertViewIs('population.family-cards-export-processing');
+
+        $this->assertDatabaseHas('family_card_exports', [
+            'tenant_id' => $tenant->id,
+            'user_id' => $user->id,
+            'status' => 'queued',
+        ]);
     }
 
     public function test_tenant_user_cannot_print_another_tenants_family_card(): void
