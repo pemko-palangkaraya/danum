@@ -11,7 +11,7 @@ use App\Models\Position;
 use App\Models\PositionHolder;
 use DOMDocument;
 use DOMXPath;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Carbon;
 use ZipArchive;
@@ -56,10 +56,22 @@ final class OutgoingLetterDraftService
         unset($data['_citizen_id']);
 
         $number = $existing?->number;
+        $sequenceNumber = $existing?->sequence_number;
+        $sequenceYear = $existing?->sequence_year;
+
         if (blank($number)) {
             $letterDate = filled($data['date'] ?? null) ? Carbon::parse((string) $data['date']) : now();
-            $number = $this->numberService->generate($tenant, $letterType->classification()->firstOrFail(), $letterDate);
+            $manualNumber = $this->manualNumberFromInput($data['number'] ?? null);
+            $sequenceNumber = $manualNumber;
+            $sequenceYear = (int) $letterDate->year;
+            $number = $this->numberService->generate(
+                $tenant,
+                $letterType->classification()->firstOrFail(),
+                $letterDate,
+                $manualNumber,
+            );
         }
+
         $data['number'] = $number;
 
         $renderData = [
@@ -87,6 +99,8 @@ final class OutgoingLetterDraftService
                 'validator_name' => $validatorHolder->user->name,
                 'validator_title' => $validatorPosition->name,
                 'number' => $number,
+                'sequence_number' => $sequenceNumber,
+                'sequence_year' => $sequenceYear,
                 'recipient_name' => (string) ($data['recipient_name'] ?? ''),
                 'recipient_address' => (string) ($data['recipient_address'] ?? ''),
                 'subject' => (string) ($data['subject'] ?? ''),
@@ -114,6 +128,22 @@ final class OutgoingLetterDraftService
             Storage::disk('local')->delete($generatedPath);
             throw $exception;
         }
+    }
+
+    private function manualNumberFromInput(mixed $value): ?int
+    {
+        $value = trim((string) ($value ?? ''));
+        if ($value === '') return null;
+        if (! preg_match('/^\d+$/', $value)) {
+            throw new \DomainException('Nomor urut manual harus berupa angka saja. Kosongkan untuk penomoran otomatis.');
+        }
+
+        $number = (int) $value;
+        if ($number < 1) {
+            throw new \DomainException('Nomor urut manual harus lebih besar dari 0.');
+        }
+
+        return $number;
     }
 
     /** @param array<string,mixed> $data */
