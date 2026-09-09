@@ -42,7 +42,16 @@ jobs:
 
               Write-Host '[STOP] DANUM services...' -ForegroundColor Yellow
               & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\stop-danum.ps1"
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'Gagal menghentikan service DANUM.'
+              }
               $servicesStopped = $true
+
+              Write-Host '[BACKUP] Membuat backup PostgreSQL...' -ForegroundColor Yellow
+              & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\backup-danum-db.ps1"
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'Backup PostgreSQL gagal. Deployment dihentikan sebelum perubahan database.'
+              }
 
               Write-Host '[UPDATE] Mengambil master terbaru...' -ForegroundColor Yellow
               git fetch origin master
