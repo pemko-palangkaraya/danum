@@ -11,7 +11,7 @@ use App\Models\Position;
 use App\Models\PositionHolder;
 use DOMDocument;
 use DOMXPath;
-use Illuminate\Support\Storage;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Carbon;
 use ZipArchive;
