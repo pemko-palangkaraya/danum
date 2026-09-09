@@ -29,8 +29,20 @@ class OutgoingLetterWorkflowGuardTest extends TestCase
         parent::setUp();
         Storage::fake('local');
         $this->mock(DocxTteService::class, function ($mock): void { $mock->shouldReceive('createIssuedCopy')->zeroOrMoreTimes()->andReturn('/tmp/danum-test-issued.docx'); });
-        $this->mock(DocxPdfService::class, function ($mock): void { $mock->shouldReceive('convert')->andReturn('outgoing-letters/test/unsigned.pdf'); });
-        $this->mock(PdfSigningService::class, function ($mock): void { $mock->shouldReceive('sign')->andReturn('outgoing-letters/test/signed.pdf'); });
+        $this->mock(DocxPdfService::class, function ($mock): void {
+            $mock->shouldReceive('convert')->andReturnUsing(function (): string {
+                $path = 'outgoing-letters/test/unsigned.pdf';
+                Storage::disk('local')->put($path, '%PDF-test-unsigned');
+                return $path;
+            });
+        });
+        $this->mock(PdfSigningService::class, function ($mock): void {
+            $mock->shouldReceive('sign')->andReturnUsing(function (): string {
+                $path = 'outgoing-letters/test/signed.pdf';
+                Storage::disk('local')->put($path, '%PDF-test-signed');
+                return $path;
+            });
+        });
     }
 
     public function test_validation_changes_status_to_validated(): void
