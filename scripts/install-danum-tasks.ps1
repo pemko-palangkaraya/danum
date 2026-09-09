@@ -19,7 +19,17 @@ function Register-DanumTask {
         Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
     }
 
-    $action = New-ScheduledTaskAction -Execute $Execute -Argument $Arguments -WorkingDirectory $Danum
+    if ([string]::IsNullOrWhiteSpace($Arguments)) {
+        $action = New-ScheduledTaskAction `
+            -Execute $Execute `
+            -WorkingDirectory $Danum
+    } else {
+        $action = New-ScheduledTaskAction `
+            -Execute $Execute `
+            -Argument $Arguments `
+            -WorkingDirectory $Danum
+    }
+
     $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero)
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
