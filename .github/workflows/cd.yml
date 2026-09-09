@@ -1,0 +1,97 @@
+name: CD
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: danum-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy DANUM
+    runs-on: [self-hosted, windows, danum]
+    timeout-minutes: 20
+
+    steps:
+      - name: Deploy from master
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $Danum = 'C:\Users\yudhistira\Herd\danum'
+          Set-Location $Danum
+
+          Write-Host '========================================' -ForegroundColor Cyan
+          Write-Host '           DANUM DEPLOYMENT' -ForegroundColor Cyan
+          Write-Host '========================================' -ForegroundColor Cyan
+          Write-Host ''
+
+          Write-Host '[CHECK] Repository status...' -ForegroundColor Yellow
+          $status = git status --porcelain
+          if ($status) {
+              Write-Host $status
+              throw 'Repository DANUM memiliki perubahan lokal. Deployment dibatalkan agar perubahan lokal tidak tertimpa.'
+          }
+
+          Write-Host '[STOP] DANUM services...' -ForegroundColor Yellow
+          & "$Danum\stop-danum.bat"
+          if ($LASTEXITCODE -ne 0) {
+              throw 'Gagal menghentikan service DANUM.'
+          }
+
+          Write-Host '[UPDATE] Mengambil master terbaru...' -ForegroundColor Yellow
+          git fetch origin master
+          git pull --ff-only origin master
+          if ($LASTEXITCODE -ne 0) {
+              throw 'Gagal mengambil perubahan terbaru dari master.'
+          }
+
+          Write-Host '[PHP] Install dependencies...' -ForegroundColor Yellow
+          composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+          if ($LASTEXITCODE -ne 0) {
+              throw 'composer install gagal.'
+          }
+
+          Write-Host '[NODE] Install dependencies...' -ForegroundColor Yellow
+          npm ci --omit=dev
+          if ($LASTEXITCODE -ne 0) {
+              throw 'npm ci gagal.'
+          }
+
+          Write-Host '[BUILD] Build frontend...' -ForegroundColor Yellow
+          npm run build
+          if ($LASTEXITCODE -ne 0) {
+              throw 'npm run build gagal.'
+          }
+
+          Write-Host '[MIGRATE] Menjalankan migration...' -ForegroundColor Yellow
+          php artisan migrate --force --ansi
+          if ($LASTEXITCODE -ne 0) {
+              throw 'Migration gagal.'
+          }
+
+          Write-Host '[OPTIMIZE] Optimasi Laravel...' -ForegroundColor Yellow
+          php artisan optimize
+          if ($LASTEXITCODE -ne 0) {
+              throw 'Laravel optimize gagal.'
+          }
+
+          Write-Host '[START] Menjalankan service DANUM...' -ForegroundColor Yellow
+          & "$Danum\start-danum.bat"
+          if ($LASTEXITCODE -ne 0) {
+              throw 'Gagal menjalankan service DANUM.'
+          }
+
+          Write-Host '[CHECK] Memverifikasi 4 service DANUM...' -ForegroundColor Yellow
+          & "$Danum\check-danum.bat"
+          if ($LASTEXITCODE -ne 0) {
+              throw 'Health check DANUM gagal.'
+          }
+
+          Write-Host ''
+          Write-Host 'DANUM deployment berhasil.' -ForegroundColor Green
+          Write-Host ''
