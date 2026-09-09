@@ -1,10 +1,30 @@
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue'
 
 Write-Host ''
 Write-Host '========================================' -ForegroundColor Cyan
 Write-Host '          DANUM SERVICE STOPPER' -ForegroundColor Cyan
 Write-Host '========================================' -ForegroundColor Cyan
 Write-Host ''
+
+function Stop-ProcessTree {
+    param(
+        [int]$ProcessId,
+        [string]$Label
+    )
+
+    if (-not $ProcessId) {
+        return
+    }
+
+    Write-Host "[STOP] $Label (PID $ProcessId)..." -ForegroundColor Yellow
+    & taskkill.exe /PID $ProcessId /T /F | Out-Host
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "[OK] $Label berhasil dihentikan." -ForegroundColor Green
+    } else {
+        Write-Host "[WARN] $Label gagal dihentikan (exit code $LASTEXITCODE)." -ForegroundColor Red
+    }
+}
 
 function Stop-ByCommandLine {
     param(
@@ -14,7 +34,7 @@ function Stop-ByCommandLine {
 
     $processes = Get-CimInstance Win32_Process |
         Where-Object {
-            $_.CommandLine -and $_.CommandLine -like "*$Pattern*"
+            $_.CommandLine -and $_.CommandLine -match $Pattern
         }
 
     if (-not $processes) {
@@ -23,29 +43,36 @@ function Stop-ByCommandLine {
     }
 
     foreach ($process in $processes) {
-        Write-Host "[STOP] $Label (PID $($process.ProcessId))..." -ForegroundColor Yellow
-
-        & taskkill.exe /PID $process.ProcessId /T /F | Out-Host
-
-        if ($LASTEXITCODE -ne 0) {
-            throw "Gagal menghentikan $Label (PID $($process.ProcessId))."
-        }
+        Stop-ProcessTree -ProcessId $process.ProcessId -Label $Label
     }
 }
 
-Stop-ByCommandLine 'artisan schedule:work' 'Laravel Scheduler'
-Stop-ByCommandLine 'artisan queue:work database --queue=default' 'Laravel Queue'
-Stop-ByCommandLine 'php-cgi.exe -b 127.0.0.1:9000' 'PHP-CGI :9000'
+# Laravel workers: target berdasarkan command line agar PHP lain tidak ikut mati.
+Stop-ByCommandLine 'artisan\s+schedule:work' 'Laravel Scheduler'
+Stop-ByCommandLine 'artisan\s+queue:work\s+database\s+--queue=default' 'Laravel Queue'
 
-$nginx = Get-Process -Name nginx -ErrorAction SilentlyContinue
-if ($nginx) {
-    foreach ($process in $nginx) {
-        Write-Host "[STOP] Nginx (PID $($process.Id))..." -ForegroundColor Yellow
-        & taskkill.exe /PID $process.Id /T /F | Out-Host
+# PHP-CGI DANUM: target proses yang benar-benar memiliki port 9000.
+$phpCgiConnections = Get-NetTCPConnection -LocalPort 9000 -State Listen -ErrorAction SilentlyContinue
+if ($phpCgiConnections) {
+    $phpCgiPids = $phpCgiConnections | Select-Object -ExpandProperty OwningProcess -Unique
 
-        if ($LASTEXITCODE -ne 0) {
-            throw "Gagal menghentikan Nginx (PID $($process.Id))."
+    foreach ($pid in $phpCgiPids) {
+        $process = Get-Process -Id $pid -ErrorAction SilentlyContinue
+        if ($process -and $process.ProcessName -ieq 'php-cgi') {
+            Stop-ProcessTree -ProcessId $pid -Label 'PHP-CGI :9000'
+        } else {
+            Write-Host "[WARN] Port 9000 digunakan PID $pid ($($process.ProcessName)); tidak dihentikan karena bukan php-cgi." -ForegroundColor Yellow
         }
+    }
+} else {
+    Write-Host '[OK] PHP-CGI :9000 tidak sedang berjalan.' -ForegroundColor Green
+}
+
+# Nginx DANUM: hentikan seluruh process tree nginx.
+$nginxProcesses = Get-Process -Name nginx -ErrorAction SilentlyContinue
+if ($nginxProcesses) {
+    foreach ($nginx in $nginxProcesses) {
+        Stop-ProcessTree -ProcessId $nginx.Id -Label 'Nginx'
     }
 } else {
     Write-Host '[OK] Nginx tidak sedang berjalan.' -ForegroundColor Green
