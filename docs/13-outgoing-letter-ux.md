@@ -38,7 +38,7 @@ Perilaku:
 - hasil dibatasi pada tenant aktif pengguna;
 - suggestion menampilkan nama lengkap dan NIK;
 - memilih suggestion mengisi NIK dan menjalankan mekanisme pengisian data warga yang sudah ada;
-- data warga lain seperti nama, TTL, alamat, dan variabel sumber warga tetap diisi melalui resolver yang sudah digunakan DANUM;
+- data warga lain tetap diisi melalui resolver yang sudah digunakan DANUM;
 - pencarian tidak mengubah aturan validasi backend.
 
 Contoh:
@@ -63,7 +63,7 @@ Autocomplete tidak boleh mengambil warga lintas tenant.
 
 Query suggestion selalu menggunakan `tenant_id` pengguna dan tidak membuka pencarian global.
 
-## 4. Integrasi dengan pengisian otomatis
+## 4. Integrasi pengisian otomatis
 
 Autocomplete hanya menjadi bantuan pemilihan. Setelah suggestion dipilih, mekanisme `updatedVariableValues()` yang sudah ada tetap menjadi sumber pengisian data warga.
 
@@ -71,7 +71,7 @@ Dengan demikian tidak dibuat jalur kedua untuk mapping data warga.
 
 ## 5. Status implementasi
 
-Fitur yang sudah berhasil diterapkan:
+Fitur yang sudah diterapkan:
 
 - auto-focus field validation error pertama;
 - smooth scroll ke field error di dalam modal;
@@ -80,15 +80,15 @@ Fitur yang sudah berhasil diterapkan:
 - pengisian data warga otomatis setelah pilihan;
 - pembatasan tenant pada hasil suggestion.
 
-## 6. Catatan pengujian
+## 6. Pengujian browser
 
-Pengujian browser perlu dilakukan setelah asset aplikasi dibangun ulang jika deployment menggunakan Vite build.
+Setelah deployment menggunakan Vite build, jalankan:
 
 ```powershell
 npm run build
 ```
 
-Setelah itu lakukan hard refresh browser dan uji:
+Kemudian hard refresh browser dan uji:
 
 1. buka Buat Surat Keluar;
 2. ketik minimal 3 digit NIK;
