@@ -99,13 +99,16 @@ jobs:
               if ($LASTEXITCODE -ne 0) {
                   throw 'Gagal menjalankan service DANUM.'
               }
-              $servicesStopped = $false
+
+              Start-Sleep -Seconds 3
 
               Write-Host '[CHECK] Memverifikasi 4 service DANUM...' -ForegroundColor Yellow
               & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\check-danum.ps1"
               if ($LASTEXITCODE -ne 0) {
                   throw 'Health check DANUM gagal.'
               }
+
+              $servicesStopped = $false
 
               Write-Host ''
               Write-Host 'DANUM deployment berhasil.' -ForegroundColor Green
@@ -114,7 +117,7 @@ jobs:
           finally {
               if ($servicesStopped) {
                   Write-Host ''
-                  Write-Host '[RECOVERY] Deployment gagal atau berhenti sebelum service kembali aktif.' -ForegroundColor Yellow
+                  Write-Host '[RECOVERY] Deployment gagal atau service belum dinyatakan sehat.' -ForegroundColor Yellow
                   Write-Host '[RECOVERY] Menyalakan kembali service DANUM...' -ForegroundColor Yellow
 
                   & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\start-danum.ps1"
