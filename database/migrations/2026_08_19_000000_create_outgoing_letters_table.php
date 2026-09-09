@@ -15,6 +15,8 @@ return new class extends Migration
             $table->foreignUuid('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->foreignUuid('letter_type_id')->constrained('letter_types')->restrictOnDelete();
             $table->string('number', 100);
+            $table->unsignedInteger('sequence_number')->nullable();
+            $table->unsignedSmallInteger('sequence_year')->nullable();
             $table->string('recipient_name', 150);
             $table->text('recipient_address')->nullable();
             $table->string('subject', 255);
@@ -26,6 +28,10 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->unique(['tenant_id', 'number']);
+            $table->unique(
+                ['tenant_id', 'sequence_year', 'sequence_number'],
+                'outgoing_letters_sequence_unique',
+            );
             $table->index(['tenant_id', 'status']);
             $table->index('letter_type_id');
         });
