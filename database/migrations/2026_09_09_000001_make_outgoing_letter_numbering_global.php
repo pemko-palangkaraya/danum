@@ -13,7 +13,7 @@ return new class extends Migration
     {
         DB::transaction(function (): void {
             $sequences = DB::table('letter_number_sequences')
-                ->select('tenant_id', 'year', 'last_number')
+                ->select('id', 'tenant_id', 'year', 'last_number')
                 ->orderBy('tenant_id')
                 ->orderBy('year')
                 ->get()
@@ -28,16 +28,10 @@ return new class extends Migration
                 $maximum = (int) $rows->max('last_number');
 
                 DB::table('letter_number_sequences')
-                    ->where('tenant_id', $first->tenant_id)
-                    ->where('year', $first->year)
-                    ->where('id', $first->id ?? '')
+                    ->where('id', $first->id)
                     ->update(['last_number' => $maximum, 'updated_at' => now()]);
 
-                $duplicateIds = $rows
-                    ->skip(1)
-                    ->pluck('id')
-                    ->all();
-
+                $duplicateIds = $rows->skip(1)->pluck('id')->all();
                 if ($duplicateIds !== []) {
                     DB::table('letter_number_sequences')->whereIn('id', $duplicateIds)->delete();
                 }
