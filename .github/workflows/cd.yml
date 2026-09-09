@@ -47,12 +47,6 @@ jobs:
               }
               $servicesStopped = $true
 
-              Write-Host '[BACKUP] Membuat backup PostgreSQL...' -ForegroundColor Yellow
-              & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\backup-danum-db.ps1"
-              if ($LASTEXITCODE -ne 0) {
-                  throw 'Backup PostgreSQL gagal. Deployment dihentikan sebelum perubahan database.'
-              }
-
               Write-Host '[UPDATE] Mengambil master terbaru...' -ForegroundColor Yellow
               git fetch origin master
               if ($LASTEXITCODE -ne 0) {
@@ -62,6 +56,12 @@ jobs:
               git pull --ff-only origin master
               if ($LASTEXITCODE -ne 0) {
                   throw 'Gagal mengambil perubahan terbaru dari master.'
+              }
+
+              Write-Host '[BACKUP] Membuat backup PostgreSQL...' -ForegroundColor Yellow
+              & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\backup-danum-db.ps1"
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'Backup PostgreSQL gagal. Deployment dihentikan sebelum perubahan database.'
               }
 
               Write-Host '[PHP] Install dependencies...' -ForegroundColor Yellow
