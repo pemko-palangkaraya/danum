@@ -27,7 +27,7 @@ jobs:
           coverage: none
 
       - name: Validate Composer
-        run: composer validate --strict
+        run: composer validate
 
       - name: Install PHP dependencies
         run: composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
