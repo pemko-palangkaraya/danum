@@ -39,14 +39,20 @@ class OutgoingLetterAuditLogTest extends TestCase
         Storage::disk('local')->put('outgoing-letters/test.docx', 'test docx content');
         app(SignerCertificateService::class)->generate($position, $holder, $actor);
 
-        $this->mock(DocxTteService::class, function ($mock): void {
-            $mock->shouldReceive('createIssuedCopy')->once()->andReturn('/tmp/danum-test-issued.docx');
-        });
+        $this->mock(DocxTteService::class, function ($mock): void { $mock->shouldReceive('createIssuedCopy')->once()->andReturn('/tmp/danum-test-issued.docx'); });
         $this->app->instance(DocxPdfService::class, Mockery::mock(DocxPdfService::class, function ($mock): void {
-            $mock->shouldReceive('convert')->once()->andReturn('outgoing-letters/test.pdf');
+            $mock->shouldReceive('convert')->once()->andReturnUsing(function (): string {
+                $path = 'outgoing-letters/test.pdf';
+                Storage::disk('local')->put($path, '%PDF-test-unsigned');
+                return $path;
+            });
         }));
         $this->app->instance(PdfSigningService::class, Mockery::mock(PdfSigningService::class, function ($mock): void {
-            $mock->shouldReceive('sign')->once()->andReturn('outgoing-letters/signed/test-signed.pdf');
+            $mock->shouldReceive('sign')->once()->andReturnUsing(function (): string {
+                $path = 'outgoing-letters/signed/test-signed.pdf';
+                Storage::disk('local')->put($path, '%PDF-test-signed');
+                return $path;
+            });
         }));
 
         $service = app(OutgoingLetterService::class);
@@ -70,6 +76,7 @@ class OutgoingLetterAuditLogTest extends TestCase
         $this->assertSame('Saya menyetujui dan menandatangani surat untuk diterbitkan.', $created->signing_note);
         $this->assertSame('pades-b-t', $created->signature_profile);
         $this->assertSame('outgoing-letters/signed/test-signed.pdf', $created->signed_pdf_path);
+        $this->assertNotNull($created->document_hash);
     }
 
     public function test_cancel_is_audited(): void
