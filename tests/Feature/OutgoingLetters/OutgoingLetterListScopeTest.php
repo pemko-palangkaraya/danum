@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace TestsFeatureOutgoingLetters;
+namespace Tests\Feature\OutgoingLetters;
 
 use App\Enums\OutgoingLetterStatus;
 use App\Models\OutgoingLetter;
