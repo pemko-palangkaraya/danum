@@ -12,32 +12,91 @@ use Illuminate\Support\Str;
 
 final class OutgoingLetterNumberService
 {
-    public function generate(Tenant $tenant, LetterClassification $classification, ?Carbon $date = null): string
-    {
-        if (! $classification->is_active) throw new \DomainException('Klasifikasi surat tidak aktif.');
+    public function generate(
+        Tenant $tenant,
+        LetterClassification $classification,
+        ?Carbon $date = null,
+        ?int $manualNumber = null,
+    ): string {
+        if (! $classification->is_active) {
+            throw new \DomainException('Klasifikasi surat tidak aktif.');
+        }
 
         $date ??= now();
         $year = (int) $date->year;
+        $number = $manualNumber === null
+            ? $this->reserveNext($tenant, $year)
+            : $this->reserveManual($tenant, $year, $manualNumber);
 
+        return $this->format($classification, $tenant, $number, $date);
+    }
+
+    public function nextNumber(Tenant $tenant, ?Carbon $date = null): int
+    {
+        $date ??= now();
+        $year = (int) $date->year;
+        $lastNumber = DB::table('letter_number_sequences')
+            ->where('tenant_id', $tenant->id)
+            ->where('year', $year)
+            ->value('last_number');
+
+        return ((int) $lastNumber) + 1;
+    }
+
+    private function reserveNext(Tenant $tenant, int $year): int
+    {
         $row = DB::selectOne(
             <<<'SQL'
             INSERT INTO letter_number_sequences
-                (id, tenant_id, letter_classification_id, year, last_number, created_at, updated_at)
+                (id, tenant_id, year, last_number, created_at, updated_at)
             VALUES
-                (?, ?, ?, ?, 1, NOW(), NOW())
-            ON CONFLICT (tenant_id, letter_classification_id, year)
+                (?, ?, ?, 1, NOW(), NOW())
+            ON CONFLICT (tenant_id, year)
             DO UPDATE SET
                 last_number = letter_number_sequences.last_number + 1,
                 updated_at = NOW()
             RETURNING last_number
             SQL,
-            [(string) Str::uuid(), $tenant->id, $classification->id, $year],
+            [(string) Str::uuid(), $tenant->id, $year],
         );
 
         $number = (int) ($row->last_number ?? 0);
-        if ($number < 1) throw new \RuntimeException('Nomor surat gagal dibuat.');
+        if ($number < 1) {
+            throw new \RuntimeException('Nomor surat gagal dibuat.');
+        }
 
-        return $this->format($classification, $tenant, $number, $date);
+        return $number;
+    }
+
+    private function reserveManual(Tenant $tenant, int $year, int $manualNumber): int
+    {
+        if ($manualNumber < 1) {
+            throw new \DomainException('Nomor urut surat harus lebih besar dari 0.');
+        }
+
+        $row = DB::selectOne(
+            <<<'SQL'
+            INSERT INTO letter_number_sequences
+                (id, tenant_id, year, last_number, created_at, updated_at)
+            VALUES
+                (?, ?, ?, ?, NOW(), NOW())
+            ON CONFLICT (tenant_id, year)
+            DO UPDATE SET
+                last_number = GREATEST(letter_number_sequences.last_number, EXCLUDED.last_number),
+                updated_at = NOW()
+            RETURNING last_number
+            SQL,
+            [(string) Str::uuid(), $tenant->id, $year, $manualNumber],
+        );
+
+        $current = (int) ($row->last_number ?? 0);
+        if ($current !== $manualNumber) {
+            throw new \DomainException(
+                "Nomor urut {$manualNumber} sudah terlewati. Nomor terakhir yang tercatat untuk {$year} adalah {$current}.",
+            );
+        }
+
+        return $manualNumber;
     }
 
     private function format(LetterClassification $classification, Tenant $tenant, int $number, Carbon $date): string
@@ -53,7 +112,9 @@ final class OutgoingLetterNumberService
         ];
 
         $format = trim((string) $classification->number_format);
-        if ($format === '') throw new \DomainException('Format penomoran klasifikasi surat belum diatur.');
+        if ($format === '') {
+            throw new \DomainException('Format penomoran klasifikasi surat belum diatur.');
+        }
 
         foreach (['number', 'classification_code', 'tenant_code'] as $required) {
             if (! preg_match('/\{\{\s*'.preg_quote($required, '/').'\s*\}\}/i', $format)) {
