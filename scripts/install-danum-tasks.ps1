@@ -10,7 +10,8 @@ function Register-DanumTask {
     param(
         [string]$Name,
         [string]$Execute,
-        [string]$Arguments
+        [string]$Arguments,
+        [string]$WorkingDirectory
     )
 
     $taskName = "$TaskPrefix - $Name"
@@ -22,12 +23,12 @@ function Register-DanumTask {
     if ([string]::IsNullOrWhiteSpace($Arguments)) {
         $action = New-ScheduledTaskAction `
             -Execute $Execute `
-            -WorkingDirectory $Danum
+            -WorkingDirectory $WorkingDirectory
     } else {
         $action = New-ScheduledTaskAction `
             -Execute $Execute `
             -Argument $Arguments `
-            -WorkingDirectory $Danum
+            -WorkingDirectory $WorkingDirectory
     }
 
     $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
@@ -54,22 +55,26 @@ Write-Host ''
 Register-DanumTask `
     -Name 'Nginx' `
     -Execute (Join-Path $Nginx 'nginx.exe') `
-    -Arguments ''
+    -Arguments '' `
+    -WorkingDirectory $Nginx
 
 Register-DanumTask `
     -Name 'PHP-CGI' `
     -Execute $PhpCgi `
-    -Arguments '-b 127.0.0.1:9000'
+    -Arguments '-b 127.0.0.1:9000' `
+    -WorkingDirectory $Danum
 
 Register-DanumTask `
     -Name 'Scheduler' `
     -Execute $Php `
-    -Arguments 'artisan schedule:work'
+    -Arguments 'artisan schedule:work' `
+    -WorkingDirectory $Danum
 
 Register-DanumTask `
     -Name 'Queue Worker' `
     -Execute $Php `
-    -Arguments 'artisan queue:work database --queue=default --tries=3 --timeout=900 -vvv'
+    -Arguments 'artisan queue:work database --queue=default --tries=3 --timeout=900 -vvv' `
+    -WorkingDirectory $Danum
 
 Write-Host ''
 Write-Host 'Semua task DANUM berhasil didaftarkan.' -ForegroundColor Green
