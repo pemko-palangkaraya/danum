@@ -41,27 +41,9 @@ Perilaku:
 - data warga lain tetap diisi melalui resolver yang sudah digunakan DANUM;
 - pencarian tidak mengubah aturan validasi backend.
 
-Contoh:
-
-```text
-Ketik: 627
-
-┌──────────────────────────────┐
-│ Nama Warga A                 │
-│ NIK: 6271xxxxxxxxxxxx        │
-├──────────────────────────────┤
-│ Nama Warga B                 │
-│ NIK: 6271xxxxxxxxxxxx        │
-└──────────────────────────────┘
-```
-
-Pengguna cukup memilih nama yang sesuai.
-
 ## 3. Tenant isolation
 
-Autocomplete tidak boleh mengambil warga lintas tenant.
-
-Query suggestion selalu menggunakan `tenant_id` pengguna dan tidak membuka pencarian global.
+Autocomplete selalu menggunakan `tenant_id` pengguna dan tidak membuka pencarian warga lintas tenant.
 
 ## 4. Integrasi pengisian otomatis
 
