@@ -23,18 +23,20 @@ const dispatchErrorToast = (message) => {
     }));
 };
 
-const focusFirstValidationError = () => {
-    const markedField = document.querySelector('[data-validation-error="true"]:not([hidden])');
-    const errorMessage = document.querySelector('.text-red-600:not([hidden])');
-    const field = markedField ?? errorMessage?.parentElement;
+let shouldFocusValidationError = false;
 
-    if (!field) {
+const focusFirstValidationError = () => {
+    const form = document.querySelector('form[wire\\:submit="save"]');
+    const errorMessage = form?.querySelector('.text-red-600:not([hidden])');
+
+    if (!errorMessage) {
         return;
     }
 
-    const target = markedField
-        ? markedField.querySelector('input, select, textarea, button')
-        : field?.querySelector('input:not([type="hidden"]), select, textarea, button');
+    const field = errorMessage.closest('div');
+    const target = field?.querySelector(
+        'input:not([type="hidden"]), select, textarea, button',
+    );
 
     if (!target || target.disabled || target.readOnly) {
         return;
@@ -98,8 +100,21 @@ window.addEventListener('livewire:init', () => {
         });
     });
 
-    Livewire.hook('morphed', () => {
-        focusFirstValidationError();
+    document.addEventListener('submit', (event) => {
+        if (event.target.matches('form[wire\\:submit="save"]')) {
+            shouldFocusValidationError = true;
+        }
+    });
+
+    Livewire.hook('commit', ({ succeed }) => {
+        succeed(() => {
+            if (! shouldFocusValidationError) {
+                return;
+            }
+
+            shouldFocusValidationError = false;
+            focusFirstValidationError();
+        });
     });
 
     window.setInterval(() => {
