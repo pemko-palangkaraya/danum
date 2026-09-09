@@ -74,13 +74,10 @@ final class LetterVariableDefinitionService
         'rw',
     ];
 
-    /** @var array<string, LetterVariableDefinition>|null */
-    private static ?array $cache = null;
-
     /** @return array<string, LetterVariableDefinition> */
     public function active(): array
     {
-        return self::$cache ??= LetterVariableDefinition::query()
+        return LetterVariableDefinition::query()
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('key')
@@ -102,12 +99,13 @@ final class LetterVariableDefinitionService
     /** @param list<string> $variables @return list<string> */
     public function undefined(array $variables): array
     {
+        $definitions = $this->active();
         $undefined = [];
 
         foreach ($variables as $variable) {
             $variable = trim((string) $variable);
             if ($variable === '' || $this->isSystem($variable) || LetterVariableSchema::isRepeater($variable)) continue;
-            if ($this->forKey($variable) === null) $undefined[] = $variable;
+            if (! isset($definitions[$variable])) $undefined[] = $variable;
         }
 
         return array_values(array_unique($undefined));
