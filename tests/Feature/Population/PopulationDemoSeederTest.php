@@ -27,7 +27,12 @@ class PopulationDemoSeederTest extends TestCase
             'status' => TenantStatus::ACTIVE,
         ]);
 
-        Artisan::call('db:seed', ['--class' => PopulationDemoSeeder::class]);
+        putenv('DANUM_DEMO_TENANT_CODE=DEMO001');
+        try {
+            Artisan::call('db:seed', ['--class' => PopulationDemoSeeder::class]);
+        } finally {
+            putenv('DANUM_DEMO_TENANT_CODE');
+        }
 
         $this->assertDatabaseCount('families', 200);
         $this->assertDatabaseHas('families', [
