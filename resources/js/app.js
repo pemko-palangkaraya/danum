@@ -24,13 +24,17 @@ const dispatchErrorToast = (message) => {
 };
 
 const focusFirstValidationError = () => {
-    const field = document.querySelector('[data-validation-error="true"]:not([hidden])');
+    const markedField = document.querySelector('[data-validation-error="true"]:not([hidden])');
+    const errorMessage = document.querySelector('.text-red-600:not([hidden])');
+    const field = markedField ?? errorMessage?.parentElement;
 
     if (!field) {
         return;
     }
 
-    const target = field.querySelector('input, select, textarea, button');
+    const target = markedField
+        ? markedField.querySelector('input, select, textarea, button')
+        : field?.querySelector('input:not([type="hidden"]), select, textarea, button');
 
     if (!target || target.disabled || target.readOnly) {
         return;
