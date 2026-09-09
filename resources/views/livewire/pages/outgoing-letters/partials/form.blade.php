@@ -17,6 +17,25 @@
                     </select>
                     @error('letter_type_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
+
+                <div>
+                    <label class="text-sm font-medium text-slate-700">Nomor Urut Surat</label>
+                    <input
+                        wire:model="variableValues.number"
+                        class="form-control mt-1"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        placeholder="Kosongkan untuk otomatis, atau isi nomor terakhir dari surat manual"
+                        @readonly($editingId)
+                    >
+                    @if($editingId)
+                        <p class="mt-1 text-xs text-slate-400">Nomor draft yang sudah dibuat tidak dapat diubah agar urutan surat tetap konsisten.</p>
+                    @else
+                        <p class="mt-1 text-xs text-slate-400">Contoh: jika surat manual terakhir bernomor 127, isi 128. Setelah tersimpan, penomoran otomatis dilanjutkan dari 129.</p>
+                    @endif
+                    @error('variableValues.number')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
+
                 <div class="grid gap-4 sm:grid-cols-2">
                     @foreach([['validator_position_id', 'Verifikator', $validatorPositions, 'Belum ada verifikator tersedia', 'Pilih verifikator'], ['signer_position_id', 'Penanda Tangan', $signerPositions, 'Pilih pejabat penanda tangan', 'Pilih pejabat penanda tangan']] as [$field, $label, $positions, $empty, $placeholder])
                         <div>
