@@ -58,6 +58,12 @@ return new class extends Migration
                 ->update(['tenant_id' => $tenantIds->first(), 'updated_at' => now()]);
         }
 
+        // SQLite does not support ALTER TABLE ... ADD CONSTRAINT. The production
+        // database uses PostgreSQL, where this constraint is enforced at the DB level.
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement(<<<'SQL'
             ALTER TABLE roles
             ADD CONSTRAINT roles_scope_tenant_consistency
@@ -71,6 +77,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement('ALTER TABLE roles DROP CONSTRAINT IF EXISTS roles_scope_tenant_consistency');
     }
 };
