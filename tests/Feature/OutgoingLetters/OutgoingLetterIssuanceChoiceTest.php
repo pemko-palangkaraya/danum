@@ -32,7 +32,11 @@ class OutgoingLetterIssuanceChoiceTest extends TestCase
         $user = User::factory()->superAdmin()->create();
         $letter = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::VALIDATED, 'signer_user_id' => $user->id, 'generated_docx_path' => 'outgoing-letters/test/source.docx']);
         Storage::disk('local')->put($letter->generated_docx_path, 'test docx');
-        $this->mock(DocxPdfService::class, fn ($mock) => $mock->shouldReceive('convert')->once()->andReturn('outgoing-letters/test/final-unsigned.pdf'));
+        $this->mock(DocxPdfService::class, fn ($mock) => $mock->shouldReceive('convert')->once()->andReturnUsing(function (): string {
+            $path = 'outgoing-letters/test/final-unsigned.pdf';
+            Storage::disk('local')->put($path, '%PDF-test-unsigned');
+            return $path;
+        }));
 
         $issued = app(OutgoingLetterService::class)->issue($letter, $user->id, 'Surat sudah diperiksa dan diterbitkan untuk tanda tangan basah.', null, false);
 
@@ -41,6 +45,8 @@ class OutgoingLetterIssuanceChoiceTest extends TestCase
         $this->assertSame('outgoing-letters/test/final-unsigned.pdf', $issued->unsigned_pdf_path);
         $this->assertNull($issued->signed_pdf_path);
         $this->assertNotNull($issued->verification_token);
+        $this->assertNotNull($issued->document_hash);
+        $this->assertSame('SHA-256', $issued->document_hash_algorithm);
         $this->assertDatabaseHas('outgoing_letter_status_histories', ['outgoing_letter_id' => $issued->id, 'action' => 'issued', 'status' => OutgoingLetterStatus::ISSUED->value]);
         $this->assertDatabaseMissing('outgoing_letter_status_histories', ['outgoing_letter_id' => $issued->id, 'action' => 'signed']);
     }
