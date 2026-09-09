@@ -36,7 +36,7 @@ class LetterVariableCatalogTest extends TestCase
         $this->assertSame(['belum_terdaftar'], $undefined);
     }
 
-    public function test_version_creation_rejects_variable_missing_from_catalog(): void
+    public function test_version_creation_allows_variable_missing_from_catalog(): void
     {
         $letterType = LetterType::factory()->create([
             'tenant_id' => null,
@@ -45,9 +45,9 @@ class LetterVariableCatalogTest extends TestCase
             'variables' => ['belum_terdaftar'],
         ]);
 
-        $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage('Katalog Variabel');
+        $version = app(\App\Services\LetterTypeService::class)->ensureCurrentVersion($letterType);
 
-        app(\App\Services\LetterTypeService::class)->ensureCurrentVersion($letterType);
+        $this->assertNotNull($version);
+        $this->assertSame(['belum_terdaftar'], $version->variables);
     }
 }
