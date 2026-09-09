@@ -20,14 +20,7 @@
 
                 <div>
                     <label class="text-sm font-medium text-slate-700">Nomor Urut Surat</label>
-                    <input
-                        wire:model="variableValues.number"
-                        class="form-control mt-1"
-                        inputmode="numeric"
-                        autocomplete="off"
-                        placeholder="Kosongkan untuk otomatis, atau isi nomor terakhir dari surat manual"
-                        @readonly($editingId)
-                    >
+                    <input wire:model="variableValues.number" class="form-control mt-1" inputmode="numeric" autocomplete="off" placeholder="Kosongkan untuk otomatis, atau isi nomor terakhir dari surat manual" @readonly($editingId)>
                     @if($editingId)
                         <p class="mt-1 text-xs text-slate-400">Nomor draft yang sudah dibuat tidak dapat diubah agar urutan surat tetap konsisten.</p>
                     @else
@@ -61,7 +54,6 @@
                             @php
                                 $definition = is_string($variable) ? \App\Support\LetterVariableSchema::parseRepeater($variable) : null;
                                 if ($definition) continue;
-
                                 $schema = \App\Models\LetterVariableDefinition::query()->where('key', (string) $variable)->where('is_active', true)->first();
                                 $label = $schema?->label ?? $variableLabels[$variable] ?? ucwords(str_replace('_', ' ', (string) $variable));
                                 $readOnly = $this->isReadOnlyVariable((string) $variable) || (bool) $schema?->readonly;
@@ -72,13 +64,15 @@
                                     ? (string) floor((float) $variableValues[$variable])
                                     : ($dateVariable ? $this->formatIndonesianDate($variableValues[$variable] ?? '') : ($variableValues[$variable] ?? ''));
                             @endphp
-
                             @if(! $readOnly)
                                 <div class="{{ $wide ? 'sm:col-span-2' : '' }}">
                                     <label class="text-sm font-medium text-slate-700">{{ $label }}</label>
                                     @if(in_array($variable, ['recipient_nik', 'nik'], true))
-                                        <input wire:model.live.debounce.500ms="variableValues.{{ $variable }}" class="form-control mt-1" inputmode="numeric" maxlength="16" autocomplete="off">
-                                        <p class="mt-1 text-xs text-slate-400">Data warga akan dicari otomatis setelah NIK 16 digit selesai dimasukkan.</p>
+                                        <livewire:outgoing-letters.citizen-nik-autocomplete
+                                            :value="$variableValues[$variable] ?? ''"
+                                            :variable="$variable"
+                                            wire:key="nik-autocomplete-{{ $variable }}"
+                                        />
                                     @elseif($inputType === 'textarea' || $variable === 'recipient_address' || $variable === 'alamat')
                                         <textarea wire:model="variableValues.{{ $variable }}" rows="3" class="form-textarea mt-1"></textarea>
                                     @elseif($inputType === 'select')
