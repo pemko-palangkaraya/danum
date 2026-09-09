@@ -23,6 +23,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
 
           $Danum = 'C:\Users\yudhistira\Herd\danum'
+          $servicesStopped = $false
+
           Set-Location $Danum
 
           Write-Host '========================================' -ForegroundColor Cyan
@@ -30,71 +32,97 @@ jobs:
           Write-Host '========================================' -ForegroundColor Cyan
           Write-Host ''
 
-          Write-Host '[CHECK] Repository status...' -ForegroundColor Yellow
-          $status = git status --porcelain
-          if ($status) {
-              Write-Host $status
-              throw 'Repository DANUM memiliki perubahan lokal. Deployment dibatalkan agar perubahan lokal tidak tertimpa.'
-          }
+          try {
+              Write-Host '[CHECK] Repository status...' -ForegroundColor Yellow
+              $status = git status --porcelain
+              if ($status) {
+                  Write-Host $status
+                  throw 'Repository DANUM memiliki perubahan lokal. Deployment dibatalkan agar perubahan lokal tidak tertimpa.'
+              }
 
-          Write-Host '[STOP] DANUM services...' -ForegroundColor Yellow
-          & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\stop-danum.ps1"
-          if ($LASTEXITCODE -ne 0) {
-              throw 'Gagal menghentikan service DANUM.'
-          }
+              Write-Host '[STOP] DANUM services...' -ForegroundColor Yellow
+              & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\stop-danum.ps1"
+              $servicesStopped = $true
 
-          Write-Host '[UPDATE] Mengambil master terbaru...' -ForegroundColor Yellow
-          git fetch origin master
-          if ($LASTEXITCODE -ne 0) {
-              throw 'git fetch gagal.'
-          }
-          git pull --ff-only origin master
-          if ($LASTEXITCODE -ne 0) {
-              throw 'Gagal mengambil perubahan terbaru dari master.'
-          }
+              Write-Host '[UPDATE] Mengambil master terbaru...' -ForegroundColor Yellow
+              git fetch origin master
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'git fetch gagal.'
+              }
 
-          Write-Host '[PHP] Install dependencies...' -ForegroundColor Yellow
-          composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
-          if ($LASTEXITCODE -ne 0) {
-              throw 'composer install gagal.'
-          }
+              git pull --ff-only origin master
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'Gagal mengambil perubahan terbaru dari master.'
+              }
 
-          Write-Host '[NODE] Install dependencies...' -ForegroundColor Yellow
-          npm ci
-          if ($LASTEXITCODE -ne 0) {
-              throw 'npm ci gagal.'
-          }
+              Write-Host '[PHP] Install dependencies...' -ForegroundColor Yellow
+              composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'composer install gagal.'
+              }
 
-          Write-Host '[BUILD] Build frontend...' -ForegroundColor Yellow
-          npm run build
-          if ($LASTEXITCODE -ne 0) {
-              throw 'npm run build gagal.'
-          }
+              Write-Host '[NODE] Install dependencies...' -ForegroundColor Yellow
+              npm ci
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'npm ci gagal.'
+              }
 
-          Write-Host '[MIGRATE] Menjalankan migration...' -ForegroundColor Yellow
-          php artisan migrate --force --ansi
-          if ($LASTEXITCODE -ne 0) {
-              throw 'Migration gagal.'
-          }
+              Write-Host '[BUILD] Build frontend...' -ForegroundColor Yellow
+              npm run build
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'npm run build gagal.'
+              }
 
-          Write-Host '[OPTIMIZE] Optimasi Laravel...' -ForegroundColor Yellow
-          php artisan optimize
-          if ($LASTEXITCODE -ne 0) {
-              throw 'Laravel optimize gagal.'
-          }
+              Write-Host '[MIGRATE] Menjalankan migration...' -ForegroundColor Yellow
+              php artisan migrate --force --ansi
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'Migration gagal.'
+              }
 
-          Write-Host '[START] Menjalankan service DANUM...' -ForegroundColor Yellow
-          & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\start-danum.ps1"
-          if ($LASTEXITCODE -ne 0) {
-              throw 'Gagal menjalankan service DANUM.'
-          }
+              Write-Host '[OPTIMIZE] Optimasi Laravel...' -ForegroundColor Yellow
+              php artisan optimize
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'Laravel optimize gagal.'
+              }
 
-          Write-Host '[CHECK] Memverifikasi 4 service DANUM...' -ForegroundColor Yellow
-          & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\check-danum.ps1"
-          if ($LASTEXITCODE -ne 0) {
-              throw 'Health check DANUM gagal.'
-          }
+              Write-Host '[START] Menjalankan service DANUM...' -ForegroundColor Yellow
+              & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\start-danum.ps1"
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'Gagal menjalankan service DANUM.'
+              }
+              $servicesStopped = $false
 
-          Write-Host ''
-          Write-Host 'DANUM deployment berhasil.' -ForegroundColor Green
-          Write-Host ''
+              Write-Host '[CHECK] Memverifikasi 4 service DANUM...' -ForegroundColor Yellow
+              & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\check-danum.ps1"
+              if ($LASTEXITCODE -ne 0) {
+                  throw 'Health check DANUM gagal.'
+              }
+
+              Write-Host ''
+              Write-Host 'DANUM deployment berhasil.' -ForegroundColor Green
+              Write-Host ''
+          }
+          finally {
+              if ($servicesStopped) {
+                  Write-Host ''
+                  Write-Host '[RECOVERY] Deployment gagal atau berhenti sebelum service kembali aktif.' -ForegroundColor Yellow
+                  Write-Host '[RECOVERY] Menyalakan kembali service DANUM...' -ForegroundColor Yellow
+
+                  & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\start-danum.ps1"
+
+                  if ($LASTEXITCODE -ne 0) {
+                      Write-Host '[RECOVERY] Gagal menjalankan start-danum.ps1.' -ForegroundColor Red
+                  } else {
+                      Start-Sleep -Seconds 3
+
+                      Write-Host '[RECOVERY] Memverifikasi service DANUM...' -ForegroundColor Yellow
+                      & powershell -NoProfile -ExecutionPolicy Bypass -File "$Danum\scripts\check-danum.ps1"
+
+                      if ($LASTEXITCODE -ne 0) {
+                          Write-Host '[RECOVERY] Health check setelah recovery gagal.' -ForegroundColor Red
+                      } else {
+                          Write-Host '[RECOVERY] DANUM berhasil dipulihkan.' -ForegroundColor Green
+                      }
+                  }
+              }
+          }
