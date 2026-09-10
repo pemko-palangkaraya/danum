@@ -84,7 +84,7 @@ class TenantProfileAuthorizationTest extends TestCase
         ]);
     }
 
-    public function test_tenant_profile_component_can_update_letterhead_when_permission_is_granted(): void
+    public function test_tenant_profile_component_can_update_structured_letterhead_when_permission_is_granted(): void
     {
         Storage::fake('public');
 
@@ -96,17 +96,28 @@ class TenantProfileAuthorizationTest extends TestCase
 
         $this->actingAs($user);
 
-        $file = UploadedFile::fake()->image('letterhead.png', 1200, 300);
+        $file = UploadedFile::fake()->image('logo.png', 500, 500);
 
         Livewire::test(TenantProfile::class)
-            ->set('letterhead', $file)
+            ->set('letterheadLine1', 'PEMERINTAH KOTA PALANGKA RAYA')
+            ->set('letterheadLine2', 'KECAMATAN BUKIT BATU')
+            ->set('letterheadLine3', 'KELURAHAN TANGKILING')
+            ->set('postalCode', '73222')
+            ->set('address', 'Jl. Batu Banama No. 01')
+            ->set('website', 'https://contoh.go.id')
+            ->set('logo', $file)
             ->call('save')
             ->assertHasNoErrors();
 
         $tenant->refresh();
 
-        $this->assertNotNull($tenant->letterhead_path);
-        Storage::disk('public')->assertExists($tenant->letterhead_path);
+        $this->assertSame('PEMERINTAH KOTA PALANGKA RAYA', $tenant->letterhead_line1);
+        $this->assertSame('KECAMATAN BUKIT BATU', $tenant->letterhead_line2);
+        $this->assertSame('KELURAHAN TANGKILING', $tenant->letterhead_line3);
+        $this->assertSame('73222', $tenant->postal_code);
+        $this->assertSame('https://contoh.go.id', $tenant->website);
+        $this->assertNotNull($tenant->logo);
+        Storage::disk('public')->assertExists($tenant->logo);
     }
 
     public function test_super_admin_can_update_organization_profile(): void
