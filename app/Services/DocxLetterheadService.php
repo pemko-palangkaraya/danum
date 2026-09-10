@@ -132,15 +132,9 @@ class DocxLetterheadService
             if (trim((string) $value) !== '') $rows[] = $this->textParagraph((string) $value, $size, true);
         }
 
-        // Hanya Enter di textarea Alamat yang dipertahankan sebagai line break.
-        // Alamat tetap satu paragraph agar tinggi kop tidak membengkak seperti jika
-        // setiap baris/metadata dibuat menjadi paragraph Word terpisah.
         $address = trim((string) $tenant->address);
-        if ($address !== '') {
-            $rows[] = $this->textParagraph($address, (int) ($tenant->letterhead_meta_size ?? 8), false);
-        }
+        if ($address !== '') $rows[] = $this->textParagraph($address, (int) ($tenant->letterhead_meta_size ?? 8), false);
 
-        // Metadata di luar textarea Alamat tetap satu baris dan dipisahkan koma.
         $meta = array_values(array_filter([
             trim((string) $tenant->postal_code) !== '' ? 'Kode Pos ' . trim((string) $tenant->postal_code) : null,
             trim((string) $tenant->phone) !== '' ? 'Telp. ' . trim((string) $tenant->phone) : null,
@@ -148,7 +142,6 @@ class DocxLetterheadService
             trim((string) $tenant->website) !== '' ? trim((string) $tenant->website) : null,
         ]));
         if ($meta !== []) $rows[] = $this->textParagraph(implode(', ', $meta), (int) ($tenant->letterhead_meta_size ?? 8), false);
-
         if ($rows === []) $rows[] = $this->textParagraph($tenant->name, (int) ($tenant->letterhead_line1_size ?? 15), true);
 
         $textWidth = $hasLogo ? '7200' : '9000';
@@ -170,7 +163,7 @@ class DocxLetterheadService
             $content .= '<w:t xml:space="preserve">' . htmlspecialchars(trim($part), ENT_XML1 | ENT_QUOTES, 'UTF-8') . '</w:t>';
         }
 
-        return '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="' . $halfPoints . '"/><w:szCs w:val="' . $halfPoints . '"/>' . ($bold ? '<w:b/><w:bCs/>' : '') . '</w:rPr>' . $content . '</w:r></w:p>';
+        return '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="' . $halfPoints . '"/><w:szCs w:val="' . $halfPoints . '"/>' . ($bold ? '<w:b/><w:bCs/>' : '') . '</w:rPr>' . $content . '</w:r></w:p>';
     }
 
     private function nodeText(DOMXPath $xpath, \DOMNode $node): string
