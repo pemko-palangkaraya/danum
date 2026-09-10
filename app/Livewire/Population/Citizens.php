@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Population;
 
 use App\Livewire\Concerns\WithStandardTablePagination;
+use App\Livewire\Concerns\WithTableSorting;
 use App\Services\CitizenService;
 use App\Services\PopulationReferenceService;
 use Illuminate\Contracts\View\View;
@@ -15,6 +16,7 @@ use Livewire\Component;
 class Citizens extends Component
 {
     use WithStandardTablePagination;
+    use WithTableSorting;
 
     public string $search = '';
     public string $statusFilter = 'active';
@@ -41,13 +43,19 @@ class Citizens extends Component
     public string $nik_ibu = '';
     public string $status_kependudukan = 'active';
 
+    protected array $sortableColumns = [
+        'name' => 'nama_lengkap',
+        'nik' => 'nik',
+        'birth_date' => 'tanggal_lahir',
+        'status' => 'status_kependudukan',
+        'created' => 'created_at',
+    ];
+
     protected CitizenService $citizenService;
     protected PopulationReferenceService $referenceService;
 
-    public function boot(
-        CitizenService $citizenService,
-        PopulationReferenceService $referenceService,
-    ): void {
+    public function boot(CitizenService $citizenService, PopulationReferenceService $referenceService): void
+    {
         $this->citizenService = $citizenService;
         $this->referenceService = $referenceService;
     }
@@ -55,6 +63,8 @@ class Citizens extends Component
     public function mount(): void
     {
         abort_unless(auth()->user()?->hasPermission('population.view'), 403);
+        $this->sortBy = 'name';
+        $this->sortDirection = 'asc';
 
         if (! auth()->user()->isSuperAdmin()) {
             abort_unless(auth()->user()->tenant_id, 403);
@@ -64,25 +74,16 @@ class Citizens extends Component
         $editId = request()->query('edit');
         if ($editId !== null && $editId !== '') {
             $this->authorizeManage();
-
             if (auth()->user()->isSuperAdmin()) {
                 $citizen = $this->citizenService->find((string) $editId);
                 $this->selectedTenantId = $citizen->tenant_id;
             }
-
             $this->edit((string) $editId);
         }
     }
 
-    public function updatedSearch(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedStatusFilter(): void
-    {
-        $this->resetPage();
-    }
+    public function updatedSearch(): void { $this->resetPage(); }
+    public function updatedStatusFilter(): void { $this->resetPage(); }
 
     public function updatedSelectedTenantId(): void
     {
@@ -95,35 +96,19 @@ class Citizens extends Component
     {
         $id = auth()->user()->isSuperAdmin() ? $this->selectedTenantId : auth()->user()->tenant_id;
         abort_unless($id, 422);
-
         return (string) $id;
     }
 
-    private function authorizeManage(): void
-    {
-        abort_unless(auth()->user()?->hasPermission('population.manage'), 403);
-    }
+    private function authorizeManage(): void { abort_unless(auth()->user()?->hasPermission('population.manage'), 403); }
 
-    public function create(): void
-    {
-        $this->authorizeManage();
-        $this->resetForm();
-        $this->showForm = true;
-    }
+    public function create(): void { $this->authorizeManage(); $this->resetForm(); $this->showForm = true; }
 
     public function edit(string $id): void
     {
         $this->authorizeManage();
         $citizen = $this->citizenService->findForTenant($this->tenantId(), $id);
-
-        foreach ($this->fields() as $field) {
-            $this->{$field} = (string) ($citizen->{$field} ?? '');
-        }
-
-        // Reference values are stored as codes in the form. Resolve legacy
-        // human-readable values from imported data so the option is selected.
+        foreach ($this->fields() as $field) $this->{$field} = (string) ($citizen->{$field} ?? '');
         $this->agama = $this->referenceService->codeForValue('religion', $citizen->agama) ?? $this->agama;
-
         $this->tanggal_lahir = $citizen->tanggal_lahir?->format('Y-m-d') ?? '';
         $this->editingId = $citizen->id;
         $this->showForm = true;
@@ -133,24 +118,14 @@ class Citizens extends Component
     public function save(): void
     {
         $this->authorizeManage();
-
-        $this->citizenService->save(
-            $this->tenantId(),
-            $this->only($this->fields()),
-            $this->editingId,
-            auth()->id(),
-        );
-
+        $this->citizenService->save($this->tenantId(), $this->only($this->fields()), $this->editingId, auth()->id());
         $this->resetForm();
         $this->dispatch('toast', type: 'success', message: 'Data warga berhasil disimpan.');
     }
 
     public function resetForm(): void
     {
-        foreach ($this->fields() as $field) {
-            $this->{$field} = '';
-        }
-
+        foreach ($this->fields() as $field) $this->{$field} = '';
         $this->kewarganegaraan = 'WNI';
         $this->status_kependudukan = 'active';
         $this->editingId = null;
@@ -160,13 +135,7 @@ class Citizens extends Component
 
     private function fields(): array
     {
-        return [
-            'nik', 'nama_lengkap', 'tempat_lahir', 'tanggal_lahir',
-            'jenis_kelamin', 'golongan_darah', 'agama', 'status_perkawinan',
-            'pendidikan', 'pekerjaan', 'kewarganegaraan', 'no_passport',
-            'no_kitap', 'nama_ayah', 'nik_ayah', 'nama_ibu', 'nik_ibu',
-            'status_kependudukan',
-        ];
+        return ['nik', 'nama_lengkap', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin', 'golongan_darah', 'agama', 'status_perkawinan', 'pendidikan', 'pekerjaan', 'kewarganegaraan', 'no_passport', 'no_kitap', 'nama_ayah', 'nik_ayah', 'nama_ibu', 'nik_ibu', 'status_kependudukan'];
     }
 
     public function render(): View
@@ -174,26 +143,18 @@ class Citizens extends Component
         $user = auth()->user();
         $isSuperAdmin = $user->isSuperAdmin();
         $canManage = $user->hasPermission('population.manage');
-        $tenantSelected = $isSuperAdmin
-            ? (bool) $this->selectedTenantId
-            : (bool) $user->tenant_id;
-        $references = $this->showForm
-            ? $this->referenceService->all()
-            : [];
+        $tenantSelected = $isSuperAdmin ? (bool) $this->selectedTenantId : (bool) $user->tenant_id;
+        $references = $this->showForm ? $this->referenceService->all() : [];
 
         return view('livewire.pages.population.citizens', [
-            'citizens' => $tenantSelected
-                ? $this->citizenService->paginate($this->tenantId(), $this->search, $this->perPage, $this->statusFilter)
-                : collect(),
+            'citizens' => $tenantSelected ? $this->citizenService->paginate($this->tenantId(), $this->search, $this->perPage, $this->statusFilter, $this->sortBy, $this->sortDirection) : collect(),
             'tenants' => $isSuperAdmin ? $this->citizenService->tenants() : collect(),
             'references' => $references,
             'isSuperAdmin' => $isSuperAdmin,
             'canManage' => $canManage,
             'tenantSelected' => $tenantSelected,
             'selectedTenantId' => $this->selectedTenantId,
-            'detailRoute' => $isSuperAdmin
-                ? 'population.admin.citizens.show'
-                : 'population.citizens.show',
+            'detailRoute' => $isSuperAdmin ? 'population.admin.citizens.show' : 'population.citizens.show',
         ]);
     }
 }
