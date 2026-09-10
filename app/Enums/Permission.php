@@ -11,6 +11,31 @@ enum Permission: string
     public static function forCustomRole(): array
     {
         if (auth()->check() && auth()->user()?->isSuperAdmin()) return self::cases();
-        return [self::DASHBOARD_VIEW, self::RBAC_VIEW, self::RBAC_MANAGE, self::POSITIONS_VIEW, self::LETTER_TYPES_VIEW, self::OUTGOING_LETTERS_VIEW, self::OUTGOING_LETTERS_CREATE, self::OUTGOING_LETTERS_UPDATE, self::OUTGOING_LETTERS_DELETE, self::OUTGOING_LETTERS_SUBMIT, self::OUTGOING_LETTERS_VALIDATE, self::OUTGOING_LETTERS_REJECT, self::OUTGOING_LETTERS_ISSUE, self::OUTGOING_LETTERS_WITHDRAW, self::POPULATION_VIEW, self::POPULATION_MANAGE];
+
+        return [
+            self::DASHBOARD_VIEW,
+            self::RBAC_VIEW,
+            self::RBAC_MANAGE,
+            self::TENANT_USERS_VIEW,
+            self::TENANT_PROFILE_VIEW,
+            self::TENANT_PROFILE_UPDATE,
+            self::POSITIONS_VIEW,
+            self::POSITIONS_MANAGE,
+            self::LETTER_TYPES_VIEW,
+            self::LETTER_TYPES_MANAGE,
+            self::LETTER_TYPES_PERMISSIONS,
+            self::LETTER_TYPES_VERSIONS,
+            self::OUTGOING_LETTERS_VIEW,
+            self::OUTGOING_LETTERS_CREATE,
+            self::OUTGOING_LETTERS_UPDATE,
+            self::OUTGOING_LETTERS_DELETE,
+            self::OUTGOING_LETTERS_SUBMIT,
+            self::OUTGOING_LETTERS_VALIDATE,
+            self::OUTGOING_LETTERS_REJECT,
+            self::OUTGOING_LETTERS_ISSUE,
+            self::OUTGOING_LETTERS_WITHDRAW,
+            self::POPULATION_VIEW,
+            self::POPULATION_MANAGE,
+        ];
     }
 }
