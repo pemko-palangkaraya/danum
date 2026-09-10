@@ -85,23 +85,23 @@
             <div class="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
                 <div>
                     <h3 class="font-semibold text-slate-900">Preview Kop Surat</h3>
-                    <p class="mt-0.5 text-xs text-slate-500">Preview mengikuti susunan yang digunakan saat DOCX dibuat: logo kiri, teks kop kanan, garis bawah penuh.</p>
+                    <p class="mt-0.5 text-xs text-slate-500">Ini adalah simulasi halaman surat A4. Susunan kop mengikuti DOCX: logo kiri, teks kop kanan, dan garis bawah penuh.</p>
                 </div>
                 <button type="button" wire:click="closeLetterheadPreview" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700">Tutup</button>
             </div>
 
             <div class="overflow-auto p-4 sm:p-8">
-                <div class="mx-auto w-full max-w-[794px] bg-white px-[42px] py-[42px] shadow-lg sm:px-[55px] sm:py-[45px]">
+                <div class="mx-auto w-full max-w-[794px] bg-white px-[55px] py-[48px] shadow-xl" style="min-height: 1123px;">
                     <div class="border-b-[3px] border-slate-800 pb-3">
-                        <div class="flex items-center gap-4">
-                            <div class="flex w-[92px] shrink-0 items-center justify-center">
+                        <div class="grid grid-cols-[20%_80%] items-center">
+                            <div class="flex min-h-[112px] items-center justify-center pr-3">
                                 @if ($logo)
-                                <img src="{{ $logo->temporaryUrl() }}" alt="Logo" class="block max-h-full max-w-full object-contain" style="width:auto;height:auto;max-height:78px;max-width:78px;">
+                                <img src="{{ $logo->temporaryUrl() }}" alt="Logo" class="block object-contain" style="width:auto;height:auto;max-height:112px;max-width:112px;">
                                 @elseif ($logoUrl)
-                                <img src="{{ $logoUrl }}" alt="Logo" class="block max-h-full max-w-full object-contain" style="width:auto;height:auto;max-height:78px;max-width:78px;">
+                                <img src="{{ $logoUrl }}" alt="Logo" class="block object-contain" style="width:auto;height:auto;max-height:112px;max-width:112px;">
                                 @endif
                             </div>
-                            <div class="min-w-0 flex-1 text-center font-[Arial,sans-serif] text-slate-900">
+                            <div class="min-w-0 text-center font-[Arial,sans-serif] text-slate-900">
                                 @foreach ([[$letterheadLine1, $letterheadLine1Size], [$letterheadLine2, $letterheadLine2Size], [$letterheadLine3, $letterheadLine3Size]] as [$line, $size])
                                 @if (trim($line) !== '')
                                 <div class="font-bold uppercase leading-[1.05]" style="font-size: {{ $size }}pt">{{ $line }}</div>
@@ -120,8 +120,12 @@
                             </div>
                         </div>
                     </div>
-                    <div class="pt-6 text-center text-slate-400">
-                        <div class="mx-auto max-w-xl text-[10px] uppercase tracking-widest">Area isi surat dimulai di sini</div>
+
+                    <div class="mt-10 space-y-3 text-slate-300">
+                        <div class="h-3 w-2/5 rounded bg-slate-100"></div>
+                        <div class="h-3 w-full rounded bg-slate-50"></div>
+                        <div class="h-3 w-11/12 rounded bg-slate-50"></div>
+                        <div class="mt-8 border-t border-dashed border-slate-200 pt-4 text-center text-[10px] uppercase tracking-widest text-slate-300">Area isi surat</div>
                     </div>
                 </div>
             </div>
