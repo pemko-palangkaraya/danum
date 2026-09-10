@@ -6,6 +6,7 @@ namespace App\Livewire\Register;
 
 use App\Enums\RegisterEntrySource;
 use App\Livewire\Concerns\WithStandardTablePagination;
+use App\Livewire\Concerns\WithTableSorting;
 use App\Models\RegisterEntry;
 use App\Services\RegisterEntryService;
 use Illuminate\Validation\ValidationException;
@@ -16,6 +17,16 @@ use Livewire\Component;
 class Index extends Component
 {
     use WithStandardTablePagination;
+    use WithTableSorting;
+
+    protected array $sortableColumns = [
+        'register_number' => 'register_number',
+        'letter_number' => 'letter_number',
+        'letter_date' => 'letter_date',
+        'subject' => 'subject',
+        'recipient_name' => 'recipient_name',
+        'source' => 'source',
+    ];
 
     public string $search = '';
     public string $source = 'all';
@@ -37,6 +48,8 @@ class Index extends Component
     {
         $this->year = (int) now()->year;
         $this->letter_date = now()->toDateString();
+        $this->sortBy = 'register_number';
+        $this->sortDirection = 'desc';
     }
 
     public function updatedSearch(): void { $this->resetPage(); }
@@ -151,8 +164,11 @@ class Index extends Component
             $query->where(fn ($q) => $q->where('letter_number', 'like', $search)->orWhere('subject', 'like', $search)->orWhere('recipient_name', 'like', $search));
         }
 
+        $sortColumn = $this->sortableColumns[$this->sortBy] ?? 'register_number';
+        $sortDirection = in_array($this->sortDirection, ['asc', 'desc'], true) ? $this->sortDirection : 'desc';
+
         return view('livewire.pages.register.index', [
-            'entries' => $query->orderByDesc('register_number')->paginate($this->perPage),
+            'entries' => $query->orderBy($sortColumn, $sortDirection)->paginate($this->perPage),
         ]);
     }
 }
