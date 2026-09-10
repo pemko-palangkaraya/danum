@@ -82,8 +82,11 @@ class DocxTemplateService
             throw new RuntimeException('Tidak dapat membuka DOCX hasil.');
         }
         $output->addFromString('word/document.xml', $xml);
-        if ($letterhead !== null) {
-            $output->addFile($this->letterhead->resolvePath($tenant), 'word/media/' . $letterhead['mediaName']);
+        if ($letterhead !== null && $letterhead['mediaName'] !== '' && $letterhead['mediaPath'] !== '') {
+            $output->addFile($letterhead['mediaPath'], 'word/media/' . $letterhead['mediaName']);
+            $output->addFromString('word/_rels/document.xml.rels', $rels);
+            $output->addFromString('[Content_Types].xml', $contentTypes);
+        } elseif ($letterhead !== null) {
             $output->addFromString('word/_rels/document.xml.rels', $rels);
             $output->addFromString('[Content_Types].xml', $contentTypes);
         }
@@ -123,8 +126,10 @@ class DocxTemplateService
             'tenant_email' => $tenant->email,
             'tenant_head_name' => (string) ($tenant->head_name ?? ''),
             'tenant_head_title' => (string) ($tenant->head_title ?? ''),
+            'tenant_head_nip' => (string) ($tenant->head_nip ?? ''),
             'nama_ttd' => (string) ($tenant->head_name ?? ''),
             'jabatan_ttd' => (string) ($tenant->head_title ?? ''),
+            'nip_ttd' => (string) ($tenant->head_nip ?? ''),
             ...$data,
         ];
     }
