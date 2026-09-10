@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\AuditLogs;
 
 use App\Livewire\Concerns\WithStandardTablePagination;
+use App\Livewire\Concerns\WithTableSorting;
 use App\Services\AuditLogQueryService;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -14,6 +15,15 @@ use Livewire\Component;
 class Index extends Component
 {
     use WithStandardTablePagination;
+    use WithTableSorting;
+
+    protected array $sortableColumns = [
+        'created' => 'created_at',
+        'actor' => 'user_id',
+        'tenant' => 'tenant_id',
+        'action' => 'action',
+        'object' => 'auditable_type',
+    ];
 
     public string $search = '';
     public string $actor = '';
@@ -24,46 +34,25 @@ class Index extends Component
     public string $dateTo = '';
     public int $perPage = 5;
 
+    public function mount(): void
+    {
+        $this->sortBy = 'created';
+        $this->sortDirection = 'desc';
+    }
+
     #[On('outgoing-letters-refresh')]
     public function refreshForRealtime(): void
     {
         // Re-render with the current filters so newly recorded events appear immediately.
     }
 
-    public function updatedSearch(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedActor(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedTenant(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedAction(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedObject(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedDateFrom(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedDateTo(): void
-    {
-        $this->resetPage();
-    }
+    public function updatedSearch(): void { $this->resetPage(); }
+    public function updatedActor(): void { $this->resetPage(); }
+    public function updatedTenant(): void { $this->resetPage(); }
+    public function updatedAction(): void { $this->resetPage(); }
+    public function updatedObject(): void { $this->resetPage(); }
+    public function updatedDateFrom(): void { $this->resetPage(); }
+    public function updatedDateTo(): void { $this->resetPage(); }
 
     public function updatedPerPage(): void
     {
@@ -74,15 +63,8 @@ class Index extends Component
     public function resetFilters(): void
     {
         $this->reset([
-            'search',
-            'actor',
-            'tenant',
-            'action',
-            'object',
-            'dateFrom',
-            'dateTo',
+            'search', 'actor', 'tenant', 'action', 'object', 'dateFrom', 'dateTo',
         ]);
-
         $this->resetPage();
     }
 
@@ -97,6 +79,8 @@ class Index extends Component
                 'object' => $this->object,
                 'dateFrom' => $this->dateFrom,
                 'dateTo' => $this->dateTo,
+                'sortBy' => $this->sortBy,
+                'sortDirection' => $this->sortDirection,
             ], $this->perPage),
             'actors' => $auditLogs->actors(),
             'tenants' => $auditLogs->tenants(),
