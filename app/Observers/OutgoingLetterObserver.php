@@ -7,6 +7,7 @@ namespace App\Observers;
 use App\Enums\OutgoingLetterStatus;
 use App\Models\OutgoingLetter;
 use App\Services\CitizenDeathService;
+use App\Services\RegisterEntryService;
 
 final class OutgoingLetterObserver
 {
@@ -17,5 +18,6 @@ final class OutgoingLetterObserver
         }
 
         app(CitizenDeathService::class)->applyFromIssuedLetter($letter);
+        app(RegisterEntryService::class)->registerIssuedLetter($letter->fresh(['letterType.classification']));
     }
 }
