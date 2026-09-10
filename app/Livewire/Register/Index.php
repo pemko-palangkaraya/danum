@@ -152,7 +152,7 @@ class Index extends Component
         }
 
         return view('livewire.pages.register.index', [
-            'entries' => $query->orderBy('register_number')->paginate($this->perPage),
+            'entries' => $query->orderByDesc('register_number')->paginate($this->perPage),
         ]);
     }
 }
