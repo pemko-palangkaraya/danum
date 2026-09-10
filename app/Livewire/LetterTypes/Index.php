@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\LetterTypes;
 
+use App\Enums\LetterFont;
 use App\Enums\LetterTypeStatus;
 use App\Models\LetterClassification;
 use App\Models\LetterType;
@@ -35,6 +36,7 @@ class Index extends Component
     public string $name = '';
     public string $description = '';
     public string $status = 'draft';
+    public string $font_family = 'Arial';
     public string $validity_period = 'none';
     public string $variables_input = '';
 
@@ -43,15 +45,8 @@ class Index extends Component
         $this->authorize('viewAny', LetterType::class);
     }
 
-    public function updatedSearch(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedFilter(): void
-    {
-        $this->resetPage();
-    }
+    public function updatedSearch(): void { $this->resetPage(); }
+    public function updatedFilter(): void { $this->resetPage(); }
 
     public function create(): void
     {
@@ -70,6 +65,7 @@ class Index extends Component
         $this->name = $letterType->name;
         $this->description = (string) $letterType->description;
         $this->status = $letterType->status->value;
+        $this->font_family = ($letterType->font_family ?? LetterFont::ARIAL)->value;
         $this->validity_period = (string) ($letterType->validity_period ?: ($letterType->has_expiry ? $this->legacyValidityPeriod($letterType->validity_days) : 'none'));
         $this->variables_input = implode("\n", $letterType->variables ?? []);
         $this->showForm = true;
@@ -78,25 +74,18 @@ class Index extends Component
     public function save(LetterTypeService $service, DocxTemplateService $docx): void
     {
         $data = $this->validate([
-            'letter_classification_id' => [
-                'required',
-                'uuid',
-                Rule::exists('letter_classifications', 'id')->where(fn ($query) => $query->where('is_active', true)->whereNull('deleted_at')),
-            ],
+            'letter_classification_id' => ['required', 'uuid', Rule::exists('letter_classifications', 'id')->where(fn ($query) => $query->where('is_active', true)->whereNull('deleted_at'))],
             'code' => ['required', 'string', 'max:50'],
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string'],
             'status' => ['required', 'in:draft,validated,active,retired'],
+            'font_family' => ['required', Rule::enum(LetterFont::class)],
             'validity_period' => ['required', 'in:none,1_week,2_weeks,1_month,3_months,6_months,1_year'],
             'variables_input' => ['required', 'string'],
         ]);
 
         $letterType = $this->editingId ? LetterType::query()->findOrFail($this->editingId) : null;
-        if ($letterType) {
-            $this->authorize('update', $letterType);
-        } else {
-            $this->authorize('create', LetterType::class);
-        }
+        $this->authorize($letterType ? 'update' : 'create', $letterType ?: LetterType::class);
 
         $declared = $docx->normalizeVariables($this->variables_input);
         if (! $declared) {
@@ -107,9 +96,7 @@ class Index extends Component
         $templatePath = $letterType?->template_path;
         if ($templatePath) {
             $templatePath = storage_path('app/private/'.$templatePath);
-            if (! is_file($templatePath)) {
-                $templatePath = null;
-            }
+            if (! is_file($templatePath)) $templatePath = null;
         }
 
         if ($templatePath) {
@@ -128,6 +115,7 @@ class Index extends Component
         $data['variables'] = $declared;
         $data['has_expiry'] = $this->validity_period !== 'none';
         $data['validity_days'] = $this->legacyValidityDays($this->validity_period);
+        $data['font_family'] = $this->font_family;
         unset($data['variables_input']);
         $data['tenant_id'] = null;
         $data['body_template'] = null;
@@ -158,14 +146,10 @@ class Index extends Component
 
     public function confirmDelete(LetterTypeService $service): void
     {
-        if (! $this->deleteId) {
-            return;
-        }
-
+        if (! $this->deleteId) return;
         $letterType = LetterType::query()->findOrFail($this->deleteId);
         $this->authorize('delete', $letterType);
         $service->scheduleDeletion($letterType);
-
         $name = $this->deleteName;
         $this->closeDeleteConfirm();
         $this->resetPage();
@@ -176,29 +160,18 @@ class Index extends Component
     {
         $letterType = LetterType::withTrashed()->findOrFail($id);
         $this->authorize('restore', $letterType);
-
-        if (! $letterType->trashed()) {
-            return;
-        }
-
-        $this->restoreId = $letterType->id;
+        if (! $letterType->trashed()) return;
+        $this->restoreId = $id;
         $this->restoreName = $letterType->name;
         $this->showRestoreConfirm = true;
     }
 
     public function confirmRestore(LetterTypeService $service): void
     {
-        if (! $this->restoreId) {
-            return;
-        }
-
+        if (! $this->restoreId) return;
         $letterType = LetterType::withTrashed()->findOrFail($this->restoreId);
         $this->authorize('restore', $letterType);
-
-        if ($letterType->trashed()) {
-            $service->restore($letterType);
-        }
-
+        if ($letterType->trashed()) $service->restore($letterType);
         $name = $this->restoreName;
         $this->closeRestoreConfirm();
         $this->resetPage();
@@ -224,63 +197,38 @@ class Index extends Component
     {
         $this->reset(['editingId', 'letter_classification_id', 'code', 'name', 'description', 'variables_input']);
         $this->status = LetterTypeStatus::DRAFT->value;
+        $this->font_family = LetterFont::ARIAL->value;
         $this->validity_period = 'none';
     }
 
     private function legacyValidityDays(string $period): ?int
     {
         return match ($period) {
-            '1_week' => 7,
-            '2_weeks' => 14,
-            '1_month' => 30,
-            '3_months' => 90,
-            '6_months' => 180,
-            '1_year' => 365,
-            default => null,
+            '1_week' => 7, '2_weeks' => 14, '1_month' => 30, '3_months' => 90, '6_months' => 180, '1_year' => 365, default => null,
         };
     }
 
     private function legacyValidityPeriod(?int $days): string
     {
         return match ($days) {
-            7 => '1_week',
-            14 => '2_weeks',
-            30 => '1_month',
-            90 => '3_months',
-            180 => '6_months',
-            365 => '1_year',
-            default => 'none',
+            7 => '1_week', 14 => '2_weeks', 30 => '1_month', 90 => '3_months', 180 => '6_months', 365 => '1_year', default => 'none',
         };
     }
 
     public function render()
     {
         $query = LetterType::query()->with('classification')->latest();
-
-        if ($this->search !== '') {
-            $query->where(fn ($q) => $q
-                ->where('code', 'ilike', "%{$this->search}%")
-                ->orWhere('name', 'ilike', "%{$this->search}%"));
-        }
-
+        if ($this->search !== '') $query->where(fn ($q) => $q->where('code', 'ilike', "%{$this->search}%")->orWhere('name', 'ilike', "%{$this->search}%"));
         if ($this->filter === 'deleted') {
-            $query->withTrashed()->where(function ($q): void {
-                $q->whereNotNull('deleted_at')
-                    ->orWhere(function ($scheduled): void {
-                        $scheduled->whereNotNull('deletion_scheduled_at')->whereNull('deleted_at');
-                    });
-            });
+            $query->withTrashed()->where(fn ($q) => $q->whereNotNull('deleted_at')->orWhere(fn ($scheduled) => $scheduled->whereNotNull('deletion_scheduled_at')->whereNull('deleted_at')));
         } else {
             $query->where('status', LetterTypeStatus::from($this->filter));
         }
 
         return view('livewire.pages.letter-types.index', [
             'letterTypes' => $query->paginate($this->perPage),
-            'classifications' => LetterClassification::query()
-                ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->orderBy('code')
-                ->get(),
+            'classifications' => LetterClassification::query()->where('is_active', true)->orderBy('sort_order')->orderBy('code')->get(),
+            'fonts' => LetterFont::cases(),
         ]);
     }
 }
