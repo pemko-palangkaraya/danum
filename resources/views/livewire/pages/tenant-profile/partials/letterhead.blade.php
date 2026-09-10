@@ -80,17 +80,17 @@
     </div>
 
     @if ($showLetterheadPreview)
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-3 sm:p-6" wire:keydown.escape="closeLetterheadPreview">
-        <div class="flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-slate-100 shadow-2xl" role="dialog" aria-modal="true" aria-label="Preview kop surat">
-            <div class="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
-                <div>
+    <div class="fixed inset-0 z-[100] flex items-start justify-center overflow-hidden bg-slate-900/60 p-3 sm:p-5" wire:keydown.escape="closeLetterheadPreview">
+        <div class="flex h-[95vh] max-h-[95vh] w-full max-w-5xl min-h-0 flex-col overflow-hidden rounded-2xl bg-slate-100 shadow-2xl" role="dialog" aria-modal="true" aria-label="Preview kop surat">
+            <div class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
+                <div class="min-w-0 pr-4">
                     <h3 class="font-semibold text-slate-900">Preview Kop Surat</h3>
                     <p class="mt-0.5 text-xs text-slate-500">Ini adalah simulasi halaman surat A4. Susunan kop mengikuti DOCX: logo kiri, teks kop kanan, dan garis bawah penuh.</p>
                 </div>
-                <button type="button" wire:click="closeLetterheadPreview" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700">Tutup</button>
+                <button type="button" wire:click="closeLetterheadPreview" class="shrink-0 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700">Tutup</button>
             </div>
 
-            <div class="overflow-auto p-4 sm:p-8">
+            <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-8">
                 <div class="mx-auto w-full max-w-[794px] bg-white px-[55px] py-[48px] shadow-xl" style="min-height: 1123px;">
                     <div class="border-b-[3px] border-slate-800 pb-3">
                         <div class="grid grid-cols-[20%_80%] items-center">
