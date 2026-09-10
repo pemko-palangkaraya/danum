@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -43,42 +44,21 @@ class OutgoingLetter extends Model
         });
 
         static::saved(function (self $letter): void {
-            if (filled($letter->document_hash)) {
-                return;
-            }
-
+            if (filled($letter->document_hash)) return;
             $path = $letter->signed_pdf_path ?: $letter->unsigned_pdf_path;
-            if (blank($path) || ! Storage::disk('local')->exists($path)) {
-                return;
-            }
-
-            $absolutePath = Storage::disk('local')->path($path);
-            $hash = hash_file('sha256', $absolutePath);
-            if ($hash === false) {
-                return;
-            }
-
-            $letter->forceFill([
-                'document_hash' => $hash,
-                'document_hash_algorithm' => 'SHA-256',
-            ])->saveQuietly();
+            if (blank($path) || ! Storage::disk('local')->exists($path)) return;
+            $hash = hash_file('sha256', Storage::disk('local')->path($path));
+            if ($hash === false) return;
+            $letter->forceFill(['document_hash' => $hash, 'document_hash_algorithm' => 'SHA-256'])->saveQuietly();
         });
     }
 
     protected function casts(): array
     {
         return [
-            'issued_at' => 'date',
-            'valid_from' => 'datetime',
-            'valid_until' => 'datetime',
-            'letter_date' => 'date',
-            'sequence_number' => 'integer',
-            'sequence_year' => 'integer',
-            'submitted_at' => 'datetime',
-            'rejected_at' => 'datetime',
-            'signed_at' => 'datetime',
-            'input_data' => 'array',
-            'status' => OutgoingLetterStatus::class,
+            'issued_at' => 'date', 'valid_from' => 'datetime', 'valid_until' => 'datetime', 'letter_date' => 'date',
+            'sequence_number' => 'integer', 'sequence_year' => 'integer', 'submitted_at' => 'datetime',
+            'rejected_at' => 'datetime', 'signed_at' => 'datetime', 'input_data' => 'array', 'status' => OutgoingLetterStatus::class,
         ];
     }
 
@@ -96,27 +76,19 @@ class OutgoingLetter extends Model
     public function statusHistories(): HasMany { return $this->hasMany(OutgoingLetterStatusHistory::class)->orderBy('created_at'); }
     public function withdrawalRequests(): HasMany { return $this->hasMany(OutgoingLetterWithdrawalRequest::class)->latest('created_at'); }
     public function verificationLogs(): HasMany { return $this->hasMany(VerificationLog::class, 'document_id'); }
+    public function registerEntry(): HasOne { return $this->hasOne(RegisterEntry::class); }
 
-    private function localValidityTime(?Carbon $value): ?Carbon
-    {
-        return $value?->shiftTimezone(config('app.timezone'));
-    }
+    private function localValidityTime(?Carbon $value): ?Carbon { return $value?->shiftTimezone(config('app.timezone')); }
 
     public function isExpired(): bool
     {
         $validUntil = $this->localValidityTime($this->valid_until);
-
-        return $this->status === OutgoingLetterStatus::ISSUED
-            && $validUntil !== null
-            && $validUntil->isPast();
+        return $this->status === OutgoingLetterStatus::ISSUED && $validUntil !== null && $validUntil->isPast();
     }
 
     public function isActive(): bool
     {
         $validFrom = $this->localValidityTime($this->valid_from);
-
-        return $this->status === OutgoingLetterStatus::ISSUED
-            && ($validFrom === null || $validFrom->lessThanOrEqualTo(now()))
-            && ! $this->isExpired();
+        return $this->status === OutgoingLetterStatus::ISSUED && ($validFrom === null || $validFrom->lessThanOrEqualTo(now())) && ! $this->isExpired();
     }
 }
