@@ -100,11 +100,11 @@ class TenantProfileAuthorizationTest extends TestCase
 
         Livewire::test(TenantProfile::class)
             ->set('letterheadLine1', 'PEMERINTAH KOTA PALANGKA RAYA')
-            ->set('letterheadLine2', 'KECAMATAN BUKIT BATU')
-            ->set('letterheadLine3', 'KELURAHAN TANGKILING')
-            ->set('postalCode', '73222')
-            ->set('address', 'Jl. Batu Banama No. 01')
-            ->set('website', 'https://contoh.go.id')
+            ->set('letterheadLine2', 'KECAMATAN RAKUMPIT')
+            ->set('letterheadLine3', 'KELURAHAN MUNGKU BARU')
+            ->set('postalCode', '73229')
+            ->set('address', 'Jl. Rakumpit Raya')
+            ->set('website', 'https://kelmungkubaru.palangkaraya.go.id')
             ->set('logo', $file)
             ->call('save')
             ->assertHasNoErrors();
@@ -112,10 +112,10 @@ class TenantProfileAuthorizationTest extends TestCase
         $tenant->refresh();
 
         $this->assertSame('PEMERINTAH KOTA PALANGKA RAYA', $tenant->letterhead_line1);
-        $this->assertSame('KECAMATAN BUKIT BATU', $tenant->letterhead_line2);
-        $this->assertSame('KELURAHAN TANGKILING', $tenant->letterhead_line3);
-        $this->assertSame('73222', $tenant->postal_code);
-        $this->assertSame('https://contoh.go.id', $tenant->website);
+        $this->assertSame('KECAMATAN RAKUMPIT', $tenant->letterhead_line2);
+        $this->assertSame('KELURAHAN MUNGKU BARU', $tenant->letterhead_line3);
+        $this->assertSame('73229', $tenant->postal_code);
+        $this->assertSame('https://kelmungkubaru.palangkaraya.go.id', $tenant->website);
         $this->assertNotNull($tenant->logo);
         Storage::disk('public')->assertExists($tenant->logo);
     }

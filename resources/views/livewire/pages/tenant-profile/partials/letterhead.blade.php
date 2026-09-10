@@ -16,15 +16,15 @@
             </x-ui.field>
 
             <x-ui.field label="Baris 2" for="letterhead-line2" error="{{ $errors->first('letterheadLine2') }}">
-                <input id="letterhead-line2" type="text" wire:model="letterheadLine2" @disabled(!$canUpdate) maxlength="150" placeholder="mis. KECAMATAN BUKIT BATU" class="form-input w-full disabled:bg-slate-50 disabled:text-slate-500">
+                <input id="letterhead-line2" type="text" wire:model="letterheadLine2" @disabled(!$canUpdate) maxlength="150" placeholder="mis. KECAMATAN RAKUMPIT" class="form-input w-full disabled:bg-slate-50 disabled:text-slate-500">
             </x-ui.field>
 
             <x-ui.field label="Baris 3 — Kelurahan / Instansi" for="letterhead-line3" error="{{ $errors->first('letterheadLine3') }}">
-                <input id="letterhead-line3" type="text" wire:model="letterheadLine3" @disabled(!$canUpdate) maxlength="150" placeholder="mis. KELURAHAN TANGKILING" class="form-input w-full disabled:bg-slate-50 disabled:text-slate-500">
+                <input id="letterhead-line3" type="text" wire:model="letterheadLine3" @disabled(!$canUpdate) maxlength="150" placeholder="mis. KELURAHAN MUNGKU BARU" class="form-input w-full disabled:bg-slate-50 disabled:text-slate-500">
             </x-ui.field>
 
             <x-ui.field label="Kode Pos" for="postal-code" error="{{ $errors->first('postalCode') }}">
-                <input id="postal-code" type="text" wire:model="postalCode" @disabled(!$canUpdate) maxlength="10" inputmode="numeric" placeholder="mis. 73222" class="form-input w-full disabled:bg-slate-50 disabled:text-slate-500">
+                <input id="postal-code" type="text" wire:model="postalCode" @disabled(!$canUpdate) maxlength="10" inputmode="numeric" placeholder="mis. 73229" class="form-input w-full disabled:bg-slate-50 disabled:text-slate-500">
             </x-ui.field>
 
             <div class="sm:col-span-2">
@@ -34,7 +34,7 @@
             </div>
 
             <x-ui.field label="Website (opsional)" for="letterhead-website" error="{{ $errors->first('website') }}">
-                <input id="letterhead-website" type="url" wire:model="website" @disabled(!$canUpdate) maxlength="255" placeholder="https://contoh.go.id" class="form-input w-full disabled:bg-slate-50 disabled:text-slate-500">
+                <input id="letterhead-website" type="url" wire:model="website" @disabled(!$canUpdate) maxlength="255" placeholder="https://kelmungkubaru.palangkaraya.go.id" class="form-input w-full disabled:bg-slate-50 disabled:text-slate-500">
             </x-ui.field>
 
             <x-ui.field label="Email (opsional)" for="letterhead-email" error="{{ $errors->first('email') }}">
@@ -48,22 +48,22 @@
 
             <div class="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
                 @if ($canUpdate)
-                    <x-ui.field label="Ganti Logo" for="tenant-logo" error="{{ $errors->first('logo') }}">
-                        <input id="tenant-logo" type="file" wire:model="logo" accept="image/png,image/jpeg" class="form-input w-full">
-                        <p class="mt-1.5 text-xs text-slate-500">PNG atau JPG/JPEG. Maksimal 2 MB.</p>
-                        <div wire:loading wire:target="logo" class="mt-2 text-xs text-slate-500">Uploading...</div>
-                    </x-ui.field>
+                <x-ui.field label="Ganti Logo" for="tenant-logo" error="{{ $errors->first('logo') }}">
+                    <input id="tenant-logo" type="file" wire:model="logo" accept="image/png,image/jpeg" class="form-input w-full">
+                    <p class="mt-1.5 text-xs text-slate-500">PNG atau JPG/JPEG. Maksimal 2 MB.</p>
+                    <div wire:loading wire:target="logo" class="mt-2 text-xs text-slate-500">Uploading...</div>
+                </x-ui.field>
                 @endif
 
                 <div>
                     <p class="text-sm font-medium text-slate-700">Preview Logo</p>
                     <div class="mt-2 flex h-40 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-4">
                         @if ($logo)
-                            <img src="{{ $logo->temporaryUrl() }}" alt="Preview logo baru" class="max-h-28 max-w-32 object-contain">
+                        <img src="{{ $logo->temporaryUrl() }}" alt="Preview logo baru" class="max-h-28 max-w-32 object-contain">
                         @elseif ($logoUrl)
-                            <img src="{{ $logoUrl }}" alt="Logo organisasi" class="max-h-28 max-w-32 object-contain">
+                        <img src="{{ $logoUrl }}" alt="Logo organisasi" class="max-h-28 max-w-32 object-contain">
                         @else
-                            <span class="text-xs text-slate-400">Belum ada logo</span>
+                        <span class="text-xs text-slate-400">Belum ada logo</span>
                         @endif
                     </div>
                 </div>
