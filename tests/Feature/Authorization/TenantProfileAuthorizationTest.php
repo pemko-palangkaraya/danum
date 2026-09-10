@@ -8,10 +8,12 @@ use App\Enums\Permission as PermissionEnum;
 use App\Models\Permission;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Livewire\TenantProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
-use App\Livewire\TenantProfile;
 
 class TenantProfileAuthorizationTest extends TestCase
 {
@@ -80,6 +82,31 @@ class TenantProfileAuthorizationTest extends TestCase
             'id' => $tenant->id,
             'name' => 'Nama Baru',
         ]);
+    }
+
+    public function test_tenant_profile_component_can_update_letterhead_when_permission_is_granted(): void
+    {
+        Storage::fake('public');
+
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->tenantUser($tenant)->create();
+        $permission = Permission::query()->where('slug', PermissionEnum::TENANT_PROFILE_UPDATE->value)->firstOrFail();
+
+        $user->roleModel()->permissions()->syncWithoutDetaching([$permission->id]);
+
+        $this->actingAs($user);
+
+        $file = UploadedFile::fake()->image('letterhead.png', 1200, 300);
+
+        Livewire::test(TenantProfile::class)
+            ->set('letterhead', $file)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $tenant->refresh();
+
+        $this->assertNotNull($tenant->letterhead_path);
+        Storage::disk('public')->assertExists($tenant->letterhead_path);
     }
 
     public function test_super_admin_can_update_organization_profile(): void
