@@ -59,13 +59,13 @@
                     <div wire:loading wire:target="logo" class="mt-2 text-xs text-slate-500">Uploading...</div>
                 </x-ui.field>
                 @endif
-                <div>
+                <div class="min-w-0">
                     <p class="text-sm font-medium text-slate-700">Logo aktif</p>
-                    <div class="mt-2 flex h-36 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+                    <div class="mt-2 flex h-36 w-full items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
                         @if ($logo)
-                        <img src="{{ $logo->temporaryUrl() }}" alt="Preview logo baru" class="max-h-28 max-w-32 object-contain">
+                        <img src="{{ $logo->temporaryUrl() }}" alt="Preview logo baru" class="block max-h-full max-w-full object-contain" style="width:auto;height:auto;max-height:112px;max-width:176px;">
                         @elseif ($logoUrl)
-                        <img src="{{ $logoUrl }}" alt="Logo organisasi" class="max-h-28 max-w-32 object-contain">
+                        <img src="{{ $logoUrl }}" alt="Logo organisasi" class="block max-h-full max-w-full object-contain" style="width:auto;height:auto;max-height:112px;max-width:176px;">
                         @else
                         <span class="text-xs text-slate-400">Belum ada logo</span>
                         @endif
@@ -96,9 +96,9 @@
                         <div class="flex items-center gap-4">
                             <div class="flex w-[92px] shrink-0 items-center justify-center">
                                 @if ($logo)
-                                <img src="{{ $logo->temporaryUrl() }}" alt="Logo" class="max-h-[78px] max-w-[78px] object-contain">
+                                <img src="{{ $logo->temporaryUrl() }}" alt="Logo" class="block max-h-full max-w-full object-contain" style="width:auto;height:auto;max-height:78px;max-width:78px;">
                                 @elseif ($logoUrl)
-                                <img src="{{ $logoUrl }}" alt="Logo" class="max-h-[78px] max-w-[78px] object-contain">
+                                <img src="{{ $logoUrl }}" alt="Logo" class="block max-h-full max-w-full object-contain" style="width:auto;height:auto;max-height:78px;max-width:78px;">
                                 @endif
                             </div>
                             <div class="min-w-0 flex-1 text-center font-[Arial,sans-serif] text-slate-900">
