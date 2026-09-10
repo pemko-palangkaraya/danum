@@ -4,12 +4,6 @@ declare(strict_types=1);
 
 namespace App\Livewire\Concerns;
 
-/**
- * Standard server-side sorting for DANUM data tables.
- *
- * Components opt in by defining a protected $sortableColumns map where the
- * public sort key maps to a safe database column expression.
- */
 trait WithTableSorting
 {
     public string $sortBy = '';
@@ -42,14 +36,5 @@ trait WithTableSorting
             : $defaultDirection;
 
         return $query->orderBy($column, $direction);
-    }
-
-    protected function tableSortIcon(string $column): string
-    {
-        if ($this->sortBy !== $column) {
-            return '↕';
-        }
-
-        return $this->sortDirection === 'asc' ? '↑' : '↓';
     }
 }
