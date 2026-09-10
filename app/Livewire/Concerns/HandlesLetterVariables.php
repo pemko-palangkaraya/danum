@@ -14,6 +14,7 @@ use App\Services\LetterVariableSourceResolver;
 use App\Services\OutgoingLetterService;
 use App\Services\OutgoingLetterWorkflowService;
 use App\Support\LetterVariableSchema;
+use Livewire\Attributes\On;
 
 trait HandlesLetterVariables
 {
@@ -153,6 +154,13 @@ trait HandlesLetterVariables
         if ($citizen) $this->citizen_id = $citizen->id;
     }
 
+    #[On('citizen-nik-selected')]
+    public function handleCitizenNikSelected(string $variable, string $nik): void
+    {
+        if (! in_array($variable, ['recipient_nik', 'nik'], true)) return;
+        $this->lookupCitizenByNik($nik);
+    }
+
     public function updatedVariableValues($value, string $key): void
     {
         if (in_array($key, ['recipient_nik', 'nik'], true)) {
@@ -177,7 +185,10 @@ trait HandlesLetterVariables
         $this->variableValues['recipient_nik'] = $nik;
         $this->variableValues['nik'] = $nik;
 
-        if (strlen($nik) !== 16) return;
+        if (strlen($nik) !== 16) {
+            $this->clearCitizenValues();
+            return;
+        }
 
         $tenantId = auth()->user()?->tenant_id;
         if (! $tenantId) return;
@@ -187,7 +198,7 @@ trait HandlesLetterVariables
             ->first();
 
         if (! $citizen) {
-            $this->citizen_id = null;
+            $this->clearCitizenValues();
             $this->dispatch('toast', type: 'error', message: 'NIK tidak ditemukan pada data warga OPD Anda.');
             return;
         }
@@ -195,6 +206,41 @@ trait HandlesLetterVariables
         $this->citizen_id = $citizen->id;
         $this->applyCitizenValues($citizen);
         $this->dispatch('toast', type: 'success', message: 'Data warga ditemukan dan diisikan otomatis.');
+    }
+
+    private function clearCitizenValues(): void
+    {
+        $this->citizen_id = null;
+        $this->variableValues['_citizen_id'] = null;
+
+        foreach ($this->variables as $variable) {
+            $variable = (string) $variable;
+            $definition = $this->letterVariableDefinitionService->forKey($variable);
+            if (in_array($definition?->source, ['citizen', 'family', 'calculated'], true)) {
+                $this->variableValues[$variable] = '';
+            }
+        }
+
+        foreach ([
+            'nama', 'jenis_kelamin', 'tempat_lahir', 'tpt_lahir', 'tanggal_lahir', 'ttl',
+            'status_perkawinan', 'agama', 'pekerjaan', 'kewarganegaraan', 'golongan_darah',
+            'nama_ayah', 'nik_ayah', 'nama_ibu', 'nik_ibu', 'pendidikan', 'no_passport',
+            'no_kitap', 'status_kependudukan', 'alamat', 'rt', 'rw', 'nama_pasangan',
+            'recipient_name', 'recipient_address', 'recipient_age',
+        ] as $key) {
+            if (array_key_exists($key, $this->variableValues) && $key !== 'nik') {
+                $this->variableValues[$key] = '';
+            }
+        }
+
+        if (array_key_exists('nik', $this->variableValues)) {
+            $this->variableValues['nik'] = $this->variableValues['recipient_nik'] ?? '';
+        }
+
+        $this->variableValues['ak'] = [];
+        foreach ($this->repeaterDefinitions() as $repeater) {
+            if ($repeater['key'] === 'anak_ditinggalkan') $this->variableValues[$repeater['key']] = [];
+        }
     }
 
     private function initializeVariableValues(bool $newRows = false): void
