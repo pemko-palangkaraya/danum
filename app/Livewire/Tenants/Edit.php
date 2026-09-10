@@ -8,18 +8,14 @@ use App\Enums\TenantStatus;
 use App\Enums\UserStatus;
 use App\Http\Requests\UpdateTenantRequest;
 use App\Services\TenantService;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
-use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 class Edit extends Component
 {
-    use WithFileUploads;
-
     public string $tenantId = '';
     public string $code = '';
     public string $name = '';
@@ -36,8 +32,6 @@ class Edit extends Component
     public string $head_name = '';
     public string $head_title = '';
     public string $status = '';
-    public $letterhead = null;
-    public ?string $currentLetterhead = null;
 
     public string $administratorName = '';
     public string $administratorEmail = '';
@@ -68,7 +62,6 @@ class Edit extends Component
         $this->head_name = (string) ($model->head_name ?? '');
         $this->head_title = (string) ($model->head_title ?? '');
         $this->status = (string) ($model->status?->value ?? $model->status ?? '');
-        $this->currentLetterhead = $model->letterheadUrl();
 
         $administrator = $model->administrator;
         if ($administrator) {
@@ -132,16 +125,6 @@ class Edit extends Component
             Rule::unique('tenants', 'code')->ignore($tenant->id),
         ];
         $validated = Validator::make($data, $rules)->validate();
-
-        if ($this->letterhead) {
-            $this->validate(['letterhead' => ['file', 'image', 'mimes:png,jpg,jpeg,webp', 'max:4096']]);
-            $oldLetterhead = $tenant->letterhead_path;
-            $newLetterhead = $this->letterhead->store('tenant-letterheads', 'public');
-            $validated['letterhead_path'] = $newLetterhead;
-            if ($oldLetterhead && $oldLetterhead !== $newLetterhead) {
-                Storage::disk('public')->delete($oldLetterhead);
-            }
-        }
 
         if ($this->administratorId !== null) {
             $administrator = Validator::make([
