@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\LetterFont;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -15,57 +16,37 @@ class DocxTemplateService
         private readonly DocxVariableService $variableService,
         private readonly DocxRendererService $renderer,
         private readonly DocxLetterheadService $letterhead,
+        private readonly DocxFontService $fonts,
     ) {}
 
     /** @return array<string,string> */
-    public function allowedVariables(): array
-    {
-        return $this->variableService->allowedVariables();
-    }
-
+    public function allowedVariables(): array { return $this->variableService->allowedVariables(); }
     /** @return list<string> */
-    public function normalizeVariables(string $input): array
-    {
-        return $this->variableService->normalizeVariables($input);
-    }
-
+    public function normalizeVariables(string $input): array { return $this->variableService->normalizeVariables($input); }
     /** @return list<string> */
-    public function extractVariables(string $path): array
-    {
-        return $this->variableService->extractVariables($path);
-    }
-
+    public function extractVariables(string $path): array { return $this->variableService->extractVariables($path); }
     /** @param list<string> $declared @param list<string> $found */
-    public function compareVariables(array $declared, array $found): array
-    {
-        return $this->variableService->compareVariables($declared, $found);
-    }
-
+    public function compareVariables(array $declared, array $found): array { return $this->variableService->compareVariables($declared, $found); }
     /** @param list<string> $found @param list<string> $allowed */
-    public function validateVariables(array $found, array $allowed): array
-    {
-        return $this->variableService->validateVariables($found, $allowed);
-    }
+    public function validateVariables(array $found, array $allowed): array { return $this->variableService->validateVariables($found, $allowed); }
 
     public function validate(string $template): void
     {
         preg_match_all('/\{\{\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\}\}/', $template, $matches);
         $allowed = array_keys($this->allowedVariables());
         $reserved = ['letterhead', 'qr', 'tte'];
-
         foreach (array_unique($matches[1] ?? []) as $variable) {
-            if (! in_array($variable, [...$allowed, ...$reserved], true)) {
-                throw new \InvalidArgumentException(sprintf('Unknown letter template variable: %s.', $variable));
-            }
+            if (! in_array($variable, [...$allowed, ...$reserved], true)) throw new \InvalidArgumentException(sprintf('Unknown letter template variable: %s.', $variable));
         }
     }
 
     /** @param array<string,mixed> $data */
-    public function renderToStorage(string $templatePath, Tenant $tenant, array $data): string
+    public function renderToStorage(string $templatePath, Tenant $tenant, array $data, LetterFont $font = LetterFont::ARIAL): string
     {
         [$xml, $rels, $contentTypes] = $this->readTemplate($templatePath);
         $values = $this->tenantValues($tenant, $data);
         $xml = $this->renderer->render($xml, $values);
+        $xml = $this->fonts->apply($xml, $font);
         $letterhead = $this->letterhead->embed($xml, $rels, $contentTypes, $tenant);
         if ($letterhead !== null) {
             $xml = $letterhead['xml'];
@@ -75,7 +56,6 @@ class DocxTemplateService
 
         $tmp = tempnam(sys_get_temp_dir(), 'danum-docx-');
         if ($tmp === false || ! copy($templatePath, $tmp)) throw new RuntimeException('Tidak dapat membuat DOCX hasil.');
-
         $output = new ZipArchive();
         if ($output->open($tmp) !== true) {
             @unlink($tmp);
@@ -116,21 +96,12 @@ class DocxTemplateService
     private function tenantValues(Tenant $tenant, array $data): array
     {
         return [
-            'tenant_name' => $tenant->name,
-            'tenant_city' => $tenant->city,
-            'tenant_district' => $tenant->district,
-            'tenant_village' => $tenant->village,
-            'tenant_province' => $tenant->province,
-            'tenant_address' => $tenant->address,
-            'tenant_phone' => $tenant->phone,
-            'tenant_email' => $tenant->email,
-            'tenant_head_name' => (string) ($tenant->head_name ?? ''),
-            'tenant_head_title' => (string) ($tenant->head_title ?? ''),
-            'tenant_head_nip' => (string) ($tenant->head_nip ?? ''),
-            'nama_ttd' => (string) ($tenant->head_name ?? ''),
-            'jabatan_ttd' => (string) ($tenant->head_title ?? ''),
-            'nip_ttd' => (string) ($tenant->head_nip ?? ''),
-            ...$data,
+            'tenant_name' => $tenant->name, 'tenant_city' => $tenant->city, 'tenant_district' => $tenant->district,
+            'tenant_village' => $tenant->village, 'tenant_province' => $tenant->province, 'tenant_address' => $tenant->address,
+            'tenant_phone' => $tenant->phone, 'tenant_email' => $tenant->email,
+            'tenant_head_name' => (string) ($tenant->head_name ?? ''), 'tenant_head_title' => (string) ($tenant->head_title ?? ''),
+            'tenant_head_nip' => (string) ($tenant->head_nip ?? ''), 'nama_ttd' => (string) ($tenant->head_name ?? ''),
+            'jabatan_ttd' => (string) ($tenant->head_title ?? ''), 'nip_ttd' => (string) ($tenant->head_nip ?? ''), ...$data,
         ];
     }
 
