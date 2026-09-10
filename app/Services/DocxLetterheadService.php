@@ -132,16 +132,15 @@ class DocxLetterheadService
             if (trim((string) $value) !== '') $rows[] = $this->textParagraph((string) $value, $size, true);
         }
 
+        // Alamat Lengkap adalah satu-satunya sumber metadata kontak kop.
+        // Line break dari textarea dipertahankan sebagai <w:br/>.
         $address = trim((string) $tenant->address);
-        if ($address !== '') $rows[] = $this->textParagraph($address, (int) ($tenant->letterhead_meta_size ?? 8), false);
+        if ($address !== '') {
+            $rows[] = $this->textParagraph($address, (int) ($tenant->letterhead_meta_size ?? 8), false);
+        }
 
-        $meta = array_values(array_filter([
-            trim((string) $tenant->postal_code) !== '' ? 'Kode Pos ' . trim((string) $tenant->postal_code) : null,
-            trim((string) $tenant->phone) !== '' ? 'Telp. ' . trim((string) $tenant->phone) : null,
-            trim((string) $tenant->email) !== '' ? trim((string) $tenant->email) : null,
-            trim((string) $tenant->website) !== '' ? trim((string) $tenant->website) : null,
-        ]));
-        if ($meta !== []) $rows[] = $this->textParagraph(implode(', ', $meta), (int) ($tenant->letterhead_meta_size ?? 8), false);
+        // Jangan lagi menambahkan postal_code/email/website secara otomatis.
+        // Ketiganya ditulis manual oleh pengguna di textarea Alamat Lengkap.
         if ($rows === []) $rows[] = $this->textParagraph($tenant->name, (int) ($tenant->letterhead_line1_size ?? 15), true);
 
         $textWidth = $hasLogo ? '7200' : '9000';
