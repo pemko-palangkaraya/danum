@@ -9,9 +9,6 @@ trait WithTableSorting
     public string $sortBy = '';
     public string $sortDirection = 'asc';
 
-    /** @var array<string, string> */
-    protected array $sortableColumns = [];
-
     public function sort(string $column): void
     {
         if (! array_key_exists($column, $this->sortableColumns)) {
