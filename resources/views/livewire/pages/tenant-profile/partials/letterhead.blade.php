@@ -1,7 +1,7 @@
 <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
     <div class="border-b border-slate-200 px-5 py-4 sm:px-6">
         <h2 class="text-sm font-semibold text-slate-900">Kop Surat</h2>
-        <p class="mt-1 text-xs text-slate-500">Atur isi kop surat secara terstruktur. Template DOCX cukup menggunakan marker <code>{{letterhead}}</code>.</p>
+        <p class="mt-1 text-xs text-slate-500">Atur isi kop surat secara terstruktur. Template DOCX cukup menggunakan marker <code>&#123;&#123;letterhead&#125;&#125;</code>.</p>
     </div>
 
     <div class="space-y-6 p-5 sm:p-6">
@@ -49,8 +49,8 @@
             <div class="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
                 @if ($canUpdate)
                     <x-ui.field label="Ganti Logo" for="tenant-logo" error="{{ $errors->first('logo') }}">
-                        <input id="tenant-logo" type="file" wire:model="logo" accept="image/png,image/jpeg,image/webp" class="form-input w-full">
-                        <p class="mt-1.5 text-xs text-slate-500">PNG, JPG/JPEG, atau WEBP. Maksimal 2 MB.</p>
+                        <input id="tenant-logo" type="file" wire:model="logo" accept="image/png,image/jpeg" class="form-input w-full">
+                        <p class="mt-1.5 text-xs text-slate-500">PNG atau JPG/JPEG. Maksimal 2 MB.</p>
                         <div wire:loading wire:target="logo" class="mt-2 text-xs text-slate-500">Uploading...</div>
                     </x-ui.field>
                 @endif
@@ -90,7 +90,7 @@
         </div>
 
         <div class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-800">
-            Template surat tidak perlu menyimpan gambar kop. Cukup letakkan <code>{{letterhead}}</code> pada posisi kop. DANUM akan membentuk kop dari pengaturan organisasi saat DOCX/PDF dibuat.
+            Template surat tidak perlu menyimpan gambar kop. Cukup letakkan <code>&#123;&#123;letterhead&#125;&#125;</code> pada posisi kop. DANUM akan membentuk kop dari pengaturan organisasi saat DOCX/PDF dibuat.
         </div>
     </div>
 </section>
