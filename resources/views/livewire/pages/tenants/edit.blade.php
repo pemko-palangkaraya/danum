@@ -1,7 +1,7 @@
 <div class="space-y-6">
     <x-ui.page-header
         title="Edit Tenant"
-        description="Perbarui informasi tenant, hubungan wilayah, kop surat, dan administrator."
+        description="Perbarui informasi tenant, hubungan wilayah, dan administrator."
         :back-url="route('tenants.show', $tenantId)"
         back-label="Back to tenant"
     />
@@ -75,32 +75,6 @@
                 <x-ui.input wire:model="email" label="Email" id="tenant-email" type="email" maxlength="150" error="{{ $errors->first('email') }}" />
                 <x-ui.input wire:model="head_name" label="Head Name" id="tenant-head-name" maxlength="150" error="{{ $errors->first('head_name') }}" />
                 <x-ui.input wire:model="head_title" label="Head Title" id="tenant-head-title" maxlength="100" error="{{ $errors->first('head_title') }}" />
-            </div>
-        </x-ui.card>
-
-        <x-ui.card>
-            <x-slot:header>
-                <h2 class="text-sm font-semibold text-slate-900">Letterhead / Kop Surat</h2>
-                <p class="mt-1 text-xs text-slate-500">Kop surat yang digunakan tenant.</p>
-            </x-slot:header>
-            <div class="grid gap-5 sm:grid-cols-2">
-                <x-ui.field label="Upload Kop Surat" for="letterhead" error="{{ $errors->first('letterhead') }}">
-                    <input id="letterhead" type="file" wire:model="letterhead" accept="image/png,image/jpeg,image/webp" class="form-input w-full" />
-                    <p class="mt-1.5 text-xs text-slate-500">PNG, JPG/JPEG, atau WEBP. Maksimal 4 MB.</p>
-                    <div wire:loading wire:target="letterhead" class="mt-2 text-xs text-slate-500">Uploading...</div>
-                </x-ui.field>
-                <div>
-                    <p class="text-sm font-medium text-slate-700">Preview Kop Aktif</p>
-                    <div class="mt-2 flex min-h-32 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4">
-                        @if ($letterhead)
-                            <img src="{{ $letterhead->temporaryUrl() }}" alt="Preview kop surat baru" class="max-h-40 max-w-full object-contain">
-                        @elseif ($currentLetterhead)
-                            <img src="{{ $currentLetterhead }}" alt="Kop surat tenant" class="max-h-40 max-w-full object-contain">
-                        @else
-                            <span class="text-xs text-slate-400">Belum ada kop surat.</span>
-                        @endif
-                    </div>
-                </div>
             </div>
         </x-ui.card>
 
