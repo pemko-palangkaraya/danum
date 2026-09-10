@@ -144,8 +144,10 @@ class DocxLetterheadService
     /** @return array{cx:int,cy:int} */
     private function calculateLogoExtent(?string $logoPath): array
     {
-        $maxCx = 1400000;
-        $maxCy = 1400000;
+        // The logo lives in an 1800 dxa cell. Keep a safety margin so Word never
+        // lets the inline drawing overlap the text cell, while preserving aspect ratio.
+        $maxCx = 1050000;
+        $maxCy = 1250000;
         $size = $logoPath !== null ? @getimagesize($logoPath) : false;
         $width = (int) ($size[0] ?? 1);
         $height = (int) ($size[1] ?? 1);
