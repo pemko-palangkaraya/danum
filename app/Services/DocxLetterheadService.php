@@ -139,7 +139,7 @@ class DocxLetterheadService
             trim((string) $tenant->email) !== '' ? trim((string) $tenant->email) : null,
             trim((string) $tenant->website) !== '' ? trim((string) $tenant->website) : null,
         ]));
-        if ($meta !== []) $rows[] = $this->textParagraph(implode('  |  ', $meta), (int) ($tenant->letterhead_meta_size ?? 8), false);
+        if ($meta !== []) $rows[] = $this->textParagraph(implode(', ', $meta), (int) ($tenant->letterhead_meta_size ?? 8), false);
         if ($rows === []) $rows[] = $this->textParagraph($tenant->name, (int) ($tenant->letterhead_line1_size ?? 15), true);
 
         $textWidth = $hasLogo ? '7200' : '9000';
