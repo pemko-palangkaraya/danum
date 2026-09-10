@@ -12,39 +12,26 @@ use App\Models\RegisterEntry;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 final class RegisterEntryService
 {
     public function queryForTenant(string $tenantId): Builder
     {
-        return RegisterEntry::query()
-            ->where('tenant_id', $tenantId)
-            ->with(['outgoingLetter', 'registeredBy:id,name']);
+        return RegisterEntry::query()->where('tenant_id', $tenantId)->with(['outgoingLetter', 'registeredBy:id,name']);
     }
 
     public function registerIssuedLetter(OutgoingLetter $letter): RegisterEntry
     {
-        if ($letter->status !== OutgoingLetterStatus::ISSUED) {
-            throw new \DomainException('Hanya surat yang sudah diterbitkan yang dapat masuk buku register.');
-        }
+        if ($letter->status !== OutgoingLetterStatus::ISSUED) throw new \DomainException('Hanya surat yang sudah diterbitkan yang dapat masuk buku register.');
 
         return DB::transaction(function () use ($letter): RegisterEntry {
             $existing = RegisterEntry::query()->where('outgoing_letter_id', $letter->id)->first();
-            if ($existing) {
-                return $existing;
-            }
+            if ($existing) return $existing;
 
             Tenant::query()->whereKey($letter->tenant_id)->lockForUpdate()->firstOrFail();
             $year = (int) ($letter->issued_at?->year ?? $letter->letter_date?->year ?? now()->year);
-            $registerNumber = ((int) RegisterEntry::query()
-                ->where('tenant_id', $letter->tenant_id)
-                ->where('register_year', $year)
-                ->lockForUpdate()
-                ->max('register_number')) + 1;
+            $registerNumber = ((int) RegisterEntry::query()->where('tenant_id', $letter->tenant_id)->where('register_year', $year)->lockForUpdate()->max('register_number')) + 1;
 
             return RegisterEntry::query()->create([
                 'tenant_id' => $letter->tenant_id,
@@ -70,30 +57,16 @@ final class RegisterEntryService
     public function createManual(array $data, User $user): RegisterEntry
     {
         $tenantId = $user->tenant_id;
-        if ($tenantId === null) {
-            throw new \DomainException('Surat manual hanya dapat dicatat oleh pengguna tenant.');
-        }
-
+        if ($tenantId === null) throw new \DomainException('Surat manual hanya dapat dicatat oleh pengguna tenant.');
         $letterNumber = trim((string) ($data['letter_number'] ?? ''));
-        if ($letterNumber === '') {
-            throw new \DomainException('Nomor surat wajib diisi.');
-        }
+        if ($letterNumber === '') throw new \DomainException('Nomor surat wajib diisi.');
 
         return DB::transaction(function () use ($data, $user, $tenantId, $letterNumber): RegisterEntry {
             $date = now()->parse($data['letter_date']);
             $year = (int) $date->year;
-
             Tenant::query()->whereKey($tenantId)->lockForUpdate()->firstOrFail();
-
-            if (RegisterEntry::query()->where('tenant_id', $tenantId)->where('letter_number', $letterNumber)->exists()) {
-                throw new \DomainException('Nomor surat tersebut sudah tercatat dalam buku register tenant ini.');
-            }
-
-            $registerNumber = ((int) RegisterEntry::query()
-                ->where('tenant_id', $tenantId)
-                ->where('register_year', $year)
-                ->lockForUpdate()
-                ->max('register_number')) + 1;
+            if (RegisterEntry::query()->where('tenant_id', $tenantId)->where('letter_number', $letterNumber)->exists()) throw new \DomainException('Nomor surat tersebut sudah tercatat dalam buku register tenant ini.');
+            $registerNumber = ((int) RegisterEntry::query()->where('tenant_id', $tenantId)->where('register_year', $year)->lockForUpdate()->max('register_number')) + 1;
 
             return RegisterEntry::query()->create([
                 'tenant_id' => $tenantId,
@@ -117,19 +90,10 @@ final class RegisterEntryService
 
     public function correct(RegisterEntry $entry, array $data, User $user): RegisterEntry
     {
-        if ($entry->tenant_id !== $user->tenant_id && ! $user->isSuperAdmin()) {
-            throw new \DomainException('Register tidak berada dalam tenant Anda.');
-        }
-
+        if ($entry->tenant_id !== $user->tenant_id && ! $user->isSuperAdmin()) throw new \DomainException('Register tidak berada dalam tenant Anda.');
         $reason = trim((string) ($data['correction_reason'] ?? ''));
-        if ($reason === '') {
-            throw new \DomainException('Alasan koreksi wajib diisi.');
-        }
-
-        $old = $entry->only([
-            'letter_number', 'letter_date', 'letter_type_name', 'classification_code',
-            'subject', 'recipient_name', 'recipient_address', 'signer_name', 'signer_title',
-        ])->toArray();
+        if ($reason === '') throw new \DomainException('Alasan koreksi wajib diisi.');
+        $old = $entry->only(['letter_number', 'letter_date', 'letter_type_name', 'classification_code', 'subject', 'recipient_name', 'recipient_address', 'signer_name', 'signer_title'])->toArray();
 
         return DB::transaction(function () use ($entry, $data, $reason, $old, $user): RegisterEntry {
             $entry->fill([
@@ -146,19 +110,7 @@ final class RegisterEntryService
                 'correction_reason' => $reason,
             ]);
             $entry->save();
-
-            app(AuditLogService::class)->record(
-                'register_entry.corrected',
-                $user,
-                $entry,
-                $old,
-                $entry->only([
-                    'letter_number', 'letter_date', 'letter_type_name', 'classification_code',
-                    'subject', 'recipient_name', 'recipient_address', 'signer_name', 'signer_title',
-                    'status', 'correction_reason',
-                ]),
-            );
-
+            app(AuditLogService::class)->record('register_entry.corrected', $user, $entry, $old, $entry->only(['letter_number', 'letter_date', 'letter_type_name', 'classification_code', 'subject', 'recipient_name', 'recipient_address', 'signer_name', 'signer_title', 'status', 'correction_reason']));
             return $entry->refresh();
         });
     }
