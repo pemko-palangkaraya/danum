@@ -20,8 +20,14 @@ class TenantProfileService
         'email',
         'logo',
         'letterhead_path',
+        'letterhead_line1',
+        'letterhead_line2',
+        'letterhead_line3',
+        'postal_code',
+        'website',
         'head_name',
         'head_title',
+        'head_nip',
     ];
 
     public function __construct(
