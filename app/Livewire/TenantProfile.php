@@ -31,8 +31,15 @@ class TenantProfile extends Component
     public string $email = '';
     public string $headName = '';
     public string $headTitle = '';
-    public $letterhead = null;
-    public ?string $currentLetterhead = null;
+    public string $headNip = '';
+
+    public string $letterheadLine1 = '';
+    public string $letterheadLine2 = '';
+    public string $letterheadLine3 = '';
+    public string $postalCode = '';
+    public string $website = '';
+    public $logo = null;
+    public ?string $currentLogo = null;
 
     public function mount(): void
     {
@@ -42,7 +49,7 @@ class TenantProfile extends Component
 
         $this->tenant = $tenant;
         $this->canUpdate = auth()->user()?->can('updateProfile', $tenant) === true;
-        $this->currentLetterhead = $tenant->letterheadUrl();
+        $this->currentLogo = $tenant->logoUrl();
         $this->fillForm();
     }
 
@@ -62,6 +69,12 @@ class TenantProfile extends Component
                 'email' => $this->email,
                 'headName' => $this->headName,
                 'headTitle' => $this->headTitle,
+                'headNip' => $this->headNip,
+                'letterheadLine1' => $this->letterheadLine1,
+                'letterheadLine2' => $this->letterheadLine2,
+                'letterheadLine3' => $this->letterheadLine3,
+                'postalCode' => $this->postalCode,
+                'website' => $this->website,
             ],
             [
                 'name' => ['required', 'string', 'max:150'],
@@ -74,8 +87,20 @@ class TenantProfile extends Component
                 'email' => ['nullable', 'email', 'max:150'],
                 'headName' => ['nullable', 'string', 'max:150'],
                 'headTitle' => ['nullable', 'string', 'max:100'],
+                'headNip' => ['nullable', 'string', 'max:30'],
+                'letterheadLine1' => ['nullable', 'string', 'max:150'],
+                'letterheadLine2' => ['nullable', 'string', 'max:150'],
+                'letterheadLine3' => ['nullable', 'string', 'max:150'],
+                'postalCode' => ['nullable', 'string', 'max:10'],
+                'website' => ['nullable', 'url', 'max:255'],
             ],
         )->validate();
+
+        if ($this->logo) {
+            $this->validate([
+                'logo' => ['file', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+            ]);
+        }
 
         $oldValues = [
             'name' => $this->tenant->name,
@@ -86,9 +111,15 @@ class TenantProfile extends Component
             'address' => $this->tenant->address,
             'phone' => $this->tenant->phone,
             'email' => $this->tenant->email,
+            'logo' => $this->tenant->logo,
             'head_name' => $this->tenant->head_name,
             'head_title' => $this->tenant->head_title,
-            'letterhead_path' => $this->tenant->letterhead_path,
+            'head_nip' => $this->tenant->head_nip,
+            'letterhead_line1' => $this->tenant->letterhead_line1,
+            'letterhead_line2' => $this->tenant->letterhead_line2,
+            'letterhead_line3' => $this->tenant->letterhead_line3,
+            'postal_code' => $this->tenant->postal_code,
+            'website' => $this->tenant->website,
         ];
 
         $data = [
@@ -102,27 +133,29 @@ class TenantProfile extends Component
             'email' => $this->email,
             'head_name' => $this->headName,
             'head_title' => $this->headTitle,
+            'head_nip' => $this->headNip,
+            'letterhead_line1' => $this->letterheadLine1,
+            'letterhead_line2' => $this->letterheadLine2,
+            'letterhead_line3' => $this->letterheadLine3,
+            'postal_code' => $this->postalCode,
+            'website' => $this->website,
         ];
 
-        if ($this->letterhead) {
-            $this->validate([
-                'letterhead' => ['file', 'image', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
-            ]);
+        if ($this->logo) {
+            $oldLogo = $this->tenant->logo;
+            $newLogo = $this->logo->store('tenant-logos', 'public');
+            $data['logo'] = $newLogo;
 
-            $oldLetterhead = $this->tenant->letterhead_path;
-            $newLetterhead = $this->letterhead->store('tenant-letterheads', 'public');
-            $data['letterhead_path'] = $newLetterhead;
-
-            if ($oldLetterhead && $oldLetterhead !== $newLetterhead) {
-                Storage::disk('public')->delete($oldLetterhead);
+            if ($oldLogo && ! str_starts_with($oldLogo, 'http://') && ! str_starts_with($oldLogo, 'https://') && ! str_starts_with($oldLogo, '/')) {
+                Storage::disk('public')->delete($oldLogo);
             }
         }
 
         $updated = $service->update($this->tenant, $data);
 
         $this->tenant = $updated->fresh();
-        $this->letterhead = null;
-        $this->currentLetterhead = $this->tenant->letterheadUrl();
+        $this->logo = null;
+        $this->currentLogo = $this->tenant->logoUrl();
         $this->fillForm();
 
         $newValues = [
@@ -134,9 +167,15 @@ class TenantProfile extends Component
             'address' => $this->tenant->address,
             'phone' => $this->tenant->phone,
             'email' => $this->tenant->email,
+            'logo' => $this->tenant->logo,
             'head_name' => $this->tenant->head_name,
             'head_title' => $this->tenant->head_title,
-            'letterhead_path' => $this->tenant->letterhead_path,
+            'head_nip' => $this->tenant->head_nip,
+            'letterhead_line1' => $this->tenant->letterhead_line1,
+            'letterhead_line2' => $this->tenant->letterhead_line2,
+            'letterhead_line3' => $this->tenant->letterhead_line3,
+            'postal_code' => $this->tenant->postal_code,
+            'website' => $this->tenant->website,
         ];
 
         if ($oldValues !== $newValues) {
@@ -156,7 +195,7 @@ class TenantProfile extends Component
     public function render()
     {
         return view('livewire.pages.tenant-profile', [
-            'letterheadUrl' => $this->currentLetterhead,
+            'logoUrl' => $this->currentLogo,
         ]);
     }
 
@@ -172,5 +211,11 @@ class TenantProfile extends Component
         $this->email = (string) ($this->tenant->email ?? '');
         $this->headName = (string) ($this->tenant->head_name ?? '');
         $this->headTitle = (string) ($this->tenant->head_title ?? '');
+        $this->headNip = (string) ($this->tenant->head_nip ?? '');
+        $this->letterheadLine1 = (string) ($this->tenant->letterhead_line1 ?? '');
+        $this->letterheadLine2 = (string) ($this->tenant->letterhead_line2 ?? '');
+        $this->letterheadLine3 = (string) ($this->tenant->letterhead_line3 ?? '');
+        $this->postalCode = (string) ($this->tenant->postal_code ?? '');
+        $this->website = (string) ($this->tenant->website ?? '');
     }
 }
