@@ -32,8 +32,7 @@ final class RegisterEntryService
             Tenant::query()->whereKey($letter->tenant_id)->lockForUpdate()->firstOrFail();
             $year = (int) ($letter->issued_at?->year ?? $letter->letter_date?->year ?? now()->year);
             $registerNumber = ((int) RegisterEntry::query()->where('tenant_id', $letter->tenant_id)->where('register_year', $year)->lockForUpdate()->max('register_number')) + 1;
-
-            return RegisterEntry::query()->create([
+            $entry = RegisterEntry::query()->create([
                 'tenant_id' => $letter->tenant_id,
                 'outgoing_letter_id' => $letter->id,
                 'registered_by' => $letter->signer_user_id,
@@ -51,6 +50,9 @@ final class RegisterEntryService
                 'source' => RegisterEntrySource::DANUM,
                 'status' => RegisterEntryStatus::REGISTERED,
             ]);
+            $actor = $letter->signerUser()->first();
+            if ($actor) app(AuditLogService::class)->record('register_entry.created', $actor, $entry, null, $entry->only(['tenant_id', 'outgoing_letter_id', 'register_number', 'register_year', 'letter_number', 'source', 'status']));
+            return $entry;
         });
     }
 
@@ -67,8 +69,7 @@ final class RegisterEntryService
             Tenant::query()->whereKey($tenantId)->lockForUpdate()->firstOrFail();
             if (RegisterEntry::query()->where('tenant_id', $tenantId)->where('letter_number', $letterNumber)->exists()) throw new \DomainException('Nomor surat tersebut sudah tercatat dalam buku register tenant ini.');
             $registerNumber = ((int) RegisterEntry::query()->where('tenant_id', $tenantId)->where('register_year', $year)->lockForUpdate()->max('register_number')) + 1;
-
-            return RegisterEntry::query()->create([
+            $entry = RegisterEntry::query()->create([
                 'tenant_id' => $tenantId,
                 'registered_by' => $user->id,
                 'register_number' => $registerNumber,
@@ -85,6 +86,8 @@ final class RegisterEntryService
                 'source' => RegisterEntrySource::MANUAL,
                 'status' => RegisterEntryStatus::REGISTERED,
             ]);
+            app(AuditLogService::class)->record('register_entry.created', $user, $entry, null, $entry->only(['tenant_id', 'register_number', 'register_year', 'letter_number', 'source', 'status']));
+            return $entry;
         });
     }
 
