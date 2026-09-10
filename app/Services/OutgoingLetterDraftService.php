@@ -82,9 +82,11 @@ final class OutgoingLetterDraftService
             'jabatan_ttd' => $signerTitle,
         ];
 
-        $generatedPath = $this->docx->renderToStorage($templatePath, $tenant, $renderData);
+        $generatedPath = null;
 
         try {
+            $generatedPath = $this->docx->renderToStorage($templatePath, $tenant, $renderData);
+
             $content = $this->extractText(Storage::disk('local')->path($generatedPath));
             $attributes = [
                 'tenant_id' => $tenantId,
@@ -125,7 +127,7 @@ final class OutgoingLetterDraftService
             return 'Draft surat berhasil dibuat.';
         } catch (\Throwable $exception) {
             report($exception);
-            Storage::disk('local')->delete($generatedPath);
+            if ($generatedPath) Storage::disk('local')->delete($generatedPath);
             throw $exception;
         }
     }
