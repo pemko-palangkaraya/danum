@@ -57,13 +57,7 @@ class DocxLetterheadService
             if ($fragment->appendXML($tableXml)) $parent->replaceChild($fragment, $paragraph);
         }
 
-        return [
-            'xml' => $dom->saveXML() ?: $xml,
-            'rels' => $relsDom?->saveXML() ?: $rels,
-            'contentTypes' => $contentTypes,
-            'mediaName' => $mediaName,
-            'mediaPath' => $logoPath ?? '',
-        ];
+        return ['xml' => $dom->saveXML() ?: $xml, 'rels' => $relsDom?->saveXML() ?: $rels, 'contentTypes' => $contentTypes, 'mediaName' => $mediaName, 'mediaPath' => $logoPath ?? ''];
     }
 
     public function resolvePath(Tenant $tenant): ?string
@@ -88,7 +82,7 @@ class DocxLetterheadService
 
     private function hasStructuredSettings(Tenant $tenant): bool
     {
-        return collect([$tenant->letterhead_line1, $tenant->letterhead_line2, $tenant->letterhead_line3, $tenant->postal_code, $tenant->address, $tenant->website, $tenant->email])
+        return collect([$tenant->letterhead_line1, $tenant->letterhead_line2, $tenant->letterhead_line3, $tenant->address])
             ->contains(fn ($value): bool => trim((string) $value) !== '');
     }
 
@@ -124,30 +118,20 @@ class DocxLetterheadService
     private function buildTableXml(Tenant $tenant, string $mediaName, bool $hasLogo): string
     {
         $rows = [];
-        foreach ([
-            [$tenant->letterhead_line1, (int) ($tenant->letterhead_line1_size ?? 15)],
-            [$tenant->letterhead_line2, (int) ($tenant->letterhead_line2_size ?? 13)],
-            [$tenant->letterhead_line3, (int) ($tenant->letterhead_line3_size ?? 11)],
-        ] as [$value, $size]) {
+        foreach ([[$tenant->letterhead_line1, (int) ($tenant->letterhead_line1_size ?? 15)], [$tenant->letterhead_line2, (int) ($tenant->letterhead_line2_size ?? 13)], [$tenant->letterhead_line3, (int) ($tenant->letterhead_line3_size ?? 11)]] as [$value, $size]) {
             if (trim((string) $value) !== '') $rows[] = $this->textParagraph((string) $value, $size, true);
         }
 
-        // Alamat Lengkap adalah satu-satunya sumber metadata kontak kop.
-        // Line break dari textarea dipertahankan sebagai <w:br/>.
         $address = trim((string) $tenant->address);
-        if ($address !== '') {
-            $rows[] = $this->textParagraph($address, (int) ($tenant->letterhead_meta_size ?? 8), false);
-        }
+        if ($address !== '') $rows[] = $this->textParagraph($address, (int) ($tenant->letterhead_meta_size ?? 8), false);
 
-        // Jangan lagi menambahkan postal_code/email/website secara otomatis.
-        // Ketiganya ditulis manual oleh pengguna di textarea Alamat Lengkap.
         if ($rows === []) $rows[] = $this->textParagraph($tenant->name, (int) ($tenant->letterhead_line1_size ?? 15), true);
 
         $textWidth = $hasLogo ? '7200' : '9000';
         $grid = $hasLogo ? '<w:gridCol w:w="1800"/><w:gridCol w:w="7200"/>' : '<w:gridCol w:w="9000"/>';
         $textCell = '<w:tc><w:tcPr><w:tcW w:w="' . $textWidth . '" w:type="dxa"/><w:vAlign w:val="center"/><w:tcMar><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr>' . implode('', $rows) . '</w:tc>';
         $logoCell = '';
-        if ($hasLogo) $logoCell = '<w:tc><w:tcPr><w:tcW w:w="1800" w:type="dxa"/><w:vAlign w:val="center"/><w:tcMar><w:left w:w="60" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr><w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:r="' . self::OFFICE_REL_NS . '" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="1100000" cy="1100000"/><wp:docPr id="9002" name="DANUM Letterhead Logo"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="' . htmlspecialchars($mediaName, ENT_XML1 | ENT_QUOTES, 'UTF-8') . '"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdDanumLetterheadLogo"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1100000" cy="1100000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p></w:tc>';
+        if ($hasLogo) $logoCell = '<w:tc><w:tcPr><w:tcW w:w="1800" w:type="dxa"/><w:vAlign w:val="center"/><w:tcMar><w:left w:w="60" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr><w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:r="' . self::OFFICE_REL_NS . '" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="1100000" cy="1100000"/><wp:docPr id="9002" name="DANUM Letterhead Logo"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="' . htmlspecialchars($mediaName, ENT_XML1 | ENT_QUOTES, 'UTF-8') . '"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdDanumLetterheadLogo"/><a:stretch><a:fillRect/></a:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1100000" cy="1100000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p></w:tc>';
 
         return '<w:tbl xmlns:w="' . DocxRendererService::WORD_NS . '"><w:tblPr><w:tblW w:w="9000" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:jc w:val="left"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="single" w:sz="16" w:space="1"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr><w:tblGrid>' . $grid . '</w:tblGrid><w:tr>' . $logoCell . $textCell . '</w:tr></w:tbl>';
     }
@@ -161,7 +145,6 @@ class DocxLetterheadService
             if ($index > 0) $content .= '<w:br/>';
             $content .= '<w:t xml:space="preserve">' . htmlspecialchars(trim($part), ENT_XML1 | ENT_QUOTES, 'UTF-8') . '</w:t>';
         }
-
         return '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="' . $halfPoints . '"/><w:szCs w:val="' . $halfPoints . '"/>' . ($bold ? '<w:b/><w:bCs/>' : '') . '</w:rPr>' . $content . '</w:r></w:p>';
     }
 
