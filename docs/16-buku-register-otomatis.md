@@ -24,31 +24,37 @@ Keduanya sengaja dipisahkan.
 - Nomor surat adalah nomor resmi surat, misalnya `005/SETDA/2026`.
 - Nomor register adalah nomor urut pencatatan pada buku register untuk tahun tersebut.
 
-Karena itu surat manual dapat memiliki nomor surat yang diketik petugas, sementara DANUM memberikan nomor register berikutnya secara otomatis.
+Nomor surat manual tidak dibuat ulang oleh DANUM. DANUM hanya memberikan nomor register berikutnya.
 
 ## Otomatisasi surat DANUM
 
 Alurnya:
 
 ```text
-DRAFT
-  ↓
-SUBMITTED
-  ↓
-VALIDATED
-  ↓
-ISSUED
-  ↓
-REGISTER ENTRY (otomatis)
+DRAFT → SUBMITTED → VALIDATED → ISSUED → REGISTER ENTRY
 ```
 
 Pembuatan register dibuat idempotent: satu `outgoing_letter` tidak boleh menghasilkan lebih dari satu entri register.
 
+## Backfill surat lama
+
+Setelah deployment pertama fitur ini, surat DANUM yang sudah berstatus `ISSUED` sebelum fitur aktif belum otomatis tersentuh oleh event baru. Gunakan command berikut satu kali untuk mengisi register yang belum ada:
+
+```powershell
+php artisan register:backfill
+```
+
+Untuk satu tenant saja:
+
+```powershell
+php artisan register:backfill --tenant=<TENANT_UUID>
+```
+
+Command hanya memproses surat `ISSUED` yang belum mempunyai `RegisterEntry`.
+
 ## Surat manual
 
-Petugas tenant dapat membuka:
-
-`Buku Register → Surat Manual`
+Petugas tenant dapat membuka `Buku Register → Surat Manual`.
 
 Data utama:
 
@@ -62,23 +68,17 @@ Data utama:
 - penandatangan
 - jabatan penandatangan
 
-Nomor surat tidak dibuat ulang oleh DANUM.
-
 Sistem memeriksa agar nomor surat yang sama tidak tercatat dua kali pada tenant yang sama.
 
 ## Koreksi
 
-Register yang berasal dari DANUM tidak diedit dari Buku Register. Data historis surat DANUM tetap mengikuti prinsip historical integrity.
-
-Register manual dapat dikoreksi dengan alasan wajib. Koreksi dicatat pada audit log dengan nilai lama, nilai baru, pengguna, dan waktu perubahan.
+Register yang berasal dari DANUM tidak diedit dari Buku Register. Register manual dapat dikoreksi dengan alasan wajib. Koreksi dicatat pada audit log dengan nilai lama, nilai baru, pengguna, dan waktu perubahan.
 
 ## Multi-tenant
 
-Semua query register tenant dibatasi berdasarkan `tenant_id`. Super Admin dapat menggunakan API dengan filter tenant, sedangkan pengguna tenant hanya melihat register tenant sendiri.
+Semua query register tenant dibatasi berdasarkan `tenant_id`. Pengguna tenant hanya melihat register tenant sendiri.
 
 ## API internal
-
-Endpoint yang tersedia pada API internal:
 
 ```text
 GET   /api/register-entries
@@ -86,11 +86,11 @@ POST  /api/register-entries
 PATCH /api/register-entries/{id}
 ```
 
-Endpoint tetap berada di balik middleware autentikasi yang sama dengan API internal DANUM.
+Endpoint tetap berada di balik autentikasi API internal DANUM.
 
 ## Struktur data
 
-Tabel `register_entries` menyimpan snapshot administratif, antara lain:
+Tabel `register_entries` menyimpan snapshot administratif:
 
 - `register_number`
 - `register_year`
@@ -109,19 +109,16 @@ Tabel `register_entries` menyimpan snapshot administratif, antara lain:
 
 `outgoing_letter_id` nullable karena surat manual tidak memiliki record `OutgoingLetter`.
 
-## Prinsip yang dipakai
+## Prinsip
 
 1. Register adalah catatan historis, bukan query langsung ke surat aktif.
 2. Surat DANUM masuk register ketika benar-benar `ISSUED`.
-3. Surat manual dapat dicatat tanpa membuat surat palsu di workflow DANUM.
+3. Surat manual dicatat tanpa membuat surat palsu di workflow DANUM.
 4. Nomor register terpisah dari nomor surat.
 5. Koreksi manual wajib beralasan dan diaudit.
 6. Data antar-tenant tidak boleh bercampur.
-7. Fitur kesenjangan nomor dan cetak/export buku register dapat dikembangkan berikutnya.
 
 ## Pengembangan berikutnya
-
-Prioritas lanjutan:
 
 1. cetak Buku Register PDF dengan format administrasi pemerintahan;
 2. export Excel/CSV;
