@@ -24,6 +24,7 @@ class Tenant extends Model
     protected $fillable = [
         'code', 'name', 'tenant_category_id', 'parent_tenant_id', 'province', 'city', 'district', 'village', 'address',
         'phone', 'email', 'logo', 'letterhead_path', 'letterhead_line1', 'letterhead_line2', 'letterhead_line3',
+        'letterhead_line1_size', 'letterhead_line2_size', 'letterhead_line3_size', 'letterhead_meta_size',
         'postal_code', 'website', 'head_name', 'head_title', 'head_nip', 'status', 'administrator_user_id',
     ];
 
