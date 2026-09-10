@@ -124,43 +124,53 @@
             <div class="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
                 <div>
                     <h3 class="font-semibold text-slate-900">Preview Kop Surat</h3>
-                    <p class="mt-0.5 text-xs text-slate-500">Preview menggunakan pengaturan yang sedang tampil, termasuk perubahan yang belum disimpan.</p>
+                    <p class="mt-0.5 text-xs text-slate-500">Preview mengikuti susunan yang digunakan saat DOCX dibuat: logo kiri, teks kop kanan, garis bawah penuh.</p>
                 </div>
                 <button type="button" wire:click="closeLetterheadPreview" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700">Tutup</button>
             </div>
 
             <div class="overflow-auto p-4 sm:p-8">
-                <div class="mx-auto min-h-[700px] w-full max-w-[794px] bg-white px-[45px] py-[45px] shadow-lg sm:px-[65px]">
-                    <div class="border-b-[3px] border-slate-800 pb-4">
-                        <div class="grid grid-cols-[82px_minmax(0,1fr)] items-center gap-4">
-                            <div class="flex justify-center">
+                <div class="mx-auto w-full max-w-[794px] bg-white px-[42px] py-[42px] shadow-lg sm:px-[55px] sm:py-[45px]">
+                    <div class="border-b-[3px] border-slate-800 pb-3">
+                        <div class="flex items-center gap-4">
+                            <div class="flex w-[92px] shrink-0 items-center justify-center">
                                 @if ($logo)
-                                <img src="{{ $logo->temporaryUrl() }}" alt="Logo" class="max-h-[72px] max-w-[72px] object-contain">
+                                <img src="{{ $logo->temporaryUrl() }}" alt="Logo" class="max-h-[78px] max-w-[78px] object-contain">
                                 @elseif ($logoUrl)
-                                <img src="{{ $logoUrl }}" alt="Logo" class="max-h-[72px] max-w-[72px] object-contain">
+                                <img src="{{ $logoUrl }}" alt="Logo" class="max-h-[78px] max-w-[78px] object-contain">
                                 @endif
                             </div>
-                            <div class="text-center font-[Arial,sans-serif] text-slate-900">
+                            <div class="min-w-0 flex-1 text-center font-[Arial,sans-serif] text-slate-900">
                                 @foreach ([[$letterheadLine1, $letterheadLine1Size], [$letterheadLine2, $letterheadLine2Size], [$letterheadLine3, $letterheadLine3Size]] as [$line, $size])
                                 @if (trim($line) !== '')
-                                <div class="font-bold uppercase leading-tight" style="font-size: {{ $size }}pt">{{ $line }}</div>
+                                <div class="font-bold uppercase leading-[1.05]" style="font-size: {{ $size }}pt">{{ $line }}</div>
                                 @endif
                                 @endforeach
+
+                                @if (trim($address) !== '')
+                                <div class="mt-1 leading-[1.15]" style="font-size: {{ $letterheadMetaSize }}pt">
+                                    @foreach (preg_split('/\R/u', trim($address)) ?: [] as $addressLine)
+                                    @if (trim($addressLine) !== '')
+                                    <div>{{ trim($addressLine) }}</div>
+                                    @endif
+                                    @endforeach
+                                </div>
+                                @endif
+
                                 @php($meta = array_values(array_filter([
-                                trim($address) !== '' ? trim($address) : null,
-                                trim($postalCode) !== '' ? 'Kode Pos ' . trim($postalCode) : null,
-                                trim($phone) !== '' ? 'Telp. ' . trim($phone) : null,
-                                trim($email) !== '' ? trim($email) : null,
-                                trim($website) !== '' ? trim($website) : null,
+                                    trim($postalCode) !== '' ? 'Kode Pos ' . trim($postalCode) : null,
+                                    trim($phone) !== '' ? 'Telp. ' . trim($phone) : null,
+                                    trim($email) !== '' ? trim($email) : null,
+                                    trim($website) !== '' ? trim($website) : null,
                                 ])))
                                 @if ($meta !== [])
-                                <div class="mt-1 leading-tight" style="font-size: {{ $letterheadMetaSize }}pt">{{ implode('  |  ', $meta) }}</div>
+                                <div class="mt-0.5 leading-[1.15]" style="font-size: {{ $letterheadMetaSize }}pt">{{ implode(', ', $meta) }}</div>
                                 @endif
                             </div>
                         </div>
                     </div>
-                    <div class="pt-8 text-center text-slate-400">
-                        <div class="mx-auto max-w-xl border-b border-dashed border-slate-200 pb-3 text-[10px] uppercase tracking-widest">Area isi surat dimulai di sini</div>
+                    <div class="pt-6 text-center text-slate-400">
+                        <div class="mx-auto max-w-xl text-[10px] uppercase tracking-widest">Area isi surat dimulai di sini</div>
                     </div>
                 </div>
             </div>
