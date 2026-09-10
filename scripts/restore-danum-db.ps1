@@ -4,7 +4,6 @@ $Danum = 'C:\Users\yudhistira\Herd\danum'
 $BackupDirectory = 'C:\Users\yudhistira\Herd\danum-backups'
 $PgDump = 'C:\Program Files\PostgreSQL\18\bin\pg_dump.exe'
 $PgRestore = 'C:\Program Files\PostgreSQL\18\bin\pg_restore.exe'
-$Psql = 'C:\Program Files\PostgreSQL\18\bin\psql.exe'
 $Createdb = 'C:\Program Files\PostgreSQL\18\bin\createdb.exe'
 $Dropdb = 'C:\Program Files\PostgreSQL\18\bin\dropdb.exe'
 $EnvFile = Join-Path $Danum '.env'
@@ -29,7 +28,7 @@ function Get-EnvValue {
     return $value
 }
 
-foreach ($tool in @($PgDump, $PgRestore, $Psql, $Createdb, $Dropdb)) {
+foreach ($tool in @($PgDump, $PgRestore, $Createdb, $Dropdb)) {
     if (-not (Test-Path $tool)) {
         throw "PostgreSQL tool tidak ditemukan: $tool"
     }
@@ -122,7 +121,7 @@ try {
         }
 
         Write-Host "`n[CREATE] Membuat database: $restoreDatabase" -ForegroundColor Yellow
-        & $Createdb --host="$dbHost" --port="$dbPort" --username="$dbUsername" "$restoreDatabase"
+        & $Createdb --host="$dbHost" --port="$dbPort" --username="$dbUsername" --maintenance-db=postgres "$restoreDatabase"
         if ($LASTEXITCODE -ne 0) {
             throw "Gagal membuat database test. Exit code: $LASTEXITCODE"
         }
@@ -136,7 +135,7 @@ try {
         }
         catch {
             Write-Host '[CLEANUP] Menghapus database test karena restore gagal...' -ForegroundColor Yellow
-            & $Dropdb --host="$dbHost" --port="$dbPort" --username="$dbUsername" --if-exists "$restoreDatabase" | Out-Null
+            & $Dropdb --host="$dbHost" --port="$dbPort" --username="$dbUsername" --maintenance-db=postgres --if-exists "$restoreDatabase" | Out-Null
             throw
         }
 
@@ -157,7 +156,7 @@ try {
 
         $emergencyBackup = Join-Path $BackupDirectory ("danum-before-restore-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.dump')
         Write-Host '[SAFETY] Membuat backup database aktif sebelum restore...' -ForegroundColor Yellow
-        & $PgDump --format=custom --file="$emergencyBackup" --no-password
+        & $PgDump --host="$dbHost" --port="$dbPort" --username="$dbUsername" --dbname="$dbDatabase" --format=custom --file="$emergencyBackup" --no-password
         if ($LASTEXITCODE -ne 0) {
             throw "Backup pengaman sebelum restore gagal. Restore dibatalkan. Exit code: $LASTEXITCODE"
         }
