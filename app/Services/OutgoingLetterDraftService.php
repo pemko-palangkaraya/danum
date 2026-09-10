@@ -27,21 +27,9 @@ final class OutgoingLetterDraftService
         private readonly OutgoingLetterNumberService $numberService,
     ) {}
 
-    /**
-     * @param array<string,mixed> $data
-     */
-    public function save(
-        ?OutgoingLetter $existing,
-        LetterType $letterType,
-        Position $signerPosition,
-        PositionHolder $signerHolder,
-        Position $validatorPosition,
-        PositionHolder $validatorHolder,
-        array $data,
-        int|string $userId,
-        string $tenantId,
-        mixed $tenant,
-    ): string {
+    /** @param array<string,mixed> $data */
+    public function save(?OutgoingLetter $existing, LetterType $letterType, Position $signerPosition, PositionHolder $signerHolder, Position $validatorPosition, PositionHolder $validatorHolder, array $data, int|string $userId, string $tenantId, mixed $tenant): string
+    {
         $version = $this->letterTypes->activeVersion($letterType);
         $templateRelativePath = $version?->template_path ?: $letterType->template_path;
         if (! $templateRelativePath) throw new \DomainException('Template DOCX surat belum tersedia.');
@@ -64,54 +52,25 @@ final class OutgoingLetterDraftService
             $manualNumber = $this->manualNumberFromInput($data['number'] ?? null);
             $sequenceNumber = $manualNumber;
             $sequenceYear = (int) $letterDate->year;
-            $number = $this->numberService->generate(
-                $tenant,
-                $letterType->classification()->firstOrFail(),
-                $letterDate,
-                $manualNumber,
-            );
+            $number = $this->numberService->generate($tenant, $letterType->classification()->firstOrFail(), $letterDate, $manualNumber);
         }
 
         $data['number'] = $number;
-
-        $renderData = [
-            ...$this->formatDateVariablesForTemplate($data),
-            'tenant_head_name' => $signerName,
-            'tenant_head_title' => $signerTitle,
-            'nama_ttd' => $signerName,
-            'jabatan_ttd' => $signerTitle,
-        ];
-
+        $renderData = [...$this->formatDateVariablesForTemplate($data), 'tenant_head_name' => $signerName, 'tenant_head_title' => $signerTitle, 'nama_ttd' => $signerName, 'jabatan_ttd' => $signerTitle];
         $generatedPath = null;
 
         try {
-            $generatedPath = $this->docx->renderToStorage($templatePath, $tenant, $renderData);
-
+            $generatedPath = $this->docx->renderToStorage($templatePath, $tenant, $renderData, $letterType->font_family);
             $content = $this->extractText(Storage::disk('local')->path($generatedPath));
             $attributes = [
-                'tenant_id' => $tenantId,
-                'letter_type_id' => $letterType->id,
-                'letter_type_version_id' => $version?->id,
-                'signer_position_id' => $signerPosition->id,
-                'signer_user_id' => $signerHolder->user_id,
-                'signer_name' => $signerName,
-                'signer_title' => $signerTitle,
-                'validator_position_id' => $validatorPosition->id,
-                'validator_user_id' => $validatorHolder->user_id,
-                'validator_name' => $validatorHolder->user->name,
-                'validator_title' => $validatorPosition->name,
-                'number' => $number,
-                'sequence_number' => $sequenceNumber,
-                'sequence_year' => $sequenceYear,
-                'recipient_name' => (string) ($data['recipient_name'] ?? ''),
-                'recipient_address' => (string) ($data['recipient_address'] ?? ''),
-                'subject' => (string) ($data['subject'] ?? ''),
-                'letter_date' => $data['date'] ?? null,
-                'generated_docx_path' => $generatedPath,
-                'verification_token' => $verificationToken,
-                'content' => $content,
-                'input_data' => $data,
-                'citizen_id' => $citizenId,
+                'tenant_id' => $tenantId, 'letter_type_id' => $letterType->id, 'letter_type_version_id' => $version?->id,
+                'signer_position_id' => $signerPosition->id, 'signer_user_id' => $signerHolder->user_id, 'signer_name' => $signerName,
+                'signer_title' => $signerTitle, 'validator_position_id' => $validatorPosition->id, 'validator_user_id' => $validatorHolder->user_id,
+                'validator_name' => $validatorHolder->user->name, 'validator_title' => $validatorPosition->name, 'number' => $number,
+                'sequence_number' => $sequenceNumber, 'sequence_year' => $sequenceYear, 'recipient_name' => (string) ($data['recipient_name'] ?? ''),
+                'recipient_address' => (string) ($data['recipient_address'] ?? ''), 'subject' => (string) ($data['subject'] ?? ''),
+                'letter_date' => $data['date'] ?? null, 'generated_docx_path' => $generatedPath, 'verification_token' => $verificationToken,
+                'content' => $content, 'input_data' => $data, 'citizen_id' => $citizenId,
             ];
 
             if ($existing) {
@@ -136,15 +95,9 @@ final class OutgoingLetterDraftService
     {
         $value = trim((string) ($value ?? ''));
         if ($value === '') return null;
-        if (! preg_match('/^\d+$/', $value)) {
-            throw new \DomainException('Nomor urut manual harus berupa angka saja. Kosongkan untuk penomoran otomatis.');
-        }
-
+        if (! preg_match('/^\d+$/', $value)) throw new \DomainException('Nomor urut manual harus berupa angka saja. Kosongkan untuk penomoran otomatis.');
         $number = (int) $value;
-        if ($number < 1) {
-            throw new \DomainException('Nomor urut manual harus lebih besar dari 0.');
-        }
-
+        if ($number < 1) throw new \DomainException('Nomor urut manual harus lebih besar dari 0.');
         return $number;
     }
 
@@ -153,11 +106,9 @@ final class OutgoingLetterDraftService
     {
         foreach ($data as $key => $value) {
             if (! is_string($key) || is_array($value) || blank($value)) continue;
-
             $definition = $this->variableDefinitions->forKey($key);
             if ($this->dates->isDate($key, $definition?->type)) $data[$key] = $this->dates->format($value);
         }
-
         return $data;
     }
 
@@ -167,7 +118,6 @@ final class OutgoingLetterDraftService
         if ($zip->open($path) !== true) throw new \RuntimeException('File DOCX tidak dapat dibuka.');
         $xml = $zip->getFromName('word/document.xml') ?: '';
         $zip->close();
-
         $dom = new DOMDocument();
         $dom->preserveWhiteSpace = true;
         if (! $dom->loadXML($xml, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) return '';
@@ -176,8 +126,7 @@ final class OutgoingLetterDraftService
         $paragraphs = $xpath->query('//w:p');
         $parts = [];
         if ($paragraphs) foreach ($paragraphs as $paragraph) {
-            $nodes = $xpath->query('.//w:t', $paragraph);
-            $line = '';
+            $nodes = $xpath->query('.//w:t', $paragraph); $line = '';
             if ($nodes) foreach ($nodes as $node) $line .= $node->textContent;
             if ($line !== '') $parts[] = $line;
         }
