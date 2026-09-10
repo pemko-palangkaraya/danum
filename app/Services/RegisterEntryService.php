@@ -21,17 +21,30 @@ final class RegisterEntryService
         return RegisterEntry::query()->where('tenant_id', $tenantId)->with(['outgoingLetter', 'registeredBy:id,name']);
     }
 
+    private function nextRegisterNumber(string $tenantId, int $year): int
+    {
+        return ((int) RegisterEntry::query()
+            ->where('tenant_id', $tenantId)
+            ->where('register_year', $year)
+            ->orderByDesc('register_number')
+            ->value('register_number')) + 1;
+    }
+
     public function registerIssuedLetter(OutgoingLetter $letter): RegisterEntry
     {
-        if ($letter->status !== OutgoingLetterStatus::ISSUED) throw new \DomainException('Hanya surat yang sudah diterbitkan yang dapat masuk buku register.');
+        if ($letter->status !== OutgoingLetterStatus::ISSUED) {
+            throw new \DomainException('Hanya surat yang sudah diterbitkan yang dapat masuk buku register.');
+        }
 
         return DB::transaction(function () use ($letter): RegisterEntry {
             $existing = RegisterEntry::query()->where('outgoing_letter_id', $letter->id)->first();
-            if ($existing) return $existing;
+            if ($existing) {
+                return $existing;
+            }
 
             Tenant::query()->whereKey($letter->tenant_id)->lockForUpdate()->firstOrFail();
             $year = (int) ($letter->issued_at?->year ?? $letter->letter_date?->year ?? now()->year);
-            $registerNumber = ((int) RegisterEntry::query()->where('tenant_id', $letter->tenant_id)->where('register_year', $year)->lockForUpdate()->max('register_number')) + 1;
+            $registerNumber = $this->nextRegisterNumber($letter->tenant_id, $year);
             $entry = RegisterEntry::query()->create([
                 'tenant_id' => $letter->tenant_id,
                 'outgoing_letter_id' => $letter->id,
@@ -51,7 +64,9 @@ final class RegisterEntryService
                 'status' => RegisterEntryStatus::REGISTERED,
             ]);
             $actor = $letter->signerUser()->first();
-            if ($actor) app(AuditLogService::class)->record('register_entry.created', $actor, $entry, null, $entry->only(['tenant_id', 'outgoing_letter_id', 'register_number', 'register_year', 'letter_number', 'source', 'status']));
+            if ($actor) {
+                app(AuditLogService::class)->record('register_entry.created', $actor, $entry, null, $entry->only(['tenant_id', 'outgoing_letter_id', 'register_number', 'register_year', 'letter_number', 'source', 'status']));
+            }
             return $entry;
         });
     }
@@ -68,7 +83,7 @@ final class RegisterEntryService
             $year = (int) $date->year;
             Tenant::query()->whereKey($tenantId)->lockForUpdate()->firstOrFail();
             if (RegisterEntry::query()->where('tenant_id', $tenantId)->where('letter_number', $letterNumber)->exists()) throw new \DomainException('Nomor surat tersebut sudah tercatat dalam buku register tenant ini.');
-            $registerNumber = ((int) RegisterEntry::query()->where('tenant_id', $tenantId)->where('register_year', $year)->lockForUpdate()->max('register_number')) + 1;
+            $registerNumber = $this->nextRegisterNumber($tenantId, $year);
             $entry = RegisterEntry::query()->create([
                 'tenant_id' => $tenantId,
                 'registered_by' => $user->id,
