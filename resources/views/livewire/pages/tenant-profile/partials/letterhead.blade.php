@@ -54,7 +54,7 @@
             <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_240px]">
                 @if ($canUpdate)
                 <x-ui.field label="Ganti Logo" for="tenant-logo" error="{{ $errors->first('logo') }}">
-                    <input id="tenant-logo" type="file" wire:model="logo" accept="image/png,image/jpeg" class="block w-full cursor-pointer rounded-lg border border-slate-300 bg-white text-sm text-slate-700 shadow-sm file:mr-4 file:border-0 file:border-r file:border-slate-300 file:bg-slate-50 file:px-4 file:py-2.5 file:font-semibold file:text-slate-700 hover:file:bg-slate-100">
+                    <input id="tenant-logo" type="file" wire:model="logo" accept="image/png,image/jpeg" class="block w-full cursor-pointer rounded-lg border border-slate-300 bg-white text-sm text-slate-700 shadow-sm file:mr-4 file:border-0 file:border-r file:border-slate-300 file:bg-slate-50 file:px-4 file:py-2.5 file:font-semibold file:text-slate-700 hover:file:bg-slate-100 hover:file:bg-slate-100">
                     <p class="mt-1.5 text-xs text-slate-500">PNG atau JPG/JPEG. Maksimal 2 MB.</p>
                     <div wire:loading wire:target="logo" class="mt-2 text-xs text-slate-500">Uploading...</div>
                 </x-ui.field>
@@ -85,7 +85,7 @@
             <div class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
                 <div class="min-w-0 pr-4">
                     <h3 class="font-semibold text-slate-900">Preview Kop Surat</h3>
-                    <p class="mt-0.5 text-xs text-slate-500">Ini adalah simulasi halaman surat A4. Susunan kop mengikuti DOCX: logo kiri, teks kop kanan, dan garis bawah penuh.</p>
+                    <p class="mt-0.5 text-xs text-slate-500">Tampilan ini dibuat mengikuti susunan kop pada dokumen: logo di kiri, teks kop di kanan, dan garis bawah penuh.</p>
                 </div>
                 <button type="button" wire:click="closeLetterheadPreview" class="shrink-0 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700">Tutup</button>
             </div>
@@ -93,23 +93,23 @@
             <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-8">
                 <div class="mx-auto w-full max-w-[794px] bg-white px-[55px] py-[48px] shadow-xl" style="min-height: 1123px;">
                     <div class="border-b-[3px] border-slate-800 pb-3">
-                        <div class="grid grid-cols-[20%_80%] items-center">
-                            <div class="flex min-h-[112px] items-center justify-center pr-3">
+                        <div style="display:grid;grid-template-columns:20% 80%;align-items:center;width:100%;">
+                            <div style="display:flex;min-width:0;min-height:112px;align-items:center;justify-content:center;padding-right:12px;overflow:hidden;">
                                 @if ($logo)
-                                <img src="{{ $logo->temporaryUrl() }}" alt="Logo" class="block object-contain" style="width:auto;height:auto;max-height:112px;max-width:112px;">
+                                <img src="{{ $logo->temporaryUrl() }}" alt="Logo" style="display:block;width:auto;height:auto;max-width:90px;max-height:112px;object-fit:contain;">
                                 @elseif ($logoUrl)
-                                <img src="{{ $logoUrl }}" alt="Logo" class="block object-contain" style="width:auto;height:auto;max-height:112px;max-width:112px;">
+                                <img src="{{ $logoUrl }}" alt="Logo" style="display:block;width:auto;height:auto;max-width:90px;max-height:112px;object-fit:contain;">
                                 @endif
                             </div>
-                            <div class="min-w-0 text-center font-[Arial,sans-serif] text-slate-900">
+                            <div style="min-width:0;text-align:center;font-family:Arial,sans-serif;color:#0f172a;overflow:hidden;">
                                 @foreach ([[$letterheadLine1, $letterheadLine1Size], [$letterheadLine2, $letterheadLine2Size], [$letterheadLine3, $letterheadLine3Size]] as [$line, $size])
                                 @if (trim($line) !== '')
-                                <div class="font-bold uppercase leading-[1.05]" style="font-size: {{ $size }}pt">{{ $line }}</div>
+                                <div style="font-weight:700;text-transform:uppercase;line-height:1.05;font-size:{{ $size }}pt;overflow-wrap:anywhere;">{{ $line }}</div>
                                 @endif
                                 @endforeach
 
                                 @if (trim($address) !== '')
-                                <div class="mt-1 leading-[1.15]" style="font-size: {{ $letterheadMetaSize }}pt">
+                                <div style="margin-top:4px;line-height:1.15;font-size:{{ $letterheadMetaSize }}pt;">
                                     @foreach (preg_split('/\R/u', trim($address)) ?: [] as $addressLine)
                                     @if (trim($addressLine) !== '')
                                     <div>{{ trim($addressLine) }}</div>
