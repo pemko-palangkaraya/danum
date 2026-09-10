@@ -132,14 +132,21 @@ class DocxLetterheadService
             if (trim((string) $value) !== '') $rows[] = $this->textParagraph((string) $value, $size, true);
         }
 
-        $meta = array_values(array_filter([
-            trim((string) $tenant->address) !== '' ? trim((string) $tenant->address) : null,
+        // Pertahankan Enter pada Alamat: setiap baris textarea menjadi paragraph Word tersendiri.
+        $addressLines = preg_split('/\R/u', trim((string) $tenant->address)) ?: [];
+        foreach ($addressLines as $addressLine) {
+            if (trim($addressLine) !== '') $rows[] = $this->textParagraph(trim($addressLine), (int) ($tenant->letterhead_meta_size ?? 8), false);
+        }
+
+        foreach (array_values(array_filter([
             trim((string) $tenant->postal_code) !== '' ? 'Kode Pos ' . trim((string) $tenant->postal_code) : null,
             trim((string) $tenant->phone) !== '' ? 'Telp. ' . trim((string) $tenant->phone) : null,
             trim((string) $tenant->email) !== '' ? trim((string) $tenant->email) : null,
             trim((string) $tenant->website) !== '' ? trim((string) $tenant->website) : null,
-        ]));
-        if ($meta !== []) $rows[] = $this->textParagraph(implode(', ', $meta), (int) ($tenant->letterhead_meta_size ?? 8), false);
+        ])) as $metaLine) {
+            $rows[] = $this->textParagraph($metaLine, (int) ($tenant->letterhead_meta_size ?? 8), false);
+        }
+
         if ($rows === []) $rows[] = $this->textParagraph($tenant->name, (int) ($tenant->letterhead_line1_size ?? 15), true);
 
         $textWidth = $hasLogo ? '7200' : '9000';
