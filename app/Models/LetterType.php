@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\LetterFont;
 use App\Enums\LetterTypeStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -22,7 +23,7 @@ class LetterType extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'tenant_id', 'letter_classification_id', 'code', 'name', 'description', 'body_template', 'template_path', 'variables', 'status',
+        'tenant_id', 'letter_classification_id', 'code', 'name', 'description', 'body_template', 'template_path', 'variables', 'status', 'font_family',
         'has_expiry', 'validity_days', 'validity_period', 'deletion_scheduled_at',
     ];
 
@@ -30,6 +31,7 @@ class LetterType extends Model
     {
         return [
             'status' => LetterTypeStatus::class,
+            'font_family' => LetterFont::class,
             'variables' => 'array',
             'has_expiry' => 'boolean',
             'validity_days' => 'integer',
