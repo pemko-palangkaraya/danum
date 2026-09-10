@@ -1,7 +1,7 @@
 <div class="space-y-6">
     <x-ui.page-header
         title="Edit Tenant"
-        description="Perbarui informasi tenant, hubungan wilayah, dan administrator."
+        description="Perbarui informasi dasar tenant, hubungan wilayah, dan administrator."
         :back-url="route('tenants.show', $tenantId)"
         back-label="Back to tenant"
     />
@@ -44,37 +44,6 @@
                         <p class="mt-1.5 text-xs text-slate-500">Kecamatan berada di bawah Pemerintah Kota; Kelurahan/Desa berada di bawah Kecamatan.</p>
                     @endif
                 </x-ui.field>
-            </div>
-        </x-ui.card>
-
-        <x-ui.card>
-            <x-slot:header>
-                <h2 class="text-sm font-semibold text-slate-900">Location</h2>
-                <p class="mt-1 text-xs text-slate-500">Lokasi administratif tenant. Untuk tenant wilayah, nilai mengikuti parent.</p>
-            </x-slot:header>
-            <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                <x-ui.input wire:model="province" label="Province" id="tenant-province" maxlength="100" error="{{ $errors->first('province') }}" required />
-                <x-ui.input wire:model="city" label="City" id="tenant-city" maxlength="100" error="{{ $errors->first('city') }}" required />
-                <x-ui.input wire:model="district" label="District" id="tenant-district" maxlength="100" error="{{ $errors->first('district') }}" required />
-                <x-ui.input wire:model="village" label="Village" id="tenant-village" maxlength="100" error="{{ $errors->first('village') }}" required />
-                <div class="sm:col-span-2 lg:col-span-4">
-                    <x-ui.field label="Address" for="tenant-address" error="{{ $errors->first('address') }}">
-                        <textarea id="tenant-address" wire:model="address" rows="3" class="form-textarea w-full"></textarea>
-                    </x-ui.field>
-                </div>
-            </div>
-        </x-ui.card>
-
-        <x-ui.card>
-            <x-slot:header>
-                <h2 class="text-sm font-semibold text-slate-900">Contact & Leadership</h2>
-                <p class="mt-1 text-xs text-slate-500">Informasi kontak dan pimpinan organisasi.</p>
-            </x-slot:header>
-            <div class="grid gap-5 sm:grid-cols-2">
-                <x-ui.input wire:model="phone" label="Phone" id="tenant-phone" maxlength="30" error="{{ $errors->first('phone') }}" />
-                <x-ui.input wire:model="email" label="Email" id="tenant-email" type="email" maxlength="150" error="{{ $errors->first('email') }}" />
-                <x-ui.input wire:model="head_name" label="Head Name" id="tenant-head-name" maxlength="150" error="{{ $errors->first('head_name') }}" />
-                <x-ui.input wire:model="head_title" label="Head Title" id="tenant-head-title" maxlength="100" error="{{ $errors->first('head_title') }}" />
             </div>
         </x-ui.card>
 
