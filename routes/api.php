@@ -8,6 +8,7 @@ use App\Http\Controllers\LetterTypeController;
 use App\Http\Controllers\LetterTypePermissionController;
 use App\Http\Controllers\OutgoingLetterController;
 use App\Http\Controllers\OutgoingLetterWithdrawalController;
+use App\Http\Controllers\RegisterEntryController;
 use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\PositionController;
 
@@ -39,6 +40,9 @@ Route::middleware('auth')->as('api.')->group(function () {
     Route::post('outgoing-letter-withdrawals/{request}/reject', [OutgoingLetterWithdrawalController::class, 'reject'])->name('outgoing-letter-withdrawals.reject');
     Route::get('outgoing-letters/{id}/pdf', [OutgoingLetterController::class, 'downloadPdf'])->name('outgoing-letters.pdf');
     Route::get('outgoing-letters/{id}/history', [OutgoingLetterController::class, 'history'])->name('outgoing-letters.history');
+    Route::get('register-entries', [RegisterEntryController::class, 'index'])->name('register-entries.index');
+    Route::post('register-entries', [RegisterEntryController::class, 'store'])->name('register-entries.store');
+    Route::patch('register-entries/{id}', [RegisterEntryController::class, 'update'])->name('register-entries.update');
     Route::get('tenant/profile', [TenantProfileController::class, 'show'])->name('tenant.profile.show');
     Route::match(['put', 'patch'], 'tenant/profile', [TenantProfileController::class, 'update'])->name('tenant.profile.update');
     Route::apiResource('positions', PositionController::class)->except(['create', 'edit']);
