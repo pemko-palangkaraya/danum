@@ -7,6 +7,7 @@ namespace App\Livewire\OutgoingLetters;
 use App\Enums\LetterTypeStatus;
 use App\Livewire\Concerns\HandlesLetterVariables;
 use App\Livewire\Concerns\WithStandardTablePagination;
+use App\Livewire\Concerns\WithTableSorting;
 use App\Models\OutgoingLetter;
 use App\Services\DocxTemplateService;
 use App\Services\LetterTypeService;
@@ -25,6 +26,7 @@ class Index extends Component
 {
     use HandlesLetterVariables;
     use WithStandardTablePagination;
+    use WithTableSorting;
 
     public string $search = '';
     public string $filter = 'all';
@@ -40,6 +42,15 @@ class Index extends Component
     public array $variables = [];
     public array $variableValues = [];
 
+    protected array $sortableColumns = [
+        'number' => 'number',
+        'date' => 'letter_date',
+        'subject' => 'subject',
+        'recipient' => 'recipient_name',
+        'status' => 'status',
+        'created' => 'created_at',
+    ];
+
     protected LetterTypeService $letterTypeService;
 
     public function boot(LetterTypeService $letterTypeService): void
@@ -50,12 +61,14 @@ class Index extends Component
     public function mount(): void
     {
         $this->filter = 'all';
+        $this->sortBy = 'created';
+        $this->sortDirection = 'desc';
     }
 
     public function updatedPerPage(): void
     {
         $this->perPage = max(5, min($this->perPage, 50));
-        $this->resetPage('issuedPage');
+        $this->resetPage();
     }
 
     public function create(): void
@@ -321,37 +334,20 @@ class Index extends Component
 
     private function tenantQuery()
     {
-        return $this->isSuperAdmin() ? OutgoingLetter::query()->with(['letterType']) : OutgoingLetter::query()->where('tenant_id', auth()->user()->tenant_id)->with(['letterType']);
+        return $this->isSuperAdmin() ? OutgoingLetter::query()->withTrashed() : OutgoingLetter::query()->where('tenant_id', auth()->user()->tenant_id)->withTrashed();
     }
 
-    private function archiveQuery()
+    public function render()
     {
-        return $this->isSuperAdmin() ? OutgoingLetter::withTrashed() : $this->tenantQuery();
-    }
-
-    private function resetForm(): void
-    {
-        $this->reset(['editingId', 'letter_type_id', 'signer_position_id', 'validator_position_id', 'variables', 'variableValues']);
-    }
-
-    private function toastError(string $message): void
-    {
-        $this->dispatch('toast', type: 'error', message: $message);
-    }
-
-    public function render(OutgoingLetterPositionService $positions, DocxTemplateService $templates)
-    {
-        $this->filter = $this->filter ?: 'all';
-        $this->authorize('viewAny', OutgoingLetter::class);
-        $letters = $this->archiveQuery()->with(['tenant', 'letterType', 'letterTypeVersion', 'signerPosition', 'signerUser', 'validatorPosition', 'validatorUser', 'creator', 'rejectedBy'])->latest();
-        if ($this->isSuperAdmin() && $this->filter === 'deleted') $letters->onlyTrashed();
-        elseif ($this->filter !== 'all') $letters->where('status', $this->filter);
-        if ($this->search !== '') $letters->where(fn ($query) => $query->where('number', 'like', "%{$this->search}%")->orWhere('recipient_name', 'like', "%{$this->search}%")->orWhere('subject', 'like', "%{$this->search}%"));
-        $tenantId = auth()->user()->tenant_id;
-        $letterTypes = $this->isSuperAdmin() || $tenantId === null ? collect() : $this->letterTypeService->getAvailableForTenant($tenantId)->sortBy('name')->values();
-        $tenant = auth()->user()?->tenant;
-        $signerPositions = $tenant ? $positions->availableForTenantCategory($tenant->id, $tenant->tenant_category_id, 'can_sign')->orderBy('name')->get() : collect();
-        $validatorPositions = $tenant ? $positions->availableForTenantCategory($tenant->id, $tenant->tenant_category_id, 'can_validate')->orderBy('name')->get() : collect();
-        return view('livewire.pages.outgoing-letters.index', ['letters' => $letters->paginate($this->perPage), 'letterTypes' => $letterTypes, 'signerPositions' => $signerPositions, 'validatorPositions' => $validatorPositions, 'variableLabels' => $templates->allowedVariables(), 'repeaters' => $this->repeaterDefinitions(), 'isSuperAdmin' => $this->isSuperAdmin()]);
+        $query = $this->tenantQuery()->with(['letterType', 'signerUser', 'validatorUser']);
+        if ($this->search !== '') {
+            $search = '%' . trim($this->search) . '%';
+            $query->where(function ($q) use ($search) {
+                $q->where('number', 'ilike', $search)->orWhere('subject', 'ilike', $search)->orWhere('recipient_name', 'ilike', $search);
+            });
+        }
+        if ($this->filter !== 'all') $query->where('status', $this->filter);
+        $letters = $this->applyTableSorting($query, 'created', 'desc')->orderBy('id')->paginate($this->perPage);
+        return view('livewire.pages.outgoing-letters.index', ['letters' => $letters]);
     }
 }
