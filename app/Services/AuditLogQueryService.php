@@ -12,8 +12,20 @@ use Illuminate\Support\Collection;
 
 final class AuditLogQueryService
 {
+    private const SORTABLE_COLUMNS = [
+        'created' => 'created_at',
+        'actor' => 'user_id',
+        'tenant' => 'tenant_id',
+        'action' => 'action',
+        'object' => 'auditable_type',
+    ];
+
     public function paginate(array $filters = [], int $perPage = 5): LengthAwarePaginator
     {
+        $sortBy = (string) ($filters['sortBy'] ?? 'created');
+        $sortColumn = self::SORTABLE_COLUMNS[$sortBy] ?? self::SORTABLE_COLUMNS['created'];
+        $sortDirection = ($filters['sortDirection'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
+
         return AuditLog::query()
             ->with([
                 'user:id,name,email,tenant_id',
@@ -54,22 +66,18 @@ final class AuditLogQueryService
             })
             ->when($filters['dateFrom'] ?? '', fn ($query, $value) => $query->whereDate('created_at', '>=', $value))
             ->when($filters['dateTo'] ?? '', fn ($query, $value) => $query->whereDate('created_at', '<=', $value))
-            ->latest('created_at')
+            ->orderBy($sortColumn, $sortDirection)
             ->paginate(max(5, min($perPage, 50)));
     }
 
     public function actors(): Collection
     {
-        return User::query()
-            ->orderBy('name')
-            ->get(['id', 'name', 'email']);
+        return User::query()->orderBy('name')->get(['id', 'name', 'email']);
     }
 
     public function tenants(): Collection
     {
-        return Tenant::query()
-            ->orderBy('name')
-            ->get(['id', 'name', 'code']);
+        return Tenant::query()->orderBy('name')->get(['id', 'name', 'code']);
     }
 
     public function actions(): Collection
