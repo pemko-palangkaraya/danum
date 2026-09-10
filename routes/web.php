@@ -19,6 +19,7 @@ use App\Livewire\LetterVariableDefinitions\Index as LetterVariableDefinitionInde
 use App\Livewire\OutgoingLetters\Index as OutgoingLetterIndex;
 use App\Livewire\OutgoingLetters\Show as OutgoingLetterShow;
 use App\Livewire\OutgoingLetterWithdrawals\Index as OutgoingLetterWithdrawalIndex;
+use App\Livewire\Register\Index as RegisterIndex;
 use App\Livewire\Positions\Index as PositionIndex;
 use App\Livewire\Positions\Structure as PositionStructure;
 use App\Livewire\Population\Families as PopulationFamilies;
@@ -85,6 +86,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('permission:tenant-users.view')->group(function () { Volt::route('/tenant/users', 'pages.tenant-users')->name('tenant-users.index'); });
         Route::middleware('permission:population.view')->group(function () { Route::get('/tenant/population/citizens', PopulationCitizens::class)->name('population.citizens.index'); Route::get('/tenant/population/citizens/{citizen}', PopulationCitizenShow::class)->name('population.citizens.show'); Route::get('/tenant/population/families', PopulationFamilies::class)->name('population.families.index'); Route::get('/tenant/population/statistics', PopulationStatistics::class)->name('population.statistics'); });
         Route::middleware('permission:tenant-profile.view')->group(function () { Route::get('/tenant-profile', TenantProfile::class)->name('tenant-profile'); });
+        Route::middleware('permission:outgoing-letters.view')->group(function () { Route::get('/tenant/register', RegisterIndex::class)->name('register.index'); });
     });
     Route::middleware('permission:population.view')->group(function () {
         Route::get('/population/citizens/export', [PopulationExportController::class, 'citizens'])->name('population.citizens.export');
