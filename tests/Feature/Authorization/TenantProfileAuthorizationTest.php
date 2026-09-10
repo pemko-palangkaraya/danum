@@ -70,7 +70,6 @@ class TenantProfileAuthorizationTest extends TestCase
         $permission = Permission::query()->where('slug', PermissionEnum::TENANT_PROFILE_UPDATE->value)->firstOrFail();
 
         $user->roleModel()->permissions()->syncWithoutDetaching([$permission->id]);
-
         $this->actingAs($user);
 
         Livewire::test(TenantProfile::class)
@@ -78,33 +77,32 @@ class TenantProfileAuthorizationTest extends TestCase
             ->call('save')
             ->assertHasNoErrors();
 
-        $this->assertDatabaseHas('tenants', [
-            'id' => $tenant->id,
-            'name' => 'Nama Baru',
-        ]);
+        $this->assertDatabaseHas('tenants', ['id' => $tenant->id, 'name' => 'Nama Baru']);
     }
 
     public function test_tenant_profile_component_can_update_structured_letterhead_when_permission_is_granted(): void
     {
         Storage::fake('public');
-
         $tenant = Tenant::factory()->create();
         $user = User::factory()->tenantUser($tenant)->create();
         $permission = Permission::query()->where('slug', PermissionEnum::TENANT_PROFILE_UPDATE->value)->firstOrFail();
 
         $user->roleModel()->permissions()->syncWithoutDetaching([$permission->id]);
-
         $this->actingAs($user);
 
         $file = UploadedFile::fake()->image('logo.png', 500, 500);
 
         Livewire::test(TenantProfile::class)
             ->set('letterheadLine1', 'PEMERINTAH KOTA PALANGKA RAYA')
-            ->set('letterheadLine2', 'KECAMATAN RAKUMPIT')
-            ->set('letterheadLine3', 'KELURAHAN MUNGKU BARU')
-            ->set('postalCode', '73229')
-            ->set('address', 'Jl. Rakumpit Raya')
-            ->set('website', 'https://kelmungkubaru.palangkaraya.go.id')
+            ->set('letterheadLine2', 'KECAMATAN BUKIT BATU')
+            ->set('letterheadLine3', 'KELURAHAN TANGKILING')
+            ->set('letterheadLine1Size', 16)
+            ->set('letterheadLine2Size', 14)
+            ->set('letterheadLine3Size', 12)
+            ->set('letterheadMetaSize', 9)
+            ->set('postalCode', '73222')
+            ->set('address', 'Jl. Batu Banama No. 01')
+            ->set('website', 'https://contoh.go.id')
             ->set('logo', $file)
             ->call('save')
             ->assertHasNoErrors();
@@ -112,12 +110,31 @@ class TenantProfileAuthorizationTest extends TestCase
         $tenant->refresh();
 
         $this->assertSame('PEMERINTAH KOTA PALANGKA RAYA', $tenant->letterhead_line1);
-        $this->assertSame('KECAMATAN RAKUMPIT', $tenant->letterhead_line2);
-        $this->assertSame('KELURAHAN MUNGKU BARU', $tenant->letterhead_line3);
-        $this->assertSame('73229', $tenant->postal_code);
-        $this->assertSame('https://kelmungkubaru.palangkaraya.go.id', $tenant->website);
+        $this->assertSame('KECAMATAN BUKIT BATU', $tenant->letterhead_line2);
+        $this->assertSame('KELURAHAN TANGKILING', $tenant->letterhead_line3);
+        $this->assertSame(16, $tenant->letterhead_line1_size);
+        $this->assertSame(14, $tenant->letterhead_line2_size);
+        $this->assertSame(12, $tenant->letterhead_line3_size);
+        $this->assertSame(9, $tenant->letterhead_meta_size);
+        $this->assertSame('73222', $tenant->postal_code);
+        $this->assertSame('https://contoh.go.id', $tenant->website);
         $this->assertNotNull($tenant->logo);
         Storage::disk('public')->assertExists($tenant->logo);
+    }
+
+    public function test_tenant_profile_can_open_letterhead_preview_without_update_permission(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'letterhead_line1' => 'PEMERINTAH KOTA PALANGKA RAYA',
+            'letterhead_line1_size' => 15,
+        ]);
+        $user = User::factory()->tenantUser($tenant)->create();
+        $this->actingAs($user);
+
+        Livewire::test(TenantProfile::class)
+            ->call('previewLetterhead')
+            ->assertSet('showLetterheadPreview', true)
+            ->assertHasNoErrors();
     }
 
     public function test_super_admin_can_update_organization_profile(): void
