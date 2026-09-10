@@ -7,13 +7,17 @@ namespace App\Livewire;
 use App\Models\Tenant;
 use App\Services\AuditLogService;
 use App\Services\TenantProfileService;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 class TenantProfile extends Component
 {
+    use WithFileUploads;
+
     public Tenant $tenant;
     public bool $canUpdate = false;
 
@@ -27,6 +31,8 @@ class TenantProfile extends Component
     public string $email = '';
     public string $headName = '';
     public string $headTitle = '';
+    public $letterhead = null;
+    public ?string $currentLetterhead = null;
 
     public function mount(): void
     {
@@ -36,6 +42,7 @@ class TenantProfile extends Component
 
         $this->tenant = $tenant;
         $this->canUpdate = auth()->user()?->can('updateProfile', $tenant) === true;
+        $this->currentLetterhead = $tenant->letterheadUrl();
         $this->fillForm();
     }
 
@@ -81,9 +88,10 @@ class TenantProfile extends Component
             'email' => $this->tenant->email,
             'head_name' => $this->tenant->head_name,
             'head_title' => $this->tenant->head_title,
+            'letterhead_path' => $this->tenant->letterhead_path,
         ];
 
-        $updated = $service->update($this->tenant, [
+        $data = [
             'name' => $this->name,
             'province' => $this->province,
             'city' => $this->city,
@@ -94,9 +102,27 @@ class TenantProfile extends Component
             'email' => $this->email,
             'head_name' => $this->headName,
             'head_title' => $this->headTitle,
-        ]);
+        ];
+
+        if ($this->letterhead) {
+            $this->validate([
+                'letterhead' => ['file', 'image', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
+            ]);
+
+            $oldLetterhead = $this->tenant->letterhead_path;
+            $newLetterhead = $this->letterhead->store('tenant-letterheads', 'public');
+            $data['letterhead_path'] = $newLetterhead;
+
+            if ($oldLetterhead && $oldLetterhead !== $newLetterhead) {
+                Storage::disk('public')->delete($oldLetterhead);
+            }
+        }
+
+        $updated = $service->update($this->tenant, $data);
 
         $this->tenant = $updated->fresh();
+        $this->letterhead = null;
+        $this->currentLetterhead = $this->tenant->letterheadUrl();
         $this->fillForm();
 
         $newValues = [
@@ -110,6 +136,7 @@ class TenantProfile extends Component
             'email' => $this->tenant->email,
             'head_name' => $this->tenant->head_name,
             'head_title' => $this->tenant->head_title,
+            'letterhead_path' => $this->tenant->letterhead_path,
         ];
 
         if ($oldValues !== $newValues) {
@@ -129,7 +156,7 @@ class TenantProfile extends Component
     public function render()
     {
         return view('livewire.pages.tenant-profile', [
-            'letterheadUrl' => $this->tenant->letterheadUrl(),
+            'letterheadUrl' => $this->currentLetterhead,
         ]);
     }
 
