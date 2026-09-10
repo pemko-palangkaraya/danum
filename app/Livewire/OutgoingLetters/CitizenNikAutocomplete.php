@@ -12,6 +12,7 @@ class CitizenNikAutocomplete extends Component
 {
     public string $search = '';
     public string $variable = 'recipient_nik';
+    public bool $showSuggestions = false;
 
     public function mount(string $value = '', string $variable = 'recipient_nik'): void
     {
@@ -22,6 +23,14 @@ class CitizenNikAutocomplete extends Component
     public function updatedSearch(): void
     {
         $this->search = preg_replace('/\D+/', '', $this->search) ?? '';
+        $this->showSuggestions = $this->search !== '';
+    }
+
+    public function selectCitizen(string $nik): void
+    {
+        $this->search = preg_replace('/\D+/', '', $nik) ?? '';
+        $this->showSuggestions = false;
+        $this->dispatch('citizen-nik-selected', variable: $this->variable, nik: $this->search);
     }
 
     public function render(CitizenService $citizenService): View
@@ -29,7 +38,7 @@ class CitizenNikAutocomplete extends Component
         $tenantId = auth()->user()?->tenant_id;
         $suggestions = collect();
 
-        if ($tenantId && strlen($this->search) >= 3 && strlen($this->search) <= 16) {
+        if ($this->showSuggestions && $tenantId && strlen($this->search) >= 3 && strlen($this->search) <= 16) {
             $suggestions = $citizenService->query((string) $tenantId, '', null)
                 ->where('nik', 'like', $this->search . '%')
                 ->limit(8)
