@@ -16,7 +16,16 @@
     </div>
 
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div class="overflow-x-auto"><table class="min-w-full text-left text-sm"><thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-4 py-3">No. Register</th><th class="px-4 py-3">Nomor Surat</th><th class="px-4 py-3">Tanggal</th><th class="px-4 py-3">Perihal</th><th class="px-4 py-3">Tujuan</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Sumber</th><th class="px-4 py-3 text-right">Aksi</th></tr></thead><tbody class="divide-y divide-slate-100">
+        <div class="overflow-x-auto"><table class="min-w-full text-left text-sm"><thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>
+            <th class="px-4 py-3"><x-ui.table-sort-header column="register_number" label="No. Register" :sort-by="$sortBy" :sort-direction="$sortDirection" /></th>
+            <th class="px-4 py-3"><x-ui.table-sort-header column="letter_number" label="Nomor Surat" :sort-by="$sortBy" :sort-direction="$sortDirection" /></th>
+            <th class="px-4 py-3"><x-ui.table-sort-header column="letter_date" label="Tanggal" :sort-by="$sortBy" :sort-direction="$sortDirection" /></th>
+            <th class="px-4 py-3"><x-ui.table-sort-header column="subject" label="Perihal" :sort-by="$sortBy" :sort-direction="$sortDirection" /></th>
+            <th class="px-4 py-3"><x-ui.table-sort-header column="recipient_name" label="Tujuan" :sort-by="$sortBy" :sort-direction="$sortDirection" /></th>
+            <th class="px-4 py-3">Status</th>
+            <th class="px-4 py-3"><x-ui.table-sort-header column="source" label="Sumber" :sort-by="$sortBy" :sort-direction="$sortDirection" /></th>
+            <th class="px-4 py-3 text-right">Aksi</th>
+        </tr></thead><tbody class="divide-y divide-slate-100">
             @forelse($entries as $entry)
                 @php
                     $letter = $entry->outgoingLetter;
