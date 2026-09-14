@@ -12,6 +12,7 @@ final class LetterVariableDefinitionService
     private const SYSTEM_VARIABLES = [
         'number',
         'letterhead',
+        'qr',
         'tenant_name',
         'tenant_city',
         'tenant_district',
