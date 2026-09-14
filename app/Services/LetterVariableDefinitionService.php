@@ -93,7 +93,11 @@ final class LetterVariableDefinitionService
 
     public function isSystem(string $key): bool
     {
-        return in_array($key, self::SYSTEM_VARIABLES, true);
+        if (in_array($key, self::SYSTEM_VARIABLES, true)) {
+            return true;
+        }
+
+        return $this->forKey($key)?->source === 'system';
     }
 
     /** @param list<string> $variables @return list<string> */
@@ -113,11 +117,15 @@ final class LetterVariableDefinitionService
 
     public function isReadonly(string $key, bool $hasCitizen = false): bool
     {
+        if ($this->isSystem($key)) {
+            return true;
+        }
+
         $definition = $this->forKey($key);
         if ($definition && ! $hasCitizen) return (bool) $definition->readonly;
         if ($hasCitizen && in_array($key, self::CITIZEN_AUTOFILLED_VARIABLES, true)) return true;
         if ($definition) return (bool) $definition->readonly;
 
-        return $this->isSystem($key);
+        return false;
     }
 }
