@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -40,14 +41,18 @@ return new class extends Migration
             $table->timestampTz('deletion_scheduled_at')->nullable();
 
             $table->unique(['tenant_id', 'code']);
-            $table->unique(['code'], 'letter_types_global_code_unique');
             $table->index('letter_classification_id');
             $table->index('deletion_scheduled_at');
         });
+
+        DB::statement(
+            'CREATE UNIQUE INDEX letter_types_global_code_unique ON letter_types (code) WHERE tenant_id IS NULL AND deleted_at IS NULL'
+        );
     }
 
     public function down(): void
     {
+        DB::statement('DROP INDEX IF EXISTS letter_types_global_code_unique');
         Schema::dropIfExists('letter_types');
     }
 };
