@@ -18,7 +18,7 @@ final class OutgoingLetterAttachmentService
 {
     private const MAX_ATTACHMENTS = 20;
     private const MAX_FILE_SIZE = 20 * 1024 * 1024;
-    private const HEADER_HEIGHT = 30.0;
+    private const HEADER_HEIGHT = 36.0;
 
     public function addUploads(OutgoingLetter $letter, array $files, array $titles = []): void
     {
@@ -137,7 +137,7 @@ final class OutgoingLetterAttachmentService
         return $pages > 0 ? 'Lampiran : ' . $pages . ' (' . $this->numberToWords($pages) . ') lembar' : null;
     }
 
-    public function combineWithMainPdf(string $mainPdfPath, OutgoingLetter $letter, ?string $outputRelativePath = null): string
+    public function combineWithMainPdf(string $mainPdfPath, OutgoingLetter $letter, ?string $outputRelativePath = null, ?string $statusOverride = null): string
     {
         $attachments = $letter->attachments()->orderBy('sequence')->get();
         if ($attachments->isEmpty()) return $mainPdfPath;
@@ -158,7 +158,7 @@ final class OutgoingLetterAttachmentService
         foreach ($attachments as $attachment) {
             $absolutePath = Storage::disk('local')->path($attachment->file_path);
             if (! is_file($absolutePath)) throw new RuntimeException('File lampiran tidak ditemukan: ' . $attachment->original_name);
-            $this->appendPdf($pdf, $absolutePath, $letter, $attachment->sequence);
+            $this->appendPdf($pdf, $absolutePath, $letter, $attachment->sequence, $statusOverride);
         }
 
         $pdf->Output('F', $output);
@@ -173,7 +173,7 @@ final class OutgoingLetterAttachmentService
         return (int) $reader->setSourceFile($path);
     }
 
-    private function appendPdf(FileBufferedFpdi $pdf, string $path, ?OutgoingLetter $letter = null, ?int $sequence = null): void
+    private function appendPdf(FileBufferedFpdi $pdf, string $path, ?OutgoingLetter $letter = null, ?int $sequence = null, ?string $statusOverride = null): void
     {
         $pageCount = $pdf->setSourceFile($path);
         for ($page = 1; $page <= $pageCount; $page++) {
@@ -185,9 +185,9 @@ final class OutgoingLetterAttachmentService
             $pdf->AddPage($orientation, [$width, $height]);
 
             if ($page === 1 && $letter !== null && $sequence !== null) {
-                $this->drawAttachmentHeader($pdf, $letter, $sequence, $width, $height);
+                $this->drawAttachmentHeader($pdf, $letter, $sequence, $width, $height, $statusOverride);
                 $availableHeight = max(1.0, $height - self::HEADER_HEIGHT);
-                $scale = min(1.0, $width / $width, $availableHeight / $height);
+                $scale = min(1.0, $availableHeight / $height);
                 $renderWidth = $width * $scale;
                 $renderHeight = $height * $scale;
                 $x = ($width - $renderWidth) / 2;
@@ -199,7 +199,7 @@ final class OutgoingLetterAttachmentService
         }
     }
 
-    private function drawAttachmentHeader(FileBufferedFpdi $pdf, OutgoingLetter $letter, int $sequence, float $width, float $height): void
+    private function drawAttachmentHeader(FileBufferedFpdi $pdf, OutgoingLetter $letter, int $sequence, float $width, float $height, ?string $statusOverride = null): void
     {
         $pdf->SetFont('Helvetica', 'B', 12);
         $pdf->SetTextColor(0, 0, 0);
@@ -210,7 +210,7 @@ final class OutgoingLetterAttachmentService
         $signerTitle = trim((string) ($letter->signer_title ?? ''));
         $heading = trim('Surat ' . $signerTitle . ' ' . $tenantName);
         $hal = trim((string) ($letter->input_data['hal'] ?? $letter->subject ?? ''));
-        $status = $letter->status?->value ?? '';
+        $status = $statusOverride ?? $letter->status?->value ?? '';
         $statusLabel = match ($status) {
             'draft' => 'Draft',
             'submitted' => 'Diajukan',
@@ -231,7 +231,7 @@ final class OutgoingLetterAttachmentService
         $this->headerRow($pdf, 'Hal', $hal !== '' ? $hal : '-', $width, 25);
         $this->headerRow($pdf, 'Status', $statusLabel !== '' ? $statusLabel : '-', $width, 29);
 
-        $pdf->Line(15, self::HEADER_HEIGHT + 2, $width - 15, self::HEADER_HEIGHT + 2);
+        $pdf->Line(15, self::HEADER_HEIGHT - 2, $width - 15, self::HEADER_HEIGHT - 2);
     }
 
     private function headerRow(FileBufferedFpdi $pdf, string $label, string $value, float $width, float $y): void
