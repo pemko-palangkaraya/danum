@@ -82,14 +82,18 @@ class OutgoingLetterWorkflowService
             throw new \DomainException('Alasan penolakan wajib diisi.');
         }
 
-        if ($letter->status !== OutgoingLetterStatus::VALIDATED) {
-            throw new \DomainException('Hanya surat yang sudah divalidasi yang dapat ditolak.');
+        $canRejectSubmitted = $letter->status === OutgoingLetterStatus::DRAFT && $letter->submitted_at !== null;
+        $canRejectValidated = $letter->status === OutgoingLetterStatus::VALIDATED;
+
+        if (! $canRejectSubmitted && ! $canRejectValidated) {
+            throw new \DomainException('Hanya surat yang sedang menunggu verifikasi atau sudah divalidasi yang dapat ditolak.');
         }
 
         $oldValues = $this->auditValues($letter);
         $letter = $this->repository->update($letter, [
             'status' => OutgoingLetterStatus::DRAFT,
             'submitted_at' => null,
+            'verification_note' => null,
             'rejection_reason' => $reason,
             'rejected_by' => $changedBy,
             'rejected_at' => now(),
