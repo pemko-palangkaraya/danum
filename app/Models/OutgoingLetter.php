@@ -77,6 +77,7 @@ class OutgoingLetter extends Model
     public function withdrawalRequests(): HasMany { return $this->hasMany(OutgoingLetterWithdrawalRequest::class)->latest('created_at'); }
     public function verificationLogs(): HasMany { return $this->hasMany(VerificationLog::class, 'document_id'); }
     public function registerEntry(): HasOne { return $this->hasOne(RegisterEntry::class); }
+    public function attachments(): HasMany { return $this->hasMany(OutgoingLetterAttachment::class)->orderBy('sequence'); }
 
     private function localValidityTime(?Carbon $value): ?Carbon { return $value?->shiftTimezone(config('app.timezone')); }
 
