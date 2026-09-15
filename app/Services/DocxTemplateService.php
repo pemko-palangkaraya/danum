@@ -19,28 +19,22 @@ class DocxTemplateService
         private readonly DocxFontService $fonts,
     ) {}
 
-    /** @return array<string,string> */
     public function allowedVariables(): array { return $this->variableService->allowedVariables(); }
-    /** @return list<string> */
     public function normalizeVariables(string $input): array { return $this->variableService->normalizeVariables($input); }
-    /** @return list<string> */
     public function extractVariables(string $path): array { return $this->variableService->extractVariables($path); }
-    /** @param list<string> $declared @param list<string> $found */
     public function compareVariables(array $declared, array $found): array { return $this->variableService->compareVariables($declared, $found); }
-    /** @param list<string> $found @param list<string> $allowed */
     public function validateVariables(array $found, array $allowed): array { return $this->variableService->validateVariables($found, $allowed); }
 
     public function validate(string $template): void
     {
         preg_match_all('/\{\{\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\}\}/', $template, $matches);
         $allowed = array_keys($this->allowedVariables());
-        $reserved = ['letterhead', 'qr', 'tte'];
+        $reserved = ['letterhead', 'qr', 'tte', 'lampiran'];
         foreach (array_unique($matches[1] ?? []) as $variable) {
             if (! in_array($variable, [...$allowed, ...$reserved], true)) throw new \InvalidArgumentException(sprintf('Unknown letter template variable: %s.', $variable));
         }
     }
 
-    /** @param array<string,mixed> $data */
     public function renderToStorage(string $templatePath, Tenant $tenant, array $data, LetterFont $font = LetterFont::ARIAL): string
     {
         [$xml, $rels, $contentTypes] = $this->readTemplate($templatePath);
@@ -79,7 +73,6 @@ class DocxTemplateService
         return $path;
     }
 
-    /** @return array{0:string,1:string,2:string} */
     private function readTemplate(string $templatePath): array
     {
         $source = new ZipArchive();
@@ -92,7 +85,6 @@ class DocxTemplateService
         return [$xml, $rels, $contentTypes];
     }
 
-    /** @param array<string,mixed> $data @return array<string,mixed> */
     private function tenantValues(Tenant $tenant, array $data): array
     {
         return [
