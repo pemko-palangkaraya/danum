@@ -25,9 +25,9 @@ final class OutgoingLetterDraftService
         private readonly LetterVariableDateService $dates,
         private readonly LetterVariableDefinitionService $variableDefinitions,
         private readonly OutgoingLetterNumberService $numberService,
+        private readonly OutgoingLetterAttachmentService $attachments,
     ) {}
 
-    /** @param array<string,mixed> $data */
     public function save(?OutgoingLetter $existing, LetterType $letterType, Position $signerPosition, PositionHolder $signerHolder, Position $validatorPosition, PositionHolder $validatorHolder, array $data, int|string $userId, string $tenantId, mixed $tenant): string
     {
         $version = $this->letterTypes->activeVersion($letterType);
@@ -56,7 +56,14 @@ final class OutgoingLetterDraftService
         }
 
         $data['number'] = $number;
-        $renderData = [...$this->formatDateVariablesForTemplate($data), 'tenant_head_name' => $signerName, 'tenant_head_title' => $signerTitle, 'nama_ttd' => $signerName, 'jabatan_ttd' => $signerTitle];
+        $renderData = [
+            ...$this->formatDateVariablesForTemplate($data),
+            'tenant_head_name' => $signerName,
+            'tenant_head_title' => $signerTitle,
+            'nama_ttd' => $signerName,
+            'jabatan_ttd' => $signerTitle,
+            'lampiran' => $existing ? ($this->attachments->label($existing) ?? '') : '',
+        ];
         $generatedPath = null;
 
         try {
@@ -101,7 +108,6 @@ final class OutgoingLetterDraftService
         return $number;
     }
 
-    /** @param array<string,mixed> $data */
     private function formatDateVariablesForTemplate(array $data): array
     {
         foreach ($data as $key => $value) {
