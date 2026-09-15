@@ -14,7 +14,7 @@ class DocxLetterheadService
 {
     private const REL_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';
     private const OFFICE_REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
-    private const DEFAULT_TABLE_WIDTH = 10800;
+    private const DEFAULT_TABLE_WIDTH = 9860;
 
     /** @return array{xml:string,rels:string,contentTypes:string,mediaName:string,mediaPath:string}|null */
     public function embed(string $xml, string $rels, string $contentTypes, Tenant $tenant): ?array
@@ -85,7 +85,7 @@ class DocxLetterheadService
     private function hasStructuredSettings(Tenant $tenant): bool
     {
         return collect([$tenant->letterhead_line1, $tenant->letterhead_line2, $tenant->letterhead_line3, $tenant->address])
-            ->contains(fn ($value): bool => trim((string) $value) !== '');
+            ->contains(fn($value): bool => trim((string) $value) !== '');
     }
 
     private function documentBodyWidth(DOMXPath $xpath): int
@@ -121,13 +121,20 @@ class DocxLetterheadService
             $nodes = $xpath->query('.//w:t', $paragraph);
             if (! $nodes) continue;
             foreach ($nodes as $node) if (str_contains($node->textContent, '{{letterhead}}')) {
-                $parent = $node->parentNode; if (! $parent) continue;
-                $fragment = $dom->createDocumentFragment(); if ($fragment->appendXML($drawingXml)) $parent->replaceChild($fragment, $node);
+                $parent = $node->parentNode;
+                if (! $parent) continue;
+                $fragment = $dom->createDocumentFragment();
+                if ($fragment->appendXML($drawingXml)) $parent->replaceChild($fragment, $node);
             }
         }
-        $relsDom = new DOMDocument(); $relsDom->preserveWhiteSpace = true;
+        $relsDom = new DOMDocument();
+        $relsDom->preserveWhiteSpace = true;
         if (! $relsDom->loadXML($rels, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) throw new RuntimeException('DOCX relationships tidak valid.');
-        $rel = $relsDom->createElementNS(self::REL_NS, 'Relationship'); $rel->setAttribute('Id', $rid); $rel->setAttribute('Type', self::OFFICE_REL_NS . '/image'); $rel->setAttribute('Target', 'media/' . $mediaName); $relsDom->documentElement?->appendChild($rel);
+        $rel = $relsDom->createElementNS(self::REL_NS, 'Relationship');
+        $rel->setAttribute('Id', $rid);
+        $rel->setAttribute('Type', self::OFFICE_REL_NS . '/image');
+        $rel->setAttribute('Target', 'media/' . $mediaName);
+        $relsDom->documentElement?->appendChild($rel);
         return ['xml' => $dom->saveXML() ?: '', 'rels' => $relsDom->saveXML() ?: $rels, 'contentTypes' => $contentTypes, 'mediaName' => $mediaName, 'mediaPath' => $imagePath];
     }
 
