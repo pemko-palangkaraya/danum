@@ -15,15 +15,15 @@
                         @error('no_kk') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
 
-                    <div class="sm:col-span-1 lg:col-span-2">
+                    <div class="sm:col-span-1 lg:col-span-2" x-data="{ showHeadResults: false }">
                         <label class="text-sm font-medium text-slate-700">Kepala Keluarga <span class="font-normal text-slate-400">(opsional)</span></label>
                         <div class="relative mt-2">
                             <svg class="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                 <circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>
                             </svg>
-                            <input wire:model.live.debounce.300ms="headSearch" placeholder="Ketik nama atau NIK..." class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 pl-11 pr-16 text-sm shadow-sm focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
+                            <input wire:model.live.debounce.300ms="headSearch" @input="showHeadResults = true" placeholder="Ketik nama atau NIK..." class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 pl-11 pr-16 text-sm shadow-sm focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
                             @if($head_citizen_id)
-                                <button type="button" wire:click="resetHead" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 hover:text-slate-700">Hapus</button>
+                                <button type="button" wire:click="resetHead" @click="showHeadResults = false" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 hover:text-slate-700">Hapus</button>
                             @endif
                         </div>
 
@@ -38,9 +38,9 @@
                         @endif
 
                         @if($headSearch !== '' && $headCitizens->count())
-                            <div class="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                            <div x-show="showHeadResults" x-cloak class="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
                                 @foreach($headCitizens as $citizen)
-                                    <button type="button" wire:click="selectHead('{{ $citizen->id }}')" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 px-4 py-3 text-left transition last:border-0 hover:bg-slate-50">
+                                    <button type="button" wire:click="selectHead('{{ $citizen->id }}')" @click="showHeadResults = false" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 px-4 py-3 text-left transition last:border-0 hover:bg-slate-50">
                                         <div class="min-w-0">
                                             <div class="truncate text-sm font-semibold text-slate-800">{{ $citizen->nama_lengkap }}</div>
                                             <div class="mt-0.5 font-mono text-xs text-slate-500">{{ $citizen->nik }}</div>
@@ -50,7 +50,7 @@
                                 @endforeach
                             </div>
                         @elseif($headSearch !== '')
-                            <p class="mt-2 text-xs text-slate-500">Warga tidak ditemukan.</p>
+                            <p x-show="showHeadResults" x-cloak class="mt-2 text-xs text-slate-500">Warga tidak ditemukan.</p>
                         @endif
                         @error('head_citizen_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
