@@ -48,6 +48,7 @@ class LetterVariableDefinitionSeeder extends Seeder
             ['status_kependudukan', 'Status Kependudukan', 'text', 'citizen', false, true],
             ['alamat', 'Alamat', 'text', 'family', false, true],
             ['qr', 'QR verifikasi surat (system marker)', 'text', 'system', false, true],
+            ['lampiran', 'Jumlah halaman lampiran (system marker)', 'text', 'system', false, true],
             ['nama_ttd', 'Nama Penanda Tangan', 'text', 'system', true, true],
             ['nip_ttd', 'NIP Penanda Tangan', 'text', 'system', false, true],
             ['pangkat_ttd', 'Pangkat Penanda Tangan', 'text', 'system', false, true],
