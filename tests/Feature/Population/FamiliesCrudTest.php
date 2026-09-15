@@ -64,6 +64,44 @@ class FamiliesCrudTest extends TestCase
         ]);
     }
 
+    public function test_selected_head_is_automatically_added_as_family_member_when_family_is_created(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->tenantAdmin($tenant)->create();
+        $head = Citizen::factory()->forTenant($tenant)->create([
+            'nama_lengkap' => 'Kepala Keluarga Test',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(Families::class)
+            ->call('create')
+            ->set('no_kk', '6271011234567891')
+            ->set('head_citizen_id', $head->id)
+            ->set('alamat', 'Jl. Contoh No. 2')
+            ->set('rt', '001')
+            ->set('rw', '002')
+            ->set('provinsi', 'Kalimantan Tengah')
+            ->set('kabupaten_kota', 'Palangka Raya')
+            ->set('kecamatan', 'Pahandut')
+            ->set('kelurahan', 'Pahandut')
+            ->set('kode_pos', '73111')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $family = Family::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('no_kk', '6271011234567891')
+            ->firstOrFail();
+
+        $this->assertDatabaseHas('family_members', [
+            'family_id' => $family->id,
+            'citizen_id' => $head->id,
+            'hubungan_dalam_keluarga' => 'head',
+            'urutan' => 1,
+            'status' => 'active',
+        ]);
+    }
+
     public function test_location_component_uses_registered_tenant_hierarchy(): void
     {
         $this->seedLocationCategories();
