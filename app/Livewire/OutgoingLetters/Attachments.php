@@ -23,7 +23,7 @@ class Attachments extends Component
         $this->letterId = $letterId;
     }
 
-    public function upload(OutgoingLetterAttachmentService $attachments, OutgoingLetterDocumentService $documents): void
+    public function saveAttachments(OutgoingLetterAttachmentService $attachments, OutgoingLetterDocumentService $documents): void
     {
         $letter = $this->letter();
         $this->authorizeMutable($letter);
