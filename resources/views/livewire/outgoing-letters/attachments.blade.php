@@ -52,7 +52,7 @@
                         </div>
                     @endforeach
                 </div>
-                <button type="button" wire:click="upload" wire:loading.attr="disabled" class="mt-3 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">Simpan Lampiran</button>
+                <button type="button" wire:click="saveAttachments" wire:loading.attr="disabled" class="mt-3 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">Simpan Lampiran</button>
             @endif
             <p class="mt-2 text-xs text-indigo-700">V1 menerima PDF maksimal 20 MB per file dan 20 lampiran per surat.</p>
         </div>
