@@ -14,7 +14,7 @@ class DocxLetterheadService
 {
     private const REL_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';
     private const OFFICE_REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
-    private const DEFAULT_TABLE_WIDTH = 9000;
+    private const DEFAULT_TABLE_WIDTH = 10800;
 
     /** @return array{xml:string,rels:string,contentTypes:string,mediaName:string,mediaPath:string}|null */
     public function embed(string $xml, string $rels, string $contentTypes, Tenant $tenant): ?array
@@ -186,12 +186,13 @@ class DocxLetterheadService
             if ($index > 0) $content .= '<w:br/>';
             $content .= '<w:t xml:space="preserve">' . htmlspecialchars(trim($part), ENT_XML1 | ENT_QUOTES, 'UTF-8') . '</w:t>';
         }
-        return '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="' . $halfPoints . '"/><w:szCs w:val="' . $halfPoints . '"/>' . ($bold ? '<w:b/><w:bCs/>' : '') . '</w:rPr>' . $content . '</w:r></w:p>';
+        return '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:sz w:val="' . $halfPoints . '"/><w:szCs w:val="' . $halfPoints . '"/>' . ($bold ? '<w:b/><w:bCs/>' : '') . '</w:rPr><w:t xml:space="preserve">' . htmlspecialchars($text, ENT_XML1 | ENT_QUOTES, 'UTF-8') . '</w:t></w:r></w:p>';
     }
 
     private function nodeText(DOMXPath $xpath, \DOMNode $node): string
     {
-        $nodes = $xpath->query('.//w:t', $node); $text = '';
+        $nodes = $xpath->query('.//w:t', $node);
+        $text = '';
         if ($nodes) foreach ($nodes as $textNode) $text .= $textNode->textContent;
         return $text;
     }
