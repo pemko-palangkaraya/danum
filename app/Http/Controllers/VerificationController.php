@@ -138,6 +138,7 @@ class VerificationController extends Controller
             ? 'withdrawn'
             : ($letter->isExpired() ? 'expired' : ($letter->isActive() ? 'active' : 'not_yet_active'));
         $tte = $this->pdfSignatureVerificationService->verify($letter);
+        $hal = trim((string) ($letter->input_data['hal'] ?? $letter->subject ?? ''));
 
         $data = [
             'number' => $letter->number,
@@ -150,8 +151,10 @@ class VerificationController extends Controller
             'tte_message' => $tte['message'],
             'tte_profile' => $tte['profile'] ?? null,
             'state' => $state,
+            'status' => $state,
             'tenant' => $letter->tenant?->name,
             'city' => $letter->tenant?->city,
+            'hal' => $hal,
             'access_level' => $level->value,
             'document_id' => $letter->id,
             'document_hash' => $letter->document_hash,
@@ -160,7 +163,7 @@ class VerificationController extends Controller
         ];
 
         if ($level === VerificationAccessLevel::PUBLIC) {
-            $data['subject'] = $letter->subject;
+            $data['subject'] = $hal;
             $data['recipient_name'] = $letter->recipient_name;
         }
 
