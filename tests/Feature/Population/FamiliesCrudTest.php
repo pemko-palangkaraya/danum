@@ -66,7 +66,15 @@ class FamiliesCrudTest extends TestCase
 
     public function test_selected_head_is_automatically_added_as_family_member_when_family_is_created(): void
     {
-        $tenant = Tenant::factory()->create();
+        $this->seedLocationCategories();
+
+        $city = Tenant::factory()->pemerintahKotaPalangkaRaya()->create();
+        $tenant = Tenant::factory()->kecamatanPalangkaRaya('Pahandut')->create([
+            'parent_tenant_id' => $city->id,
+        ]);
+        Tenant::factory()->kelurahanPalangkaRaya('Pahandut', 'Pahandut')->create([
+            'parent_tenant_id' => $tenant->id,
+        ]);
         $user = User::factory()->tenantAdmin($tenant)->create();
         $head = Citizen::factory()->forTenant($tenant)->create([
             'nama_lengkap' => 'Kepala Keluarga Test',
