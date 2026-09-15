@@ -25,6 +25,7 @@
             $isProtected = $accessLevel->value === 'protected';
             $tteStatus = $tte['status'];
             $tteValid = $tteStatus === 'valid';
+            $hal = trim((string) ($letter->input_data['hal'] ?? $letter->subject ?? ''));
         @endphp
 
         <section @class([
@@ -82,6 +83,12 @@
                     <dt class="text-sm text-slate-500">Jenis</dt>
                     <dd class="col-span-2 text-sm">{{ $letter->letterType?->name ?? '-' }}</dd>
                 </div>
+                @if(filled($hal))
+                    <div class="grid grid-cols-3 gap-4 py-4">
+                        <dt class="text-sm text-slate-500">Hal</dt>
+                        <dd class="col-span-2 text-sm">{{ $hal }}</dd>
+                    </div>
+                @endif
                 <div class="grid grid-cols-3 gap-4 py-4">
                     <dt class="text-sm text-slate-500">Instansi</dt>
                     <dd class="col-span-2 text-sm">{{ $letter->tenant?->name ?? '-' }}</dd>
@@ -125,10 +132,10 @@
                     </div>
                 @endif
                 @if($accessLevel->value === 'public')
-                    @if(filled($letter->subject))
+                    @if(filled($hal))
                         <div class="grid grid-cols-3 gap-4 py-4">
                             <dt class="text-sm text-slate-500">Perihal</dt>
-                            <dd class="col-span-2 text-sm">{{ $letter->subject }}</dd>
+                            <dd class="col-span-2 text-sm">{{ $hal }}</dd>
                         </div>
                     @endif
                     @if(filled($letter->recipient_name))
