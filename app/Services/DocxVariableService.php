@@ -23,7 +23,8 @@ class DocxVariableService
             'tenant_address' => 'Alamat tenant', 'tenant_phone' => 'Telepon tenant', 'tenant_email' => 'Email tenant',
             'tenant_head_name' => 'Nama pejabat penandatangan', 'tenant_head_title' => 'Jabatan pejabat penandatangan',
             'nama_ttd' => 'Nama pejabat penandatangan', 'jabatan_ttd' => 'Jabatan pejabat penandatangan',
-            'date' => 'Tanggal surat', 'letterhead' => 'Kop surat tenant (system marker)', 'qr' => 'QR verifikasi surat (system marker)',
+            'date' => 'Tanggal surat', 'lampiran' => 'Jumlah halaman lampiran (system marker)',
+            'letterhead' => 'Kop surat tenant (system marker)', 'qr' => 'QR verifikasi surat (system marker)',
             'tte' => 'TTE / QR verifikasi (system marker)',
         ];
     }
@@ -73,7 +74,7 @@ class DocxVariableService
     /** @param list<string> $declared @param list<string> $found */
     public function compareVariables(array $declared, array $found): array
     {
-        $reserved = ['letterhead', 'qr', 'tte'];
+        $reserved = ['letterhead', 'qr', 'tte', 'lampiran'];
         $declared = array_values(array_unique([...$declared, ...$reserved]));
         $found = array_values(array_unique($found));
         $declaredRepeaters = [];
@@ -107,7 +108,7 @@ class DocxVariableService
     /** @param list<string> $found @param list<string> $allowed */
     public function validateVariables(array $found, array $allowed): array
     {
-        $reserved = ['letterhead', 'qr', 'tte'];
+        $reserved = ['letterhead', 'qr', 'tte', 'lampiran'];
         $allowed = array_values(array_unique([...$allowed, ...$reserved]));
         return [
             'missing' => array_values(array_diff($allowed, $found, $reserved)),
