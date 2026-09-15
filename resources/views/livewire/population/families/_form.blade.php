@@ -38,7 +38,7 @@
                         @endif
 
                         @if($headSearch !== '' && $headCitizens->count())
-                            <div x-show="showHeadResults" x-cloak class="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                            <div x-show="showHeadResults" style="display: none" class="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
                                 @foreach($headCitizens as $citizen)
                                     <button type="button" wire:click="selectHead('{{ $citizen->id }}')" @click="showHeadResults = false" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 px-4 py-3 text-left transition last:border-0 hover:bg-slate-50">
                                         <div class="min-w-0">
@@ -50,7 +50,7 @@
                                 @endforeach
                             </div>
                         @elseif($headSearch !== '')
-                            <p x-show="showHeadResults" x-cloak class="mt-2 text-xs text-slate-500">Warga tidak ditemukan.</p>
+                            <p x-show="showHeadResults" style="display: none" class="mt-2 text-xs text-slate-500">Warga tidak ditemukan.</p>
                         @endif
                         @error('head_citizen_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
