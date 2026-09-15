@@ -12,6 +12,9 @@ use DOMXPath;
 
 class DocxVariableService
 {
+    /** @var list<string> Variables included in every new letter type as system inputs. */
+    private const DEFAULT_VARIABLES = ['number', 'hal', 'date'];
+
     /** @return array<string,string> */
     public function allowedVariables(): array
     {
@@ -75,7 +78,8 @@ class DocxVariableService
     public function compareVariables(array $declared, array $found): array
     {
         $reserved = ['letterhead', 'qr', 'tte', 'lampiran'];
-        $declared = array_values(array_unique([...$declared, ...$reserved]));
+        $optionalDefaults = self::DEFAULT_VARIABLES;
+        $declared = array_values(array_unique([...$declared, ...$reserved, ...$optionalDefaults]));
         $found = array_values(array_unique($found));
         $declaredRepeaters = [];
         $foundRepeaters = [];
@@ -83,7 +87,9 @@ class DocxVariableService
         foreach ($declared as $value) if (is_string($value) && ($r = LetterVariableSchema::parseRepeater($value))) $declaredRepeaters[$r['key']] = $r;
         foreach ($found as $value) if (is_string($value) && ($r = LetterVariableSchema::parseRepeater($value))) $foundRepeaters[$r['key']] = $r;
 
-        $missing = array_values(array_diff($declared, $found, $reserved));
+        // Default system inputs are allowed to exist in the version snapshot
+        // without requiring a matching placeholder in the DOCX template.
+        $missing = array_values(array_diff($declared, $found, $reserved, $optionalDefaults));
         $unknown = array_values(array_diff($found, $declared, $reserved));
 
         foreach ($declaredRepeaters as $key => $definition) {
