@@ -18,6 +18,8 @@ use App\Livewire\Concerns\WithStandardTablePagination;
 #[Layout('layouts.app')]
 class Index extends Component
 {
+    use WithStandardTablePagination;
+
     private const DEFAULT_VARIABLES = [
         'number',
         'hal',
