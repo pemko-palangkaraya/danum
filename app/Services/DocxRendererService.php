@@ -13,7 +13,6 @@ class DocxRendererService
 {
     public const WORD_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
-    /** @param array<string,mixed> $values */
     public function render(string $xml, array $values): string
     {
         $xml = $this->renderRepeaters($xml, $values);
@@ -21,7 +20,6 @@ class DocxRendererService
         return $this->replacePlaceholders($xml, $values);
     }
 
-    /** @param array<string,mixed> $values */
     private function renderRepeaters(string $xml, array $values): string
     {
         $dom = $this->loadDocument($xml);
@@ -34,7 +32,6 @@ class DocxRendererService
             $items = is_array($values[$match[1]] ?? null) ? $values[$match[1]] : [];
             $parent = $row->parentNode;
             if (! $parent) continue;
-
             foreach ($items as $item) {
                 if (! is_array($item)) continue;
                 $clone = $row->cloneNode(true);
@@ -51,18 +48,15 @@ class DocxRendererService
             $key = $start[1];
             $end = $paragraph->nextSibling;
             $block = [];
-
             while ($end) {
                 if (preg_match('/^\s*\{\{\/\s*' . preg_quote($key, '/') . '\s*\}\}\s*$/', $this->nodeText($xpath, $end))) break;
                 $block[] = $end;
                 $end = $end->nextSibling;
             }
             if (! $end) continue;
-
             $items = is_array($values[$key] ?? null) ? $values[$key] : [];
             $container = $paragraph->parentNode;
             if (! $container) continue;
-
             foreach ($items as $item) {
                 if (! is_array($item)) continue;
                 foreach ($block as $sourceNode) {
@@ -71,12 +65,10 @@ class DocxRendererService
                     $container->insertBefore($clone, $end);
                 }
             }
-
             $container->removeChild($paragraph);
             foreach ($block as $sourceNode) $container->removeChild($sourceNode);
             $container->removeChild($end);
         }
-
         return $dom->saveXML() ?: $xml;
     }
 
@@ -85,114 +77,67 @@ class DocxRendererService
         $dom = $this->loadDocument($xml);
         $xpath = $this->xpath($dom);
         $tables = $xpath->query('//w:tbl');
-
         if (! $tables) return $xml;
-
         foreach ($tables as $table) {
             $text = $this->nodeText($xpath, $table);
             if (! $this->isSignatureTable($text)) continue;
-
             $rows = $xpath->query('.//w:tr', $table);
             if ($rows) foreach ($rows as $row) $this->addRowCantSplit($dom, $row);
-
             $paragraphs = $xpath->query('.//w:p', $table);
             if (! $paragraphs) continue;
-
-            foreach ($paragraphs as $paragraph) {
-                $this->protectParagraph($dom, $paragraph);
-            }
+            foreach ($paragraphs as $paragraph) $this->protectParagraph($dom, $paragraph);
         }
-
         return $dom->saveXML() ?: $xml;
     }
 
     private function isSignatureTable(string $text): bool
     {
-        foreach ([
-            '{{qr}}',
-            '{{tte}}',
-            '{{nama_ttd}}',
-            '{{jabatan_ttd}}',
-            '{{pangkat_ttd}}',
-            '{{golongan_ttd}}',
-            '{{nip_ttd}}',
-        ] as $marker) {
+        foreach (['{{qr}}','{{tte}}','{{nama_ttd}}','{{jabatan_ttd}}','{{pangkat_ttd}}','{{golongan_ttd}}','{{nip_ttd}}'] as $marker) {
             if (str_contains($text, $marker)) return true;
         }
-
         return false;
     }
 
     private function addRowCantSplit(DOMDocument $dom, \DOMNode $row): void
     {
         if (! $row instanceof DOMElement) return;
-
         $rowProperties = null;
-        foreach ($row->childNodes as $child) {
-            if ($child instanceof DOMElement && $child->localName === 'trPr') {
-                $rowProperties = $child;
-                break;
-            }
-        }
-
+        foreach ($row->childNodes as $child) if ($child instanceof DOMElement && $child->localName === 'trPr') { $rowProperties = $child; break; }
         if (! $rowProperties) {
             $rowProperties = $dom->createElementNS(self::WORD_NS, 'w:trPr');
             $row->insertBefore($rowProperties, $row->firstChild);
         }
-
-        foreach ($rowProperties->childNodes as $child) {
-            if ($child instanceof DOMElement && $child->localName === 'cantSplit') return;
-        }
-
+        foreach ($rowProperties->childNodes as $child) if ($child instanceof DOMElement && $child->localName === 'cantSplit') return;
         $rowProperties->appendChild($dom->createElementNS(self::WORD_NS, 'w:cantSplit'));
     }
 
     private function protectParagraph(DOMDocument $dom, \DOMNode $paragraph): void
     {
         if (! $paragraph instanceof DOMElement) return;
-
         $properties = null;
-        foreach ($paragraph->childNodes as $child) {
-            if ($child instanceof DOMElement && $child->localName === 'pPr') {
-                $properties = $child;
-                break;
-            }
-        }
-
+        foreach ($paragraph->childNodes as $child) if ($child instanceof DOMElement && $child->localName === 'pPr') { $properties = $child; break; }
         if (! $properties) {
             $properties = $dom->createElementNS(self::WORD_NS, 'w:pPr');
             $paragraph->insertBefore($properties, $paragraph->firstChild);
         }
-
         $this->appendParagraphProperty($dom, $properties, 'keepLines');
     }
 
     private function appendParagraphProperty(DOMDocument $dom, DOMElement $properties, string $name): void
     {
-        foreach ($properties->childNodes as $child) {
-            if ($child instanceof DOMElement && $child->localName === $name) return;
-        }
-
+        foreach ($properties->childNodes as $child) if ($child instanceof DOMElement && $child->localName === $name) return;
         $properties->appendChild($dom->createElementNS(self::WORD_NS, 'w:' . $name));
     }
 
-    /** @param array<string,mixed> $item */
     private function replaceRepeatMarkers(DOMXPath $xpath, \DOMNode $node, string $key, array $item): void
     {
         $nodes = $xpath->query('.//w:t', $node);
         if (! $nodes) return;
-
         foreach ($nodes as $textNode) {
-            $value = preg_replace_callback(
-                '/\{\{#\s*' . preg_quote($key, '/') . '\s*\}\}|\{\{\/\s*' . preg_quote($key, '/') . '\s*\}\}|\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/',
-                static function ($match) use ($item): string {
-                    if (isset($match[1]) && $match[1] !== '') {
-                        return htmlspecialchars((string) ($item[$match[1]] ?? ''), ENT_XML1 | ENT_QUOTES, 'UTF-8');
-                    }
-                    return '';
-                },
-                $textNode->textContent,
-            );
+            $value = preg_replace_callback('/\{\{#\s*' . preg_quote($key, '/') . '\s*\}\}|\{\{\/\s*' . preg_quote($key, '/') . '\s*\}\}|\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/', static function ($match) use ($item): string {
+                if (isset($match[1]) && $match[1] !== '') return htmlspecialchars((string) ($item[$match[1]] ?? ''), ENT_XML1 | ENT_QUOTES, 'UTF-8');
+                return '';
+            }, $textNode->textContent);
             $textNode->nodeValue = $value ?? $textNode->textContent;
         }
     }
@@ -205,7 +150,6 @@ class DocxRendererService
         return $text;
     }
 
-    /** @param array<string,mixed> $values */
     private function replacePlaceholders(string $xml, array $values): string
     {
         $dom = $this->loadDocument($xml);
@@ -213,11 +157,20 @@ class DocxRendererService
         $paragraphs = $xpath->query('//w:p');
         if (! $paragraphs) return $xml;
 
-        foreach ($paragraphs as $paragraph) {
+        foreach (iterator_to_array($paragraphs) as $paragraph) {
             if (! $paragraph instanceof DOMElement) continue;
+            $paragraphText = $this->nodeText($xpath, $paragraph);
+            if (str_contains($paragraphText, '{{lampiran}}') && blank($values['lampiran'] ?? null)) {
+                $remaining = trim(str_replace(['{{lampiran}}', '{{ lampiran }}'], '', $paragraphText));
+                if ($remaining === '' || preg_match('/^Lampiran\s*:\s*$/iu', $remaining)) {
+                    $parent = $paragraph->parentNode;
+                    if ($parent) $parent->removeChild($paragraph);
+                    continue;
+                }
+            }
+
             $nodes = $xpath->query('.//w:t', $paragraph);
             if (! $nodes || $nodes->length === 0) continue;
-
             $items = [];
             $text = '';
             foreach ($nodes as $node) {
@@ -231,7 +184,6 @@ class DocxRendererService
 
             preg_match_all('/\{\{\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\}\}/', $text, $matches, PREG_OFFSET_CAPTURE);
             if (empty($matches[0])) continue;
-
             foreach (array_reverse($matches[0]) as $match) {
                 $placeholder = $match[0];
                 $matchStart = $match[1];
@@ -239,33 +191,25 @@ class DocxRendererService
                 if (! preg_match('/^\{\{\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\}\}$/', $placeholder, $parts)) continue;
                 $key = $parts[1];
                 if (in_array($key, ['letterhead', 'qr', 'tte'], true)) continue;
-
                 $replacement = htmlspecialchars((string) ($values[$key] ?? ''), ENT_XML1 | ENT_QUOTES, 'UTF-8');
                 $firstIndex = null;
                 $lastIndex = null;
-
                 foreach ($items as $index => $item) {
                     $itemEnd = $item['start'] + $item['length'];
                     if ($firstIndex === null && $matchStart < $itemEnd && $matchEnd > $item['start']) $firstIndex = $index;
-                    if ($matchEnd > $item['start'] && $matchEnd <= $itemEnd) {
-                        $lastIndex = $index;
-                        break;
-                    }
+                    if ($matchEnd > $item['start'] && $matchEnd <= $itemEnd) { $lastIndex = $index; break; }
                 }
                 if ($firstIndex === null || $lastIndex === null) continue;
-
                 $firstNode = $items[$firstIndex]['node'];
                 $firstText = $firstNode->textContent;
                 $firstOffset = $matchStart - $items[$firstIndex]['start'];
                 $prefix = substr($firstText, 0, max(0, $firstOffset));
-
                 if ($firstIndex === $lastIndex) {
                     $after = $matchEnd - $items[$lastIndex]['start'];
                     $suffix = substr($firstText, $after);
                     $firstNode->nodeValue = $prefix . $replacement . $suffix;
                     continue;
                 }
-
                 $lastNode = $items[$lastIndex]['node'];
                 $after = $matchEnd - $items[$lastIndex]['start'];
                 $suffix = substr($lastNode->textContent, $after);
@@ -274,7 +218,6 @@ class DocxRendererService
                 $lastNode->nodeValue = $suffix;
             }
         }
-
         return $dom->saveXML() ?: $xml;
     }
 
@@ -282,9 +225,7 @@ class DocxRendererService
     {
         $dom = new DOMDocument();
         $dom->preserveWhiteSpace = true;
-        if (! $dom->loadXML($xml, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) {
-            throw new RuntimeException('DOCX document.xml tidak valid.');
-        }
+        if (! $dom->loadXML($xml, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) throw new RuntimeException('DOCX document.xml tidak valid.');
         return $dom;
     }
 
