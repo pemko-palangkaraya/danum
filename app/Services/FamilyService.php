@@ -117,9 +117,12 @@ class FamilyService
         return DB::transaction(function () use ($tenantId, $data, $editingId, $userId): Family {
             if ($editingId !== null) {
                 $family = $this->findForTenant($tenantId, $editingId);
+                $oldHeadCitizenId = $family->head_citizen_id;
                 $oldValues = $this->familyAuditValues($family);
                 $family->update($data);
                 $family = $family->refresh();
+
+                $this->syncHeadMember($tenantId, $family, $oldHeadCitizenId, $userId);
 
                 $this->auditLogService->record(
                     action: 'population.family.updated',
@@ -135,6 +138,8 @@ class FamilyService
 
             $data['created_by'] = $userId;
             $family = Family::create($data);
+
+            $this->syncHeadMember($tenantId, $family, null, $userId);
 
             $this->auditLogService->record(
                 action: 'population.family.created',
@@ -297,6 +302,58 @@ class FamilyService
                 'head_citizen_id' => 'Warga ini sudah menjadi kepala keluarga pada KK lain.',
             ]);
         }
+    }
+
+    private function syncHeadMember(string $tenantId, Family $family, ?string $oldHeadCitizenId, int|string $userId): void
+    {
+        if ($oldHeadCitizenId !== null && $oldHeadCitizenId !== $family->head_citizen_id) {
+            $oldMember = FamilyMember::query()
+                ->where('family_id', $family->id)
+                ->where('citizen_id', $oldHeadCitizenId)
+                ->where('hubungan_dalam_keluarga', 'head')
+                ->first();
+
+            if ($oldMember !== null) {
+                $oldValues = $this->familyMemberAuditValues($oldMember);
+                $oldMember->delete();
+
+                $this->auditLogService->record(
+                    action: 'population.family_member.deleted',
+                    user: $this->actor($userId),
+                    auditable: $oldMember,
+                    oldValues: $oldValues,
+                    tenantId: $tenantId,
+                );
+            }
+        }
+
+        if ($family->head_citizen_id === null) {
+            return;
+        }
+
+        $member = FamilyMember::query()
+            ->where('family_id', $family->id)
+            ->where('citizen_id', $family->head_citizen_id)
+            ->first();
+        $oldValues = $member ? $this->familyMemberAuditValues($member) : null;
+
+        $member = FamilyMember::updateOrCreate(
+            ['family_id' => $family->id, 'citizen_id' => $family->head_citizen_id],
+            [
+                'hubungan_dalam_keluarga' => 'head',
+                'urutan' => 1,
+                'status' => 'active',
+            ]
+        );
+
+        $this->auditLogService->record(
+            action: $oldValues === null ? 'population.family_member.created' : 'population.family_member.updated',
+            user: $this->actor($userId),
+            auditable: $member,
+            oldValues: $oldValues,
+            newValues: $this->familyMemberAuditValues($member->refresh()),
+            tenantId: $tenantId,
+        );
     }
 
     private function validateWifeRelationship(string $tenantId, Family $family, Citizen $citizen, string $status): void
