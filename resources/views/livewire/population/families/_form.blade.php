@@ -21,21 +21,11 @@
                             <svg class="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                 <circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>
                             </svg>
-                            <input wire:model.live.debounce.300ms="headSearch" @input="showHeadResults = true" placeholder="Ketik nama atau NIK..." class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 pl-11 pr-16 text-sm shadow-sm focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
+                            <input wire:model.live.debounce.300ms="headSearch" @focus="showHeadResults = true" @input="showHeadResults = true" placeholder="Ketik nama atau NIK..." class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 pl-11 pr-16 text-sm shadow-sm focus:border-slate-400 focus:ring-2 focus:ring-slate-200">
                             @if($head_citizen_id)
                                 <button type="button" wire:click="resetHead" @click="showHeadResults = false" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 hover:text-slate-700">Hapus</button>
                             @endif
                         </div>
-
-                        @if($selectedHead && $headSearch !== '')
-                            <div class="mt-2 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
-                                <div class="min-w-0">
-                                    <div class="truncate text-sm font-medium text-slate-800">{{ $selectedHead->nama_lengkap }}</div>
-                                    <div class="mt-0.5 font-mono text-xs text-slate-500">{{ $selectedHead->nik }}</div>
-                                </div>
-                                <span class="shrink-0 rounded-full bg-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600">Terpilih</span>
-                            </div>
-                        @endif
 
                         @if($headSearch !== '' && $headCitizens->count())
                             <div x-show="showHeadResults" style="display: none" class="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
