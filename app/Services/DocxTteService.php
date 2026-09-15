@@ -19,8 +19,14 @@ class DocxTteService
     private const QR_NAME = 'DANUM QR';
     private const TTE_MARKER = '{{tte}}';
     private const QR_MARKER = '{{qr}}';
+    private const PREVIEW_QR_PAYLOAD = 'Ini masih preview surat';
 
     public function embed(string $docxPath, string $verificationUrl, string $marker = 'tte'): void
+    {
+        $this->embedQr($docxPath, $verificationUrl, $marker, false);
+    }
+
+    private function embedQr(string $docxPath, string $payload, string $marker, bool $preview): void
     {
         if (! is_file($docxPath)) throw new RuntimeException('DOCX hasil surat tidak ditemukan.');
 
@@ -30,9 +36,10 @@ class DocxTteService
         $markerConfig = $this->markerConfig($marker);
         $parts = $this->tteParts($zip);
         if ($parts === []) { $zip->close(); return; }
-        if (blank($verificationUrl)) { $zip->close(); throw new RuntimeException('URL verifikasi surat wajib tersedia.'); }
+        if (blank($payload)) { $zip->close(); throw new RuntimeException('Payload QR wajib tersedia.'); }
 
-        $png = app(VerificationQrCodeService::class)->render($verificationUrl);
+        $qrService = app(VerificationQrCodeService::class);
+        $png = $preview ? $qrService->renderPreview() : $qrService->render($payload);
         $prefix = 'data:image/png;base64,';
         if (! str_starts_with($png, $prefix)) {
             $zip->close();
@@ -45,7 +52,7 @@ class DocxTteService
             throw new RuntimeException('Data QR verification tidak valid.');
         }
 
-        $mediaName = 'danum-' . $markerConfig['media_prefix'] . '-' . substr(hash('sha256', $verificationUrl), 0, 16) . '.png';
+        $mediaName = 'danum-' . $markerConfig['media_prefix'] . '-' . substr(hash('sha256', $payload . ($preview ? '|preview' : '')), 0, 16) . '.png';
         $contentTypes = $zip->getFromName('[Content_Types].xml');
         if ($contentTypes === false) { $zip->close(); throw new RuntimeException('DOCX [Content_Types].xml tidak ditemukan.'); }
 
@@ -90,7 +97,10 @@ class DocxTteService
     public function createPreviewCopy(string $sourcePath): string
     {
         $copy = $this->temporaryCopy($sourcePath, 'danum-preview-');
-        try { $this->removeMarkers($copy, [self::TTE_MARKER, self::QR_MARKER]); } catch (\Throwable $e) { @unlink($copy); throw $e; }
+        try {
+            $this->removeMarkers($copy, [self::TTE_MARKER]);
+            $this->embedQr($copy, self::PREVIEW_QR_PAYLOAD, 'qr', true);
+        } catch (\Throwable $e) { @unlink($copy); throw $e; }
         return $copy;
     }
 
