@@ -22,6 +22,7 @@ class LetterVariableDefinitionSeeder extends Seeder
             ['recipient_occupation', 'Pekerjaan', 'text', 'citizen', false, true],
             ['recipient_address', 'Alamat Pemohon', 'textarea', 'family', false, true],
             ['subject', 'Perihal / Keperluan', 'text', 'manual', false, false],
+            ['hal', 'Hal', 'text', 'manual', true, false],
             ['date', 'Tanggal Surat', 'date', 'manual', true, false],
             ['rt', 'RT', 'text', 'family', false, true],
             ['rw', 'RW', 'text', 'family', false, true],
