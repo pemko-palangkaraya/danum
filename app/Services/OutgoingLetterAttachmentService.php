@@ -209,24 +209,37 @@ final class OutgoingLetterAttachmentService
         $tenantName = trim((string) ($letter->tenant?->name ?? ''));
         $signerTitle = trim((string) ($letter->signer_title ?? ''));
         $heading = trim('Surat ' . $signerTitle . ' ' . $tenantName);
+        $hal = trim((string) ($letter->input_data['hal'] ?? $letter->subject ?? ''));
+        $status = $letter->status?->value ?? '';
+        $statusLabel = match ($status) {
+            'draft' => 'Draft',
+            'submitted' => 'Diajukan',
+            'validated' => 'Tervalidasi',
+            'issued' => 'Diterbitkan',
+            'withdrawn' => 'Ditarik',
+            'rejected' => 'Ditolak',
+            default => $status,
+        };
+
         $pdf->SetFont('Helvetica', '', 10);
         $pdf->SetXY(15, 12);
         $pdf->Cell($width - 30, 4, $this->toPdfText($heading), 0, 1, 'L');
 
         $pdf->SetFont('Helvetica', '', 9);
-        $pdf->SetXY(15, 17);
-        $pdf->Cell(24, 4, 'Nomor', 0, 0, 'L');
+        $this->headerRow($pdf, 'Nomor', (string) $letter->number, $width, 17);
+        $this->headerRow($pdf, 'Tanggal', optional($letter->letter_date)->locale('id')->translatedFormat('d F Y') ?? '-', $width, 21);
+        $this->headerRow($pdf, 'Hal', $hal !== '' ? $hal : '-', $width, 25);
+        $this->headerRow($pdf, 'Status', $statusLabel !== '' ? $statusLabel : '-', $width, 29);
+
+        $pdf->Line(15, self::HEADER_HEIGHT + 2, $width - 15, self::HEADER_HEIGHT + 2);
+    }
+
+    private function headerRow(FileBufferedFpdi $pdf, string $label, string $value, float $width, float $y): void
+    {
+        $pdf->SetXY(15, $y);
+        $pdf->Cell(24, 4, $this->toPdfText($label), 0, 0, 'L');
         $pdf->Cell(4, 4, ':', 0, 0, 'L');
-        $pdf->Cell($width - 43, 4, $this->toPdfText((string) $letter->number), 0, 1, 'L');
-        $pdf->SetX(15);
-        $pdf->Cell(24, 4, 'Tanggal', 0, 0, 'L');
-        $pdf->Cell(4, 4, ':', 0, 0, 'L');
-        $pdf->Cell($width - 43, 4, $this->toPdfText(optional($letter->letter_date)->locale('id')->translatedFormat('d F Y') ?? '-'), 0, 1, 'L');
-        $pdf->SetX(15);
-        $pdf->Cell(24, 4, 'Hal', 0, 0, 'L');
-        $pdf->Cell(4, 4, ':', 0, 0, 'L');
-        $pdf->Cell($width - 43, 4, $this->toPdfText((string) $letter->subject), 0, 1, 'L');
-        $pdf->Line(15, self::HEADER_HEIGHT - 2, $width - 15, self::HEADER_HEIGHT - 2);
+        $pdf->Cell($width - 43, 4, $this->toPdfText($value), 0, 1, 'L');
     }
 
     private function resequnce(OutgoingLetter $letter): void
