@@ -94,8 +94,8 @@ class TenantProfileAuthorizationTest extends TestCase
 
         Livewire::test(TenantProfile::class)
             ->set('letterheadLine1', 'PEMERINTAH KOTA PALANGKA RAYA')
-            ->set('letterheadLine2', 'KECAMATAN BUKIT BATU')
-            ->set('letterheadLine3', 'KELURAHAN TANGKILING')
+            ->set('letterheadLine2', 'KECAMATAN RAKUMPIT')
+            ->set('letterheadLine3', 'KELURAHAN MUNGKU BARU')
             ->set('letterheadLine1Size', 16)
             ->set('letterheadLine2Size', 14)
             ->set('letterheadLine3Size', 12)
@@ -110,8 +110,8 @@ class TenantProfileAuthorizationTest extends TestCase
         $tenant->refresh();
 
         $this->assertSame('PEMERINTAH KOTA PALANGKA RAYA', $tenant->letterhead_line1);
-        $this->assertSame('KECAMATAN BUKIT BATU', $tenant->letterhead_line2);
-        $this->assertSame('KELURAHAN TANGKILING', $tenant->letterhead_line3);
+        $this->assertSame('KECAMATAN RAKUMPIT', $tenant->letterhead_line2);
+        $this->assertSame('KELURAHAN MUNGKU BARU', $tenant->letterhead_line3);
         $this->assertSame(16, $tenant->letterhead_line1_size);
         $this->assertSame(14, $tenant->letterhead_line2_size);
         $this->assertSame(12, $tenant->letterhead_line3_size);

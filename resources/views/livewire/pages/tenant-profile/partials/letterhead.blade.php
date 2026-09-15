@@ -18,9 +18,9 @@
 
         <div class="space-y-4">
             @foreach ([
-                ['letterheadLine1', 'letterhead-line1', 'Baris 1', 'PEMERINTAH KOTA PALANGKA RAYA', 'letterheadLine1Size', 'letterhead-line1-size'],
-                ['letterheadLine2', 'letterhead-line2', 'Baris 2', 'KECAMATAN BUKIT BATU', 'letterheadLine2Size', 'letterhead-line2-size'],
-                ['letterheadLine3', 'letterhead-line3', 'Baris 3 — Kelurahan / Instansi', 'KELURAHAN TANGKILING', 'letterheadLine3Size', 'letterhead-line3-size'],
+            ['letterheadLine1', 'letterhead-line1', 'Baris 1', 'PEMERINTAH KOTA PALANGKA RAYA', 'letterheadLine1Size', 'letterhead-line1-size'],
+            ['letterheadLine2', 'letterhead-line2', 'Baris 2', 'KECAMATAN RAKUMPIT', 'letterheadLine2Size', 'letterhead-line2-size'],
+            ['letterheadLine3', 'letterhead-line3', 'Baris 3 — Kelurahan / Instansi', 'KELURAHAN MUNGKU BARU', 'letterheadLine3Size', 'letterhead-line3-size'],
             ] as [$property, $id, $label, $placeholder, $sizeProperty, $sizeId])
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_150px] sm:items-end">
@@ -30,7 +30,7 @@
                     <x-ui.field label="Ukuran" for="{{ $sizeId }}" error="{{ $errors->first($sizeProperty) }}">
                         <select id="{{ $sizeId }}" wire:model="{{ $sizeProperty }}" @disabled(!$canUpdate) class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 shadow-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500">
                             @foreach ([10,11,12,13,14,15,16,17,18,20,22,24,26,28,30,32,36] as $size)
-                                <option value="{{ $size }}">{{ $size }} pt</option>
+                            <option value="{{ $size }}">{{ $size }} pt</option>
                             @endforeach
                         </select>
                     </x-ui.field>
