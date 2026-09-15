@@ -40,6 +40,7 @@
             @unless($isSuperAdmin)
                 @if($letter->status->value === 'draft' && ! $submitted && (int) $letter->created_by === (int) auth()->id())
                     @can('update', $letter)<button wire:click="edit('{{ $letter->id }}')" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Edit</button>@endcan
+                    @can('update', $letter)<a href="{{ route('outgoing-letters.show', $letter->id) }}" class="rounded-lg border border-indigo-200 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50">Lampiran</a>@endcan
                     @can('submit', $letter)<button wire:click="submitLetter('{{ $letter->id }}')" class="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Kirim</button>@endcan
                     @can('cancel', $letter)<button wire:click="openCancel('{{ $letter->id }}')" type="button" class="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">Batalkan</button>@endcan
                 @endif
