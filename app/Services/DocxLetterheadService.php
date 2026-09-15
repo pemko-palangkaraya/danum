@@ -14,6 +14,7 @@ class DocxLetterheadService
 {
     private const REL_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';
     private const OFFICE_REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    private const DEFAULT_TABLE_WIDTH = 9000;
 
     /** @return array{xml:string,rels:string,contentTypes:string,mediaName:string,mediaPath:string}|null */
     public function embed(string $xml, string $rels, string $contentTypes, Tenant $tenant): ?array
@@ -49,7 +50,8 @@ class DocxLetterheadService
             $relsDom->documentElement?->appendChild($rel);
         }
 
-        $tableXml = $this->buildTableXml($tenant, $mediaName, $logoPath !== null, $logoPath);
+        $tableWidth = $this->documentBodyWidth($xpath);
+        $tableXml = $this->buildTableXml($tenant, $mediaName, $logoPath !== null, $logoPath, $tableWidth);
         foreach ($targets as $paragraph) {
             $parent = $paragraph->parentNode;
             if (! $parent) continue;
@@ -86,6 +88,20 @@ class DocxLetterheadService
             ->contains(fn ($value): bool => trim((string) $value) !== '');
     }
 
+    private function documentBodyWidth(DOMXPath $xpath): int
+    {
+        $pageSize = $xpath->query('//w:sectPr/w:pgSz')->item(0);
+        $pageMargins = $xpath->query('//w:sectPr/w:pgMar')->item(0);
+        if (! $pageSize || ! $pageMargins) return self::DEFAULT_TABLE_WIDTH;
+
+        $pageWidth = (int) $pageSize->attributes?->getNamedItem('w:w')?->nodeValue;
+        $leftMargin = (int) $pageMargins->attributes?->getNamedItem('w:left')?->nodeValue;
+        $rightMargin = (int) $pageMargins->attributes?->getNamedItem('w:right')?->nodeValue;
+        $usableWidth = $pageWidth - $leftMargin - $rightMargin;
+
+        return $usableWidth > 0 ? $usableWidth : self::DEFAULT_TABLE_WIDTH;
+    }
+
     /** @param list<\DOMNode> $targets */
     private function embedLegacyImage(DOMDocument $dom, DOMXPath $xpath, array $targets, string $rels, string $contentTypes, Tenant $tenant): ?array
     {
@@ -115,7 +131,7 @@ class DocxLetterheadService
         return ['xml' => $dom->saveXML() ?: '', 'rels' => $relsDom->saveXML() ?: $rels, 'contentTypes' => $contentTypes, 'mediaName' => $mediaName, 'mediaPath' => $imagePath];
     }
 
-    private function buildTableXml(Tenant $tenant, string $mediaName, bool $hasLogo, ?string $logoPath = null): string
+    private function buildTableXml(Tenant $tenant, string $mediaName, bool $hasLogo, ?string $logoPath, int $tableWidth): string
     {
         $rows = [];
         foreach ([[$tenant->letterhead_line1, (int) ($tenant->letterhead_line1_size ?? 15)], [$tenant->letterhead_line2, (int) ($tenant->letterhead_line2_size ?? 13)], [$tenant->letterhead_line3, (int) ($tenant->letterhead_line3_size ?? 11)]] as [$value, $size]) {
@@ -127,18 +143,19 @@ class DocxLetterheadService
 
         if ($rows === []) $rows[] = $this->textParagraph($tenant->name, (int) ($tenant->letterhead_line1_size ?? 15), true);
 
-        $textWidth = $hasLogo ? '7200' : '9000';
-        $grid = $hasLogo ? '<w:gridCol w:w="1800"/><w:gridCol w:w="7200"/>' : '<w:gridCol w:w="9000"/>';
+        $logoWidth = $hasLogo ? 1800 : 0;
+        $textWidth = max(1, $tableWidth - $logoWidth);
+        $grid = $hasLogo ? '<w:gridCol w:w="' . $logoWidth . '"/><w:gridCol w:w="' . $textWidth . '"/>' : '<w:gridCol w:w="' . $tableWidth . '"/>';
         $textCell = '<w:tc><w:tcPr><w:tcW w:w="' . $textWidth . '" w:type="dxa"/><w:vAlign w:val="center"/><w:tcMar><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr>' . implode('', $rows) . '</w:tc>';
         $logoCell = '';
         if ($hasLogo) {
             $logoExtent = $this->calculateLogoExtent($logoPath);
             $cx = $logoExtent['cx'];
             $cy = $logoExtent['cy'];
-            $logoCell = '<w:tc><w:tcPr><w:tcW w:w="1800" w:type="dxa"/><w:vAlign w:val="center"/><w:tcMar><w:left w:w="60" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr><w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:r="' . self::OFFICE_REL_NS . '" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' . $cx . '" cy="' . $cy . '"/><wp:docPr id="9002" name="DANUM Letterhead Logo"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="' . htmlspecialchars($mediaName, ENT_XML1 | ENT_QUOTES, 'UTF-8') . '"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdDanumLetterheadLogo"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' . $cx . '" cy="' . $cy . '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p></w:tc>';
+            $logoCell = '<w:tc><w:tcPr><w:tcW w:w="' . $logoWidth . '" w:type="dxa"/><w:vAlign w:val="center"/><w:tcMar><w:left w:w="60" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr><w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:r="' . self::OFFICE_REL_NS . '" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' . $cx . '" cy="' . $cy . '"/><wp:docPr id="9002" name="DANUM Letterhead Logo"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="' . htmlspecialchars($mediaName, ENT_XML1 | ENT_QUOTES, 'UTF-8') . '"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdDanumLetterheadLogo"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' . $cx . '" cy="' . $cy . '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p></w:tc>';
         }
 
-        return '<w:tbl xmlns:w="' . DocxRendererService::WORD_NS . '"><w:tblPr><w:tblW w:w="9000" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:jc w:val="left"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="single" w:sz="16" w:space="1"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr><w:tblGrid>' . $grid . '</w:tblGrid><w:tr>' . $logoCell . $textCell . '</w:tr></w:tbl>';
+        return '<w:tbl xmlns:w="' . DocxRendererService::WORD_NS . '"><w:tblPr><w:tblW w:w="' . $tableWidth . '" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:jc w:val="left"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="single" w:sz="16" w:space="1"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr><w:tblGrid>' . $grid . '</w:tblGrid><w:tr>' . $logoCell . $textCell . '</w:tr></w:tbl>';
     }
 
     /** @return array{cx:int,cy:int} */
