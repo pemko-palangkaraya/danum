@@ -1,4 +1,4 @@
-<div class="space-y-6">
+<div class="space-y-6" x-data x-on:outgoing-letter-pdf-refresh.window="$refs.pdf.src = $refs.pdf.src">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
             <a href="{{ route('outgoing-letters.index') }}" class="text-sm font-medium text-slate-500 hover:text-slate-900">← Outgoing Letters</a>
@@ -42,6 +42,8 @@
         <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900"><strong>Alasan penolakan:</strong> {{ $letter->rejection_reason }} @if($letter->rejectedBy) <span class="text-red-700">· ditolak oleh {{ $letter->rejectedBy->name }}</span> @endif</div>
     @endif
 
+    <livewire:outgoing-letters.attachments :letter-id="$letter->id" :key="'letter-attachments-'.$letter->id" />
+
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-100 bg-slate-50 px-5 py-3 sm:px-6">
@@ -55,6 +57,7 @@
             </div>
             <div class="bg-slate-100 p-2 sm:p-4">
                 <iframe
+                    x-ref="pdf"
                     src="{{ route('outgoing-letters.pdf', $letter->id) }}"
                     title="{{ $status === 'issued' ? 'Dokumen resmi' : 'Preview PDF surat' }}"
                     class="h-[75vh] min-h-[620px] w-full rounded-xl bg-white shadow-sm"
