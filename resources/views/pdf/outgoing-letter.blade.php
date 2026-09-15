@@ -6,13 +6,14 @@
         @page { margin: 18mm 20mm 20mm; }
         body { font-family: DejaVu Sans, sans-serif; color: #111827; font-size: 11pt; line-height: 1.55; }
         .letterhead-image { width: 100%; max-height: 42mm; object-fit: contain; margin-bottom: 8px; }
-        .generated-head { border-bottom: 3px solid #111827; padding: 0 0 10px; text-align: center; }
+        .generated-head { padding: 0; text-align: center; }
         .generated-head-inner { display: table; width: 100%; }
         .logo-cell { display: table-cell; width: 22%; vertical-align: middle; text-align: left; }
         .logo { max-width: 28mm; max-height: 25mm; }
         .tenant-cell { display: table-cell; width: 78%; vertical-align: middle; text-align: center; }
         .tenant-name { font-size: 16pt; font-weight: bold; text-transform: uppercase; }
         .tenant-address { font-size: 9pt; }
+        .generated-head-rule { width: 100%; border-top: 3px solid #111827; margin-top: 6px; height: 0; }
         .letter-number { margin: 22px 0 20px; text-align: center; }
         .letter-number h1 { font-size: 14pt; margin: 0 0 4px; text-decoration: underline; }
         .meta { margin: 0 0 18px 30px; }
@@ -61,6 +62,7 @@
                     </div>
                 </div>
             </div>
+            <div class="generated-head-rule"></div>
         </header>
     @endif
 
