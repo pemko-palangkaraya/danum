@@ -13,6 +13,7 @@ final class LetterVariableDefinitionService
         'number',
         'letterhead',
         'qr',
+        'lampiran',
         'tenant_name',
         'tenant_city',
         'tenant_district',
@@ -94,10 +95,7 @@ final class LetterVariableDefinitionService
 
     public function isSystem(string $key): bool
     {
-        if (in_array($key, self::SYSTEM_VARIABLES, true)) {
-            return true;
-        }
-
+        if (in_array($key, self::SYSTEM_VARIABLES, true)) return true;
         return $this->forKey($key)?->source === 'system';
     }
 
@@ -118,15 +116,11 @@ final class LetterVariableDefinitionService
 
     public function isReadonly(string $key, bool $hasCitizen = false): bool
     {
-        if ($this->isSystem($key)) {
-            return true;
-        }
-
+        if ($this->isSystem($key)) return true;
         $definition = $this->forKey($key);
         if ($definition && ! $hasCitizen) return (bool) $definition->readonly;
         if ($hasCitizen && in_array($key, self::CITIZEN_AUTOFILLED_VARIABLES, true)) return true;
         if ($definition) return (bool) $definition->readonly;
-
         return false;
     }
 }
