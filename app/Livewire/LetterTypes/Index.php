@@ -20,6 +20,16 @@ class Index extends Component
 {
     use WithStandardTablePagination;
 
+    private const DEFAULT_VARIABLES = [
+        'number',
+        'recipient_name',
+        'recipient_nik',
+        'recipient_address',
+        'subject',
+        'hal',
+        'date',
+    ];
+
     public string $search = '';
     public string $filter = 'active';
     public bool $showForm = false;
@@ -195,7 +205,8 @@ class Index extends Component
 
     private function resetForm(): void
     {
-        $this->reset(['editingId', 'letter_classification_id', 'code', 'name', 'description', 'variables_input']);
+        $this->reset(['editingId', 'letter_classification_id', 'code', 'name', 'description']);
+        $this->variables_input = implode("\n", self::DEFAULT_VARIABLES);
         $this->status = LetterTypeStatus::DRAFT->value;
         $this->font_family = LetterFont::ARIAL->value;
         $this->validity_period = 'none';
