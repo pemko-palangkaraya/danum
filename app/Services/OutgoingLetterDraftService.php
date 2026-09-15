@@ -56,6 +56,10 @@ final class OutgoingLetterDraftService
         }
 
         $data['number'] = $number;
+        $hal = trim((string) ($data['hal'] ?? $data['subject'] ?? ''));
+        $data['hal'] = $hal;
+        $data['subject'] = $hal;
+
         $renderData = [
             ...$this->formatDateVariablesForTemplate($data),
             'tenant_head_name' => $signerName,
@@ -75,7 +79,7 @@ final class OutgoingLetterDraftService
                 'signer_title' => $signerTitle, 'validator_position_id' => $validatorPosition->id, 'validator_user_id' => $validatorHolder->user_id,
                 'validator_name' => $validatorHolder->user->name, 'validator_title' => $validatorPosition->name, 'number' => $number,
                 'sequence_number' => $sequenceNumber, 'sequence_year' => $sequenceYear, 'recipient_name' => (string) ($data['recipient_name'] ?? ''),
-                'recipient_address' => (string) ($data['recipient_address'] ?? ''), 'subject' => (string) ($data['subject'] ?? ''),
+                'recipient_address' => (string) ($data['recipient_address'] ?? ''), 'subject' => $hal,
                 'letter_date' => $data['date'] ?? null, 'generated_docx_path' => $generatedPath, 'verification_token' => $verificationToken,
                 'content' => $content, 'input_data' => $data, 'citizen_id' => $citizenId,
             ];
