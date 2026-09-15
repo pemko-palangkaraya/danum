@@ -77,7 +77,7 @@ class OutgoingLetterIssuanceService
             if ($this->attachments->totalPages($letter) > 0) {
                 $mainPdfAbsolutePath = Storage::disk('local')->path($unsignedPdfPath);
                 $combinedRelativePath = 'outgoing-letters/issued/' . $letter->id . '-' . uniqid('', true) . '.pdf';
-                $this->attachments->combineWithMainPdf($mainPdfAbsolutePath, $letter, $combinedRelativePath);
+                $this->attachments->combineWithMainPdf($mainPdfAbsolutePath, $letter, $combinedRelativePath, OutgoingLetterStatus::ISSUED->value);
                 Storage::disk('local')->delete($unsignedPdfPath);
                 $unsignedPdfPath = $combinedRelativePath;
             }
