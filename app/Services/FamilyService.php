@@ -249,6 +249,8 @@ class FamilyService
         return Citizen::query()
             ->where('tenant_id', $tenantId)
             ->where('status_kependudukan', '!=', 'meninggal')
+            ->whereDoesntHave('activeFamilyMembership')
+            ->whereDoesntHave('headedFamilies')
             ->when($search !== '', fn ($q) => $q->where(function ($query) use ($search): void {
                 $query->whereRaw('LOWER(nik) LIKE LOWER(?)', ['%'.$search.'%'])
                     ->orWhereRaw('LOWER(nama_lengkap) LIKE LOWER(?)', ['%'.$search.'%']);
@@ -300,6 +302,23 @@ class FamilyService
         if ($query->exists()) {
             throw ValidationException::withMessages([
                 'head_citizen_id' => 'Warga ini sudah menjadi kepala keluarga pada KK lain.',
+            ]);
+        }
+
+        $membershipQuery = FamilyMember::query()
+            ->where('citizen_id', $citizenId)
+            ->where('status', 'active')
+            ->whereHas('family', function ($familyQuery) use ($tenantId, $editingId): void {
+                $familyQuery->where('tenant_id', $tenantId);
+
+                if ($editingId !== null) {
+                    $familyQuery->where('id', '!=', $editingId);
+                }
+            });
+
+        if ($membershipQuery->exists()) {
+            throw ValidationException::withMessages([
+                'head_citizen_id' => 'Warga ini sudah menjadi anggota aktif KK lain.',
             ]);
         }
     }
