@@ -27,6 +27,11 @@ new #[Layout('layouts.app')] class extends Component {
     public string $signerPinConfirmation = '';
     public string $name = '';
     public string $nip = '';
+    public string $pangkat = '';
+    public string $golongan = '';
+    public string $statusPegawai = '';
+    public string $tanggalMasuk = '';
+    public string $tanggalPensiun = '';
     public string $email = '';
     public string $password = '';
     public string $status = UserStatus::ACTIVE->value;
@@ -56,12 +61,18 @@ new #[Layout('layouts.app')] class extends Component {
 
     public function edit(int $id): void
     {
-        $user = $this->tenantUserQuery()->with('customRole')->findOrFail($id);
+        $user = $this->tenantUserQuery()->with(['customRole', 'employeeProfile'])->findOrFail($id);
         $this->authorize('update', $user);
+        $profile = $user->employeeProfile;
 
         $this->editingUserId = $user->id;
         $this->name = $user->name;
-        $this->nip = (string) ($user->nip ?? '');
+        $this->nip = (string) ($profile?->nip ?? '');
+        $this->pangkat = (string) ($profile?->pangkat ?? '');
+        $this->golongan = (string) ($profile?->golongan ?? '');
+        $this->statusPegawai = (string) ($profile?->status_pegawai ?? '');
+        $this->tanggalMasuk = $profile?->tanggal_masuk?->format('Y-m-d') ?? '';
+        $this->tanggalPensiun = $profile?->tanggal_pensiun?->format('Y-m-d') ?? '';
         $this->email = $user->email;
         $this->password = '';
         $this->status = $user->status->value;
@@ -82,6 +93,11 @@ new #[Layout('layouts.app')] class extends Component {
         $data = [
             'name' => $this->name,
             'nip' => $this->nip,
+            'pangkat' => $this->pangkat,
+            'golongan' => $this->golongan,
+            'status_pegawai' => $this->statusPegawai,
+            'tanggal_masuk' => $this->tanggalMasuk ?: null,
+            'tanggal_pensiun' => $this->tanggalPensiun ?: null,
             'email' => $this->email,
             'password' => $this->password,
             'role' => UserRole::TENANT_USER->value,
@@ -192,6 +208,11 @@ new #[Layout('layouts.app')] class extends Component {
         $this->editingUserId = null;
         $this->name = '';
         $this->nip = '';
+        $this->pangkat = '';
+        $this->golongan = '';
+        $this->statusPegawai = '';
+        $this->tanggalMasuk = '';
+        $this->tanggalPensiun = '';
         $this->email = '';
         $this->password = '';
         $this->status = UserStatus::ACTIVE->value;
@@ -203,7 +224,7 @@ new #[Layout('layouts.app')] class extends Component {
     {
         return [
             'users' => $this->tenantUserQuery()
-                ->with('customRole')
+                ->with(['customRole', 'employeeProfile'])
                 ->orderBy('name')
                 ->paginate($this->perPage),
             'tenantName' => auth()->user()->tenant?->name ?? 'Organisasi',
@@ -233,8 +254,33 @@ new #[Layout('layouts.app')] class extends Component {
                 </div>
                 <div>
                     <label class="text-sm font-medium text-slate-700">NIP</label>
-                    <input wire:model="nip" type="text" maxlength="32" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">
+                    <input wire:model="nip" type="text" maxlength="18" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">
                     @error('nip')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-slate-700">Pangkat</label>
+                    <input wire:model="pangkat" type="text" placeholder="Contoh: Pembina" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">
+                    @error('pangkat')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-slate-700">Golongan</label>
+                    <input wire:model="golongan" type="text" placeholder="Contoh: IV/a" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">
+                    @error('golongan')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-slate-700">Status Pegawai</label>
+                    <input wire:model="statusPegawai" type="text" placeholder="Contoh: PNS" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">
+                    @error('status_pegawai')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-slate-700">Tanggal Masuk</label>
+                    <input wire:model="tanggalMasuk" type="date" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">
+                    @error('tanggal_masuk')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-slate-700">Tanggal Pensiun</label>
+                    <input wire:model="tanggalPensiun" type="date" class="mt-2 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm">
+                    @error('tanggal_pensiun')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <div>
                     <label class="text-sm font-medium text-slate-700">Email / Login</label>
@@ -276,6 +322,7 @@ new #[Layout('layouts.app')] class extends Component {
                     <tr>
                         <th class="hidden px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500 md:table-cell">User</th>
                         <th class="hidden px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500 md:table-cell">NIP</th>
+                        <th class="hidden px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500 md:table-cell">Pangkat</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Role</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-500">Status</th>
                         <th class="px-6 py-3 text-right text-xs font-semibold uppercase text-slate-500">Action</th>
@@ -288,7 +335,8 @@ new #[Layout('layouts.app')] class extends Component {
                                 <div class="font-medium text-slate-900">{{ $user->name }}</div>
                                 <div class="text-xs text-slate-500">{{ $user->email }}</div>
                             </td>
-                            <td class="hidden px-6 py-4 text-sm text-slate-700 md:table-cell">{{ $user->nip ?: '-' }}</td>
+                            <td class="hidden px-6 py-4 text-sm text-slate-700 md:table-cell">{{ $user->employeeProfile?->nip ?: '-' }}</td>
+                            <td class="hidden px-6 py-4 text-sm text-slate-700 md:table-cell">{{ $user->employeeProfile?->pangkat ?: '-' }}</td>
                             <td class="px-6 py-4 text-sm font-medium text-slate-700">{{ $user->effectiveRole()?->name ?? 'Tenant User' }}</td>
                             <td class="px-6 py-4">
                                 <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $user->status === UserStatus::ACTIVE ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">{{ $user->status->value }}</span>
@@ -296,7 +344,7 @@ new #[Layout('layouts.app')] class extends Component {
                             <td class="px-6 py-4 text-right"><x-ui.user-actions :user="$user" /></td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-6 py-12 text-center text-sm text-slate-500">Belum ada Tenant User.</td></tr>
+                        <tr><td colspan="6" class="px-6 py-12 text-center text-sm text-slate-500">Belum ada Tenant User.</td></tr>
                     @endforelse
                 </tbody>
             </table>
