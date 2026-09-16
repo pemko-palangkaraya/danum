@@ -12,9 +12,6 @@ use RuntimeException;
 
 final class DocxFontService
 {
-    private const BODY_FONT_SIZE_HALF_POINTS = 24;
-    private const TABLE_FONT_SIZE_HALF_POINTS = 20;
-
     public function apply(string $xml, LetterFont $font): string
     {
         $dom = new DOMDocument();
@@ -35,14 +32,13 @@ final class DocxFontService
                 $run->insertBefore($properties, $run->firstChild);
             }
 
-            $inTable = $xpath->query('ancestor::w:tc', $run)->length > 0;
-            $this->setFontProperty($dom, $properties, $font->value, $inTable ? self::TABLE_FONT_SIZE_HALF_POINTS : self::BODY_FONT_SIZE_HALF_POINTS);
+            $this->setFontProperty($dom, $properties, $font->value);
         }
 
         return $dom->saveXML() ?: $xml;
     }
 
-    private function setFontProperty(DOMDocument $dom, DOMElement $properties, string $font, int $size): void
+    private function setFontProperty(DOMDocument $dom, DOMElement $properties, string $font): void
     {
         $fontNodes = [];
         foreach ($properties->childNodes as $child) if ($child instanceof DOMElement && $child->localName === 'rFonts') $fontNodes[] = $child;
@@ -56,20 +52,5 @@ final class DocxFontService
         $fonts->setAttributeNS(DocxRendererService::WORD_NS, 'w:hAnsi', $font);
         $fonts->setAttributeNS(DocxRendererService::WORD_NS, 'w:cs', $font);
         $fonts->setAttributeNS(DocxRendererService::WORD_NS, 'w:eastAsia', $font);
-        $this->setSizeProperty($dom, $properties, 'sz', $size);
-        $this->setSizeProperty($dom, $properties, 'szCs', $size);
-    }
-
-    private function setSizeProperty(DOMDocument $dom, DOMElement $properties, string $name, int $size): void
-    {
-        $node = null;
-        foreach ($properties->childNodes as $child) {
-            if ($child instanceof DOMElement && $child->localName === $name) { $node = $child; break; }
-        }
-        if (! $node) {
-            $node = $dom->createElementNS(DocxRendererService::WORD_NS, 'w:' . $name);
-            $properties->appendChild($node);
-        }
-        $node->setAttributeNS(DocxRendererService::WORD_NS, 'w:val', (string) $size);
     }
 }
