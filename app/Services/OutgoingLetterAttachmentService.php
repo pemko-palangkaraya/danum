@@ -18,7 +18,7 @@ final class OutgoingLetterAttachmentService
 {
     private const MAX_ATTACHMENTS = 20;
     private const MAX_FILE_SIZE = 20 * 1024 * 1024;
-    private const HEADER_HEIGHT = 36.0;
+    private const HEADER_HEIGHT = 30.0;
 
     public function addUploads(OutgoingLetter $letter, array $files, array $titles = []): void
     {
@@ -35,52 +35,32 @@ final class OutgoingLetterAttachmentService
 
         try {
             foreach ($files as $index => $file) {
-                if (! $file instanceof UploadedFile) {
-                    throw new \DomainException('File lampiran tidak valid.');
-                }
-                if (! $file->isValid()) {
-                    throw new \DomainException('Salah satu file lampiran gagal diunggah.');
-                }
-                if (strtolower((string) $file->getClientOriginalExtension()) !== 'pdf' || $file->getMimeType() !== 'application/pdf') {
-                    throw new \DomainException('Lampiran V1 hanya menerima file PDF.');
-                }
-                if (($file->getSize() ?? 0) > self::MAX_FILE_SIZE) {
-                    throw new \DomainException('Ukuran setiap lampiran maksimal 20 MB.');
-                }
+                if (! $file instanceof UploadedFile) throw new \DomainException('File lampiran tidak valid.');
+                if (! $file->isValid()) throw new \DomainException('Salah satu file lampiran gagal diunggah.');
+                if (strtolower((string) $file->getClientOriginalExtension()) !== 'pdf' || $file->getMimeType() !== 'application/pdf') throw new \DomainException('Lampiran V1 hanya menerima file PDF.');
+                if (($file->getSize() ?? 0) > self::MAX_FILE_SIZE) throw new \DomainException('Ukuran setiap lampiran maksimal 20 MB.');
 
                 $pageCount = $this->countPages($file->getRealPath());
-                if ($pageCount < 1) {
-                    throw new \DomainException('PDF lampiran tidak memiliki halaman yang dapat dibaca.');
-                }
+                if ($pageCount < 1) throw new \DomainException('PDF lampiran tidak memiliki halaman yang dapat dibaca.');
 
                 $originalName = (string) $file->getClientOriginalName();
                 $filename = Str::uuid()->toString() . '.pdf';
                 $directory = 'outgoing-letters/attachments/' . $letter->tenant_id . '/' . $letter->id;
                 $path = Storage::disk('local')->putFileAs($directory, $file, $filename);
-                if ($path === false) {
-                    throw new RuntimeException('File lampiran gagal disimpan.');
-                }
+                if ($path === false) throw new RuntimeException('File lampiran gagal disimpan.');
                 $stored[] = $path;
 
                 $title = trim((string) ($titles[$index] ?? ''));
                 $title = $title !== '' ? $title : pathinfo($originalName, PATHINFO_FILENAME);
 
                 $attachment = $letter->attachments()->create([
-                    'sequence' => $nextSequence++,
-                    'title' => Str::limit($title, 255, ''),
-                    'source' => 'uploaded',
-                    'file_path' => $path,
-                    'original_name' => Str::limit($originalName, 255, ''),
-                    'mime_type' => 'application/pdf',
-                    'page_count' => $pageCount,
-                    'file_size' => $file->getSize(),
+                    'sequence' => $nextSequence++, 'title' => Str::limit($title, 255, ''), 'source' => 'uploaded',
+                    'file_path' => $path, 'original_name' => Str::limit($originalName, 255, ''), 'mime_type' => 'application/pdf',
+                    'page_count' => $pageCount, 'file_size' => $file->getSize(),
                 ]);
 
                 $this->audit('outgoing_letter.attachment_added', $letter, $attachment, [
-                    'sequence' => $attachment->sequence,
-                    'title' => $attachment->title,
-                    'page_count' => $attachment->page_count,
-                    'original_name' => $attachment->original_name,
+                    'sequence' => $attachment->sequence, 'title' => $attachment->title, 'page_count' => $attachment->page_count, 'original_name' => $attachment->original_name,
                 ]);
             }
         } catch (\Throwable $exception) {
@@ -92,13 +72,7 @@ final class OutgoingLetterAttachmentService
     public function delete(OutgoingLetterAttachment $attachment): void
     {
         $letter = $attachment->outgoingLetter;
-        $old = [
-            'sequence' => $attachment->sequence,
-            'title' => $attachment->title,
-            'page_count' => $attachment->page_count,
-            'original_name' => $attachment->original_name,
-        ];
-
+        $old = ['sequence' => $attachment->sequence, 'title' => $attachment->title, 'page_count' => $attachment->page_count, 'original_name' => $attachment->original_name];
         Storage::disk('local')->delete($attachment->file_path);
         $attachment->delete();
         $this->resequnce($letter);
@@ -111,25 +85,15 @@ final class OutgoingLetterAttachmentService
         $attachments = $letter->attachments()->orderBy('sequence')->get();
         $index = $attachments->search(fn (OutgoingLetterAttachment $item): bool => (string) $item->id === (string) $attachment->id);
         if ($index === false) return;
-
         $target = $index + $direction;
         if ($target < 0 || $target >= $attachments->count()) return;
-
         $items = $attachments->all();
         [$items[$index], $items[$target]] = [$items[$target], $items[$index]];
         foreach ($items as $position => $item) $item->update(['sequence' => $position + 1]);
-
-        $this->audit('outgoing_letter.attachment_reordered', $letter, $letter, [
-            'order' => $attachments->pluck('id')->values()->all(),
-        ], [
-            'order' => collect($items)->pluck('id')->values()->all(),
-        ]);
+        $this->audit('outgoing_letter.attachment_reordered', $letter, $letter, ['order' => $attachments->pluck('id')->values()->all()], ['order' => collect($items)->pluck('id')->values()->all()]);
     }
 
-    public function totalPages(OutgoingLetter $letter): int
-    {
-        return (int) $letter->attachments()->sum('page_count');
-    }
+    public function totalPages(OutgoingLetter $letter): int { return (int) $letter->attachments()->sum('page_count'); }
 
     public function label(OutgoingLetter $letter): ?string
     {
@@ -137,30 +101,25 @@ final class OutgoingLetterAttachmentService
         return $pages > 0 ? 'Lampiran : ' . $pages . ' (' . $this->numberToWords($pages) . ') lembar' : null;
     }
 
-    public function combineWithMainPdf(string $mainPdfPath, OutgoingLetter $letter, ?string $outputRelativePath = null, ?string $statusOverride = null): string
+    public function combineWithMainPdf(string $mainPdfPath, OutgoingLetter $letter, ?string $outputRelativePath = null): string
     {
         $attachments = $letter->attachments()->orderBy('sequence')->get();
         if ($attachments->isEmpty()) return $mainPdfPath;
         if (! is_file($mainPdfPath)) throw new RuntimeException('PDF utama tidak ditemukan untuk penggabungan lampiran.');
 
-        $output = $outputRelativePath !== null
-            ? Storage::disk('local')->path($outputRelativePath)
-            : tempnam(sys_get_temp_dir(), 'danum-letter-package-') . '.pdf';
-
+        $output = $outputRelativePath !== null ? Storage::disk('local')->path($outputRelativePath) : tempnam(sys_get_temp_dir(), 'danum-letter-package-') . '.pdf';
         if ($output === false || $output === null) throw new RuntimeException('File PDF gabungan tidak dapat dibuat.');
         if ($outputRelativePath !== null) Storage::disk('local')->makeDirectory(dirname($outputRelativePath));
 
         $pdf = new FileBufferedFpdi();
         $pdf->SetAutoPageBreak(false);
         $pdf->openFile($output);
-
         $this->appendPdf($pdf, $mainPdfPath);
         foreach ($attachments as $attachment) {
             $absolutePath = Storage::disk('local')->path($attachment->file_path);
             if (! is_file($absolutePath)) throw new RuntimeException('File lampiran tidak ditemukan: ' . $attachment->original_name);
-            $this->appendPdf($pdf, $absolutePath, $letter, $attachment->sequence, $statusOverride);
+            $this->appendPdf($pdf, $absolutePath, $letter, $attachment->sequence);
         }
-
         $pdf->Output('F', $output);
         if (! is_file($output)) throw new RuntimeException('PDF gabungan lampiran gagal dibuat.');
         return $output;
@@ -173,7 +132,7 @@ final class OutgoingLetterAttachmentService
         return (int) $reader->setSourceFile($path);
     }
 
-    private function appendPdf(FileBufferedFpdi $pdf, string $path, ?OutgoingLetter $letter = null, ?int $sequence = null, ?string $statusOverride = null): void
+    private function appendPdf(FileBufferedFpdi $pdf, string $path, ?OutgoingLetter $letter = null, ?int $sequence = null): void
     {
         $pageCount = $pdf->setSourceFile($path);
         for ($page = 1; $page <= $pageCount; $page++) {
@@ -185,7 +144,7 @@ final class OutgoingLetterAttachmentService
             $pdf->AddPage($orientation, [$width, $height]);
 
             if ($page === 1 && $letter !== null && $sequence !== null) {
-                $this->drawAttachmentHeader($pdf, $letter, $sequence, $width, $height, $statusOverride);
+                $this->drawAttachmentHeader($pdf, $letter, $sequence, $width);
                 $availableHeight = max(1.0, $height - self::HEADER_HEIGHT);
                 $scale = min(1.0, $availableHeight / $height);
                 $renderWidth = $width * $scale;
@@ -199,7 +158,7 @@ final class OutgoingLetterAttachmentService
         }
     }
 
-    private function drawAttachmentHeader(FileBufferedFpdi $pdf, OutgoingLetter $letter, int $sequence, float $width, float $height, ?string $statusOverride = null): void
+    private function drawAttachmentHeader(FileBufferedFpdi $pdf, OutgoingLetter $letter, int $sequence, float $width): void
     {
         $pdf->SetFont('Helvetica', 'B', 12);
         $pdf->SetTextColor(0, 0, 0);
@@ -210,27 +169,14 @@ final class OutgoingLetterAttachmentService
         $signerTitle = trim((string) ($letter->signer_title ?? ''));
         $heading = trim('Surat ' . $signerTitle . ' ' . $tenantName);
         $hal = trim((string) ($letter->input_data['hal'] ?? $letter->subject ?? ''));
-        $status = $statusOverride ?? $letter->status?->value ?? '';
-        $statusLabel = match ($status) {
-            'draft' => 'Draft',
-            'submitted' => 'Diajukan',
-            'validated' => 'Tervalidasi',
-            'issued' => 'Diterbitkan',
-            'withdrawn' => 'Ditarik',
-            'rejected' => 'Ditolak',
-            default => $status,
-        };
 
         $pdf->SetFont('Helvetica', '', 10);
         $pdf->SetXY(15, 12);
         $pdf->Cell($width - 30, 4, $this->toPdfText($heading), 0, 1, 'L');
-
         $pdf->SetFont('Helvetica', '', 9);
         $this->headerRow($pdf, 'Nomor', (string) $letter->number, $width, 17);
         $this->headerRow($pdf, 'Tanggal', optional($letter->letter_date)->locale('id')->translatedFormat('d F Y') ?? '-', $width, 21);
         $this->headerRow($pdf, 'Hal', $hal !== '' ? $hal : '-', $width, 25);
-        $this->headerRow($pdf, 'Status', $statusLabel !== '' ? $statusLabel : '-', $width, 29);
-
         $pdf->Line(15, self::HEADER_HEIGHT - 2, $width - 15, self::HEADER_HEIGHT - 2);
     }
 
@@ -244,9 +190,7 @@ final class OutgoingLetterAttachmentService
 
     private function resequnce(OutgoingLetter $letter): void
     {
-        foreach ($letter->attachments()->orderBy('sequence')->get() as $index => $item) {
-            $item->update(['sequence' => $index + 1]);
-        }
+        foreach ($letter->attachments()->orderBy('sequence')->get() as $index => $item) $item->update(['sequence' => $index + 1]);
     }
 
     private function audit(string $action, OutgoingLetter $letter, OutgoingLetter|OutgoingLetterAttachment $auditable, ?array $old = null, ?array $new = null): void
@@ -260,12 +204,7 @@ final class OutgoingLetterAttachmentService
     {
         $map = [10 => 'X', 9 => 'IX', 5 => 'V', 4 => 'IV', 1 => 'I'];
         $result = '';
-        foreach ($map as $value => $symbol) {
-            while ($number >= $value) {
-                $result .= $symbol;
-                $number -= $value;
-            }
-        }
+        foreach ($map as $value => $symbol) while ($number >= $value) { $result .= $symbol; $number -= $value; }
         return $result;
     }
 
@@ -280,8 +219,5 @@ final class OutgoingLetterAttachmentService
         return (string) $number;
     }
 
-    private function toPdfText(string $value): string
-    {
-        return iconv('UTF-8', 'windows-1252//TRANSLIT', $value) ?: $value;
-    }
+    private function toPdfText(string $value): string { return iconv('UTF-8', 'windows-1252//TRANSLIT', $value) ?: $value; }
 }
