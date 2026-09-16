@@ -22,18 +22,15 @@ class DocxLetterheadService
         $dom = new DOMDocument();
         $dom->preserveWhiteSpace = true;
         if (! $dom->loadXML($xml, LIBXML_NOBLANKS | LIBXML_NOERROR | LIBXML_NOWARNING)) throw new RuntimeException('DOCX document.xml tidak valid.');
-
         $xpath = new DOMXPath($dom);
         $xpath->registerNamespace('w', DocxRendererService::WORD_NS);
         $paragraphs = $xpath->query('//w:p');
         $targets = [];
         if ($paragraphs) foreach ($paragraphs as $paragraph) if (str_contains($this->nodeText($xpath, $paragraph), '{{letterhead}}')) $targets[] = $paragraph;
         if ($targets === []) return null;
-
         $structured = $this->hasStructuredSettings($tenant);
         $logoPath = $structured ? $this->resolveLogoPath($tenant) : null;
         if (! $structured) return $this->embedLegacyImage($dom, $xpath, $targets, $rels, $contentTypes, $tenant);
-
         $mediaName = '';
         $relsDom = null;
         if ($logoPath !== null) {
@@ -49,7 +46,6 @@ class DocxLetterheadService
             $rel->setAttribute('Target', 'media/' . $mediaName);
             $relsDom->documentElement?->appendChild($rel);
         }
-
         $tableWidth = $this->documentBodyWidth($xpath);
         $tableXml = $this->buildTableXml($tenant, $mediaName, $logoPath !== null, $logoPath, $tableWidth);
         foreach ($targets as $paragraph) {
@@ -58,7 +54,6 @@ class DocxLetterheadService
             $fragment = $dom->createDocumentFragment();
             if ($fragment->appendXML($tableXml)) $parent->replaceChild($fragment, $paragraph);
         }
-
         return ['xml' => $dom->saveXML() ?: $xml, 'rels' => $relsDom?->saveXML() ?: $rels, 'contentTypes' => $contentTypes, 'mediaName' => $mediaName, 'mediaPath' => $logoPath ?? ''];
     }
 
@@ -93,12 +88,10 @@ class DocxLetterheadService
         $pageSize = $xpath->query('//w:sectPr/w:pgSz')->item(0);
         $pageMargins = $xpath->query('//w:sectPr/w:pgMar')->item(0);
         if (! $pageSize || ! $pageMargins) return self::DEFAULT_TABLE_WIDTH;
-
         $pageWidth = (int) $pageSize->attributes?->getNamedItem('w:w')?->nodeValue;
         $leftMargin = (int) $pageMargins->attributes?->getNamedItem('w:left')?->nodeValue;
         $rightMargin = (int) $pageMargins->attributes?->getNamedItem('w:right')?->nodeValue;
         $usableWidth = $pageWidth - $leftMargin - $rightMargin;
-
         return $usableWidth > 0 ? $usableWidth : self::DEFAULT_TABLE_WIDTH;
     }
 
@@ -144,12 +137,9 @@ class DocxLetterheadService
         foreach ([[$tenant->letterhead_line1, (int) ($tenant->letterhead_line1_size ?? 15)], [$tenant->letterhead_line2, (int) ($tenant->letterhead_line2_size ?? 13)], [$tenant->letterhead_line3, (int) ($tenant->letterhead_line3_size ?? 11)]] as [$value, $size]) {
             if (trim((string) $value) !== '') $rows[] = $this->textParagraph((string) $value, $size, true);
         }
-
         $address = trim((string) $tenant->address);
         if ($address !== '') $rows[] = $this->textParagraph($address, (int) ($tenant->letterhead_meta_size ?? 8), false);
-
         if ($rows === []) $rows[] = $this->textParagraph($tenant->name, (int) ($tenant->letterhead_line1_size ?? 15), true);
-
         $logoWidth = $hasLogo ? 1800 : 0;
         $textWidth = max(1, $tableWidth - $logoWidth);
         $grid = $hasLogo ? '<w:gridCol w:w="' . $logoWidth . '"/><w:gridCol w:w="' . $textWidth . '"/>' : '<w:gridCol w:w="' . $tableWidth . '"/>';
@@ -161,7 +151,6 @@ class DocxLetterheadService
             $cy = $logoExtent['cy'];
             $logoCell = '<w:tc><w:tcPr><w:tcW w:w="' . $logoWidth . '" w:type="dxa"/><w:vAlign w:val="center"/><w:tcMar><w:left w:w="60" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr><w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:r="' . self::OFFICE_REL_NS . '" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' . $cx . '" cy="' . $cy . '"/><wp:docPr id="9002" name="DANUM Letterhead Logo"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="' . htmlspecialchars($mediaName, ENT_XML1 | ENT_QUOTES, 'UTF-8') . '"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdDanumLetterheadLogo"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' . $cx . '" cy="' . $cy . '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p></w:tc>';
         }
-
         return '<w:tbl xmlns:w="' . DocxRendererService::WORD_NS . '"><w:tblPr><w:tblW w:w="' . $tableWidth . '" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:jc w:val="left"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="single" w:sz="16" w:space="1"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr><w:tblGrid>' . $grid . '</w:tblGrid><w:tr>' . $logoCell . $textCell . '</w:tr></w:tbl>';
     }
 
@@ -176,12 +165,8 @@ class DocxLetterheadService
         $width = (int) ($size[0] ?? 1);
         $height = (int) ($size[1] ?? 1);
         if ($width <= 0 || $height <= 0) return ['cx' => $maxCx, 'cy' => $maxCy];
-
         $scale = min($maxCx / $width, $maxCy / $height);
-        return [
-            'cx' => max(1, (int) round($width * $scale)),
-            'cy' => max(1, (int) round($height * $scale)),
-        ];
+        return ['cx' => max(1, (int) round($width * $scale)), 'cy' => max(1, (int) round($height * $scale))];
     }
 
     private function textParagraph(string $text, int $points, bool $bold): string
@@ -193,7 +178,7 @@ class DocxLetterheadService
             if ($index > 0) $content .= '<w:br/>';
             $content .= '<w:t xml:space="preserve">' . htmlspecialchars(trim($part), ENT_XML1 | ENT_QUOTES, 'UTF-8') . '</w:t>';
         }
-        return '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:sz w:val="' . $halfPoints . '"/><w:szCs w:val="' . $halfPoints . '"/>' . ($bold ? '<w:b/><w:bCs/>' : '') . '</w:rPr><w:t xml:space="preserve">' . htmlspecialchars($text, ENT_XML1 | ENT_QUOTES, 'UTF-8') . '</w:t></w:r></w:p>';
+        return '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr><w:sz w:val="' . $halfPoints . '"/><w:szCs w:val="' . $halfPoints . '"/>' . ($bold ? '<w:b/><w:bCs/>' : '') . '</w:rPr>' . $content . '</w:r></w:p>';
     }
 
     private function nodeText(DOMXPath $xpath, \DOMNode $node): string
