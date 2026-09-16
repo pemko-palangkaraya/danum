@@ -18,7 +18,7 @@ final class OutgoingLetterAttachmentService
 {
     private const MAX_ATTACHMENTS = 20;
     private const MAX_FILE_SIZE = 20 * 1024 * 1024;
-    private const HEADER_HEIGHT = 30.0;
+    private const HEADER_HEIGHT = 33.0;
 
     public function addUploads(OutgoingLetter $letter, array $files, array $titles = []): void
     {
@@ -175,7 +175,7 @@ final class OutgoingLetterAttachmentService
         $pdf->Cell($width - 30, 4, $this->toPdfText($heading), 0, 1, 'L');
         $pdf->SetFont('Helvetica', '', 9);
         $this->headerRow($pdf, 'Nomor', (string) $letter->number, $width, 17);
-        $this->headerRow($pdf, 'Tanggal', optional($letter->letter_date)->locale('id')->translatedFormat('d F Y') ?? '-', $width, 21);
+        $this->headerRow($pdf, 'Tanggal', optional($letter->letter_date)->locale('id')->translatedFormat('j F Y') ?? '-', $width, 21);
         $this->headerRow($pdf, 'Hal', $hal !== '' ? $hal : '-', $width, 25);
         $pdf->Line(15, self::HEADER_HEIGHT - 2, $width - 15, self::HEADER_HEIGHT - 2);
     }
