@@ -44,7 +44,11 @@ class OutgoingLetterIssuanceService
         if (! $signWithTte && $marker === 'tte') return $letter;
         if ($signWithTte) {
             try {
-                if (blank($passphrase)) throw new \DomainException('Passphrase penanda tangan wajib diisi.');
+                if (blank($passphrase)) {
+            $exception = new \DomainException('Passphrase penanda tangan wajib diisi.');
+            $this->recordSigningFailure($letter, $changedBy, $exception);
+            throw $exception;
+        }
                 $this->signerPassphraseService->validate((string) $passphrase);
             } catch (\Throwable $e) {
                 $this->recordSigningFailure($letter, $changedBy, $e);
