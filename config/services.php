@@ -6,12 +6,6 @@ return [
     |--------------------------------------------------------------------------
     | Third Party Services
     |--------------------------------------------------------------------------
-    |
-    | This file is for storing the credentials for third party services such
-    | as Mailgun, Postmark, AWS and more. This file provides the de facto
-    | location for this type of information, allowing packages to have a
-    | conventional file to locate the service credentials.
-    |
     */
 
     'postmark' => [
@@ -42,6 +36,16 @@ return [
     'bsre' => [
         'enabled' => filter_var(env('BSRE_ESIGN_ENABLED', false), FILTER_VALIDATE_BOOL),
         'client_url' => env('BSRE_ESIGN_CLIENT_URL', ''),
+        'sign_endpoint' => env('BSRE_ESIGN_SIGN_ENDPOINT', '/sign'),
+        'http_method' => strtoupper(env('BSRE_ESIGN_HTTP_METHOD', 'POST')),
+        'auth_token' => env('BSRE_ESIGN_AUTH_TOKEN', ''),
+        'auth_header' => env('BSRE_ESIGN_AUTH_HEADER', 'Authorization'),
+        'auth_scheme' => env('BSRE_ESIGN_AUTH_SCHEME', 'Bearer'),
+        'pdf_field' => env('BSRE_ESIGN_PDF_FIELD', 'file'),
+        'passphrase_field' => env('BSRE_ESIGN_PASSPHRASE_FIELD', 'passphrase'),
+        'signer_field' => env('BSRE_ESIGN_SIGNER_FIELD', 'signer'),
+        'response_pdf_field' => env('BSRE_ESIGN_RESPONSE_PDF_FIELD', 'signed_pdf'),
+        'response_base64_field' => env('BSRE_ESIGN_RESPONSE_BASE64_FIELD', 'signed_pdf_base64'),
         'timeout' => (int) env('BSRE_ESIGN_TIMEOUT', 30),
         'verify_peer' => filter_var(env('BSRE_ESIGN_VERIFY_PEER', true), FILTER_VALIDATE_BOOL),
         'logo_url' => env('BSRE_LOGO_URL', 'https://bsre.bssn.go.id/_nuxt/bsre-logo.qrawwVYt.png'),
@@ -49,8 +53,6 @@ return [
     ],
 
     'tsa' => [
-        // Sectigo's documented RFC 3161 TSA endpoint for PAdES B-T.
-        // Keep this configurable so production can use an institutional TSA.
         'url' => env('DANUM_TSA_URL', 'http://timestamp.sectigo.com/rfc3161'),
         'username' => env('DANUM_TSA_USERNAME', ''),
         'password' => env('DANUM_TSA_PASSWORD', ''),
