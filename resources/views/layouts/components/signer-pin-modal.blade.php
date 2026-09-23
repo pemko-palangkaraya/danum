@@ -1,3 +1,4 @@
+<!-- Deprecated compatibility view. The active BSrE flow uses signer-passphrase-modal.blade.php. -->
 <div
     x-data="{ open: false, action: '', id: '', note: '', title: '', description: '', passphrase: '', error: '', submit() { const passphrase = this.passphrase.trim(); if (passphrase.length < 8) { this.error = 'Passphrase minimal 8 karakter.'; return; } Livewire.dispatch('signer-passphrase-submitted', { action: this.action, id: this.id, note: this.note, passphrase }); this.open = false; this.passphrase = ''; this.error = ''; } }"
     x-on:signer-pin-required.window="action = $event.detail.action; id = $event.detail.id; note = $event.detail.note; title = $event.detail.title; description = action === 'issue' ? 'Masukkan PIN untuk menerbitkan dan menandatangani surat secara elektronik.' : $event.detail.description; passphrase = ''; error = ''; open = true; $nextTick(() => $refs.pin?.focus())"
