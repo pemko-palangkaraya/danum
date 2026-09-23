@@ -103,7 +103,7 @@ class PdfSigningService
                         $out .= $this->defaultfont['out'];
                         $out .= $this->color->getPdfColor('#555555');
                         $out .= $this->getTextCell(
-                            txt: (string) config('services.bsre.enabled') ? config('services.bsre.footer_text') : self::LOCAL_FOOTER_TEXT,
+                            txt: (string) (config('services.bsre.enabled') ? config('services.bsre.footer_text') : self::LOCAL_FOOTER_TEXT),
                             posx: $margin,
                             posy: $footerY,
                             width: $textWidth,
