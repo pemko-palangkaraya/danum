@@ -13,7 +13,6 @@ use RuntimeException;
 class PdfSigningService
 {
     private const DEFAULT_REASON = 'Dokumen ini telah ditandatangani secara elektronik menggunakan sertifikat elektronik yang diterbitkan oleh DANUM.';
-    private const LOCAL_FOOTER_TEXT = 'Dokumen ini telah ditandatangani secara elektronik menggunakan sertifikat elektronik yang diterbitkan oleh DANUM.';
 
     public function __construct(
         private readonly CertificateAuthorityService $certificateAuthorities,
@@ -103,7 +102,7 @@ class PdfSigningService
                         $out .= $this->defaultfont['out'];
                         $out .= $this->color->getPdfColor('#555555');
                         $out .= $this->getTextCell(
-                            txt: (string) (config('services.bsre.enabled') ? config('services.bsre.footer_text') : self::LOCAL_FOOTER_TEXT),
+                            txt: (string) (config('services.bsre.enabled') ? config('services.bsre.footer_text') : 'Dokumen ini telah ditandatangani secara elektronik menggunakan sertifikat elektronik yang diterbitkan oleh DANUM.'),
                             posx: $margin,
                             posy: $footerY,
                             width: $textWidth,
