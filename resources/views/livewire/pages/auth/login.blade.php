@@ -69,15 +69,6 @@ $login = function (): void {
 ?>
 
 <div>
-    <div class="mb-7 flex justify-center sm:mb-8">
-        <a
-            href="{{ route('login') }}"
-            class="inline-flex items-center justify-center text-3xl font-black tracking-[0.25em] text-yellow-400 transition-transform duration-200 hover:scale-[1.02]"
-            aria-label="DANUM">
-            DANUM
-        </a>
-    </div>
-
     <div class="mb-7 text-center">
         <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Masuk ke DANUM</h1>
         <p class="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">Gunakan akun Anda untuk melanjutkan.</p>
