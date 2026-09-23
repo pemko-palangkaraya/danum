@@ -6,7 +6,7 @@ request()->routeIs('tenants.*', 'tenant-categories.*', 'users.*', 'positions.*',
 request()->routeIs('population.*') => 'population',
 request()->routeIs('letter-types.*', 'letter-classifications.*', 'letter-variable-definitions.*', 'outgoing-letters.*', 'outgoing-letter-withdrawals.*', 'register.*') => 'letters',
 request()->routeIs('audit-logs.*') => 'monitoring',
-request()->routeIs('settings.signing-certificate', 'settings.signing-pin') => 'security',
+request()->routeIs('settings.signing-certificate') => 'security',
 request()->routeIs('rbac.*') => 'administration',
 default => null,
 };
@@ -66,7 +66,7 @@ default => null,
     @endif
 
     @if ($user?->hasPermission('outgoing-letters.issue'))
-    <div class="mt-3"><button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" @click="openSection = openSection === 'security' ? null : 'security'" :aria-expanded="openSection === 'security'"><span>Keamanan</span><span x-text="openSection === 'security' ? '−' : '+'" class="ml-3 shrink-0 text-base font-normal leading-none text-slate-400"></span></button><div x-show="openSection === 'security'" x-cloak class="mt-1 space-y-1 pl-2"><x-sidebar-link :href="route('settings.signing-certificate')" :active="request()->routeIs('settings.signing-certificate')">Sertifikat TTE</x-sidebar-link><x-sidebar-link :href="route('settings.signing-pin')" :active="request()->routeIs('settings.signing-pin')">PIN Tanda Tangan</x-sidebar-link></div></div>
+    <div class="mt-3"><button type="button" class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" @click="openSection = openSection === 'security' ? null : 'security'" :aria-expanded="openSection === 'security'"><span>Keamanan</span><span x-text="openSection === 'security' ? '−' : '+'" class="ml-3 shrink-0 text-base font-normal leading-none text-slate-400"></span></button><div x-show="openSection === 'security'" x-cloak class="mt-1 space-y-1 pl-2"><x-sidebar-link :href="route('settings.signing-certificate')" :active="request()->routeIs('settings.signing-certificate')">Sertifikat TTE</x-sidebar-link></div></div>
     @endif
     @endif
 
