@@ -21,7 +21,6 @@ class User extends Authenticatable
     use Notifiable;
 
     protected $fillable = ['name', 'email', 'password', 'platform_role', 'custom_role_id', 'status', 'tenant_id'];
-    protected $hidden = ['signing_pin_hash', 'signing_pin_failed_attempts', 'signing_pin_locked_until'];
 
     protected function casts(): array
     {
@@ -31,9 +30,6 @@ class User extends Authenticatable
             'platform_role' => PlatformRole::class,
             'role' => UserRole::class,
             'status' => UserStatus::class,
-            'signing_pin_set_at' => 'datetime',
-            'signing_pin_failed_attempts' => 'integer',
-            'signing_pin_locked_until' => 'datetime',
         ];
     }
 
