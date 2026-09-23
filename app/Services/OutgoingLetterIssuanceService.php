@@ -43,8 +43,13 @@ class OutgoingLetterIssuanceService
         if (! in_array($marker, ['qr', 'tte'], true)) throw new \DomainException('Marker penerbitan surat tidak valid.');
         if (! $signWithTte && $marker === 'tte') return $letter;
         if ($signWithTte) {
-            if (blank($passphrase)) throw new \DomainException('Passphrase penanda tangan wajib diisi.');
-            $this->signerPassphraseService->validate((string) $passphrase);
+            try {
+                if (blank($passphrase)) throw new \DomainException('Passphrase penanda tangan wajib diisi.');
+                $this->signerPassphraseService->validate((string) $passphrase);
+            } catch (\Throwable $e) {
+                $this->recordSigningFailure($letter, $changedBy, $e);
+                throw $e;
+            }
         }
 
         $letterType = $letter->letterType()->first();
@@ -173,6 +178,27 @@ class OutgoingLetterIssuanceService
     private function recordHistory(OutgoingLetter $letter, string $action, int $changedBy, ?string $note = null): void
     {
         $this->historyRepository->create(['outgoing_letter_id' => $letter->id, 'changed_by' => $changedBy, 'status' => $letter->status, 'action' => $action, 'note' => $note]);
+    }
+
+    private function recordSigningFailure(OutgoingLetter $letter, int $actorId, \Throwable $exception): void
+    {
+        try {
+            $actor = User::query()->find($actorId);
+            if ($actor) {
+                $this->auditLogService->record(
+                    'outgoing_letter.sign_failed',
+                    $actor,
+                    $letter,
+                    null,
+                    [
+                        'error' => str($exception->getMessage())->limit(500)->toString(),
+                        'exception' => $exception::class,
+                    ],
+                );
+            }
+        } catch (\Throwable) {
+            // A failure to write the audit entry must not mask the signing error.
+        }
     }
 
     private function recordAudit(string $action, OutgoingLetter $letter, ?int $actorId, ?array $oldValues, ?array $newValues): void
