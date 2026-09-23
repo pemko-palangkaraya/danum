@@ -44,11 +44,7 @@ class OutgoingLetterIssuanceService
         if (! $signWithTte && $marker === 'tte') return $letter;
         if ($signWithTte) {
             try {
-                if (blank($passphrase)) {
-            $exception = new \DomainException('Passphrase penanda tangan wajib diisi.');
-            $this->recordSigningFailure($letter, $changedBy, $exception);
-            throw $exception;
-        }
+                if (blank($passphrase)) throw new \DomainException('Passphrase penanda tangan wajib diisi.');
                 $this->signerPassphraseService->validate((string) $passphrase);
             } catch (\Throwable $e) {
                 $this->recordSigningFailure($letter, $changedBy, $e);
@@ -129,12 +125,12 @@ class OutgoingLetterIssuanceService
         if ($letter->status === OutgoingLetterStatus::VALIDATED) return $this->issue($letter, $changedBy, $note, $passphrase, true, 'tte', $verificationUrl);
         if ($letter->status !== OutgoingLetterStatus::ISSUED) throw new \DomainException('Hanya surat yang sudah diterbitkan yang dapat ditandatangani secara elektronik.');
         if ($letter->signer_user_id !== $changedBy) throw new \DomainException('Hanya penanda tangan yang ditentukan untuk surat ini yang dapat menandatangani surat.');
-        if (blank($passphrase)) throw new \DomainException('Passphrase penanda tangan wajib diisi.');
         if (blank($letter->unsigned_pdf_path) || ! Storage::disk('local')->exists($letter->unsigned_pdf_path)) throw new \DomainException('PDF final surat belum tersedia untuk TTE.');
         if (filled($letter->signed_pdf_path) && Storage::disk('local')->exists($letter->signed_pdf_path)) throw new \DomainException('Surat ini sudah memiliki tanda tangan elektronik.');
 
         $signedPdfPath = null;
         try {
+            if (blank($passphrase)) throw new \DomainException('Passphrase penanda tangan wajib diisi.');
             $signer = User::query()->findOrFail($changedBy);
             $this->signerPassphraseService->validate($passphrase);
             $certificate = $this->resolveSignerCertificate($letter);
