@@ -39,6 +39,15 @@ return [
         'binary' => env('DANUM_LIBREOFFICE_BINARY'),
     ],
 
+    'bsre' => [
+        'enabled' => filter_var(env('BSRE_ESIGN_ENABLED', false), FILTER_VALIDATE_BOOL),
+        'client_url' => env('BSRE_ESIGN_CLIENT_URL', ''),
+        'timeout' => (int) env('BSRE_ESIGN_TIMEOUT', 30),
+        'verify_peer' => filter_var(env('BSRE_ESIGN_VERIFY_PEER', true), FILTER_VALIDATE_BOOL),
+        'logo_url' => env('BSRE_LOGO_URL', 'https://bsre.bssn.go.id/_nuxt/bsre-logo.qrawwVYt.png'),
+        'footer_text' => env('BSRE_FOOTER_TEXT', 'Dokumen ini telah ditandatangani secara elektronik menggunakan Sertifikat Elektronik yang diterbitkan oleh BSrE-BSSN.'),
+    ],
+
     'tsa' => [
         // Sectigo's documented RFC 3161 TSA endpoint for PAdES B-T.
         // Keep this configurable so production can use an institutional TSA.
