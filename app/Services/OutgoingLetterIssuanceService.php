@@ -8,6 +8,7 @@ use App\Enums\OutgoingLetterStatus;
 use App\Models\OutgoingLetter;
 use App\Models\SignerCertificate;
 use App\Models\User;
+use App\Services\BSrE\BsreEsignClient;
 use App\Repositories\Contracts\OutgoingLetterRepositoryInterface;
 use App\Repositories\Contracts\OutgoingLetterStatusHistoryRepositoryInterface;
 use Illuminate\Support\Facades\Auth;
