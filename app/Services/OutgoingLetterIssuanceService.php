@@ -24,6 +24,7 @@ class OutgoingLetterIssuanceService
         private readonly DocxPdfService $docxPdfService,
         private readonly DocxTteService $docxTteService,
         private readonly PdfSigningService $pdfSigningService,
+        private readonly BsreEsignClient $bsreEsignClient,
         private readonly SignerPassphraseService $signerPassphraseService,
         private readonly OutgoingLetterAttachmentService $attachments,
     ) {}
@@ -89,8 +90,11 @@ class OutgoingLetterIssuanceService
 
             if ($signWithTte) {
                 $signerCertificate = $this->resolveSignerCertificate($letter);
-                $signedPdfPath = $this->pdfSigningService->sign(sourcePdfPath: Storage::disk('local')->path($unsignedPdfPath), certificate: $signerCertificate, signerName: (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $signerCertificate->user()->value('name')), reason: $note);
-                $attributes = [...$attributes, 'unsigned_pdf_path' => $unsignedPdfPath, 'signed_pdf_path' => $signedPdfPath, 'signature_certificate_id' => $signerCertificate->id, 'signature_profile' => 'pades-b-t', 'signed_at' => now(), ...$this->documentHashAttributes($signedPdfPath)];
+                $signerName = (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $signerCertificate->user()->value('name'));
+                $signedPdfPath = $this->bsreEsignClient->enabled()
+                    ? $this->bsreEsignClient->sign(Storage::disk('local')->path($unsignedPdfPath), (string) $passphrase, $signerName)
+                    : $this->pdfSigningService->sign(sourcePdfPath: Storage::disk('local')->path($unsignedPdfPath), certificate: $signerCertificate, signerName: $signerName, reason: $note);
+                $attributes = [...$attributes, 'unsigned_pdf_path' => $unsignedPdfPath, 'signed_pdf_path' => $signedPdfPath, 'signature_certificate_id' => $signerCertificate->id, 'signature_profile' => $this->bsreEsignClient->enabled() ? 'bsre' : 'pades-b-t', 'signed_at' => now(), ...$this->documentHashAttributes($signedPdfPath)];
             } else {
                 $attributes['unsigned_pdf_path'] = $unsignedPdfPath;
                 $attributes = [...$attributes, ...$this->documentHashAttributes($unsignedPdfPath)];
@@ -134,7 +138,10 @@ class OutgoingLetterIssuanceService
             $signer = User::query()->findOrFail($changedBy);
             $this->signerPassphraseService->validate($passphrase);
             $certificate = $this->resolveSignerCertificate($letter);
-            $signedPdfPath = $this->pdfSigningService->sign(sourcePdfPath: Storage::disk('local')->path($letter->unsigned_pdf_path), certificate: $certificate, signerName: (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $certificate->user()->value('name')), reason: $note);
+            $signerName = (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $certificate->user()->value('name'));
+            $signedPdfPath = $this->bsreEsignClient->enabled()
+                ? $this->bsreEsignClient->sign(Storage::disk('local')->path($letter->unsigned_pdf_path), $passphrase, $signerName)
+                : $this->pdfSigningService->sign(sourcePdfPath: Storage::disk('local')->path($letter->unsigned_pdf_path), certificate: $certificate, signerName: $signerName, reason: $note);
             $documentHashAttributes = $this->documentHashAttributes($signedPdfPath);
             $oldValues = $this->auditValues($letter);
             return DB::transaction(function () use ($letter, $changedBy, $note, $certificate, $signedPdfPath, $documentHashAttributes, $oldValues): OutgoingLetter {
