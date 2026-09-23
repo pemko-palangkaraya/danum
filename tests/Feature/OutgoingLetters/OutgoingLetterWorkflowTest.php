@@ -18,7 +18,6 @@ use App\Services\DocxTteService;
 use App\Services\OutgoingLetterService;
 use App\Services\OutgoingLetterWorkflowService;
 use App\Services\PdfSigningService;
-use App\Services\SignerPinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -88,7 +87,7 @@ class OutgoingLetterWorkflowTest extends TestCase
             $this->assertSame(OutgoingLetterStatus::VALIDATED, $letter->status);
             $this->assertNull($letter->submitted_at);
             $this->assertSame('Saya telah memeriksa kelengkapan dan kesesuaian surat.', $letter->verification_note);
-            $issuance->issue($letter, $user->id, 'Saya menyetujui dan menandatangani surat ini untuk diterbitkan.', '123456');
+            $issuance->issue($letter, $user->id, 'Saya menyetujui dan menandatangani surat ini untuk diterbitkan.', 'test-passphrase-123');
             $letter->refresh();
             $this->assertSame(OutgoingLetterStatus::ISSUED, $letter->status);
             $this->assertSame('2026-08-25', $letter->issued_at->toDateString());
@@ -173,7 +172,7 @@ class OutgoingLetterWorkflowTest extends TestCase
             $type = LetterType::factory()->create(['status' => LetterTypeStatus::ACTIVE, 'validity_period' => $period, 'has_expiry' => $period !== 'none']);
             $letter = OutgoingLetter::factory()->create(['letter_type_id' => $type->id, 'status' => OutgoingLetterStatus::VALIDATED, 'signer_user_id' => $user->id]);
             $this->prepareSignerCredentials($letter, $user);
-            app(OutgoingLetterService::class)->issue($letter->fresh(), $user->id, 'Saya menandatangani dan menyetujui penerbitan surat ini.', '123456');
+            app(OutgoingLetterService::class)->issue($letter->fresh(), $user->id, 'Saya menandatangani dan menyetujui penerbitan surat ini.', 'test-passphrase-123');
             $letter->refresh();
             if ($period === 'none') {
                 $this->assertNull($letter->valid_until);
@@ -254,7 +253,6 @@ class OutgoingLetterWorkflowTest extends TestCase
         PositionHolder::factory()->create(['position_id' => $position->id, 'tenant_id' => $letter->tenant_id, 'user_id' => $signer->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
         $letter->forceFill(['signer_position_id' => $position->id, 'generated_docx_path' => 'outgoing-letters/test/source.docx'])->save();
         Storage::disk('local')->put('outgoing-letters/test/source.docx', 'test docx content');
-        app(SignerPinService::class)->set($signer, '123456');
         $certificate = SignerCertificate::query()->create(['position_id' => $position->id, 'user_id' => $signer->id, 'type' => 'self_signed', 'serial_number' => 'TEST-' . strtoupper(bin2hex(random_bytes(8))), 'fingerprint_sha256' => hash('sha256', $signer->id . '-' . $position->id . '-' . microtime(true)), 'certificate_pem' => 'TEST CERTIFICATE', 'private_key_encrypted' => 'TEST PRIVATE KEY', 'valid_from' => now()->subMinute(), 'valid_until' => now()->addYear(), 'revoked_at' => null, 'is_active' => true, 'generated_by' => $signer->id]);
         $this->assertTrue($certificate->fresh()->isUsable());
         $letter->forceFill(['signature_certificate_id' => $certificate->id])->save();
