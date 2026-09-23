@@ -108,7 +108,7 @@ class OutgoingLetterIssuanceService
                 return $letter;
             });
         } catch (\Throwable $e) {
-            try { $actor = User::query()->find($changedBy); if ($actor) $this->auditLogService->record('outgoing_letter.sign_failed', $actor, $letter, null, ['error' => str($e->getMessage())->limit(500)->toString(), 'exception' => $e::class]); } catch (\Throwable) {}
+            $this->recordSigningFailure($letter, $changedBy, $e);
             Log::error('Outgoing letter issuance failed.', ['letter_id' => $letter->id, 'changed_by' => $changedBy, 'marker' => $marker, 'sign_with_tte' => $signWithTte, 'exception_class' => $e::class, 'exception_message' => $e->getMessage(), 'exception_file' => $e->getFile(), 'exception_line' => $e->getLine()]);
             if ($unsignedPdfPath !== null) Storage::disk('local')->delete($unsignedPdfPath);
             if ($signedPdfPath !== null) Storage::disk('local')->delete($signedPdfPath);
