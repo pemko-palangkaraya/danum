@@ -33,6 +33,12 @@
         {{-- Content --}}
         <div class="relative z-10 w-full max-w-md">
 
+            <div class="mb-5 flex items-center justify-center gap-4">
+                <img src="{{ config('services.bsre.logo_url') }}" alt="Logo BSrE" class="h-12 w-auto object-contain" loading="eager">
+                <div class="h-10 w-px bg-slate-200"></div>
+                <div class="text-2xl font-black tracking-[0.22em] text-slate-900">DANUM</div>
+            </div>
+
             {{ $slot }}
 
         </div>
