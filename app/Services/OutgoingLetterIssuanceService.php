@@ -24,11 +24,11 @@ class OutgoingLetterIssuanceService
         private readonly DocxPdfService $docxPdfService,
         private readonly DocxTteService $docxTteService,
         private readonly PdfSigningService $pdfSigningService,
-        private readonly SignerPinService $signerPinService,
+        private readonly SignerPassphraseService $signerPassphraseService,
         private readonly OutgoingLetterAttachmentService $attachments,
     ) {}
 
-    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note, ?string $pin = null, bool $signWithTte = true, ?string $issuanceMarker = null, ?string $verificationUrl = null): OutgoingLetter
+    public function issue(OutgoingLetter $letter, int $changedBy, ?string $note, ?string $passphrase = null, bool $signWithTte = true, ?string $issuanceMarker = null, ?string $verificationUrl = null): OutgoingLetter
     {
         $note = trim((string) ($note ?? ''));
         if ($note === '') throw new \DomainException('Catatan penandatanganan wajib diisi.');
@@ -43,8 +43,8 @@ class OutgoingLetterIssuanceService
         if (! in_array($marker, ['qr', 'tte'], true)) throw new \DomainException('Marker penerbitan surat tidak valid.');
         if (! $signWithTte && $marker === 'tte') return $letter;
         if ($signWithTte) {
-            if (blank($pin)) throw new \DomainException('PIN penanda tangan wajib diisi.');
-            $this->signerPinService->verify($signer, $pin);
+            if (blank($passphrase)) throw new \DomainException('Passphrase penanda tangan wajib diisi.');
+            $this->signerPassphraseService->validate((string) $passphrase);
         }
 
         $letterType = $letter->letterType()->first();
@@ -103,6 +103,7 @@ class OutgoingLetterIssuanceService
                 return $letter;
             });
         } catch (\Throwable $e) {
+            try { $actor = User::query()->find($changedBy); if ($actor) $this->auditLogService->record('outgoing_letter.sign_failed', $actor, $letter, null, ['error' => str($e->getMessage())->limit(500)->toString(), 'exception' => $e::class]); } catch (\Throwable) {}
             Log::error('Outgoing letter issuance failed.', ['letter_id' => $letter->id, 'changed_by' => $changedBy, 'marker' => $marker, 'sign_with_tte' => $signWithTte, 'exception_class' => $e::class, 'exception_message' => $e->getMessage(), 'exception_file' => $e->getFile(), 'exception_line' => $e->getLine()]);
             if ($unsignedPdfPath !== null) Storage::disk('local')->delete($unsignedPdfPath);
             if ($signedPdfPath !== null) Storage::disk('local')->delete($signedPdfPath);
@@ -112,21 +113,21 @@ class OutgoingLetterIssuanceService
         }
     }
 
-    public function signIssued(OutgoingLetter $letter, int $changedBy, string $pin, ?string $note = null, ?string $verificationUrl = null): OutgoingLetter
+    public function signIssued(OutgoingLetter $letter, int $changedBy, string $passphrase, ?string $note = null, ?string $verificationUrl = null): OutgoingLetter
     {
         $note = trim((string) ($note ?? $letter->signing_note ?? ''));
         if ($note === '') throw new \DomainException('Catatan penandatanganan wajib diisi.');
-        if ($letter->status === OutgoingLetterStatus::VALIDATED) return $this->issue($letter, $changedBy, $note, $pin, true, 'tte', $verificationUrl);
+        if ($letter->status === OutgoingLetterStatus::VALIDATED) return $this->issue($letter, $changedBy, $note, $passphrase, true, 'tte', $verificationUrl);
         if ($letter->status !== OutgoingLetterStatus::ISSUED) throw new \DomainException('Hanya surat yang sudah diterbitkan yang dapat ditandatangani secara elektronik.');
         if ($letter->signer_user_id !== $changedBy) throw new \DomainException('Hanya penanda tangan yang ditentukan untuk surat ini yang dapat menandatangani surat.');
-        if (blank($pin)) throw new \DomainException('PIN penanda tangan wajib diisi.');
+        if (blank($passphrase)) throw new \DomainException('Passphrase penanda tangan wajib diisi.');
         if (blank($letter->unsigned_pdf_path) || ! Storage::disk('local')->exists($letter->unsigned_pdf_path)) throw new \DomainException('PDF final surat belum tersedia untuk TTE.');
         if (filled($letter->signed_pdf_path) && Storage::disk('local')->exists($letter->signed_pdf_path)) throw new \DomainException('Surat ini sudah memiliki tanda tangan elektronik.');
 
         $signedPdfPath = null;
         try {
             $signer = User::query()->findOrFail($changedBy);
-            $this->signerPinService->verify($signer, $pin);
+            $this->signerPassphraseService->validate($passphrase);
             $certificate = $this->resolveSignerCertificate($letter);
             $signedPdfPath = $this->pdfSigningService->sign(sourcePdfPath: Storage::disk('local')->path($letter->unsigned_pdf_path), certificate: $certificate, signerName: (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $certificate->user()->value('name')), reason: $note);
             $documentHashAttributes = $this->documentHashAttributes($signedPdfPath);
@@ -138,6 +139,7 @@ class OutgoingLetterIssuanceService
                 return $updated;
             });
         } catch (\Throwable $e) {
+            try { $actor = User::query()->find($changedBy); if ($actor) $this->auditLogService->record('outgoing_letter.sign_failed', $actor, $letter, null, ['error' => str($e->getMessage())->limit(500)->toString(), 'exception' => $e::class]); } catch (\Throwable) {}
             Log::error('Outgoing letter TTE workflow failed.', ['letter_id' => $letter->id, 'changed_by' => $changedBy, 'unsigned_pdf_path' => $letter->unsigned_pdf_path, 'exception_class' => $e::class, 'exception_message' => $e->getMessage(), 'exception_file' => $e->getFile(), 'exception_line' => $e->getLine()]);
             if ($signedPdfPath !== null) Storage::disk('local')->delete($signedPdfPath);
             if ($e instanceof \DomainException) throw $e;
