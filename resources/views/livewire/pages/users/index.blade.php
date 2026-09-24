@@ -17,12 +17,7 @@ new #[Layout('layouts.app')] class extends Component {
     use WithStandardTablePagination;
 
     public bool $showForm = false;
-    public bool $showSignerPin = false;
     public ?int $editingUserId = null;
-    public ?int $signerPinUserId = null;
-    public string $signerPinUserName = '';
-    public string $signerPin = '';
-    public string $signerPinConfirmation = '';
     public string $name = '';
     public string $nip = '';
     public string $nik = '';
