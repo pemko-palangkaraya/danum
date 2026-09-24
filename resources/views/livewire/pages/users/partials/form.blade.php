@@ -2,6 +2,7 @@
     <h2 class="text-sm font-semibold text-slate-900">{{ $editingUserId ? 'Edit User' : 'Add User' }}</h2>
     <div class="mt-5 grid gap-5 sm:grid-cols-2">
         <x-ui.input wire:model="name" label="Name" id="user-name" name="name" autocomplete="name" error="{{ $errors->first('name') }}" required />
+        <x-ui.input wire:model="nik" label="NIK BSrE" id="user-nik" name="nik" inputmode="numeric" maxlength="16" autocomplete="off" placeholder="16 digit NIK penanda tangan" error="{{ $errors->first('nik') }}" />
         <x-ui.input wire:model="nip" label="NIP" id="user-nip" name="nip" autocomplete="off" maxlength="18" placeholder="Nomor Induk Pegawai" error="{{ $errors->first('nip') }}" />
         <x-ui.input wire:model="pangkat" label="Pangkat" id="user-pangkat" name="pangkat" autocomplete="off" placeholder="Contoh: Pembina" error="{{ $errors->first('pangkat') }}" />
         <x-ui.input wire:model="golongan" label="Golongan" id="user-golongan" name="golongan" autocomplete="off" placeholder="Contoh: IV/a" error="{{ $errors->first('golongan') }}" />
