@@ -25,6 +25,7 @@ new #[Layout('layouts.app')] class extends Component {
     public string $signerPinConfirmation = '';
     public string $name = '';
     public string $nip = '';
+    public string $nik = '';
     public string $pangkat = '';
     public string $golongan = '';
     public string $statusPegawai = '';
@@ -53,6 +54,7 @@ new #[Layout('layouts.app')] class extends Component {
         $this->editingUserId = $user->id;
         $this->name = $user->name;
         $this->nip = (string) ($profile?->nip ?? '');
+        $this->nik = (string) ($profile?->nik ?? '');
         $this->pangkat = (string) ($profile?->pangkat ?? '');
         $this->golongan = (string) ($profile?->golongan ?? '');
         $this->statusPegawai = (string) ($profile?->status_pegawai ?? '');
@@ -120,6 +122,7 @@ new #[Layout('layouts.app')] class extends Component {
         $data = [
             'name' => $this->name,
             'nip' => $this->nip,
+            'nik' => $this->nik,
             'pangkat' => $this->pangkat,
             'golongan' => $this->golongan,
             'status_pegawai' => $this->statusPegawai,
@@ -169,6 +172,7 @@ new #[Layout('layouts.app')] class extends Component {
         $this->editingUserId = null;
         $this->name = '';
         $this->nip = '';
+        $this->nik = '';
         $this->pangkat = '';
         $this->golongan = '';
         $this->statusPegawai = '';
