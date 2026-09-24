@@ -80,10 +80,8 @@ class BsreEsignClient
         }
 
         if ($response->failed()) {
-            $detail = trim($response->body());
-            $detail = $detail !== '' ? ' Respons: ' . str($detail)->limit(300)->toString() : '';
             throw new RuntimeException(
-                'eSign Client menolak permintaan signing (HTTP ' . $response->status() . ').' . $detail
+                'eSign Client menolak permintaan signing (HTTP ' . $response->status() . ').'
             );
         }
 
