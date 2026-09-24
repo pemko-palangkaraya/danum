@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 class UserService
 {
     private const EMPLOYEE_PROFILE_FIELDS = [
-        'nip', 'pangkat', 'golongan', 'status_pegawai', 'tanggal_masuk', 'tanggal_pensiun',
+        'nip', 'nik', 'pangkat', 'golongan', 'status_pegawai', 'tanggal_masuk', 'tanggal_pensiun',
     ];
 
     public function __construct(
@@ -140,6 +140,7 @@ class UserService
             'name' => $user->name,
             'employee_profile' => $profile ? [
                 'nip' => $profile->nip,
+                'nik' => $profile->nik,
                 'pangkat' => $profile->pangkat,
                 'golongan' => $profile->golongan,
                 'status_pegawai' => $profile->status_pegawai,
