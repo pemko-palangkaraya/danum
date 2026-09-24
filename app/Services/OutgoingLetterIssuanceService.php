@@ -90,12 +90,49 @@ class OutgoingLetterIssuanceService
             }
 
             if ($signWithTte) {
-                $signerCertificate = $this->resolveSignerCertificate($letter);
-                $signerName = (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $signerCertificate->user()->value('name'));
-                $signedPdfPath = $this->bsreEsignClient->enabled()
-                    ? $this->bsreEsignClient->sign(Storage::disk('local')->path($unsignedPdfPath), (string) $passphrase, $signerName)
-                    : $this->pdfSigningService->sign(sourcePdfPath: Storage::disk('local')->path($unsignedPdfPath), certificate: $signerCertificate, signerName: $signerName, reason: $note);
-                $attributes = [...$attributes, 'unsigned_pdf_path' => $unsignedPdfPath, 'signed_pdf_path' => $signedPdfPath, 'signature_certificate_id' => $signerCertificate->id, 'signature_profile' => $this->bsreEsignClient->enabled() ? 'bsre' : 'pades-b-t', 'signed_at' => now(), ...$this->documentHashAttributes($signedPdfPath)];
+                $signerUser = $letter->signerUser()->with('employeeProfile')->first();
+                if (! $signerUser) {
+                    throw new \DomainException('Data penanda tangan surat tidak ditemukan.');
+                }
+
+                $signerName = (string) ($letter->signer_name ?: $signerUser->name);
+                if ($this->bsreEsignClient->enabled()) {
+                    $nik = (string) ($signerUser->employeeProfile?->nik ?? '');
+                    if ($nik === '') {
+                        throw new \DomainException('NIK BSrE penanda tangan belum diatur pada profil pegawai.');
+                    }
+
+                    $signedPdfPath = $this->bsreEsignClient->sign(
+                        Storage::disk('local')->path($unsignedPdfPath),
+                        $nik,
+                        (string) $passphrase,
+                        [
+                            'linkQR' => $verificationUrl,
+                        ],
+                    );
+                    $signatureCertificateId = null;
+                    $signatureProfile = 'bsre';
+                } else {
+                    $signerCertificate = $this->resolveSignerCertificate($letter);
+                    $signedPdfPath = $this->pdfSigningService->sign(
+                        sourcePdfPath: Storage::disk('local')->path($unsignedPdfPath),
+                        certificate: $signerCertificate,
+                        signerName: $signerName,
+                        reason: $note,
+                    );
+                    $signatureCertificateId = $signerCertificate->id;
+                    $signatureProfile = 'pades-b-t';
+                }
+
+                $attributes = [
+                    ...$attributes,
+                    'unsigned_pdf_path' => $unsignedPdfPath,
+                    'signed_pdf_path' => $signedPdfPath,
+                    'signature_certificate_id' => $signatureCertificateId,
+                    'signature_profile' => $signatureProfile,
+                    'signed_at' => now(),
+                    ...$this->documentHashAttributes($signedPdfPath),
+                ];
             } else {
                 $attributes['unsigned_pdf_path'] = $unsignedPdfPath;
                 $attributes = [...$attributes, ...$this->documentHashAttributes($unsignedPdfPath)];
@@ -136,17 +173,40 @@ class OutgoingLetterIssuanceService
         $signedPdfPath = null;
         try {
             if (blank($passphrase)) throw new \DomainException('Passphrase penanda tangan wajib diisi.');
-            $signer = User::query()->findOrFail($changedBy);
+            $signer = User::query()->with('employeeProfile')->findOrFail($changedBy);
             $this->signerPassphraseService->validate($passphrase);
-            $certificate = $this->resolveSignerCertificate($letter);
-            $signerName = (string) ($letter->signer_name ?: $letter->signerUser()->value('name') ?: $certificate->user()->value('name'));
-            $signedPdfPath = $this->bsreEsignClient->enabled()
-                ? $this->bsreEsignClient->sign(Storage::disk('local')->path($letter->unsigned_pdf_path), $passphrase, $signerName)
-                : $this->pdfSigningService->sign(sourcePdfPath: Storage::disk('local')->path($letter->unsigned_pdf_path), certificate: $certificate, signerName: $signerName, reason: $note);
+            $signerName = (string) ($letter->signer_name ?: $signer->name);
+
+            if ($this->bsreEsignClient->enabled()) {
+                $nik = (string) ($signer->employeeProfile?->nik ?? '');
+                if ($nik === '') {
+                    throw new \DomainException('NIK BSrE penanda tangan belum diatur pada profil pegawai.');
+                }
+
+                $signedPdfPath = $this->bsreEsignClient->sign(
+                    Storage::disk('local')->path($letter->unsigned_pdf_path),
+                    $nik,
+                    $passphrase,
+                    ['linkQR' => $verificationUrl],
+                );
+                $certificateId = null;
+                $signatureProfile = 'bsre';
+            } else {
+                $certificate = $this->resolveSignerCertificate($letter);
+                $signedPdfPath = $this->pdfSigningService->sign(
+                    sourcePdfPath: Storage::disk('local')->path($letter->unsigned_pdf_path),
+                    certificate: $certificate,
+                    signerName: $signerName,
+                    reason: $note,
+                );
+                $certificateId = $certificate->id;
+                $signatureProfile = 'pades-b-t';
+            }
+
             $documentHashAttributes = $this->documentHashAttributes($signedPdfPath);
             $oldValues = $this->auditValues($letter);
-            return DB::transaction(function () use ($letter, $changedBy, $note, $certificate, $signedPdfPath, $documentHashAttributes, $oldValues): OutgoingLetter {
-                $updated = $this->repository->update($letter, ['signed_pdf_path' => $signedPdfPath, 'signature_certificate_id' => $certificate->id, 'signature_profile' => 'pades-b-t', 'signed_at' => now(), ...$documentHashAttributes]);
+            return DB::transaction(function () use ($letter, $changedBy, $note, $certificateId, $signatureProfile, $signedPdfPath, $documentHashAttributes, $oldValues): OutgoingLetter {
+                $updated = $this->repository->update($letter, ['signed_pdf_path' => $signedPdfPath, 'signature_certificate_id' => $certificateId, 'signature_profile' => $signatureProfile, 'signed_at' => now(), ...$documentHashAttributes]);
                 $this->recordHistory($updated, 'signed', $changedBy, $note);
                 $this->recordAudit('outgoing_letter.signed', $updated, $changedBy, $oldValues, $this->auditValues($updated));
                 return $updated;
