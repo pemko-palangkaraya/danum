@@ -5,8 +5,6 @@ use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Services\AuditLogService;
-use App\Services\SignerPinService;
 use App\Services\UserService;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -53,50 +51,6 @@ new #[Layout('layouts.app')] class extends Component {
         $this->password = '';
         $this->resetValidation();
         $this->showForm = true;
-    }
-
-    public function openSignerPin(int $id): void
-    {
-        $user = $this->tenantUser($id);
-        $this->authorize('update', $user);
-        $this->signerPinUserId = $user->id;
-        $this->signerPinUserName = $user->name;
-        $this->signerPin = '';
-        $this->signerPinConfirmation = '';
-        $this->resetValidation(['signerPin', 'signerPinConfirmation']);
-        $this->showSignerPin = true;
-    }
-
-    public function saveSignerPin(SignerPinService $pinService, AuditLogService $auditLogService): void
-    {
-        $user = $this->tenantUser($this->signerPinUserId);
-        $this->authorize('update', $user);
-        $validated = Validator::make([
-            'signerPin' => $this->signerPin,
-            'signerPinConfirmation' => $this->signerPinConfirmation,
-        ], [
-            'signerPin' => ['required', 'digits:6'],
-            'signerPinConfirmation' => ['required', 'same:signerPin'],
-        ], [
-            'signerPin.required' => 'PIN wajib diisi.',
-            'signerPin.digits' => 'PIN harus terdiri dari 6 digit.',
-            'signerPinConfirmation.required' => 'Konfirmasi PIN wajib diisi.',
-            'signerPinConfirmation.same' => 'Konfirmasi PIN tidak sama.',
-        ])->validate();
-        $pinService->set($user, $validated['signerPin']);
-        $auditLogService->record(action: 'signer_pin.updated', user: auth()->user(), auditable: $user, newValues: ['configured' => true], tenantId: $user->tenant_id);
-        $this->closeSignerPin();
-        $this->dispatch('toast', type: 'success', message: 'PIN tanda tangan berhasil disimpan.');
-    }
-
-    public function closeSignerPin(): void
-    {
-        $this->showSignerPin = false;
-        $this->signerPinUserId = null;
-        $this->signerPinUserName = '';
-        $this->signerPin = '';
-        $this->signerPinConfirmation = '';
-        $this->resetValidation(['signerPin', 'signerPinConfirmation']);
     }
 
     public function save(UserService $userService): void

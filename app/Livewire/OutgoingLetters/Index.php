@@ -264,7 +264,7 @@ class Index extends Component
             $service->issue($letter, auth()->id(), $note, null, false, $tte ? 'tte' : 'qr', $verificationUrl);
 
             if ($tte) {
-                $this->dispatch('signer-pin-required', action: 'issue', id: $letter->id, note: $note, title: 'PIN Tanda Tangan', description: 'Surat sudah diterbitkan. Masukkan PIN untuk melanjutkan tanda tangan elektronik.');
+                $this->dispatch('signer-passphrase-required', action: 'issue', id: $letter->id, note: $note, title: 'Passphrase Tanda Tangan', description: 'Surat sudah diterbitkan. Masukkan passphrase BSrE untuk melanjutkan tanda tangan elektronik.');
                 return;
             }
 
@@ -275,20 +275,20 @@ class Index extends Component
         }
     }
 
-    #[On('signer-pin-submitted')]
-    public function handleSignerPin(string $action, string $id, string $note, string $pin, OutgoingLetterService $service): void
+    #[On('signer-passphrase-submitted')]
+    public function handleSignerPassphrase(string $action, string $id, string $note, string $passphrase, OutgoingLetterService $service): void
     {
         if ($action !== 'issue') return;
-        $pin = trim($pin);
-        if (! preg_match('/^\d{6}$/', $pin)) {
-            $this->dispatch('signer-pin-invalid');
+        $passphrase = trim($passphrase);
+        if (mb_strlen($passphrase) < 8) {
+            $this->dispatch('signer-passphrase-invalid');
             return;
         }
         try {
             $letter = $this->tenantQuery()->findOrFail($id);
             $this->authorize('issue', $letter);
             $verificationUrl = route('verification.show', ['token' => $letter->verification_token]);
-            $service->signIssued($letter, auth()->id(), $pin, trim($note), $verificationUrl);
+            $service->signIssued($letter, auth()->id(), $passphrase, trim($note), $verificationUrl);
             $this->dispatch('toast', type: 'success', message: 'Surat berhasil ditandatangani secara elektronik.');
         } catch (\Throwable $exception) {
             report($exception);

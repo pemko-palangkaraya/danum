@@ -29,8 +29,7 @@
     </div>
 
     @include('layouts.components.workflow-note-modal')
-    @include('layouts.components.signer-pin-modal')
-    @include('layouts.components.signing-pin-missing-modal')
+    @include('layouts.components.signer-passphrase-modal')
     @include('layouts.components.signing-certificate-missing-modal')
 
     @livewireScripts

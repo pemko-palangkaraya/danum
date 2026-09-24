@@ -26,6 +26,7 @@ class StoreUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'nip' => ['nullable', 'string', 'max:18', Rule::unique('employee_profiles', 'nip')],
+            'nik' => ['nullable', 'digits:16', Rule::unique('employee_profiles', 'nik')],
             'pangkat' => ['nullable', 'string', 'max:100'],
             'golongan' => ['nullable', 'string', 'max:20'],
             'status_pegawai' => ['nullable', 'string', 'max:50'],

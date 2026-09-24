@@ -109,12 +109,6 @@
                 wire:loading.attr="disabled" />
 
             <x-ui.action-menu-item
-                label="PIN Tanda Tangan"
-                @click="close()"
-                wire:click="openSignerPin({{ $user->id }})"
-                wire:loading.attr="disabled" />
-
-            <x-ui.action-menu-item
                 label="{{ $user->status === \App\Enums\UserStatus::ACTIVE ? 'Deactivate' : 'Activate' }}"
                 variant="{{ $user->status === \App\Enums\UserStatus::ACTIVE ? 'danger' : 'success' }}"
                 @click="close()"

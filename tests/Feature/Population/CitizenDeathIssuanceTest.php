@@ -20,7 +20,6 @@ use App\Services\DocxPdfService;
 use App\Services\DocxTteService;
 use App\Services\OutgoingLetterService;
 use App\Services\PdfSigningService;
-use App\Services\SignerPinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -64,7 +63,7 @@ class CitizenDeathIssuanceTest extends TestCase
         $letter = OutgoingLetter::factory()->create(['tenant_id' => $tenant->id, 'letter_type_id' => $type->id, 'citizen_id' => $citizen->id, 'status' => OutgoingLetterStatus::VALIDATED, 'signer_user_id' => $signer->id, 'input_data' => ['tanggal_meninggal' => '12 Des 2025']]);
         $this->prepareSignerCredentials($letter, $signer);
 
-        app(OutgoingLetterService::class)->issue($letter->fresh(), $signer->id, 'Saya menyetujui dan menandatangani surat ini.', '123456');
+        app(OutgoingLetterService::class)->issue($letter->fresh(), $signer->id, 'Saya menyetujui dan menandatangani surat ini.', 'test-passphrase-123');
 
         $citizen->refresh();
         $membership->refresh();
@@ -81,7 +80,6 @@ class CitizenDeathIssuanceTest extends TestCase
         PositionHolder::factory()->create(['position_id' => $position->id, 'tenant_id' => $letter->tenant_id, 'user_id' => $signer->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
         $letter->forceFill(['signer_position_id' => $position->id, 'generated_docx_path' => 'outgoing-letters/test/source.docx'])->save();
         Storage::disk('local')->put('outgoing-letters/test/source.docx', 'test docx content');
-        app(SignerPinService::class)->set($signer, '123456');
         $certificate = SignerCertificate::query()->create(['position_id' => $position->id, 'user_id' => $signer->id, 'type' => 'self_signed', 'serial_number' => 'TEST-' . strtoupper(bin2hex(random_bytes(8))), 'fingerprint_sha256' => hash('sha256', $signer->id . '-' . $position->id . '-' . microtime(true)), 'certificate_pem' => 'TEST CERTIFICATE', 'private_key_encrypted' => 'TEST PRIVATE KEY', 'valid_from' => now()->subMinute(), 'valid_until' => now()->addYear(), 'revoked_at' => null, 'is_active' => true, 'generated_by' => $signer->id]);
         $this->assertTrue($certificate->fresh()->isUsable());
         $letter->forceFill(['signature_certificate_id' => $certificate->id])->save();

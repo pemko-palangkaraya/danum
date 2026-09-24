@@ -16,7 +16,6 @@ use App\Services\OutgoingLetterService;
 use App\Services\OutgoingLetterWorkflowService;
 use App\Services\PdfSigningService;
 use App\Services\SignerCertificateService;
-use App\Services\SignerPinService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
@@ -31,7 +30,6 @@ class OutgoingLetterAuditLogTest extends TestCase
         Storage::fake('local');
         $actor = User::factory()->superAdmin()->create();
         $validator = User::factory()->superAdmin()->create();
-        app(SignerPinService::class)->set($actor, '123456');
         $letter = OutgoingLetter::factory()->create(['status' => OutgoingLetterStatus::DRAFT, 'validator_user_id' => $validator->id, 'signer_user_id' => $actor->id]);
         $position = Position::factory()->signatory()->create();
         $holder = PositionHolder::factory()->create(['position_id' => $position->id, 'tenant_id' => $letter->tenant_id, 'user_id' => $actor->id, 'started_at' => now()->subDay(), 'ended_at' => null]);
@@ -68,7 +66,7 @@ class OutgoingLetterAuditLogTest extends TestCase
         $created->refresh();
         $workflow->validate($created, $validator->id, 'Saya telah memeriksa isi dan kelengkapan surat.');
         $created->refresh();
-        $service->issue($created, $actor->id, 'Saya menyetujui dan menandatangani surat untuk diterbitkan.', '123456');
+        $service->issue($created, $actor->id, 'Saya menyetujui dan menandatangani surat untuk diterbitkan.', 'test-passphrase-123');
 
         $this->assertSame(['outgoing_letter.created','outgoing_letter.updated','outgoing_letter.submitted','outgoing_letter.validated','outgoing_letter.signed','outgoing_letter.issued'], AuditLog::query()->where('auditable_type', OutgoingLetter::class)->where('auditable_id', $created->id)->orderBy('created_at')->pluck('action')->all());
         $created->refresh();

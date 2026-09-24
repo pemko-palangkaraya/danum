@@ -6,8 +6,6 @@ use App\Http\Requests\UpdateUserRequest;
 use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Services\AuditLogService;
-use App\Services\SignerPinService;
 use App\Services\UserService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -19,14 +17,10 @@ new #[Layout('layouts.app')] class extends Component {
     use WithStandardTablePagination;
 
     public bool $showForm = false;
-    public bool $showSignerPin = false;
     public ?int $editingUserId = null;
-    public ?int $signerPinUserId = null;
-    public string $signerPinUserName = '';
-    public string $signerPin = '';
-    public string $signerPinConfirmation = '';
     public string $name = '';
     public string $nip = '';
+    public string $nik = '';
     public string $pangkat = '';
     public string $golongan = '';
     public string $statusPegawai = '';
@@ -55,6 +49,7 @@ new #[Layout('layouts.app')] class extends Component {
         $this->editingUserId = $user->id;
         $this->name = $user->name;
         $this->nip = (string) ($profile?->nip ?? '');
+        $this->nik = (string) ($profile?->nik ?? '');
         $this->pangkat = (string) ($profile?->pangkat ?? '');
         $this->golongan = (string) ($profile?->golongan ?? '');
         $this->statusPegawai = (string) ($profile?->status_pegawai ?? '');
@@ -104,48 +99,6 @@ new #[Layout('layouts.app')] class extends Component {
         return $query->where('scope', 'tenant')->where('tenant_id', $this->tenantId)->orderBy('name')->get();
     }
 
-    public function openSignerPin(int $id): void
-    {
-        $user = User::query()->findOrFail($id);
-        $this->authorize('update', $user);
-        $this->signerPinUserId = $user->id;
-        $this->signerPinUserName = $user->name;
-        $this->signerPin = '';
-        $this->signerPinConfirmation = '';
-        $this->resetValidation(['signerPin', 'signerPinConfirmation']);
-        $this->showSignerPin = true;
-    }
-
-    public function saveSignerPin(SignerPinService $pinService, AuditLogService $auditLogService): void
-    {
-        $user = User::query()->findOrFail($this->signerPinUserId);
-        $this->authorize('update', $user);
-        $validated = Validator::make(
-            ['signerPin' => $this->signerPin, 'signerPinConfirmation' => $this->signerPinConfirmation],
-            ['signerPin' => ['required', 'digits:6'], 'signerPinConfirmation' => ['required', 'same:signerPin']],
-            [
-                'signerPin.required' => 'PIN wajib diisi.',
-                'signerPin.digits' => 'PIN harus terdiri dari 6 digit.',
-                'signerPinConfirmation.required' => 'Konfirmasi PIN wajib diisi.',
-                'signerPinConfirmation.same' => 'Konfirmasi PIN tidak sama.',
-            ]
-        )->validate();
-        $pinService->set($user, $validated['signerPin']);
-        $auditLogService->record(action: 'signer_pin.updated', user: auth()->user(), auditable: $user, newValues: ['configured' => true], tenantId: $user->tenant_id);
-        $this->closeSignerPin();
-        $this->dispatch('toast', type: 'success', message: 'PIN tanda tangan berhasil disimpan.');
-    }
-
-    public function closeSignerPin(): void
-    {
-        $this->showSignerPin = false;
-        $this->signerPinUserId = null;
-        $this->signerPinUserName = '';
-        $this->signerPin = '';
-        $this->signerPinConfirmation = '';
-        $this->resetValidation(['signerPin', 'signerPinConfirmation']);
-    }
-
     public function save(UserService $userService): void
     {
         $customRole = null;
@@ -164,6 +117,7 @@ new #[Layout('layouts.app')] class extends Component {
         $data = [
             'name' => $this->name,
             'nip' => $this->nip,
+            'nik' => $this->nik,
             'pangkat' => $this->pangkat,
             'golongan' => $this->golongan,
             'status_pegawai' => $this->statusPegawai,
@@ -213,6 +167,7 @@ new #[Layout('layouts.app')] class extends Component {
         $this->editingUserId = null;
         $this->name = '';
         $this->nip = '';
+        $this->nik = '';
         $this->pangkat = '';
         $this->golongan = '';
         $this->statusPegawai = '';
@@ -250,5 +205,4 @@ new #[Layout('layouts.app')] class extends Component {
     @include('livewire.pages.users.partials.header')
     @if ($showForm) @include('livewire.pages.users.partials.form') @endif
     @include('livewire.pages.users.partials.table')
-    @include('livewire.pages.users.partials.signer-pin')
 </div>

@@ -12,6 +12,7 @@ class EmployeeProfile extends Model
     protected $fillable = [
         'user_id',
         'nip',
+        'nik',
         'pangkat',
         'golongan',
         'status_pegawai',

@@ -12,8 +12,7 @@ use RuntimeException;
 
 class PdfSigningService
 {
-    private const DEFAULT_REASON = 'Dokumen ini telah ditandatangani secara elektronik menggunakan sertifikat elektronik yang diterbitkan oleh Data Administrasi dan Urusan Masyarakat (DANUM).';
-    private const FOOTER_TEXT = 'Dokumen ini telah ditandatangani secara elektronik menggunakan sertifikat elektronik yang diterbitkan oleh DANUM.';
+    private const DEFAULT_REASON = 'Dokumen ini telah ditandatangani secara elektronik menggunakan sertifikat elektronik yang diterbitkan oleh DANUM.';
 
     public function __construct(
         private readonly CertificateAuthorityService $certificateAuthorities,
@@ -29,6 +28,9 @@ class PdfSigningService
         $stage = 'resolve-source-pdf';
         $sourceAbsolutePath = $this->resolveStoragePath($sourcePdfPath);
         if (! is_file($sourceAbsolutePath) || ! is_readable($sourceAbsolutePath)) throw new RuntimeException('PDF sumber untuk tanda tangan tidak ditemukan.');
+        if ((bool) config('services.bsre.enabled')) {
+            throw new \DomainException('BSrE eSign Client belum terhubung. Instal dan konfigurasi modul eSign Client BSrE sebelum mengaktifkan BSRE_ESIGN_ENABLED.');
+        }
         if (! $certificate->isUsable()) throw new \DomainException('Sertifikat TTE penanda tangan tidak aktif, sudah dicabut, atau sudah kedaluwarsa.');
 
         $certificatePem = trim((string) $certificate->certificate_pem);
@@ -65,12 +67,7 @@ class PdfSigningService
 
             try {
                 $stage = 'create-pdf-document';
-                $pdf = new class(self::FOOTER_TEXT) extends \Com\Tecnick\Pdf\Tcpdf {
-                    public function __construct(private readonly string $footerText)
-                    {
-                        parent::__construct();
-                    }
-
+                $pdf = new class extends \Com\Tecnick\Pdf\Tcpdf {
                     public function setDocumentTimestamps(int $timestamp): void
                     {
                         $this->doctime = $timestamp;
@@ -100,7 +97,7 @@ class PdfSigningService
                         $out .= $this->defaultfont['out'];
                         $out .= $this->color->getPdfColor('#555555');
                         $out .= $this->getTextCell(
-                            txt: $this->footerText,
+                            txt: (string) (config('services.bsre.enabled') ? config('services.bsre.footer_text') : 'Dokumen ini telah ditandatangani secara elektronik menggunakan sertifikat elektronik yang diterbitkan oleh DANUM.'),
                             posx: $margin,
                             posy: $footerY,
                             width: $textWidth,
