@@ -28,6 +28,7 @@ class UpdateUserRequest extends FormRequest
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'nip' => ['sometimes', 'nullable', 'string', 'max:18', Rule::unique('employee_profiles', 'nip')->ignore($user?->employeeProfile?->getKey())],
+            'nik' => ['sometimes', 'nullable', 'digits:16', Rule::unique('employee_profiles', 'nik')->ignore($user?->employeeProfile?->getKey())],
             'pangkat' => ['sometimes', 'nullable', 'string', 'max:100'],
             'golongan' => ['sometimes', 'nullable', 'string', 'max:20'],
             'status_pegawai' => ['sometimes', 'nullable', 'string', 'max:50'],
